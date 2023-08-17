@@ -15,7 +15,7 @@
 /// Conforming to this protocol signals to other APIs that the type supports
 /// observation. However, applying the `Observable` protocol by itself to a
 /// type doesn't add observation functionality to the type. Instead, always use
-/// the ``Observation/Observable-swift.macro`` macro when adding observation
+/// the ``Observation/Observable()`` macro when adding observation
 /// support to a type.
 @available(SwiftStdlib 5.9, *)
 public protocol Observable { }
@@ -25,9 +25,8 @@ public protocol Observable { }
 /// Defines and implements conformance of the Observable protocol.
 ///
 /// This macro adds observation support to a custom type and conforms the type
-/// to the ``Observation/Observable-swift.protocol`` protocol. For example, the
-/// following code applies the `Observable` macro to the type `Car` making it
-/// observable:
+/// to the ``Observation/Observable`` protocol. For example, the following code
+/// applies the `Observable` macro to the type `Car` making it observable:
 ///
 ///     @Observable 
 ///     class Car {
@@ -40,11 +39,7 @@ public protocol Observable { }
 ///        }
 ///     }
 @available(SwiftStdlib 5.9, *)
-#if OBSERVATION_SUPPORTS_PEER_MACROS
 @attached(member, names: named(_$observationRegistrar), named(access), named(withMutation))
-#else
-@attached(member, names: named(_$observationRegistrar), named(access), named(withMutation), arbitrary)
-#endif
 @attached(memberAttribute)
 @attached(extension, conformances: Observable)
 public macro Observable() =
@@ -56,9 +51,7 @@ public macro Observable() =
 /// framework isn't necessary.
 @available(SwiftStdlib 5.9, *)
 @attached(accessor, names: named(init), named(get), named(set))
-#if OBSERVATION_SUPPORTS_PEER_MACROS
 @attached(peer, names: prefixed(_))
-#endif
 public macro ObservationTracked() =
   #externalMacro(module: "ObservationMacros", type: "ObservationTrackedMacro")
 

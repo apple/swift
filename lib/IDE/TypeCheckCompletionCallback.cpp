@@ -52,8 +52,6 @@ Type swift::ide::getTypeForCompletion(const constraints::Solution &S,
     return nullptr;
   }
 
-  auto &CS = S.getConstraintSystem();
-
   Type Result;
 
   if (isExpr<CodeCompletionExpr>(Node)) {
@@ -62,9 +60,9 @@ Type swift::ide::getTypeForCompletion(const constraints::Solution &S,
     Result = S.getResolvedType(Node);
   }
 
-  if (!Result || Result->is<UnresolvedType>()) {
-    Result = CS.getContextualType(Node, /*forConstraint=*/false);
-  }
+  if (!Result || Result->is<UnresolvedType>())
+    Result = S.getContextualType(Node);
+
   if (Result && Result->is<UnresolvedType>()) {
     Result = Type();
   }

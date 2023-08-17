@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import SIL
+import OptimizerBridging
 
 extension Value {
   var nonDebugUses: LazyFilterSequence<UseList> {
@@ -145,6 +146,99 @@ extension Instruction {
     return !mayReadOrWriteMemory && !hasUnspecifiedSideEffects
   }
 }
+
+extension StoreInst {
+  func trySplit(_ context: FunctionPassContext) {
+    let builder = Builder(after: self, context)
+    let type = source.type
+    if type.isStruct {
+      if type.nominal.isStructWithUnreferenceableStorage {
+        return
+      }
+      if parentFunction.hasOwnership && source.ownership != .none {
+        let destructure = builder.createDestructureStruct(struct: source)
+        for (fieldIdx, fieldValue) in destructure.results.enumerated() {
+          let destFieldAddr = builder.createStructElementAddr(structAddress: destination, fieldIndex: fieldIdx)
+          builder.createStore(source: fieldValue, destination: destFieldAddr, ownership: splitOwnership(for: fieldValue))
+        }
+      } else {
+        for idx in 0..<type.getNominalFields(in: parentFunction).count {
+          let srcField = builder.createStructExtract(struct: source, fieldIndex: idx)
+          let fieldAddr = builder.createStructElementAddr(structAddress: destination, fieldIndex: idx)
+          builder.createStore(source: srcField, destination: fieldAddr, ownership: splitOwnership(for: srcField))
+        }
+      }
+    } else if type.isTuple {
+      if parentFunction.hasOwnership && source.ownership != .none {
+        let destructure = builder.createDestructureTuple(tuple: source)
+        for (elementIdx, elementValue) in destructure.results.enumerated() {
+          let elementAddr = builder.createTupleElementAddr(tupleAddress: destination, elementIndex: elementIdx)
+          builder.createStore(source: elementValue, destination: elementAddr, ownership: splitOwnership(for: elementValue))
+        }
+      } else {
+        for idx in 0..<type.tupleElements.count {
+          let srcField = builder.createTupleExtract(tuple: source, elementIndex: idx)
+          let destFieldAddr = builder.createTupleElementAddr(tupleAddress: destination, elementIndex: idx)
+          builder.createStore(source: srcField, destination: destFieldAddr, ownership: splitOwnership(for: srcField))
+        }
+      }
+    } else {
+      return
+    }
+    context.erase(instruction: self)
+  }
+
+  private func splitOwnership(for fieldValue: Value) -> StoreOwnership {
+    switch self.storeOwnership {
+    case .trivial, .unqualified:
+      return self.storeOwnership
+    case .assign, .initialize:
+      return fieldValue.type.isTrivial(in: parentFunction) ? .trivial : self.storeOwnership
+    }
+  }
+}
+
+extension LoadInst {
+  func trySplit(_ context: FunctionPassContext) {
+    var elements = [Value]()
+    let builder = Builder(before: self, context)
+    if type.isStruct {
+      if type.nominal.isStructWithUnreferenceableStorage {
+        return
+      }
+      for idx in 0..<type.getNominalFields(in: parentFunction).count {
+        let fieldAddr = builder.createStructElementAddr(structAddress: address, fieldIndex: idx)
+        let splitLoad = builder.createLoad(fromAddress: fieldAddr, ownership: self.splitOwnership(for: fieldAddr))
+        elements.append(splitLoad)
+      }
+      let newStruct = builder.createStruct(type: self.type, elements: elements)
+      self.uses.replaceAll(with: newStruct, context)
+    } else if type.isTuple {
+      var elements = [Value]()
+      let builder = Builder(before: self, context)
+      for idx in 0..<type.tupleElements.count {
+        let fieldAddr = builder.createTupleElementAddr(tupleAddress: address, elementIndex: idx)
+        let splitLoad = builder.createLoad(fromAddress: fieldAddr, ownership: self.splitOwnership(for: fieldAddr))
+        elements.append(splitLoad)
+      }
+      let newTuple = builder.createTuple(type: self.type, elements: elements)
+      self.uses.replaceAll(with: newTuple, context)
+    } else {
+      return
+    }
+    context.erase(instruction: self)
+  }
+
+  private func splitOwnership(for fieldValue: Value) -> LoadOwnership {
+    switch self.loadOwnership {
+    case .trivial, .unqualified:
+      return self.loadOwnership
+    case .copy, .take:
+      return fieldValue.type.isTrivial(in: parentFunction) ? .trivial : self.loadOwnership
+    }
+  }
+}
+
 
 extension UseList {
   var singleNonDebugUse: Operand? {
@@ -303,3 +397,65 @@ extension Function {
   }
 }
 
+extension FullApplySite {
+  var canInline: Bool {
+    // Some checks which are implemented in C++
+    if !FullApplySite_canInline(bridged) {
+      return false
+    }
+    // Cannot inline a non-inlinable function it an inlinable function.
+    if parentFunction.isSerialized,
+       let calleeFunction = referencedFunction,
+       !calleeFunction.isSerialized {
+      return false
+    }
+    return true
+  }
+
+  var inliningCanInvalidateStackNesting: Bool {
+    guard let calleeFunction = referencedFunction else {
+      return false
+    }
+
+    // In OSSA `partial_apply [on_stack]`s are represented as owned values rather than stack locations.
+    // It is possible for their destroys to violate stack discipline.
+    // When inlining into non-OSSA, those destroys are lowered to dealloc_stacks.
+    // This can result in invalid stack nesting.
+    if calleeFunction.hasOwnership && !parentFunction.hasOwnership {
+      return true
+    }
+    // Inlining of coroutines can result in improperly nested stack allocations.
+    if self is BeginApplyInst {
+      return true
+    }
+    return false
+  }
+}
+
+extension GlobalVariable {
+  /// Removes all `begin_access` and `end_access` instructions from the initializer.
+  ///
+  /// Access instructions are not allowed in the initializer, because the initializer must not contain
+  /// instructions with side effects (initializer instructions are not executed).
+  /// Exclusivity checking does not make sense in the initializer.
+  ///
+  /// The initializer functions of globals, which reference other globals by address, contain access
+  /// instructions. After the initializing code is copied to the global's initializer, those access
+  /// instructions must be stripped.
+  func stripAccessInstructionFromInitializer(_ context: FunctionPassContext) {
+    guard let initInsts = staticInitializerInstructions else {
+      return
+    }
+    for initInst in initInsts {
+      switch initInst {
+      case let beginAccess as BeginAccessInst:
+        beginAccess.uses.replaceAll(with: beginAccess.address, context)
+        context.erase(instruction: beginAccess)
+      case let endAccess as EndAccessInst:
+        context.erase(instruction: endAccess)
+      default:
+        break
+      }
+    }
+  }
+}

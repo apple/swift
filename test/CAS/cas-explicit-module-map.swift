@@ -110,12 +110,32 @@
 
 // RUN: %target-swift-frontend -emit-module -emit-module-path %t/Foo.swiftmodule -disable-implicit-swift-modules -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid -Rmodule-loading -Xcc -Rmodule-import %s -cache-compile-job -cas-path %t/cas -allow-unstable-cache-key-for-testing 2>&1 | %FileCheck %s
 
+// RUN: %target-swift-frontend -typecheck -emit-module-interface-path %t/Foo.swiftinterface -disable-implicit-swift-modules -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid %s -cache-compile-job -cas-path %t/cas -allow-unstable-cache-key-for-testing -swift-version 5 -enable-library-evolution
+// RUN: %cache-tool -cas-path %t/cas -cache-tool-action print-output-keys -- \
+// RUN:   %target-swift-frontend -typecheck -emit-module-interface-path %t/Foo.swiftinterface -disable-implicit-swift-modules \
+// RUN:   -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid %s -cache-compile-job \
+// RUN:   -cas-path %t/cas -allow-unstable-cache-key-for-testing  -swift-version 5 -enable-library-evolution > %t/keys.json
+
+// RUN: %S/Inputs/ExtractOutputKey.py %t/keys.json %t/Foo.swiftinterface > %t/interface.casid
+// RUN: %target-swift-frontend -typecheck-module-from-interface %t/Foo.swiftinterface -disable-implicit-swift-modules \
+// RUN:   -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid  \
+// RUN:   -cache-compile-job -cas-path %t/cas -allow-unstable-cache-key-for-testing -swift-version 5 -enable-library-evolution \
+// RUN:   -explicit-interface-module-build -Rcache-compile-job 2>&1 | %FileCheck %s --check-prefix=VERIFY-OUTPUT --check-prefix=CACHE-MISS
+// RUN: %target-swift-frontend -typecheck-module-from-interface %t/Foo.swiftinterface -disable-implicit-swift-modules \
+// RUN:   -module-cache-path %t.module-cache -explicit-swift-module-map-file @%t/map.casid  \
+// RUN:   -cache-compile-job -cas-path %t/cas -allow-unstable-cache-key-for-testing -swift-version 5 -enable-library-evolution \
+// RUN:   -explicit-interface-module-build -Rcache-compile-job 2>&1 | %FileCheck %s --check-prefix=VERIFY-OUTPUT --check-prefix=CACHE-HIT
+
 // CHECK-DAG: loaded module 'A'
 // CHECK-DAG: loaded module 'B'
 // CHECK-DAG: loaded module 'Swift'
 // CHECK-DAG: loaded module '_StringProcessing'
 // CHECK-DAG: loaded module '_Concurrency'
 // CHECK-DAG: loaded module 'SwiftOnoneSupport'
+
+// CACHE-MISS: remark: cache miss output file
+// VERIFY-OUTPUT: warning: module 'A' was not compiled with library evolution support
+// CACHE-HIT: remark: replay output file
 
 //--- A.swift
 func test() {}

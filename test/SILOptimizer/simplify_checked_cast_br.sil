@@ -12,14 +12,14 @@ class X : B {}
 
 // CHECK-LABEL: sil @test_non_ossa :
 // CHECK:         %0 = alloc_ref
-// CHECK:         checked_cast_br %0 : $X
+// CHECK:         checked_cast_br AnyObject in %0 : $X
 // CHECK:       } // end sil function 'test_non_ossa'
 sil @test_non_ossa : $@convention(thin) () -> AnyObject {
 bb0:
   %0 = alloc_ref $X
   %1 = upcast %0 : $X to $B
   %2 = init_existential_ref %1 : $B : $B, $AnyObject
-  checked_cast_br %2 : $AnyObject to X, bb1, bb2
+  checked_cast_br AnyObject in %2 : $AnyObject to X, bb1, bb2
 
 bb1(%5 : $X):
   strong_release %5 : $X
@@ -31,8 +31,8 @@ bb2:
 
 // CHECK-LABEL: sil [ossa] @test_ossa :
 // CHECK:         %0 = alloc_ref
-// CHECK-O-NEXT:  checked_cast_br %0 : $X
-// CHECK-ONONE:   checked_cast_br %2 : $AnyObject
+// CHECK-O-NEXT:  checked_cast_br AnyObject in %0 : $X
+// CHECK-ONONE:   checked_cast_br AnyObject in %2 : $AnyObject
 // CHECK-O:     bb2([[A:%.*]] : @owned $X):
 // CHECK-O-NEXT:  [[U:%.*]] = upcast [[A]] : $X to $B
 // CHECK-O-NEXT:  [[E:%.*]] = init_existential_ref [[U]] : $B
@@ -45,7 +45,7 @@ bb0:
   %1 = upcast %0 : $X to $B
   %2 = init_existential_ref %1 : $B : $B, $AnyObject
   debug_value %2 : $AnyObject, name "x"
-  checked_cast_br %2 : $AnyObject to X, bb1, bb2
+  checked_cast_br AnyObject in %2 : $AnyObject to X, bb1, bb2
 
 bb1(%5 : @owned $X):
   return %5 : $X
@@ -56,14 +56,14 @@ bb2(%7 : @owned $AnyObject):
 }
 
 // CHECK-LABEL: sil [ossa] @test_ossa_multiple_uses :
-// CHECK:         checked_cast_br %1 : $B
+// CHECK:         checked_cast_br B in %1 : $B
 // CHECK:       } // end sil function 'test_ossa_multiple_uses'
 sil [ossa] @test_ossa_multiple_uses : $@convention(thin) () -> @owned X {
 bb0:
   %0 = alloc_ref $X
   %1 = upcast %0 : $X to $B
   fix_lifetime %1 : $B
-  checked_cast_br %1 : $B to X, bb1, bb2
+  checked_cast_br B in %1 : $B to X, bb1, bb2
 
 bb1(%5 : @owned $X):
   return %5 : $X
@@ -75,7 +75,7 @@ bb2(%7 : @owned $B):
 
 // CHECK-LABEL: sil [ossa] @test_borrow :
 // CHECK:         %1 = begin_borrow
-// CHECK-NEXT:    checked_cast_br %1 : $X
+// CHECK-NEXT:    checked_cast_br any P in %1 : $X
 // CHECK:       bb2([[A:%.*]] : @guaranteed $X):
 // CHECK-NEXT:    [[U:%.*]] = upcast [[A]] : $X to $B
 // CHECK-NEXT:    [[E:%.*]] = init_existential_ref [[U]] : $B
@@ -87,7 +87,7 @@ bb0:
   %1 = begin_borrow %0 : $X
   %2 = upcast %1 : $X to $B
   %3 = init_existential_ref %2 : $B : $B, $P
-  checked_cast_br %3 : $P to X, bb1, bb2
+  checked_cast_br P in %3 : $P to X, bb1, bb2
 
 bb1(%5 : @guaranteed $X):
   end_borrow %1 : $X

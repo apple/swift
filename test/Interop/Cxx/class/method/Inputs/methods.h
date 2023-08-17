@@ -4,6 +4,11 @@
 struct __attribute__((swift_attr("import_unsafe"))) NonTrivialInWrapper {
   int value;
 
+  NonTrivialInWrapper(int value) : value(value) {}
+
+  // explicit copy constructor is needed, as on Windows a destructor
+  // still makes this a type that's passed in registers.
+  NonTrivialInWrapper(const NonTrivialInWrapper &other) : value(other.value) {}
   ~NonTrivialInWrapper() { }
 };
 

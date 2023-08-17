@@ -17,7 +17,7 @@ class B : A {}
 sil @test_checked_casts_of_metatypes : $@convention(thin) () -> Builtin.Int1 {
 bb0:
   %0 = metatype $@thick B.Type.Type
-  checked_cast_br %0 : $@thick B.Type.Type to @thick A.Type.Type, bb1, bb2
+  checked_cast_br B.Type.Type in %0 : $@thick B.Type.Type to @thick A.Type.Type, bb1, bb2
 
 bb1(%2 : $@thick A.Type.Type):
   %3 = integer_literal $Builtin.Int1, -1

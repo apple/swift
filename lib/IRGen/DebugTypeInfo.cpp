@@ -37,11 +37,12 @@ DebugTypeInfo::DebugTypeInfo(swift::Type Ty, llvm::Type *FragmentStorageTy,
   assert(Align.getValue() != 0);
 }
 
-/// Determine whether this type has a custom @_alignment attribute.
+/// Determine whether this type has an attribute specifying a custom alignment.
 static bool hasDefaultAlignment(swift::Type Ty) {
   if (auto CanTy = Ty->getCanonicalType())
     if (auto *TyDecl = CanTy.getNominalOrBoundGenericNominal())
-      if (TyDecl->getAttrs().getAttribute<AlignmentAttr>())
+      if (TyDecl->getAttrs().getAttribute<AlignmentAttr>()
+          || TyDecl->getAttrs().getAttribute<RawLayoutAttr>())
         return false;
   return true;
 }
@@ -119,7 +120,7 @@ DebugTypeInfo DebugTypeInfo::getGlobal(SILGlobalVariable *GV,
   auto LowTy = GV->getLoweredType().getASTType();
   auto *Type = LowTy.getPointer();
   if (auto *Decl = GV->getDecl()) {
-    auto DeclType = Decl->getType();
+    auto DeclType = Decl->getTypeInContext();
     if (DeclType->isEqual(LowTy))
       Type = DeclType.getPointer();
   }
@@ -140,7 +141,7 @@ DebugTypeInfo::getGlobalFixedBuffer(SILGlobalVariable *GV,
   auto LowTy = GV->getLoweredType().getASTType();
   auto *Type = LowTy.getPointer();
   if (auto *Decl = GV->getDecl()) {
-    auto DeclType = Decl->getType();
+    auto DeclType = Decl->getTypeInContext();
     if (DeclType->isEqual(LowTy))
       Type = DeclType.getPointer();
   }

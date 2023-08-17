@@ -15,6 +15,7 @@
 #define REGEX_PARSER_BRIDGING
 
 #include "swift/AST/ASTBridging.h"
+#include "swift/Basic/Nullability.h"
 #include <stdbool.h>
 
 /// Attempt to lex a regex literal string. Takes the following arguments:

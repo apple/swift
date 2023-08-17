@@ -832,6 +832,108 @@ Fully bypasses access control, allowing access to private declarations
 in the imported module. The imported module needs to be compiled with
 `-Xfrontend -enable-private-imports` for this to work.
 
+## `@_rawLayout(...)`
+
+Specifies the declared type consists of raw storage. The type must be
+noncopyable, and declare no stored properties.
+Raw storage is left almost entirely unmanaged by the language, and so
+can be used as storage for data structures with nonstandard access patterns
+including atomics and many kinds of locks such as `os_unfair_lock` on Darwin
+or `futex` on Linux, to replicate the behavior of things
+like C++'s `mutable` fields or Rust's `Cell<T>` type which allow for mutation
+in typically immutable contexts, and/or to provide inline storage for data
+structures that may be conditionally initialized, such as a "small vector"
+which stores up to N elements in inline storage but spills into heap allocation
+past a threshold.
+
+Programmers can safely make the following assumptions about
+the memory of the annotated type:
+
+- A value has a **stable address** until it is either consumed or moved.
+  No value of any type in Swift can ever be moved while it is being borrowed or
+  mutated, so for a `@_rawLayout` type, the address of `self` within a
+  `borrowing` or `mutating` method cannot change within the function body, and
+  the same is true more generally for the address of any `@_rawLayout` typed
+  parameter that is `borrowing` or `mutating` in any function or method.
+  Values that appear in a global variable or class stored property can never be
+  moved, and can only be consumed by the deallocation of the containing object
+  instance, so effectively has a stable address for their entire lifetime.
+- A value's memory **may be read and mutated at any time** independent of
+  formal accesses. In particular, pointers into the storage may be "escaped"
+  outside of scopes where the address is statically guaranteed to be stable,
+  and those pointers may be used freely for as long as the storage dynamically
+  isn't consumed or moved. It becomes the programmer's responsibility in this
+  case to ensure that reads and writes to the storage do not race across
+  threads, writes don't overlap with reads or writes coming from the same
+  thread, and that the pointer is not used after the value is moved or
+  consumed.
+- When the value is moved, a bitwise copy of its memory is performed to the new
+  address of the value in its new owner. As currently implemented, raw storage
+  types are not suitable for storing values which are not bitwise-movable, such
+  as nontrivial C++ types, Objective-C weak references, and data structures
+  such as `pthread_mutex_t` which are implemented in C as always requiring a
+  fixed address.
+
+Using the `@_rawLayout` attribute will suppress the annotated type from
+being implicitly `Sendable`. If the type is safe to access across threads, it
+may be declared to conform to `@unchecked Sendable`, with the usual level
+of programmer-assumed responsibility that involves. This generally means that
+any mutations must be done atomically or with a lock guard, and if the storage
+is ever mutated, then any reads of potentially-mutated state within the storage
+must also be atomic or lock-guarded, because the storage may be accessed
+simultaneously by multiple threads.
+
+A non-Sendable type's memory will be confined to accesses from a single thread
+or task; however, since most mutating operations in Swift still expect
+exclusivity while executing, a programmer must ensure that overlapping
+mutations cannot occur from aliasing, recursion, reentrancy, signal handlers, or
+other potential sources of overlapping access within the same thread.
+
+The parameters to the attribute specify the layout of the type. The following
+forms are currently accepted:
+
+- `@_rawLayout(size: N, alignment: M)` specifies the type's size and alignment
+  in bytes.
+- `@_rawLayout(like: T)` specifies the type's size and alignment should be
+  equal to the type `T`'s.
+- `@_rawLayout(likeArrayOf: T, count: N)` specifies the type's size should be
+  `MemoryLayout<T>.stride * N` and alignment should match `T`'s, like an
+  array of N contiguous elements of `T` in memory.
+
+A notable difference between `@_rawLayout(like: T)` and
+`@_rawLayout(likeArrayOf: T, count: 1)` is that the latter will pad out the
+size of the raw storage to include the full stride of the single element.
+This ensures that the buffer can be safely used with bulk array operations
+despite containing only a single element. `@_rawLayout(like: T)` by contrast
+will exactly match the size and stride of the original type `T`, allowing for
+other values to be stored in the tail padding when the raw layout type appears
+in a larger aggregate.
+
+```
+// struct Weird has size 5, stride 8, alignment 4
+struct Weird {
+    var x: Int32
+    var y: Int8
+}
+
+// struct LikeWeird has size 5, stride 8, alignment 4
+@_rawLayout(like: Weird)
+struct LikeWeird { }
+
+// struct LikeWeirdSingleArray has **size 8**, stride 8, alignment 4
+@_rawLayout(likeArrayOf: Weird, count: 1)
+struct LikeWeirdSingleArray { }
+```
+
+Although the `like:` and `likeArrayOf:count:` forms will produce raw storage
+with the size and alignment of another type, the memory is **not** implicitly
+*bound* to that type, as *bound* is defined by `UnsafePointer` and
+`UnsafeMutablePointer`. The memory can be accessed as raw memory
+if it is never explicitly bound using a typed pointer method like
+`withMemoryRebound(to:)` or `bindMemory(to:)`. However, if the raw memory is
+bound, it must only be used with compatible typed memory accesses for as long
+as the binding is active.
+
 ## `@_section("section_name")`
 
 Places a global variable or a top-level function into a section of the object

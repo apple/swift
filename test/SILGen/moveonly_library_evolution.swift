@@ -38,14 +38,8 @@ public struct DeinitTest : ~Copyable {
 // CHECK: bb0([[ARG:%.*]] : @guaranteed $CopyableKlass):
 // CHECK:    [[ADDR:%.*]] = ref_element_addr [[ARG]]
 // CHECK:    [[MARKED_ADDR:%.*]] = mark_must_check [no_consume_or_assign] [[ADDR]]
-// CHECK:    [[LOADED_VALUE:%.*]] = load [copy] [[MARKED_ADDR]]
-// CHECK:    [[BORROWED_LOADED_VALUE:%.*]] = begin_borrow [[LOADED_VALUE]]
-// CHECK:    [[EXT:%.*]] = struct_extract [[BORROWED_LOADED_VALUE]]
-// CHECK:    [[SPILL:%.*]] = alloc_stack $EmptyStruct
-// CHECK:    [[STORE_BORROW:%.*]] = store_borrow [[EXT]] to [[SPILL]]
-// CHECK:    apply {{%.*}}([[STORE_BORROW]]) : $@convention(thin) (@in_guaranteed EmptyStruct) -> ()
-// CHECK:    end_borrow [[STORE_BORROW]]
-// CHECK:    end_borrow [[BORROWED_LOADED_VALUE]]
+// CHECK:    [[GEP:%.*]] = struct_element_addr [[MARKED_ADDR]]
+// CHECK:    apply {{%.*}}([[GEP]]) : $@convention(thin) (@in_guaranteed EmptyStruct) -> ()
 // CHECK: } // end sil function '$s26moveonly_library_evolution29callerArgumentSpillingTestArgyyAA13CopyableKlassCF'
 public func callerArgumentSpillingTestArg(_ x: CopyableKlass) {
     borrowVal(x.letStruct.e)

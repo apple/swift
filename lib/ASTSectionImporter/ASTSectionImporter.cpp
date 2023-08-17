@@ -26,13 +26,32 @@
 
 using namespace swift;
 
-bool swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
-                            StringRef buf,
-                            const llvm::Triple &filter,
-                            SmallVectorImpl<std::string> &foundModules) {
-  if (!serialization::isSerializedAST(buf))
-    return false;
+std::string ASTSectionParseError::toString() const {
+  std::string S;
+  llvm::raw_string_ostream SS(S);
+  SS << serialization::StatusToString(Error);
+  if (!ErrorMessage.empty())
+    SS << ": " << ErrorMessage;
+  return SS.str();
+}
 
+void ASTSectionParseError::log(raw_ostream &OS) const { OS << toString(); }
+
+std::error_code ASTSectionParseError::convertToErrorCode() const {
+  llvm_unreachable("Function not implemented.");
+}
+
+char ASTSectionParseError::ID;
+
+llvm::Expected<SmallVector<std::string, 4>>
+swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
+                       StringRef buf,
+                       const llvm::Triple &filter) {
+  if (!serialization::isSerializedAST(buf))
+    return llvm::make_error<ASTSectionParseError>(
+        serialization::Status::Malformed);
+
+  SmallVector<std::string, 4> foundModules;
   bool haveFilter = filter.getOS() != llvm::Triple::UnknownOS &&
                    filter.getArch() != llvm::Triple::UnknownArch;
   // An AST section consists of one or more AST modules, optionally with
@@ -44,6 +63,8 @@ bool swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
 
     assert(info.name.size() < (2 << 10) && "name failed sanity check");
 
+    std::string error;
+    llvm::raw_string_ostream errs(error);
     if (info.status == serialization::Status::Valid) {
       assert(info.bytes != 0);
       bool selected = true;
@@ -62,23 +83,38 @@ bool swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
         foundModules.push_back(info.name.str());
       }
     } else {
-      llvm::dbgs() << "Unable to load module";
+      errs << "Unable to load module";
       if (!info.name.empty())
-        llvm::dbgs() << " '" << info.name << '\'';
-      llvm::dbgs() << ".\n";
+        errs << " '" << info.name << '\'';
+      errs << ".";
     }
 
     if (info.bytes == 0)
-      return false;
+      return llvm::make_error<ASTSectionParseError>(info.status, errs.str());
 
     if (info.bytes > buf.size()) {
-      llvm::dbgs() << "AST section too small.\n";
-      return false;
+      errs << "AST section too small.";
+      return llvm::make_error<ASTSectionParseError>(
+          serialization::Status::Malformed, errs.str());
     }
 
     buf = buf.substr(
       llvm::alignTo(info.bytes, swift::serialization::SWIFTMODULE_ALIGNMENT));
   }
 
+  return foundModules;
+}
+
+bool swift::parseASTSection(MemoryBufferSerializedModuleLoader &Loader,
+                            StringRef buf,
+                            const llvm::Triple &filter,
+                            SmallVectorImpl<std::string> &foundModules) {
+  auto Result = parseASTSection(Loader, buf, filter);
+  if (auto E = Result.takeError()) {
+    llvm::dbgs() << toString(std::move(E));
+    return false;
+  }
+  for (auto m : *Result)
+    foundModules.push_back(m);
   return true;
 }

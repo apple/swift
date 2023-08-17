@@ -144,9 +144,9 @@ expansionOrder.originalMember = 28
 #if TEST_DIAGNOSTICS
 @wrapAllProperties
 typealias A = Int
-// expected-error@-1{{'memberAttribute' macro cannot be attached to type alias}}
+// expected-error@-2{{'memberAttribute' macro cannot be attached to type alias ('A')}}
 
 @wrapAllProperties
 func noMembers() {}
-// expected-error@-1{{'memberAttribute' macro cannot be attached to global function}}
+// expected-error@-2{{'memberAttribute' macro cannot be attached to global function ('noMembers')}}
 #endif

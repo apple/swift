@@ -589,9 +589,8 @@ public:
 
   const SILOptions &getOptions() const { return Options; }
   const IRGenOptions *getIRGenOptionsOrNull() const {
-    // We don't want to serialize target specific SIL.
-    assert(isSerialized() &&
-           "Target specific options must not be used before serialization");
+    // This exposes target specific information, therefore serialized SIL
+    // is also target specific.
     return irgenOptions;
   }
 
@@ -1079,26 +1078,7 @@ namespace Lowering {
 /// Determine whether the given class will be allocated/deallocated using the
 /// Objective-C runtime, i.e., +alloc and -dealloc.
 LLVM_LIBRARY_VISIBILITY bool usesObjCAllocator(ClassDecl *theClass);
-
-/// Returns true if SIL/IR lowering for the given declaration should be skipped.
-/// A declaration may not require lowering if, for example, it is annotated as
-/// unavailable and optimization settings allow it to be omitted.
-LLVM_LIBRARY_VISIBILITY bool shouldSkipLowering(const Decl *D);
-
-/// Returns true if SIL/IR lowering for the given declaration should produce
-/// a stub that traps at runtime because the code ought to be unreachable.
-LLVM_LIBRARY_VISIBILITY bool shouldLowerToUnavailableCodeStub(const Decl *D);
 } // namespace Lowering
-
-/// Apply the given function to each ABI member of \c D skipping the members
-/// that should be skipped according to \c shouldSkipLowering()
-template <typename F>
-void forEachMemberToLower(IterableDeclContext *D, F &&f) {
-  for (auto *member : D->getABIMembers()) {
-    if (!Lowering::shouldSkipLowering(member))
-      f(member);
-  }
-}
 } // namespace swift
 
 #endif

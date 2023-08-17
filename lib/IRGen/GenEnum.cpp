@@ -263,7 +263,7 @@ EnumImplStrategy::getTagIndex(EnumElementDecl *Case) const {
 static void emitResilientTagIndex(IRGenModule &IGM,
                                   const EnumImplStrategy *strategy,
                                   EnumElementDecl *Case) {
-  if (Lowering::shouldSkipLowering(Case))
+  if (!Case->isAvailableDuringLowering())
     return;
 
   auto resilientIdx = strategy->getTagIndex(Case);
@@ -6175,7 +6175,7 @@ EnumImplStrategy::get(TypeConverter &TC, SILType type, EnumDecl *theEnum) {
 
     // For the purposes of memory layout, treat unavailable cases as if they do
     // not have a payload.
-    if (Lowering::shouldSkipLowering(elt)) {
+    if (!elt->isAvailableDuringLowering()) {
       elementsWithNoPayload.push_back({elt, nullptr, nullptr});
       continue;
     }

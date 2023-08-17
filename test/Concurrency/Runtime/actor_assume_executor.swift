@@ -115,14 +115,17 @@ final class MainActorEcho {
         await MainFriend().callCheck(echo: echo)
       }
 
+      #if !os(WASI)
       tests.test("MainActor.assumeIsolated: wrongly assume the main executor, from actor on other executor") {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected 'MainActor' executor.")
         await Someone().callCheckMainActor(echo: echo)
       }
+      #endif
 
       // === some Actor -------------------------------------------------------
 
       let someone = Someone()
+      #if !os(WASI)
       tests.test("assumeOnActorExecutor: wrongly assume someone's executor, from 'main() async'") {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected same executor as a.Someone.")
         checkAssumeSomeone(someone: someone)
@@ -132,6 +135,7 @@ final class MainActorEcho {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected same executor as a.Someone.")
         checkAssumeSomeone(someone: someone)
       }
+      #endif
 
       tests.test("assumeOnActorExecutor: assume someone's executor, from Someone") {
         await someone.callCheckSomeone()
@@ -141,11 +145,12 @@ final class MainActorEcho {
         await SomeonesFriend(someone: someone).callCheckSomeone()
       }
 
+      #if !os(WASI)
       tests.test("assumeOnActorExecutor: wrongly assume the main executor, from actor on other executor") {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected same executor as a.Someone.")
         await CompleteStranger(someone: someone).callCheckSomeone()
       }
-
+      #endif
 
     }
 

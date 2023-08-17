@@ -12,7 +12,7 @@ protocol P {
 }
 
 extension Builtin.TheTupleType: P where repeat each Elements: P {
-  typealias A = (repeat each Elements.A)
+  typealias A = (repeat (each Elements).A)
   typealias B = Float
   func f() {}
 }
@@ -33,4 +33,26 @@ func useConformance() {
   same(returnsPB((1, 2, 3)), Float.self)
 
   (1, 2, 3).f()
+}
+
+////
+
+extension Builtin.TheTupleType: Equatable where repeat each Elements: Equatable {
+  // FIXME: Hack
+  @_disfavoredOverload
+  public static func ==(lhs: Self, rhs: Self) -> Bool {
+    var result = true
+    func update<E: Equatable>(lhs: E, rhs: E) {
+      result = result && (lhs == rhs)
+    }
+
+    repeat update(lhs: each lhs, rhs: each rhs)
+    return result
+  }
+}
+
+extension Builtin.TheTupleType: Hashable where repeat each Elements: Hashable {
+  public func hash(into hasher: inout Hasher) {
+    repeat (each self).hash(into: &hasher)
+  }
 }

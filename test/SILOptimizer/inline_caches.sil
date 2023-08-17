@@ -17,7 +17,7 @@ sil @_TFC8testcase3FoocfMS0_FT_S0_ : $@convention(method) (@owned Foo) -> @owned
 sil @_TF8testcase7my_mainFCS_3FooT_ : $@convention(thin) (@owned Foo) -> () {
 bb0(%0 : $Foo):
 
-//CHECK: checked_cast_br [exact] %0 : $Foo to Foo
+//CHECK: checked_cast_br [exact] Foo in %0 : $Foo to Foo
 
 //CHECK: function_ref @_TFC8testcase3Foo4pingfS0_FT_T_
 //CHECK: apply
@@ -52,7 +52,7 @@ sil @_TZFC4spec1C3barfMS0_FT_T_ : $@convention(method) (@thick C.Type) -> () {
   // CHECK: bb0
 bb0(%0 : $@thick C.Type):
   // CHECK-NOT: class_method
-  // CHECK: checked_cast_br [exact] %0 : $@thick C.Type to @thick C.Type, bb2, bb3
+  // CHECK: checked_cast_br [exact] @thick C.Type in %0 : $@thick C.Type to @thick C.Type, bb2, bb3
   // CHECK: bb1
   // CHECK: return
   // CHECK: bb2

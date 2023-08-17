@@ -18,13 +18,13 @@ let globalConst: Float = 1
 var globalVar: Float = 1
 
 func testLocalVariables() {
-  // expected-error @+1 {{'_' has no parameters to differentiate with respect to}}
+  // expected-error @+1 {{getter for 'getter' has no parameters to differentiate with respect to}}
   @differentiable(reverse)
   var getter: Float {
     return 1
   }
 
-  // expected-error @+1 {{'_' has no parameters to differentiate with respect to}}
+  // expected-error @+1 {{getter for 'getterSetter' has no parameters to differentiate with respect to}}
   @differentiable(reverse)
   var getterSetter: Float {
     get { return 1 }
@@ -681,7 +681,7 @@ struct InoutParameters: Differentiable {
 }
 
 extension NonDiffableStruct {
-  // expected-error @+1 {{can only differentiate functions with results that conform to 'Differentiable', but 'NonDiffableStruct' does not conform to 'Differentiable'}}
+  // expected-error @+1 {{cannot differentiate void function 'nondiffResult(x:y:z:)'}}
   @differentiable(reverse)
   static func nondiffResult(x: Int, y: inout NonDiffableStruct, z: Float) {}
 

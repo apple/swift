@@ -445,7 +445,7 @@ bb0(%0 : $B):
   store %0 to %1a : $*B
   %3 = load %1a : $*B
   strong_retain %3 : $B
-  checked_cast_br %3 : $B to E, yes, no     // CHECK: checked_cast_br
+  checked_cast_br B in %3 : $B to E, yes, no     // CHECK: checked_cast_br
 yes(%5 : $E):
   %y = integer_literal $Builtin.Int1, 1
   br isa(%y : $Builtin.Int1)

@@ -493,6 +493,19 @@ DerivedConformance::createBuiltinCall(ASTContext &ctx,
   return call;
 }
 
+CallExpr *DerivedConformance::createDiagnoseUnavailableCodeReachedCallExpr(
+    ASTContext &ctx) {
+  FuncDecl *diagnoseDecl = ctx.getDiagnoseUnavailableCodeReached();
+  auto diagnoseDeclRefExpr =
+      new (ctx) DeclRefExpr(diagnoseDecl, DeclNameLoc(), true);
+  diagnoseDeclRefExpr->setType(diagnoseDecl->getInterfaceType());
+  auto argList = ArgumentList::createImplicit(ctx, {});
+  auto callExpr = CallExpr::createImplicit(ctx, diagnoseDeclRefExpr, argList);
+  callExpr->setType(ctx.getNeverType());
+  callExpr->setThrows(false);
+  return callExpr;
+}
+
 AccessorDecl *DerivedConformance::
 addGetterToReadOnlyDerivedProperty(VarDecl *property,
                                    Type propertyContextType) {
@@ -581,8 +594,7 @@ bool DerivedConformance::checkAndDiagnoseDisallowedContext(
       Nominal->getModuleScopeContext() !=
           getConformanceContext()->getModuleScopeContext()) {
     ConformanceDecl->diagnose(diag::cannot_synthesize_in_crossfile_extension,
-                              Nominal->getDescriptiveKind(), Nominal->getName(),
-                              synthesizing->getName(),
+                              Nominal, synthesizing->getName(),
                               getProtocolType());
     Nominal->diagnose(diag::kind_declared_here, DescriptiveDeclKind::Type);
 
@@ -743,7 +755,7 @@ DeclRefExpr *DerivedConformance::convertEnumToIndex(SmallVectorImpl<ASTNode> &st
                                        AbstractFunctionDecl *funcDecl,
                                        const char *indexName) {
   ASTContext &C = enumDecl->getASTContext();
-  Type enumType = enumVarDecl->getType();
+  Type enumType = enumVarDecl->getTypeInContext();
   Type intType = C.getIntType();
 
   auto indexVar = new (C) VarDecl(/*IsStatic*/false, VarDecl::Introducer::Var,
@@ -762,6 +774,13 @@ DeclRefExpr *DerivedConformance::convertEnumToIndex(SmallVectorImpl<ASTNode> &st
   unsigned index = 0;
   SmallVector<ASTNode, 4> cases;
   for (auto elt : enumDecl->getAllElements()) {
+    if (auto *unavailableElementCase =
+            DerivedConformance::unavailableEnumElementCaseStmt(enumType, elt,
+                                                               funcDecl)) {
+      cases.push_back(unavailableElementCase);
+      continue;
+    }
+
     // generate: case .<Case>:
     auto pat = new (C)
         EnumElementPattern(TypeExpr::createImplicit(enumType, C), SourceLoc(),
@@ -793,7 +812,7 @@ DeclRefExpr *DerivedConformance::convertEnumToIndex(SmallVectorImpl<ASTNode> &st
   auto enumRef = new (C) DeclRefExpr(enumVarDecl, DeclNameLoc(),
                                      /*implicit*/true,
                                      AccessSemantics::Ordinary,
-                                     enumVarDecl->getType());
+                                     enumVarDecl->getTypeInContext());
   auto switchStmt =
       SwitchStmt::createImplicit(LabeledStmtInfo(), enumRef, cases, C);
 
@@ -906,6 +925,52 @@ Pattern *DerivedConformance::enumElementPayloadSubpattern(
   auto letPattern = new (C)
       BindingPattern(SourceLoc(), VarDecl::Introducer::Let, namedPattern);
   return ParenPattern::createImplicit(C, letPattern);
+}
+
+CaseStmt *DerivedConformance::unavailableEnumElementCaseStmt(
+    Type enumType, EnumElementDecl *elt, DeclContext *parentDC,
+    unsigned subPatternCount) {
+  assert(subPatternCount > 0);
+
+  ASTContext &C = parentDC->getASTContext();
+  auto availableAttr = elt->getAttrs().getUnavailable(C);
+  if (!availableAttr)
+    return nullptr;
+
+  if (!availableAttr->isUnconditionallyUnavailable())
+    return nullptr;
+
+  auto createElementPattern = [&]() -> EnumElementPattern * {
+    // .<elt>
+    EnumElementPattern *eltPattern = new (C) EnumElementPattern(
+        TypeExpr::createImplicit(enumType, C), SourceLoc(), DeclNameLoc(),
+        DeclNameRef(elt->getBaseIdentifier()), elt, nullptr, /*DC*/ parentDC);
+    eltPattern->setImplicit();
+    return eltPattern;
+  };
+
+  Pattern *labelItemPattern;
+  if (subPatternCount > 1) {
+    SmallVector<TuplePatternElt, 2> tuplePatternElts;
+    for (unsigned i = 0; i < subPatternCount; i++) {
+      tuplePatternElts.push_back(TuplePatternElt(createElementPattern()));
+    }
+
+    // (.<elt>, ..., .<elt>)
+    auto caseTuplePattern = TuplePattern::createImplicit(C, tuplePatternElts);
+    caseTuplePattern->setImplicit();
+    labelItemPattern = caseTuplePattern;
+  } else {
+    labelItemPattern = createElementPattern();
+  }
+
+  auto labelItem = CaseLabelItem(labelItemPattern);
+  auto *callExpr =
+      DerivedConformance::createDiagnoseUnavailableCodeReachedCallExpr(C);
+  auto body = BraceStmt::create(C, SourceLoc(), {callExpr}, SourceLoc());
+  return CaseStmt::create(C, CaseParentKind::Switch, SourceLoc(), labelItem,
+                          SourceLoc(), SourceLoc(), body, {},
+                          /*implicit*/ true);
 }
 
 /// Creates a named variable based on a prefix character and a numeric index.

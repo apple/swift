@@ -7,7 +7,7 @@ macro expect(file: Int = #^DEFAULT_ARG^#) = #externalMacro(module: "MyModule", t
 // DEFAULT_ARG: Decl[GlobalVar]/CurrModule/TypeRelation[Convertible]: globalVar[#Int#]; name=globalVar
 
 @freestanding(expression)
-macro externalMacro() = ##^EXTERNAL_MACRO^#
+macro otherExternalMacro() = ##^EXTERNAL_MACRO^#
 // EXTERNAL_MACRO: Decl[Macro]/OtherModule[Swift]/IsSystem: externalMacro({#module: String#}, {#type: String#})[#T#]; name=externalMacro(module:type:)
 
 @freestanding(expression)

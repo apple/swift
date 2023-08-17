@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elim | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elimination | %FileCheck %s
 // TODO : Add a version with semantic-arc-opts when #34971 is landed or DCE is enabled on OSSA
 
 // REQUIRES: swift_in_compiler
@@ -34,6 +34,11 @@ struct Agg2 {
 
 struct Agg1 {
   var a : Agg2
+}
+
+struct Agg3 {
+  var k : Klass
+  var i : Int
 }
 
 class AB {
@@ -167,46 +172,6 @@ bb0(%0 : @owned $AB):
   return %copy5 : $Klass
 }
 
-// Check that we don't crash if the address is an unchecked_addr_cast.
-// CHECK-LABEL: sil [ossa] @test_unchecked_addr_cast :
-// CHECK-NOT: = load
-// CHECK-LABEL: } // end sil function 'test_unchecked_addr_cast'
-sil [ossa] @test_unchecked_addr_cast : $@convention(thin) (@inout A, @owned A) -> @owned A {
-bb0(%0 : $*A, %1 : @owned $A):
-  %2 = unchecked_addr_cast %0 : $*A to $*A
-  store %1 to [init] %2 : $*A
-  %l1 = load [take] %2 : $*A
-  return %l1 : $A
-}
-
-// Multi-BB version of the previous test.
-// CHECK-LABEL: sil [ossa] @test_forwarding_ignoring_unchecked_addr_cast2 :
-// CHECK-NOT: = load
-// CHECK-LABEL: } // end sil function 'test_forwarding_ignoring_unchecked_addr_cast2'
-sil [ossa] @test_forwarding_ignoring_unchecked_addr_cast2 : $@convention(thin) (@inout A, @owned A, @owned A) -> () {
-bb0(%0 : $*A, %1 : @owned $A, %2 : @owned $A):
-  %3 = unchecked_addr_cast %0 : $*A to $*A
-  store %1 to [init] %3 : $*A
-  br bb1
-
-bb1:
-  %5 = load [copy] %3 : $*A
-  %6 = load [take] %3 : $*A
-  %copy2 = copy_value %2 : $A
-  destroy_value %5 : $A
-  destroy_value %6 : $A
-  store %copy2 to [assign] %3 : $*A
-  cond_br undef, bb3, bb2
-
-bb3:
-  br bb1
-
-bb2:
-  destroy_value %2 : $A
-  %res = tuple ()
-  return %res : $() 
-}
-
 // CHECK-LABEL: sil [ossa] @test_read_dependence_allows_forwarding_multi_bb_1 :
 // CHECK: bb0
 // CHECK: store
@@ -313,10 +278,13 @@ bb0(%0 : @owned $Agg1):
 }
 
 // CHECK-LABEL: sil [ossa] @store_promotion :
-// CHECK: store
-// CHECK-NEXT: destroy_addr
-// CHECK-NEXT: destroy_value
-// CHECK-NEXT: destroy_value
+// CHECK:         %1 = alloc_box
+// CHECK-NEXT:    project_box
+// CHECK-NEXT:    [[C:%.*]] = copy_value %0
+// CHECK-NEXT:    destroy_value [[C]]
+// CHECK-NEXT:    destroy_value %0
+// CHECK-NEXT:    destroy_value %1
+// CHECK-NEXT:    tuple
 // CHECK-LABEL: } // end sil function 'store_promotion'
 sil [ossa] @store_promotion : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : @owned $Klass):
@@ -333,9 +301,11 @@ bb0(%0 : @owned $Klass):
 }
 
 // CHECK-LABEL: promote_partial_load :
-// CHECK: alloc_stack
-// CHECK-NOT: = load
-// CHECK: [[RESULT:%[0-9]+]] = struct_extract
+// CHECK:         [[S:%.*]] = struct $NonTrivialStruct
+// CHECK-NOT:     store
+// CHECK:         [[D:%.*]] = destructure_struct [[S]]
+// CHECK-NOT:     load
+// CHECK:         return [[D]]
 // CHECK-LABEL: } // end sil function 'promote_partial_load'
 sil [ossa] @promote_partial_load : $@convention(thin) (@owned Klass) -> @owned Klass {
 bb0(%0 : @owned $Klass):
@@ -383,14 +353,11 @@ bb0(%0 : @owned $AB):
   return %6 : $()
 }
 
-// Make sure we RLE the load in BB2.
-//
-// CHECK-LABEL: test_silargument_rle :
-// CHECK: bb2
-// CHECK-NOT: = load
-// CHECK: cond_br
-// CHECK-LABEL: } // end sil function 'test_silargument_rle'
-sil [ossa] @test_silargument_rle : $@convention(thin) (@owned Klass) -> () {
+// CHECK-LABEL: no_rle_liferange_with_exit :
+// CHECK:       bb3:
+// CHECK-NEXT:    load
+// CHECK-LABEL: } // end sil function 'no_rle_liferange_with_exit'
+sil [ossa] @no_rle_liferange_with_exit : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : @owned $Klass):
   %copy0 = copy_value %0 : $Klass
   %g = global_addr @total_klass : $*Klass
@@ -398,28 +365,28 @@ bb0(%0 : @owned $Klass):
   %6 = alloc_ref $AX
   %borrow6 = begin_borrow %6 : $AX
   %8 = ref_element_addr %borrow6 : $AX, #AX.current
-  store %copy0 to [assign] %8 : $*Klass
+  store %copy0 to [init] %8 : $*Klass
   end_borrow %borrow6 : $AX
-  cond_br undef, bb0a, bb0b
+  cond_br undef, bb1, bb2
 
-bb0a:
-  br bb2
-
-bb0b:
+bb1:
   br bb3
 
 bb2:
-  %9 = load [copy] %g : $*Klass
-  store %9 to [assign] %g : $*Klass
-  cond_br undef, bb2b, bb2a
-
-bb2a:
-  br bb2
-
-bb2b:
   br bb3
 
 bb3:
+  %9 = load [copy] %g : $*Klass
+  store %9 to [assign] %g : $*Klass
+  cond_br undef, bb5, bb4
+
+bb4:
+  br bb3
+
+bb5:
+  br bb6
+
+bb6:
   destroy_value %6 : $AX
   %44 = tuple ()
   return %44 : $()
@@ -466,15 +433,13 @@ bb6:
 // CHECK-LABEL: } // end sil function 'test_read_dependence_allows_forwarding_multi_bb_2'
 sil [ossa] @test_read_dependence_allows_forwarding_multi_bb_2 : $@convention(thin) (@inout A, @owned A, @owned A) -> () {
 bb0(%0 : $*A, %1 : @owned $A, %2 : @owned $A):
-  store %1 to [init] %0 : $*A
-  %3 = unchecked_addr_cast %0 : $*A to $*A
-  %4 = unchecked_addr_cast %3 : $*A to $*A
+  store %1 to [assign] %0 : $*A
   br bb1
 
 bb1:
   // This means that the first store is not dead.
   %2c = copy_value %2 : $A
-  %6 = load [copy] %3 : $*A
+  %6 = load [copy] %0 : $*A
   %7 = load [copy] %0 : $*A
   %8 = load [take] %0 : $*A
   %22 = function_ref @use_a : $@convention(thin) (@owned A) -> ()
@@ -494,10 +459,12 @@ bb2:
 }
 
 // CHECK-LABEL: sil [ossa] @load_to_load_loop :
-// CHECK: bb1([[BBARG:%[0-9]+]]
-// CHECK-NOT: load
-// CHECK: bb2:
-// CHECK-NOT: load
+// CHECK:       bb1:
+// CHECK-NEXT:    load
+// CHECK-NOT:     load
+// CHECK:       bb3:
+// CHECK-NEXT:    load
+// CHECK-NOT:     load
 // CHECK-LABEL: } // end sil function 'load_to_load_loop'
 sil [ossa] @load_to_load_loop : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : @owned $Klass):
@@ -525,12 +492,12 @@ bb1:
   %6 = load [copy] %0ele : $*Klass
   %11125 = function_ref @use_Klass : $@convention(thin) (@owned Klass) -> ()
   %11126 = apply %11125(%6) : $@convention(thin) (@owned Klass) -> ()
-  cond_br undef, bb1a, bb2
-
-bb1a:
-  br bb1  
+  cond_br undef, bb2, bb3
 
 bb2:
+  br bb1  
+
+bb3:
   %7 = load [take] %0ele : $*Klass
   %111125 = function_ref @use_Klass : $@convention(thin) (@owned Klass) -> ()
   %111126 = apply %111125(%7) : $@convention(thin) (@owned Klass) -> ()
@@ -603,11 +570,11 @@ bb2:
 
 // Make sure we form a single SILArgument.
 //
-// CHECK-LABEL: single_silargument_agg_in_one_block :
-// CHECK: bb3([[ARG:%.*]] : @owned $TwoField):
+// CHECK-LABEL: silargument_agg_in_one_block :
+// CHECK: bb3([[ARG1:%.*]] : @owned $Klass, [[ARG2:%.*]] : @owned $Klass):
 // CHECK-NOT: = load
-// CHECK-LABEL: } // end sil function 'single_silargument_agg_in_one_block'
-sil hidden [ossa] @single_silargument_agg_in_one_block : $@convention(thin) (@owned Klass, @owned Klass) -> () {
+// CHECK-LABEL: } // end sil function 'silargument_agg_in_one_block'
+sil hidden [ossa] @silargument_agg_in_one_block : $@convention(thin) (@owned Klass, @owned Klass) -> () {
 bb0(%0 : @owned $Klass, %1 : @owned $Klass):
   %stk = alloc_stack $TwoField, var, name "x"
   cond_br undef, bb1, bb2
@@ -802,10 +769,12 @@ bb2:
 }
 
 // CHECK-LABEL: sil hidden [ossa] @redundant_load_over_intermediate_release_with_epilogue_release :
-// CHECK: [[AD:%.*]] = ref_element_addr
-// CHECK: [[AD2:%.*]] = load [copy] [[AD]]
-// CHECK-NOT: [[AD3:%.*]] = load [take] [[AD]]
-// CHECK: destroy_value
+// CHECK:         [[AD:%.*]] = ref_element_addr
+// CHECK:         [[L:%.*]] = load [take] [[AD]]
+// CHECK-NEXT:    [[C:%.*]] = copy_value [[L]]
+// CHECK-NOT:     load
+// CHECK:         destroy_value [[L]]
+// CHECK:         destroy_value [[C]]
 // CHECK-LABEL: } // end sil function 'redundant_load_over_intermediate_release_with_epilogue_release'
 sil hidden [ossa] @redundant_load_over_intermediate_release_with_epilogue_release : $@convention(thin) (@owned AB) -> () {
 bb0(%0 : @owned $AB):
@@ -888,12 +857,12 @@ sil @test_rle_in_guaranteed_callee : $@convention(thin) (@in_guaranteed Klass) -
 // CHECK-LABEL: sil [ossa] @test_rle_in_guaranteed_entry :
 // CHECK-NOT: load
 // CHECK-LABEL: } // end sil function 'test_rle_in_guaranteed_entry'
-sil [ossa] @test_rle_in_guaranteed_entry : $@convention(thin) (@in Klass, @owned Klass) -> () {
+sil [ossa] @test_rle_in_guaranteed_entry : $@convention(thin) (@inout Klass, @owned Klass) -> () {
 bb0(%0 : $*Klass, %1 : @owned $Klass):
   store %1 to [assign] %0 : $*Klass
   %f_callee = function_ref @test_rle_in_guaranteed_callee : $@convention(thin) (@in_guaranteed Klass) -> ()
   %r1 = apply %f_callee(%0) : $@convention(thin) (@in_guaranteed Klass) -> ()
-  %value_again = load [take] %0 : $*Klass
+  %value_again = load [copy] %0 : $*Klass
   %f_sink = function_ref @test_rle_in_guaranteed_sink : $@convention(thin) (Klass) -> ()
   %r2 = apply %f_sink(%value_again) : $@convention(thin) (Klass) -> ()
   destroy_value %value_again : $Klass
@@ -1010,28 +979,11 @@ bb3:
 
 // CHECK-LABEL: @ignore_unreachable_complex :
 // CHECK:        [[V:%[0-9]+]] = load [copy]
-// CHECK:        copy_value [[V]]
-// CHECK:        copy_value [[V]]
+// CHECK:        [[C:%.*]] = copy_value [[V]]
 // CHECK:      bb1:
-// CHECK-NEXT:   destroy_value
-// CHECK-NEXT:   cond_br
-// CHECK:      bb2:
-// CHECK-NEXT:   destroy_value
-// CHECK-NEXT:   cond_br
-// CHECK:      bb3:
-// CHECK-NEXT:   destroy_value
-// CHECK-NEXT:   br bb5
-// CHECK:      bb4:
-// CHECK-NEXT:   destroy_value
-// CHECK-NEXT:   br bb5
 // CHECK:      bb5:
+// CHECK-NEXT:   destroy_value [[C]]
 // CHECK-NEXT:   tuple
-// CHECK:      bb6:
-// CHECK-NEXT:   br bb8
-// CHECK:      bb7:
-// CHECK-NEXT:   br bb8
-// CHECK:      bb8:
-// CHECK-NEXT:   unreachable
 // CHECK: } // end sil function 'ignore_unreachable_complex'
 sil [ossa] @ignore_unreachable_complex : $@convention(thin) (@in_guaranteed NonTrivialStruct) -> () {
 bb0(%0 : $*NonTrivialStruct):
@@ -1047,16 +999,14 @@ bb2:
   cond_br undef, bb4, bb7
 
 bb3:
-  %val2 = load [copy] %ele : $*Klass
-  destroy_value %val2 : $Klass
   br bb5
 
 bb4:
-  %val3 = load [copy] %ele : $*Klass
-  destroy_value %val3 : $Klass
   br bb5
 
 bb5:
+  %val2 = load [copy] %ele : $*Klass
+  destroy_value %val2 : $Klass
   %res = tuple ()
   return %res : $()
 
@@ -1071,11 +1021,9 @@ bb8:
 }
 
 // CHECK-LABEL: @infinite_loop_and_unreachable :
-// CHECK:   [[V:%[0-9]+]] = load [copy]
-// CHECK:   [[C1:%[0-9]+]] = copy_value [[V]]
+// CHECK:   load [copy]
 // CHECK: bb1:
-// CHECK:   [[C2:%[0-9]+]] = copy_value [[C1]]
-// CHECK:   destroy_value [[C2]]
+// CHECK:   load [copy]
 // CHECK: } // end sil function 'infinite_loop_and_unreachable'
 sil [ossa] @infinite_loop_and_unreachable : $@convention(thin) (@in_guaranteed NonTrivialStruct) -> () {
 bb0(%0 : $*NonTrivialStruct):
@@ -1203,7 +1151,10 @@ bb14:
 }
 
 // CHECK-LABEL: @test_available_value3 :
-// CHECK-NOT:   load
+// CHECK:       bb9:
+// CHECK-NEXT:    load
+// CHECK:       bb13:
+// CHECK-NEXT:    load
 // CHECK: } // end sil function 'test_available_value3'
 sil [ossa] @test_available_value3 : $@convention(method) (@owned NonTrivialStruct) -> () {
 bb0(%0 : @owned $NonTrivialStruct):
@@ -1279,3 +1230,96 @@ bb0(%0 : $*MyArray<MyStruct>):
   %t = tuple ()
   return %t : $() 
 }
+
+// CHECK-LABEL: @load_trivial_from_store :
+// CHECK:         [[B:%.*]] = begin_borrow %0
+// CHECK:         [[I:%.*]] = struct_extract %2 : $Agg3, #Agg3.i
+// CHECK:         end_borrow [[B]]
+// CHECK:         store %0 to [assign] %1
+// CHECK:         return [[I]]
+// CHECK:       } // end sil function 'load_trivial_from_store'
+sil [ossa] @load_trivial_from_store : $@convention(thin) (@owned Agg3, @inout Agg3) -> Int {
+bb0(%0 : @owned $Agg3, %1 : $*Agg3):
+  store %0 to [assign] %1 : $*Agg3
+  %3 = struct_element_addr %1 : $*Agg3, #Agg3.i
+  %4 = load [trivial] %3 : $*Int
+  return %4 : $Int
+}
+
+// CHECK-LABEL: @load_copy_from_store :
+// CHECK:         [[B:%.*]] = begin_borrow %0
+// CHECK:         [[K:%.*]] = struct_extract %2 : $Agg3, #Agg3.k
+// CHECK:         [[C:%.*]] = copy_value [[K]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         store %0 to [assign] %1
+// CHECK:         return [[C]]
+// CHECK:       } // end sil function 'load_copy_from_store'
+sil [ossa] @load_copy_from_store : $@convention(thin) (@owned Agg3, @inout Agg3) -> @owned Klass {
+bb0(%0 : @owned $Agg3, %1 : $*Agg3):
+  store %0 to [assign] %1 : $*Agg3
+  %3 = struct_element_addr %1 : $*Agg3, #Agg3.k
+  %4 = load [copy] %3 : $*Klass
+  return %4 : $Klass
+}
+// CHECK-LABEL: @load_take_from_store_assign :
+// CHECK:         [[DS:%.*]] = destructure_struct %0
+// CHECK:         [[TADDR:%.*]] =  struct_element_addr %1 : $*Agg2, #Agg2.t
+// CHECK:         ([[T0:%.*]], [[T1:%.*]]) = destructure_tuple [[DS]]
+// CHECK:         [[TA0:%.*]] = tuple_element_addr [[TADDR]] : $*(Klass, Klass), 0
+// CHECK:         destroy_addr [[TA0]]
+// CHECK:         [[TA1:%.*]] = tuple_element_addr [[TADDR]] : $*(Klass, Klass), 1
+// CHECK:         store [[T1]] to [assign] [[TA1]]
+// CHECK:         return [[T0]]
+// CHECK:       } // end sil function 'load_take_from_store_assign'
+sil [ossa] @load_take_from_store_assign : $@convention(thin) (@owned Agg2, @inout Agg2, @owned Klass) -> @owned Klass {
+bb0(%0 : @owned $Agg2, %1 : $*Agg2, %2 : @owned $Klass):
+  store %0 to [assign] %1 : $*Agg2
+  %3 = struct_element_addr %1 : $*Agg2, #Agg2.t
+  %4 = tuple_element_addr %3 : $*(Klass, Klass), 0
+  %6 = load [take] %4 : $*Klass
+  store %2 to [init] %4 : $*Klass
+  return %6 : $Klass
+}
+
+// CHECK-LABEL: @load_take_from_store_init :
+// CHECK:         [[DS:%.*]] = destructure_struct %0
+// CHECK:         [[TADDR:%.*]] = struct_element_addr %1 : $*Agg2, #Agg2.t
+// CHECK:         ([[T0:%.*]], [[T1:%.*]]) = destructure_tuple [[DS]]
+// CHECK:         [[TA1:%.*]] = tuple_element_addr [[TADDR]] : $*(Klass, Klass), 1
+// CHECK:         store [[T1]] to [init] [[TA1]]
+// CHECK-NOT:     load
+// CHECK:         return [[T0]]
+// CHECK:       } // end sil function 'load_take_from_store_init'
+sil [ossa] @load_take_from_store_init : $@convention(thin) (@owned Agg2, @inout Agg2, @owned Klass) -> @owned Klass {
+bb0(%0 : @owned $Agg2, %1 : $*Agg2, %2 : @owned $Klass):
+  destroy_addr %1 : $*Agg2
+  store %0 to [init] %1 : $*Agg2
+  %3 = struct_element_addr %1 : $*Agg2, #Agg2.t
+  %4 = tuple_element_addr %3 : $*(Klass, Klass), 0
+  %6 = load [take] %4 : $*Klass
+  store %2 to [init] %4 : $*Klass
+  return %6 : $Klass
+}
+// CHECK-LABEL: @load_take_from_load :
+// CHECK:         [[SE:%.*]] = struct_element_addr %0 : $*Agg2, #Agg2.t
+// CHECK:         [[TA0:%.*]] = tuple_element_addr [[SE]] : $*(Klass, Klass), 0
+// CHECK:         [[T0:%.*]] = load [take] [[TA0]]
+// CHECK:         [[C:%.*]] = copy_value [[T0]]
+// CHECK:         [[TA1:%.*]] = tuple_element_addr [[SE]] : $*(Klass, Klass), 1
+// CHECK:         [[T1:%.*]] = load [copy] [[TA1]]
+// CHECK:         [[T:%.*]] = tuple ([[T0]] : $Klass, [[T1]] : $Klass)
+// CHECK:         [[AGG:%.*]] = struct $Agg2 ([[T]] : $(Klass, Klass))
+// CHECK:         destroy_value [[AGG]]
+// CHECK:         return [[C]]
+// CHECK:       } // end sil function 'load_take_from_load'
+sil [ossa] @load_take_from_load : $@convention(thin) (@inout Agg2, @owned Klass) -> @owned Klass {
+bb0(%0 : $*Agg2, %1 : @owned $Klass):
+  %3 = load [copy] %0 : $*Agg2
+  destroy_value %3 : $Agg2
+  %5 = struct_element_addr %0 : $*Agg2, #Agg2.t
+  %6 = tuple_element_addr %5 : $*(Klass, Klass), 0
+  %8 = load [take] %6 : $*Klass
+  store %1 to [init] %6 : $*Klass
+  return %8 : $Klass
+}
+

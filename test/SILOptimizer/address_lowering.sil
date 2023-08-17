@@ -18,6 +18,10 @@ protocol P {
   func foo()
 }
 
+struct S : P {
+  func foo()
+}
+
 enum Optional<T> {
   case none
   case some(T)
@@ -56,11 +60,21 @@ struct Pair<T> {
   var y : T
 }
 
+struct Box2<T, U> {
+    var v1: T
+    var v2: U
+}
+
 enum Mixed<T> {
   case i(Int)
   case t(T)
   case o(AnyObject)
-};
+}
+
+indirect enum RE<T> {
+   case recursive(RE, T) 
+   case other(AnyObject)
+}
 
 class TestGeneric<T> {
   init()
@@ -76,9 +90,14 @@ public protocol Comparable {
   static func < (lhs: Self, rhs: Self) -> Bool
 }
 
+
 sil [ossa] @unknown : $@convention(thin) () -> ()
 sil [ossa] @getT : $@convention(thin) <T> () -> @out T
+sil [ossa] @getKlass : $@convention(thin) () -> (@owned Klass)
+sil [ossa] @borrowKlass : $(@in_guaranteed Klass) -> ()
+sil [ossa] @borrowT : $@convention(thin) <T> (@in_guaranteed T) -> ()
 sil [ossa] @getPair : $@convention(thin) <T> () -> @out Pair<T>
+sil [ossa] @getOwned : $@convention(thin) <T : AnyObject> () -> (@owned T)
 sil [ossa] @takeGuaranteedObject : $@convention(thin) (@guaranteed AnyObject) -> ()
 sil [ossa] @takeIndirectClass : $@convention(thin) (@in_guaranteed C) -> ()
 sil [ossa] @takeTuple : $@convention(thin) <τ_0_0> (@in_guaranteed (τ_0_0, C)) -> ()
@@ -118,11 +137,11 @@ bb0(%0 : @owned $(T, T)):
 
 // CHECK-LABEL: sil [ossa] @f012_decompose_tuple_arg : $@convention(thin) <T> (@in (T, T)) -> @out (T, T) {
 // CHECK: bb0(%0 : $*(T, T), %1 : $*(T, T)):
-// CHECK:   [[ARG0:%.*]] = tuple_element_addr %1 : $*(T, T), 0
-// CHECK:   [[ARG1:%.*]] = tuple_element_addr %1 : $*(T, T), 1
 // CHECK:   [[RET0:%.*]] = tuple_element_addr %0 : $*(T, T), 0
+// CHECK:   [[ARG0:%.*]] = tuple_element_addr %1 : $*(T, T), 0
 // CHECK:   apply %{{.*}}<T>([[RET0]], [[ARG0]]) : $@convention(thin) <τ_0_0> (@in τ_0_0) -> @out τ_0_0
 // CHECK:   [[RET1:%.*]] = tuple_element_addr %0 : $*(T, T), 1
+// CHECK:   [[ARG1:%.*]] = tuple_element_addr %1 : $*(T, T), 1
 // CHECK:   copy_addr [take] [[ARG1]] to [init] [[RET1]] : $*T
 // CHECK-LABEL: } // end sil function 'f012_decompose_tuple_arg'
 sil [ossa] @f012_decompose_tuple_arg : $@convention(thin) <T> (@in (T, T)) -> @out (T, T) {
@@ -143,9 +162,9 @@ bb0(%0 : @owned $(T, T)):
 // CHECK:   [[IN0:%.*]] = tuple_element_addr %2 : $*(T, T), 0
 // CHECK:   copy_addr [take] %1 to [init] [[IN0]] : $*T
 // CHECK:   apply %{{.*}}<T>([[OUT]], [[IN]]) : $@convention(thin) <τ_0_0> (@in (τ_0_0, τ_0_0)) -> @out (τ_0_0, τ_0_0)
-// CHECK:   [[RET:%.*]] = tuple_element_addr [[OUT]] : $*(T, T), 0
 // CHECK:   [[DEAD:%.*]] = tuple_element_addr [[OUT]] : $*(T, T), 1
 // CHECK:   destroy_addr [[DEAD]] : $*T
+// CHECK:   [[RET:%.*]] = tuple_element_addr [[OUT]] : $*(T, T), 0
 // CHECK:   copy_addr [take] [[RET]] to [init] %0 : $*T
 // CHECK-LABEL: } // end sil function 'f013_pass_tuple_arg'
 sil [ossa] @f013_pass_tuple_arg : $@convention(thin) <T> (@in T) -> @out T {
@@ -517,15 +536,15 @@ bb0:
 // CHECK-LABEL: sil [ossa] @f075_reusedResult : $@convention(thin) <T> (@in T, @owned any C) -> (@out T, @owned any C) {
 // CHECK: bb0(%0 : $*T, %1 : $*T, %2 : @owned $any C):
 // CHECK:   [[TUPLE:%.*]] = alloc_stack $(T, any C)
-// CHECK:   [[E1:%.*]] = tuple_element_addr [[TUPLE]] : $*(T, any C), 0
-// CHECK:   copy_addr [take] %1 to [init] [[E1]] : $*T
+// CHECK:   [[E1_1:%.*]] = tuple_element_addr [[TUPLE]] : $*(T, any C), 0
+// CHECK:   copy_addr [take] %1 to [init] [[E1_1]] : $*T
 // CHECK:   [[E2:%.*]] = tuple_element_addr [[TUPLE]] : $*(T, any C), 1
 // CHECK:   store %2 to [init] [[E2]] : $*any C
 // CHECK:   apply %{{.*}}<T>([[TUPLE]]) : $@convention(thin) <τ_0_0> (@in_guaranteed (τ_0_0, any C)) -> ()
-// CHECK:   [[E1:%.*]] = tuple_element_addr [[TUPLE]] : $*(T, any C), 0
 // CHECK:   [[E2:%.*]] = tuple_element_addr [[TUPLE]] : $*(T, any C), 1
 // CHECK:   [[LD:%.*]] = load [take] [[E2]] : $*any C
-// CHECK:   copy_addr [take] [[E1]] to [init] %0 : $*T
+// CHECK:   [[E1_2:%.*]] = tuple_element_addr [[TUPLE]] : $*(T, any C), 0
+// CHECK:   copy_addr [take] [[E1_2]] to [init] %0 : $*T
 // CHECK:   dealloc_stack [[TUPLE]] : $*(T, any C)
 // CHECK:   return [[LD]] : $any C
 // CHECK-LABEL: } // end sil function 'f075_reusedResult'
@@ -535,6 +554,23 @@ bb0(%0 : @owned $T, %1 : @owned $C):
   %f = function_ref @takeTuple : $@convention(thin) <τ_0_0> (@in_guaranteed (τ_0_0, C)) -> ()
   %c = apply %f<T>(%2) : $@convention(thin) <τ_0_0> (@in_guaranteed (τ_0_0, C)) -> ()
   return %2 : $(T, C)
+}
+
+// CHECK-LABEL: sil [ossa] @f076_opaqueResult : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[S_ADDR:%[^,]+]] : $*S):
+// CHECK:         [[GET:%[^,]+]] = function_ref @getT
+// CHECK:         [[TEMP:%[^,]+]] = alloc_stack $S
+// CHECK:         apply [[GET]]<S>([[TEMP]])
+// CHECK:         [[S:%[^,]+]] = load [trivial] [[TEMP]]
+// CHECK:         store [[S]] to [trivial] [[S_ADDR]]
+// CHECK:         dealloc_stack [[TEMP]]
+// CHECK-LABEL: } // end sil function 'f076_opaqueResult'
+// The following getS definition enables use of the type <<@_opaqueReturnTypeOf("$s5Swift4getSQryF", 0) opaque>>
+@_silgen_name("getS") public func getS() -> some P { return S() }
+sil [ossa] @f076_opaqueResult : $@convention(thin) <T> () -> @out @_opaqueReturnTypeOf("$s5Swift4getSQryF", 0) __<T> {
+  %get = function_ref @getT : $@convention(thin) <T> () -> (@out T)
+  %s = apply %get<S>() : $@convention(thin) <T> () -> (@out T)
+  return %s : $S
 }
 
 // CHECK-LABEL: sil [ossa] @f080_optional : $@convention(thin) <T> (@in T) -> @out Optional<T> {
@@ -687,9 +723,9 @@ bb0:
 
 // CHECK-LABEL: sil [ossa] @f120_testDestructure : $@convention(method) <Element> (@in SI<Element>) -> (@out Element, @out I) {
 // CHECK: bb0(%0 : $*Element, %1 : $*I, %2 : $*SI<Element>):
-// CHECK:   [[ELT_ADR:%.*]] = struct_element_addr %2 : $*SI<Element>, #SI.element
 // CHECK:   [[IDX_ADR:%.*]] = struct_element_addr %2 : $*SI<Element>, #SI.index
 // CHECK:   [[IDX:%.*]] = load [trivial] [[IDX_ADR]] : $*I
+// CHECK:   [[ELT_ADR:%.*]] = struct_element_addr %2 : $*SI<Element>, #SI.element
 // CHECK:   copy_addr [take] [[ELT_ADR]] to [init] %0 : $*Element // id: %6
 // CHECK:   store [[IDX]] to [trivial] %1 : $*I
 // CHECK:   return %{{.*}} : $()
@@ -756,9 +792,9 @@ bb0(%0 : @owned $SRef<T>):
 // CHECK:   [[L:%.*]] = load_borrow [[E0]] : $*AnyObject
 // CHECK:   apply %{{.*}}([[L]]) : $@convention(thin) (@guaranteed AnyObject) -> ()
 // CHECK:   [[C:%.*]] = copy_value [[L]] : $AnyObject
-// CHECK:   end_borrow [[L]] : $AnyObject
 // CHECK:   [[E1:%.*]] = struct_element_addr %2 : $*SRef<T>, #SRef.element
 // CHECK:   copy_addr [[E1]] to [init] %1 : $*T
+// CHECK:   end_borrow [[L]] : $AnyObject
 // CHECK:   destroy_addr %2 : $*SRef<T>
 // CHECK:   store [[C]] to [init] %0 : $*AnyObject
 // CHECK-NOT: dealloc_stack
@@ -805,12 +841,12 @@ bb0(%0 : @owned $(AnyObject, T)):
 // CHECK: bb0(%0 : $*AnyObject, %1 : $*T, %2 : $*(AnyObject, T)):
 // CHECK-NOT: alloc_stack
 // CHECK:   [[E0:%.*]] = tuple_element_addr %2 : $*(AnyObject, T), 0
-// CHECK:   [[L:%.*]] = load_borrow %3 : $*AnyObject
+// CHECK:   [[L:%.*]] = load_borrow [[E0]] : $*AnyObject
 // CHECK:   apply %{{.*}}([[L]]) : $@convention(thin) (@guaranteed AnyObject) -> ()
 // CHECK:   [[C:%.*]] = copy_value [[L]] : $AnyObject
-// CHECK:   end_borrow [[L]] : $AnyObject
 // CHECK:   [[E1:%.*]] = tuple_element_addr %2 : $*(AnyObject, T), 1
 // CHECK:   copy_addr [[E1]] to [init] %1 : $*T
+// CHECK:   end_borrow [[L]] : $AnyObject
 // CHECK:   destroy_addr %2 : $*(AnyObject, T)
 // CHECK:   store [[C]] to [init] %0 : $*AnyObject
 // CHECK-NOT: dealloc_stack
@@ -832,9 +868,9 @@ bb0(%0 : @owned $(AnyObject, T)):
 
 // CHECK-LABEL: sil [ossa] @f126_testDestructureAndBorrow : $@convention(method) <Element> (@in (SI<Element>, I)) -> (@out Element, @out I) {
 // CHECK: bb0(%0 : $*Element, %1 : $*I, %2 : $*(SI<Element>, I)):
-// CHECK:   [[SI:%.*]] = tuple_element_addr %2 : $*(SI<Element>, I), 0
 // CHECK:   [[I:%.*]] = tuple_element_addr %2 : $*(SI<Element>, I), 1
 // CHECK:   [[LD:%.*]] = load [trivial] [[I]] : $*I
+// CHECK:   [[SI:%.*]] = tuple_element_addr %2 : $*(SI<Element>, I), 0
 // CHECK:   [[E:%.*]] = struct_element_addr [[SI]] : $*SI<Element>, #SI.element
 // CHECK:   copy_addr [[E]] to [init] %0 : $*Element
 // CHECK:   destroy_addr [[SI]] : $*SI<Element>
@@ -1038,6 +1074,93 @@ bb7:
   destroy_value %0 : $P
   %23 = tuple ()
   return %23 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @f163_testOpenedArchetype : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
+// CHECK:         [[ADDR:%[^,]+]] = alloc_stack $Optional<Any>
+// CHECK:         [[BORROW:%[^,]+]] = begin_borrow [lexical] [[INSTANCE]]
+// CHECK:         [[AN_ERROR:%[^,]+]] = open_existential_box [[BORROW]]
+// CHECK:         [[ANY_ADDR:%[^,]+]] = init_enum_data_addr [[ADDR]]
+// CHECK:         [[OPENED_ADDR:%[^,]+]] = init_existential_addr [[ANY_ADDR]]
+// CHECK:         copy_addr [[AN_ERROR]] to [init] [[OPENED_ADDR]]
+// CHECK:         inject_enum_addr [[ADDR]] : $*Optional<Any>, #Optional.some!enumelt
+// CHECK:         apply undef<Any>([[ADDR]])
+// CHECK-LABEL: } // end sil function 'f163_testOpenedArchetype'
+sil [ossa] @f163_testOpenedArchetype : $@convention(c) (@owned any Error) -> () {
+block(%instance : @owned $any Error):
+  %borrow = begin_borrow [lexical] %instance : $any Error
+  %an_error = open_existential_box_value %borrow : $any Error to $@opened("55625EBA-9384-11ED-A0B0-32F16C24A34F", any Error) Self
+  %an_owned_error = copy_value %an_error : $@opened("55625EBA-9384-11ED-A0B0-32F16C24A34F", any Error) Self
+  %any = init_existential_value %an_owned_error : $@opened("55625EBA-9384-11ED-A0B0-32F16C24A34F", any Error) Self, $@opened("55625EBA-9384-11ED-A0B0-32F16C24A34F", any Error) Self, $Any
+  %some_any = enum $Optional<Any>, #Optional.some!enumelt, %any : $Any
+  apply undef<Any>(%some_any) : $@convention(thin) <T> (@in Optional<T>) -> ()
+  end_borrow %borrow : $any Error
+  destroy_value %instance : $any Error
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @f164_testOpenedArchetype2 : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[ERROR_EXI:%[^,]+]] :
+// CHECK:         [[ERROR_CONCR:%[^,]+]] = open_existential_box [[ERROR_EXI]]
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack
+// CHECK:         copy_addr [[ERROR_CONCR]] to [init] [[STACK]]
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         dealloc_stack [[STACK]]
+// CHECK-LABEL: } // end sil function 'f164_testOpenedArchetype2'
+sil [ossa] @f164_testOpenedArchetype2 : $@convention(thin) (@guaranteed any Error) -> () {
+bb0(%error_exi : @guaranteed $any Error):
+  %error_concr = open_existential_box_value %error_exi : $any Error to $@opened("F616C4D8-268F-11EE-998B-32F16C24A34D", any Error) Self
+  %stack = alloc_stack $@opened("F616C4D8-268F-11EE-998B-32F16C24A34D", any Error) Self
+  %error_copy = copy_value %error_concr : $@opened("F616C4D8-268F-11EE-998B-32F16C24A34D", any Error) Self
+  store %error_copy to [init] %stack : $*@opened("F616C4D8-268F-11EE-998B-32F16C24A34D", any Error) Self
+  destroy_addr %stack : $*@opened("F616C4D8-268F-11EE-998B-32F16C24A34D", any Error) Self
+  dealloc_stack %stack : $*@opened("F616C4D8-268F-11EE-998B-32F16C24A34D", any Error) Self
+  %tuple = tuple ()
+  return %tuple : $()
+}
+
+// Test a chain of projections multiple nodes of which feature an opened
+// archetype AND the archetype-definining instruction for the first projection
+// whose type has an opened archetype dominates all blocks but the
+// archetype-defining instruction for the SECOND projection does not.
+//
+// This test case demonstrates why getDominandsForUseProjection returns
+// multiple values all of which must dominate each incoming value.
+//
+// CHECK-LABEL: sil [ossa] @f165_testOpenedArchetypsDominance : {{.*}} {
+// CHECK:         alloc_stack $(T, T)
+// CHECK-LABEL: } // end sil function 'f165_testOpenedArchetypsDominance'
+sil [ossa] @f165_testOpenedArchetypsDominance : $@convention(thin) <T> () -> () {
+  %borrow = function_ref @takeInGuaranteed : $@convention(thin) <T> (@in_guaranteed T) -> ()
+  %take = function_ref @takeIn : $@convention(thin) <T> (@in T) -> ()
+  %get = function_ref @getT : $@convention(thin) <T> () -> (@out T)
+  %getOwned = function_ref @getOwned : $@convention(thin) <T : AnyObject> () -> (@owned T)
+
+
+  %exi = apply %getOwned<any P & C>() : $@convention(thin) <T : AnyObject> () -> (@owned T)
+  %exi2 = apply %getOwned<any P & C>() : $@convention(thin) <T : AnyObject> () -> (@owned T)
+  %O_1 = apply %get<T>() : $@convention(thin) <T> () -> (@out T)
+  %O_2 = apply %get<T>() : $@convention(thin) <T> () -> (@out T)
+  %O = tuple (%O_1 : $T, %O_2 : $T)
+  %ope = open_existential_ref %exi : $P & C to $@opened("00000000-0000-0000-0000-000000000000", P & C) Self
+  cond_br undef, left, right
+
+left:
+  %ope2 = open_existential_ref %exi2 : $P & C to $@opened("00000000-0000-0000-0000-000000000001", P & C) Self
+  %U = struct $Box2<(T, T), @opened("00000000-0000-0000-0000-000000000000", P & C) Self> (%O : $(T, T), %ope : $@opened("00000000-0000-0000-0000-000000000000", P & C) Self)
+  %U2 = struct $Box2<Box2<(T, T), @opened("00000000-0000-0000-0000-000000000000", P & C) Self>, @opened("00000000-0000-0000-0000-000000000001", P & C) Self> (%U : $Box2<(T, T), @opened("00000000-0000-0000-0000-000000000000", P & C) Self> , %ope2 : $@opened("00000000-0000-0000-0000-000000000001", P & C) Self)
+  destroy_value %U2 : $Box2<Box2<(T, T), @opened("00000000-0000-0000-0000-000000000000", P & C) Self>, @opened("00000000-0000-0000-0000-000000000001", P & C) Self>
+  br exit
+right:
+  destroy_value %exi2 : $any P & C
+  destroy_value %ope : $@opened("00000000-0000-0000-0000-000000000000", P & C) Self
+  destroy_value %O : $(T, T)
+  br exit
+exit:
+  %retval = tuple ()
+  return %retval : $()
 }
 
 // CHECK-LABEL: sil [ossa] @f170_compare : $@convention(thin) <T where T : Comparable> (@in_guaranteed T, @in_guaranteed T) -> @out T {
@@ -1361,7 +1484,7 @@ sil [ossa] @lexical_borrow_struct_extract : $@convention(thin) <T> () -> () {
 }
 
 // CHECK-LABEL: sil [ossa] @lexical_borrow_struct_extract_arg {{.*}} {
-// CHECK:         [[X_ADDR:%[^,]+]] = struct_element_addr [[PAIR_ADDR]]
+// CHECK:         [[X_ADDR:%[^,]+]] = struct_element_addr [[PAIR_ADDR:%[^,]+]]
 // CHECK:         apply {{%[^,]+}}<T>([[X_ADDR]])
 // CHECK:         destroy_addr [[PAIR_ADDR]]
 // CHECK-LABEL: } // end sil function 'lexical_borrow_struct_extract_arg'
@@ -1590,8 +1713,8 @@ entry:
 // CHECK:         ([[ADDR_1:%[^,]+]], [[ADDR_2:%[^,]+]], {{%[^,]+}}) = begin_apply
 // CHECK:         [[BORROW_1:%[^,]+]] = load_borrow [[ADDR_1]] : $*LoadableNontrivial
 // CHECK:         struct_extract [[BORROW_1]] : $LoadableNontrivial, #LoadableNontrivial.x
-// CHECK:         end_borrow [[BORROW_1]] : $LoadableNontrivial
 // CHECK:         copy_addr [[ADDR_2]] to [init] [[OPAQUE_OUT]] : $*T
+// CHECK:         end_borrow [[BORROW_1]] : $LoadableNontrivial
 // CHECK-LABEL: } // end sil function 'testBeginApply9Yield1LoadableNontrivialGuaranteed1OpaqueGuaranteed'
 sil [ossa] @testBeginApply9Yield1LoadableNontrivialGuaranteed1OpaqueGuaranteed : $@convention(thin) <T> () -> (@out Klass, @out T) {
 entry:
@@ -1860,8 +1983,8 @@ entry:
 
 // CHECK-LABEL: sil [ossa] @testCopyValue1StoreExtractAfterDestroyAggregate : {{.*}} {
 // CHECK:       {{bb[0-9]+}}([[ADDR:%[^,]+]] :
-// CHECK:         [[INSTANCE_ADDR:%[^,]+]] = alloc_stack $Pair<T>
 // CHECK:         [[COPY_ADDR:%[^,]+]] = alloc_stack $T
+// CHECK:         [[INSTANCE_ADDR:%[^,]+]] = alloc_stack $Pair<T>
 // CHECK:         apply undef<T>([[INSTANCE_ADDR]])
 // CHECK:         [[X_ADDR:%[^,]+]] = struct_element_addr [[INSTANCE_ADDR]]{{.*}}, #Pair.x
 // CHECK:         copy_addr [[X_ADDR]] to [init] [[COPY_ADDR]]
@@ -1906,9 +2029,9 @@ entry(%addr : $*T):
 // CHECK:         [[COPY_ADDR:%[^,]+]] = alloc_stack $T
 // CHECK:         apply undef<T>([[INSTANCE_ADDR]]) : $@convention(thin) <τ_0_0> () -> @out (τ_0_0, τ_0_0)
 // CHECK:         [[ONE_ADDR:%[^,]+]] = tuple_element_addr [[INSTANCE_ADDR]]{{.*}}, 0
-// CHECK:         [[TWO_ADDR:%[^,]+]] = tuple_element_addr [[INSTANCE_ADDR]]{{.*}}, 1
 // CHECK:         copy_addr [[ONE_ADDR]] to [init] [[COPY_ADDR]]
 // CHECK:         destroy_addr [[ONE_ADDR]]
+// CHECK:         [[TWO_ADDR:%[^,]+]] = tuple_element_addr [[INSTANCE_ADDR]]{{.*}}, 1
 // CHECK:         destroy_addr [[TWO_ADDR]]
 // CHECK:         copy_addr [take] [[COPY_ADDR]] to [[ADDR]]
 // CHECK-LABEL: } // end sil function 'testCopyValue3StoreTupleDestructureFieldAfterDestroy'
@@ -2041,7 +2164,7 @@ sil [ossa] @use_T : $@convention(thin) <T> (@in T) -> ()
 // CHECK-LABEL: } // end sil function 'test_checked_cast_br1'
 sil [ossa] @test_checked_cast_br1 : $@convention(method) <T> (@in Any) -> () {
 bb0(%0 : @owned $Any):
-   checked_cast_br %0 : $Any to T, bb1, bb2
+   checked_cast_br Any in %0 : $Any to T, bb1, bb2
 
 bb1(%3 : @owned $T):
   %f = function_ref @use_T : $@convention(thin) <T> (@in T) -> ()
@@ -2079,7 +2202,7 @@ sil [ossa] @use_C : $@convention(thin) (@owned C) -> ()
 // CHECK-LABEL: }
 sil [ossa] @test_checked_cast_br2 : $@convention(method) (@in Any) -> () {
 bb0(%0 : @owned $Any):
-   checked_cast_br %0 : $Any to C, bb1, bb2
+   checked_cast_br Any in %0 : $Any to C, bb1, bb2
 
 bb1(%3 : @owned $C):
   %f = function_ref @use_C : $@convention(thin) (@owned C) -> ()
@@ -2120,7 +2243,7 @@ sil @use_Any : $@convention(thin) (@in Any) -> ()
 // CHECK: }
 sil [ossa] @test_checked_cast_br3 : $@convention(method) (@owned C) -> () {
 bb0(%0 : @owned $C):
-   checked_cast_br %0 : $C to Any, bb1, bb2
+   checked_cast_br C in %0 : $C to Any, bb1, bb2
 
 bb1(%3 : @owned $Any):
   %f = function_ref @use_Any : $@convention(thin) (@in Any) -> ()
@@ -2140,9 +2263,9 @@ bb3:
 // CHECK-LABEL: sil [ossa] @test_checked_cast_br4 : {{.*}} {
 // CHECK:       {{bb[0-9]+}}([[OUT_ADDR:%[^,]+]] : $*Optional<T>, [[INSTANCE:%[^,]+]] : @owned $TestGeneric<Element>):
 // CHECK:         [[TEMP:%[^,]+]] = alloc_stack $Optional<T>
-// CHECK:         [[CAST_DEST_ADDR:%[^,]+]] = init_enum_data_addr [[TEMP]] : $*Optional<T>, #Optional.some!enumelt
 // CHECK:         [[CAST_SOURCE_ADDR:%[^,]+]] = alloc_stack $TestGeneric<Element>
 // CHECK:         store [[INSTANCE]] to [init] [[CAST_SOURCE_ADDR]]
+// CHECK:         [[CAST_DEST_ADDR:%[^,]+]] = init_enum_data_addr [[TEMP]] : $*Optional<T>, #Optional.some!enumelt
 // CHECK:         checked_cast_addr_br take_on_success TestGeneric<Element> in [[CAST_SOURCE_ADDR]] : $*TestGeneric<Element> to T in [[CAST_DEST_ADDR]] : $*T, [[SUCCESS:bb[0-9]+]]
 // CHECK:       [[SUCCESS]]:
 // CHECK:         dealloc_stack [[CAST_SOURCE_ADDR]]
@@ -2151,7 +2274,7 @@ bb3:
 // CHECK-LABEL: } // end sil function 'test_checked_cast_br4'
 sil [ossa] @test_checked_cast_br4 : $@convention(method) <Element><T> (@owned TestGeneric<Element>) -> @out Optional<T> {
 bb0(%3 : @owned $TestGeneric<Element>):
-  checked_cast_br %3 : $TestGeneric<Element> to T, bb1, bb2
+  checked_cast_br TestGeneric<Element> in %3 : $TestGeneric<Element> to T, bb1, bb2
 
 bb1(%5 : @owned $T):
   %6 = enum $Optional<T>, #Optional.some!enumelt, %5 : $T
@@ -2181,7 +2304,7 @@ bb3(%12 : @owned $Optional<T>):
 // CHECK-LABEL: } // end sil function 'test_checked_cast_br5'
 sil [ossa] @test_checked_cast_br5 : $@convention(thin) (@owned AnyObject) -> () {
 entry(%instance : @owned $AnyObject):
-  checked_cast_br %instance : $AnyObject to any AnyObject.Type, success, failure
+  checked_cast_br AnyObject in %instance : $AnyObject to any AnyObject.Type, success, failure
 
 success(%metatype : $@thick any AnyObject.Type):
   br exit
@@ -2209,7 +2332,7 @@ exit:
 // CHECK-LABEL: } // end sil function 'test_checked_cast_br6'
 sil [ossa] @test_checked_cast_br6 : $@convention(thin) <T> (@in T) -> () {
 entry(%instance : @owned $T):
-  checked_cast_br %instance : $T to any AnyObject.Type, success, failure
+  checked_cast_br T in %instance : $T to any AnyObject.Type, success, failure
 success(%metatype : $@thick any AnyObject.Type):
   br exit
 failure(%original : @owned $T):
@@ -2220,13 +2343,17 @@ exit:
   return %retval : $()
 }
 
+enum PairEnum<T> {
+  case it(T, T)
+}
+
 // CHECK-LABEL: sil [ossa] @test_destructure_tuple_1_guaranteed : {{.*}} {
 // CHECK:         [[INSTANCE:%[^,]+]] = unchecked_take_enum_data_addr
 // CHECK:         [[KLASS_ADDR:%[^,]+]] = tuple_element_addr [[INSTANCE]] {{.*}}, 0
 // CHECK:         [[KLASS:%[^,]+]] = load_borrow [[KLASS_ADDR]]
-// CHECK:         end_borrow [[KLASS]]
 // CHECK:         [[ANY_ADDR:%[^,]+]] = tuple_element_addr [[INSTANCE]] {{.*}}, 1
 // CHECK:         apply undef<Any>([[ANY_ADDR]])
+// CHECK:         end_borrow [[KLASS]]
 // CHECK:         destroy_addr [[INSTANCE]]
 // CHECK-LABEL: } // end sil function 'test_destructure_tuple_1_guaranteed'
 sil [ossa] @test_destructure_tuple_1_guaranteed : $@convention(thin) () -> () {
@@ -2249,6 +2376,264 @@ exit:
   return %505 : $()
 }
 
+// Verify that projections from the unchecked_take_enum_data_addr are dominated
+// by it.
+// CHECK-LABEL: sil [ossa] @test_destructure_tuple_2_from_enum : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[INOUT_ADDR:%[^,]+]] :
+// CHECK:         [[ORIGINAL_ADDR:%[^,]+]] = alloc_stack $PairEnum<T>
+// CHECK:         [[NEW_ADDR:%[^,]+]] = alloc_stack $PairEnum<T>
+// CHECK:         copy_addr [[INOUT_ADDR]] to [init] [[ORIGINAL_ADDR]] : $*PairEnum<T>
+// CHECK:         switch_enum_addr [[ORIGINAL_ADDR]] : $*PairEnum<T>
+// CHECK:       bb1:
+// CHECK:         [[ORIGINAL_PAYLOAD_ADDR:%[^,]+]] = unchecked_take_enum_data_addr [[ORIGINAL_ADDR]]
+// CHECK:         [[NEW_PAYLOAD_ADDR:%[^,]+]] = init_enum_data_addr [[NEW_ADDR]]
+// CHECK:         [[NEW_FIRST_ADDR:%[^,]+]] = tuple_element_addr [[NEW_PAYLOAD_ADDR]] {{.*}}, 0
+// CHECK:         [[ORIGINAL_FIRST_ADDR:%[^,]+]] = tuple_element_addr [[ORIGINAL_PAYLOAD_ADDR]] {{.*}}, 0
+// CHECK:         apply undef<T>([[NEW_FIRST_ADDR]], [[ORIGINAL_FIRST_ADDR]])
+// CHECK:         [[NEW_SECOND_ADDR:%[^,]+]] = tuple_element_addr [[NEW_PAYLOAD_ADDR]] {{.*}}, 1
+// CHECK:         [[ORIGINAL_SECOND_ADDR:%[^,]+]] = tuple_element_addr [[ORIGINAL_PAYLOAD_ADDR]] {{.*}}, 1
+// CHECK:         copy_addr [[ORIGINAL_SECOND_ADDR]] to [init] [[NEW_SECOND_ADDR]] : $*T
+// CHECK:         inject_enum_addr [[NEW_ADDR]]
+// CHECK:         destroy_addr [[NEW_ADDR]]
+// CHECK:         destroy_addr [[ORIGINAL_SECOND_ADDR]]
+// CHECK:         destroy_addr [[ORIGINAL_FIRST_ADDR]]
+// CHECK:         dealloc_stack [[NEW_ADDR]]
+// CHECK:         dealloc_stack [[ORIGINAL_ADDR]]
+// CHECK-LABEL: } // end sil function 'test_destructure_tuple_2_from_enum'
+sil [ossa] @test_destructure_tuple_2_from_enum : $@convention(thin) <T> (@inout PairEnum<T>) -> () {
+entry(%inout_addr : $*PairEnum<T>):
+  %original = load [copy] %inout_addr : $*PairEnum<T>
+  switch_enum %original : $PairEnum<T>, case #PairEnum.it!enumelt: it_block
+
+it_block(%original_payload : @owned $(T, T)):
+  (%original_first, %original_second) = destructure_tuple %original_payload : $(T, T)
+  %new_first = apply undef<T>(%original_first) : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> @out τ_0_0
+  %new_second = copy_value %original_second : $T
+  %new_payload = tuple (%new_first : $T, %new_second : $T)
+  %new = enum $PairEnum<T>, #PairEnum.it!enumelt, %new_payload : $(T, T)
+  destroy_value %new : $PairEnum<T>
+  destroy_value %original_second : $T
+  destroy_value %original_first : $T
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Check that the end_borrows created on behalf of the destructure_tuple end
+// after the use of the load_borrow of the projection of the terminator result
+// of the switch_enum that is guaranteed by that load_borrow.
+//
+// CHECK-LABEL: sil [ossa] @test_destructure_tuple_load_borrow_projected_box : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[OUTER:%[^,]+]] :
+// CHECK:         switch_enum [[OUTER]] : $RE<T>, case #RE.recursive!enumelt: [[OUTER_RECURSIVE:bb[0-9]+]], case #RE.other!enumelt: [[OUTER_OTHER:bb[0-9]+]]
+// CHECK:       [[OUTER_OTHER]]({{%[^,]+}} :
+// CHECK:         br [[EXIT:bb[0-9]+]]
+// CHECK:       [[OUTER_RECURSIVE]]([[TUPLE_BOX:%[^,]+]] :
+// CHECK-NEXT:    [[TUPLE_ADDR:%[^,]+]] = project_box [[TUPLE_BOX]]
+// CHECK:         [[INNER_ADDR:%[^,]+]] = tuple_element_addr [[TUPLE_ADDR]]
+// CHECK:         [[INNER:%[^,]+]] = load_borrow [[INNER_ADDR]]
+// CHECK:         switch_enum [[INNER]] : $RE<T>, case #RE.recursive!enumelt: [[INNER_RECURSIVE:bb[0-9]+]], case #RE.other!enumelt: [[INNER_OTHER:bb[0-9]+]]
+// CHECK:       [[INNER_OTHER]]([[OTHER_BOX:%[^,]+]] :
+// CHECK:         [[OTHER_ADDR:%[^,]+]] = project_box [[OTHER_BOX]]
+// CHECK:         [[OTHER:%[^,]+]] = load_borrow [[OTHER_ADDR]]
+// CHECK:         [[OTHER_COPY:%[^,]+]] = copy_value [[OTHER]]
+// CHECK:         end_borrow [[OTHER]]
+// CHECK:         end_borrow [[INNER]]
+// CHECK:         destroy_value [[OTHER_COPY]]
+// CHECK:         br [[EXIT]]
+// CHECK:       [[INNER_RECURSIVE]]
+// CHECK:         end_borrow [[INNER]]
+// CHECK:         br [[EXIT]]
+// CHECK-LABEL: } // end sil function 'test_destructure_tuple_load_borrow_projected_box'
+sil [ossa] @test_destructure_tuple_load_borrow_projected_box : $@convention(thin) <T> (@guaranteed RE<T>) -> () {
+entry(%o : @guaranteed $RE<T>):
+  switch_enum %o : $RE<T>, case #RE.recursive!enumelt: outer_recursive, case #RE.other!enumelt: outer_other
+
+outer_other(%other : @guaranteed $<τ_0_0> { var AnyObject } <T>):
+  br exit
+
+outer_recursive(%tuple_box : @guaranteed $<Tau> { var (RE<Tau>, Tau) } <T>):
+  %tuple_addr = project_box %tuple_box : $<Tau> { var (RE<Tau>, Tau) } <T>, 0
+  %tuple = load_borrow %tuple_addr : $*(RE<T>, T)
+  (%i, %c) = destructure_tuple %tuple : $(RE<T>, T)
+  switch_enum %i : $RE<T>, case #RE.recursive!enumelt: inner_recursive, case #RE.other!enumelt: inner_other
+
+inner_recursive(%in_tuple_box : @guaranteed $<Tau> { var (RE<Tau>, Tau) } <T>):
+  end_borrow %tuple : $(RE<T>, T)
+  br exit
+
+inner_other(%s_box : @guaranteed $<Tau> { var AnyObject } <T>):
+  %s_addr = project_box %s_box : $<Tau> { var AnyObject } <T>, 0
+  %s = load_borrow %s_addr : $*AnyObject
+  %sc = copy_value %s : $AnyObject
+  end_borrow %s : $AnyObject
+  end_borrow %tuple : $(RE<T>, T)
+  destroy_value %sc : $AnyObject
+  br exit
+
+exit:
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// Verify that the init_enum_data_addr instruction is created before its first
+// use.  Although the opaque values are visited in forward order, their
+// uses are visited at the same time.  At that point, addresses are
+// materialized, and, in this case, an init_enum_data_addr is created.
+//
+// In this test, because %second_in is the first opaque value (i.e. in forward
+// order), its copy_value use is visited before %first_out is defined.  If the
+// init_enum_data_addr were created at that point and reused from then on, it
+// would be reused when rewriting the def of %first_out:
+//
+//     %second_in_addr = alloc_stack $T
+//     %out_addr = alloc_stack $PairEnum<T>
+//     apply undef<T>(%second_in_addr)
+//     %first_out_addr = tuple_element_addr %enum_data_addr, 0
+//                                          ^^^^^^^^^^^^^^^ USE BEFORE DEF
+//     apply undef<T>(%first_out_addr)
+//     %enum_data_addr = init_enum_data_addr %out_addr
+//     %second_out_addr = tuple_element_addr %enum_data_addr, 1
+//     copy_addr %second_in_addr to [init] %second_out_addr
+//
+// We would end up with a use of %enum_data_addr (in the definition of
+// %first_out_addr) that is not dominated by %enum_data_addr's def.
+//
+// CHECK-LABEL: sil [ossa] @test_enum_1_tuple_projection_dominance : {{.*}} {
+// CHECK:         [[SECOND_IN_ADDR:%[^,]+]] = alloc_stack $T
+// CHECK:         [[OUT_ADDR:%[^,]+]] = alloc_stack $PairEnum<T>
+// CHECK:         apply undef<T>([[SECOND_IN_ADDR]])
+// CHECK:         [[ENUM_DATA_ADDR:%[^,]+]] = init_enum_data_addr [[OUT_ADDR]]
+// CHECK:         [[FIRST_OUT_ADDR:%[^,]+]] = tuple_element_addr [[ENUM_DATA_ADDR]]{{.*}}, 0
+// CHECK:         apply undef<T>([[FIRST_OUT_ADDR]])
+// CHECK:         [[SECOND_OUT_ADDR:%[^,]+]] = tuple_element_addr [[ENUM_DATA_ADDR]]{{.*}}, 1
+// CHECK:         copy_addr [[SECOND_IN_ADDR]] to [init] [[SECOND_OUT_ADDR]]
+// CHECK:         inject_enum_addr [[OUT_ADDR]]
+// CHECK:         destroy_addr [[OUT_ADDR]]
+// CHECK:         destroy_addr [[SECOND_IN_ADDR]]
+// CHECK-LABEL: } // end sil function 'test_enum_1_tuple_projection_dominance'
+sil [ossa] @test_enum_1_tuple_projection_dominance : $@convention(thin) <T> () -> () {
+bb0:
+  %second_in = apply undef<T>() : $@convention(thin) <Tee> () -> @out Tee
+  %first_out = apply undef<T>() : $@convention(thin) <Tee> () -> @out Tee
+  %second_out = copy_value %second_in : $T
+  %pair_out = tuple (%first_out : $T, %second_out : $T)
+  %out = enum $PairEnum<T>, #PairEnum.it!enumelt, %pair_out : $(T, T)
+  destroy_value %out : $PairEnum<T>
+  destroy_value %second_in : $T
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_partial_apply_1_addronly_heap : {{.*}} {
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack $T
+// CHECK:         [[GET:%[^,]+]] = function_ref @getT
+// CHECK:         apply [[GET]]<T>([[STACK]])
+// CHECK:         [[BORROW:%[^,]+]] = function_ref @borrowT
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [[BORROW]]<T>([[STACK]])
+// CHECK:         apply [[CLOSURE]]()
+// CHECK:         destroy_value [[CLOSURE]]
+// CHECK:         dealloc_stack [[STACK]]
+// CHECK-LABEL: } // end sil function 'test_partial_apply_1_addronly_heap'
+sil [ossa] @test_partial_apply_1_addronly_heap : $<T> () -> () {
+  %get = function_ref @getT : $@convention(thin) <T> () -> (@out T)
+  %instance = apply %get<T>() : $@convention(thin) <T> () -> (@out T)
+  %callee = function_ref @borrowT : $@convention(thin) <T> (@in_guaranteed T) -> ()
+  %closure = partial_apply [callee_guaranteed] %callee<T>(%instance) : $@convention(thin) <T> (@in_guaranteed T) -> ()
+  apply %closure() : $@callee_guaranteed () -> ()
+  destroy_value %closure : $@callee_guaranteed () -> ()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_partial_apply_2_addronly_stack : {{.*}} {
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack $T
+// CHECK:         [[GET:%[^,]+]] = function_ref @getT
+// CHECK:         apply [[GET]]<T>([[STACK]])
+// CHECK:         [[BORROW:%[^,]+]] = function_ref @borrowT
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [on_stack] [[BORROW]]<T>([[STACK]])
+// CHECK:         apply [[CLOSURE]]()
+// CHECK:         destroy_value [[CLOSURE]]
+// CHECK:         destroy_addr [[STACK]]
+// CHECK:         dealloc_stack [[STACK]]
+// CHECK-LABEL: } // end sil function 'test_partial_apply_2_addronly_stack'
+sil [ossa] @test_partial_apply_2_addronly_stack : $<T> () -> () {
+  %get = function_ref @getT : $@convention(thin) <T> () -> (@out T)
+  %instance = apply %get<T>() : $@convention(thin) <T> () -> (@out T)
+  %callee = function_ref @borrowT : $@convention(thin) <T> (@in_guaranteed T) -> ()
+  %closure = partial_apply [on_stack] [callee_guaranteed] %callee<T>(%instance) : $@convention(thin) <T> (@in_guaranteed T) -> ()
+  apply %closure() : $@noescape @callee_guaranteed () -> ()
+  destroy_value %closure : $@noescape @callee_guaranteed () -> ()
+  destroy_value %instance : $T
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_partial_apply_3_loadable_heap : {{.*}} {
+// CHECK:         [[GET:%[^,]+]] = function_ref @getKlass
+// CHECK:         [[INSTANCE:%[^,]+]] = apply [[GET]]()
+// CHECK:         [[BORROW:%[^,]+]] = function_ref @borrowKlass
+// CHECK:         [[ADDR:%[^,]+]] = alloc_stack $Klass
+// CHECK:         store [[INSTANCE]] to [init] [[ADDR]]
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [[BORROW]]([[ADDR]])
+// CHECK:         dealloc_stack [[ADDR]]
+// CHECK:         apply [[CLOSURE]]()
+// CHECK:         destroy_value [[CLOSURE]]
+// CHECK-LABEL: } // end sil function 'test_partial_apply_3_loadable_heap'
+sil [ossa] @test_partial_apply_3_loadable_heap : $() -> () {
+  %get = function_ref @getKlass : $@convention(thin) () -> (@owned Klass)
+  %instance = apply %get() : $@convention(thin) () -> (@owned Klass)
+  %callee = function_ref @borrowKlass : $@convention(thin) (@in_guaranteed Klass) -> ()
+  %closure = partial_apply [callee_guaranteed] %callee(%instance) : $@convention(thin) (@in_guaranteed Klass) -> ()
+  apply %closure() : $@callee_guaranteed () -> ()
+  destroy_value %closure : $@callee_guaranteed () -> ()
+  // destroy_value %instance : $Klass
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_partial_apply_4_loadable_stack : {{.*}} {
+// CHECK:         [[GET:%[^,]+]] = function_ref @getKlass
+// CHECK:         [[INSTANCE:%[^,]+]] = apply [[GET]]()
+// CHECK:         [[BORROW:%[^,]+]] = function_ref @borrowKlass
+// CHECK:         [[STACK:%[^,]+]] = alloc_stack $Klass
+// CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
+// CHECK:         [[STORAGE_LIFETIME:%[^,]+]] = store_borrow [[LIFETIME]] to [[STACK]]
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [on_stack] [[BORROW]]([[STORAGE_LIFETIME]])
+// FIXME: These end_borrows must be _after_ the apply of the closure!
+// CHECK:         end_borrow [[STORAGE_LIFETIME]]
+// CHECK:         end_borrow [[LIFETIME]]
+// CHECK:         dealloc_stack [[STACK]]
+// CHECK:         apply [[CLOSURE]]() : $@noescape @callee_guaranteed () -> ()
+// CHECK:         destroy_value [[CLOSURE]] : $@noescape @callee_guaranteed () -> ()
+// CHECK:         destroy_value [[INSTANCE]]
+// CHECK-LABEL: } // end sil function 'test_partial_apply_4_loadable_stack'
+sil [ossa] @test_partial_apply_4_loadable_stack : $() -> () {
+  %get = function_ref @getKlass : $@convention(thin) () -> (@owned Klass)
+  %instance = apply %get() : $@convention(thin) () -> (@owned Klass)
+  %callee = function_ref @borrowKlass : $@convention(thin) (@in_guaranteed Klass) -> ()
+  %closure = partial_apply [on_stack] [callee_guaranteed] %callee(%instance) : $@convention(thin) (@in_guaranteed Klass) -> ()
+  apply %closure() : $@noescape @callee_guaranteed () -> ()
+  destroy_value %closure : $@noescape @callee_guaranteed () -> ()
+  destroy_value %instance : $Klass
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @test_partial_apply_5_indexing : {{.*}} {
+// CHECK:       {{bb[0-9]+}}([[C:%[^,]+]] :
+// CHECK:         [[CALLEE:%[^,]+]] = function_ref @test_partial_apply_5_indexing_callee
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [[CALLEE]]([[C]])
+// CHECK:         destroy_value [[CLOSURE]]
+// CHECK-LABEL: } // end sil function 'test_partial_apply_5_indexing'
+sil @test_partial_apply_5_indexing_callee : $@convention(thin) (@inout Int, @guaranteed Klass) -> (@out Int)
+sil [ossa] @test_partial_apply_5_indexing : $@convention(thin) (@owned Klass) -> () {
+bb0(%c : @owned $Klass):
+  %callee = function_ref @test_partial_apply_5_indexing_callee : $@convention(thin) (@inout Int, @guaranteed Klass) -> (@out Int)
+  %closure = partial_apply [callee_guaranteed] %callee(%c) : $@convention(thin) (@inout Int, @guaranteed Klass) -> (@out Int)
+  destroy_value %closure : $@callee_guaranteed (@inout Int) -> (@out Int)
+  %retval = tuple ()
+  return %retval : $()
+}
 
 // CHECK-LABEL: sil hidden [ossa] @test_store_1 : {{.*}} {
 // CHECK:         [[MAYBE_ADDR:%[^,]+]] = alloc_stack $Optional<Self>
@@ -2402,8 +2787,8 @@ bb0(%0 : @guaranteed $T):
 // CHECK-LABEL: sil hidden [ossa] @test_unconditional_checked_cast3 : $@convention(thin) <T, U> (@in_guaranteed T) -> @out U {
 // CHECK: bb0(%0 : $*U, %1 : $*T):
 // CHECK:   [[TTMP:%.*]] = alloc_stack $T
-// CHECK:   [[UTMP:%.*]] = alloc_stack [lexical] $U
 // CHECK:   copy_addr %1 to [init] [[TTMP]] : $*T
+// CHECK:   [[UTMP:%.*]] = alloc_stack [lexical] $U
 // CHECK:   unconditional_checked_cast_addr T in [[TTMP]] : $*T to U in [[UTMP]] : $*U
 // CHECK:   copy_addr [[UTMP]] to [init] %0 : $*U
 // CHECK:   destroy_addr [[UTMP]] : $*U
@@ -2470,11 +2855,12 @@ bb0(%instance : @owned $T):
   %retval = tuple ()
   return %retval : $()
 }
+
 // CHECK-LABEL: sil [ossa] @test_yield_1_two_values : {{.*}} {
 // CHECK:         tuple_element_addr
 // CHECK:         tuple_element_addr
-// CHECK:         [[KEY:%[^,]+]] = tuple_element_addr {{%[^,]+}} : $*(key: Key, value: Value), 0
 // CHECK:         [[VALUE:%[^,]+]] = tuple_element_addr {{%[^,]+}} : $*(key: Key, value: Value), 1
+// CHECK:         [[KEY:%[^,]+]] = tuple_element_addr {{%[^,]+}} : $*(key: Key, value: Value), 0
 // CHECK:         yield ([[KEY]] : $*Key, [[VALUE]] : $*Value)
 // CHECK-LABEL: } // end sil function 'test_yield_1_two_values'
 sil [ossa] @test_yield_1_two_values : $@yield_once @convention(method) <Key, Value> (@in_guaranteed Key, @in_guaranteed Value) -> (@yields @in_guaranteed Key, @yields @in_guaranteed Value) {

@@ -128,7 +128,7 @@ entry(%a : $@thick Any.Type):
 // CHECK:         ret { ptr, ptr } zeroinitializer
 sil @c_cast_to_class_existential : $@convention(thin) (@owned AnyObject) -> @owned CP {
 entry(%a : $AnyObject):
-  checked_cast_br %a : $AnyObject to CP, yea, nay
+  checked_cast_br AnyObject in %a : $AnyObject to CP, yea, nay
 yea(%p : $CP):
   return %p : $CP
 nay:
@@ -139,7 +139,7 @@ nay:
 // CHECK:         call { ptr, ptr } @dynamic_cast_existential_1_conditional(ptr %0, ptr %0, {{.*}} @"$s5casts2CPMp"
 sil @c_cast_to_existential_metatype : $@convention(thin) (@owned @thick Any.Type) -> @owned @thick CP.Type {
 entry(%a : $@thick Any.Type):
-  checked_cast_br %a : $@thick Any.Type to @thick CP.Type, yea, nay
+  checked_cast_br Any.Type in %a : $@thick Any.Type to @thick CP.Type, yea, nay
 yea(%p : $@thick CP.Type):
   return %p : $@thick CP.Type
 nay:
@@ -162,7 +162,7 @@ nay:
 // CHECK:         ret { ptr, ptr, ptr } zeroinitializer
 sil @c_cast_to_class_existential_2 : $@convention(thin) (@owned AnyObject) -> @owned CP & CP2 {
 entry(%a : $AnyObject):
-  checked_cast_br %a : $AnyObject to CP & CP2, yea, nay
+  checked_cast_br AnyObject in %a : $AnyObject to CP & CP2, yea, nay
 yea(%p : $CP & CP2):
   return %p : $CP & CP2
 nay:
@@ -180,7 +180,7 @@ nay:
 // CHECK:         phi ptr [ [[CAST:%.*]], %success ], [ null, %entry ]
 sil @c_cast_to_class_existential_mixed : $@convention(thin) (@owned AnyObject) -> @owned CP & OP & CP2 {
 entry(%a : $AnyObject):
-  checked_cast_br %a : $AnyObject to CP & OP & CP2, yea, nay
+  checked_cast_br AnyObject in %a : $AnyObject to CP & OP & CP2, yea, nay
 yea(%p : $CP & OP & CP2):
   return %p : $CP & OP & CP2
 nay:
@@ -195,7 +195,7 @@ nay:
 // CHECK:         call { ptr, ptr, ptr } @dynamic_cast_existential_2_conditional(ptr {{.*}}, ptr %0, {{.*}} @"$s5casts2CPMp"{{[^,]*}}, {{.*}} @"$s5casts3CP2Mp"
 sil @c_cast_to_existential_metatype_mixed : $@convention(thin) (@owned @thick Any.Type) -> @owned @thick (CP & OP & CP2).Type {
 entry(%a : $@thick Any.Type):
-  checked_cast_br %a : $@thick Any.Type to @thick (CP & OP & CP2).Type, yea, nay
+  checked_cast_br Any.Type in %a : $@thick Any.Type to @thick (CP & OP & CP2).Type, yea, nay
 yea(%p : $@thick (CP & OP & CP2).Type):
   return %p : $@thick (CP & OP & CP2).Type
 nay:
@@ -208,7 +208,7 @@ nay:
 // CHECK:         phi ptr
 sil @checked_upcast : $@convention(thin) (@owned A) -> @owned AnyObject {
 entry(%a : $A):
-  checked_cast_br %a : $A to AnyObject, yea, nay
+  checked_cast_br A in %a : $A to AnyObject, yea, nay
 yea(%o : $AnyObject):
   return %o : $AnyObject
 nay:
@@ -224,7 +224,7 @@ nay:
 // CHECK:         br i1 [[COND]]
 sil @checked_downcast_optional : $@convention(thin) (Optional<A>) -> @owned A {
 entry(%a : $Optional<A>):
-  checked_cast_br %a : $Optional<A> to A, yea, nay
+  checked_cast_br Optional<A> in %a : $Optional<A> to A, yea, nay
 yea(%aa : $A):
   return %aa : $A
 nay:
@@ -240,7 +240,7 @@ nay:
 // CHECK:         br i1 [[COND]]
 sil @checked_downcast_optional_metatype : $@convention(thin) (Optional<@thick A.Type>) -> @thick B.Type {
 entry(%a : $Optional<@thick A.Type>):
-  checked_cast_br %a : $Optional<@thick A.Type> to @thick B.Type, yea, nay
+  checked_cast_br Optional<@thick A.Type> in %a : $Optional<@thick A.Type> to @thick B.Type, yea, nay
 yea(%b : $@thick B.Type):
   return %b : $@thick B.Type
 nay:
@@ -256,7 +256,7 @@ nay:
 // CHECK:         br i1 [[COND]]
 sil @checked_downcast_optional_exmetatype : $@convention(thin) (Optional<@thick CP.Type>) -> @thick B.Type {
 entry(%a : $Optional<@thick CP.Type>):
-  checked_cast_br %a : $Optional<@thick CP.Type> to @thick B.Type, yea, nay
+  checked_cast_br Optional<@thick CP.Type> in %a : $Optional<@thick CP.Type> to @thick B.Type, yea, nay
 yea(%b : $@thick B.Type):
   return %b : $@thick B.Type
 nay:
@@ -272,7 +272,7 @@ nay:
 // CHECK:    load ptr, ptr [[V1]]
 sil @checked_downcast_optional_class_to_ex : $@convention(thin) (@guaranteed Optional<A>) -> @owned Optional<CP> {
 bb0(%0 : $Optional<A>):
-  checked_cast_br %0 : $Optional<A> to CP, bb1, bb2
+  checked_cast_br Optional<A> in %0 : $Optional<A> to CP, bb1, bb2
 
 bb1(%3 : $CP):
   %4 = enum $Optional<CP>, #Optional.some!enumelt, %3 : $CP
@@ -292,20 +292,20 @@ sil @checked_metatype_to_object_casts : $@convention(thin) <T> (@thick Any.Type)
 entry(%e : $@thick Any.Type):
   %a = metatype $@thick NotClass.Type
   // CHECK: call zeroext i1 @swift_dynamicCast({{.*}})
-  checked_cast_br %a : $@thick NotClass.Type to AnyObject, a_yea, a_nay
+  checked_cast_br NotClass.Type in %a : $@thick NotClass.Type to AnyObject, a_yea, a_nay
 a_yea(%1 : $AnyObject):
   %b = metatype $@thick A.Type
-  checked_cast_br %b : $@thick A.Type to AnyObject, b_yea, b_nay
+  checked_cast_br A.Type in %b : $@thick A.Type to AnyObject, b_yea, b_nay
 b_yea(%2 : $AnyObject):
   %c = metatype $@objc_metatype A.Type
-  checked_cast_br %c : $@objc_metatype A.Type to AnyObject, c_yea, c_nay
+  checked_cast_br @objc_metatype A.Type in %c : $@objc_metatype A.Type to AnyObject, c_yea, c_nay
 c_yea(%3 : $AnyObject):
   %d = metatype $@thick T.Type
   // CHECK: call ptr @swift_dynamicCastMetatypeToObjectConditional(ptr %T)
-  checked_cast_br %d : $@thick T.Type to AnyObject, d_yea, d_nay
+  checked_cast_br T.Type in %d : $@thick T.Type to AnyObject, d_yea, d_nay
 d_yea(%4 : $AnyObject):
   // CHECK: call ptr @swift_dynamicCastMetatypeToObjectConditional(ptr %0)
-  checked_cast_br %e : $@thick Any.Type to AnyObject, e_yea, e_nay
+  checked_cast_br Any.Type in %e : $@thick Any.Type to AnyObject, e_yea, e_nay
 e_yea(%5 : $AnyObject):
   return undef : $()
 a_nay:
@@ -362,7 +362,7 @@ sil_vtable C {}
 
 sil @cast_protocol_composition_with_anyobject : $@convention(thin) (@owned P & AnyObject ) -> @owned Optional<C & P> {
 bb0(%0: $P & AnyObject):
-  checked_cast_br %0 : $P & AnyObject to C & P, bb1, bb2
+  checked_cast_br P & AnyObject in %0 : $P & AnyObject to C & P, bb1, bb2
 
 bb1(%2 : $C & P):
   %3 = enum $Optional<C & P>, #Optional.some!enumelt, %2 : $C & P
@@ -383,7 +383,7 @@ bb3(%11 : $Optional<C & P>):
 // CHECK: call { ptr, ptr } @dynamic_cast_existential_1_superclass_conditional({{.*}}, ptr [[C_META]], ptr {{.*}}@"$s5casts10PAnyObjectMp"
 sil @cast_protocol_with_anyobject : $@convention(thin) (@owned PAnyObject ) -> @owned Optional<C & PAnyObject> {
 bb0(%0: $PAnyObject):
-  checked_cast_br %0 : $PAnyObject to C & PAnyObject, bb1, bb2
+  checked_cast_br PAnyObject in %0 : $PAnyObject to C & PAnyObject, bb1, bb2
 
 bb1(%2 : $C & PAnyObject):
   %3 = enum $Optional<C & PAnyObject>, #Optional.some!enumelt, %2 : $C & PAnyObject

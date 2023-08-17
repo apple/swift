@@ -17,7 +17,7 @@ import SIL
 /// Dumps the EscapeInfo query results for all `alloc_stack` instructions in a function.
 ///
 /// This pass is used for testing EscapeInfo.
-let escapeInfoDumper = FunctionPass(name: "dump-escape-info", {
+let escapeInfoDumper = FunctionPass(name: "dump-escape-info") {
   (function: Function, context: FunctionPassContext) in
 
   print("Escape information for \(function.name):")
@@ -60,8 +60,7 @@ let escapeInfoDumper = FunctionPass(name: "dump-escape-info", {
     }
   }
   print("End function \(function.name)\n")
-})
-
+}
 
 /// Dumps the results of address-related escape analysis.
 ///
@@ -69,7 +68,7 @@ let escapeInfoDumper = FunctionPass(name: "dump-escape-info", {
 /// The `fix_lifetime` instruction is used as marker for addresses and values to query.
 ///
 /// This pass is used for testing EscapeInfo.
-let addressEscapeInfoDumper = FunctionPass(name: "dump-addr-escape-info", {
+let addressEscapeInfoDumper = FunctionPass(name: "dump-addr-escape-info") {
   (function: Function, context: FunctionPassContext) in
 
   print("Address escape information for \(function.name):")
@@ -159,4 +158,4 @@ let addressEscapeInfoDumper = FunctionPass(name: "dump-addr-escape-info", {
   }
   
   print("End function \(function.name)\n")
-})
+}

@@ -30,42 +30,42 @@ import SIL
 /// The optimization is only done for stack promoted objects because they are
 /// known to have no associated objects (which are not explicitly released
 /// in the deinit method).
-let releaseDevirtualizerPass = FunctionPass(
-  name: "release-devirtualizer", { function, context in
-    for block in function.blocks {
-      // The last `release_value`` or `strong_release`` instruction before the
-      // deallocation.
-      var lastRelease: RefCountingInst?
+let releaseDevirtualizerPass = FunctionPass(name: "release-devirtualizer") {
+  (function: Function, context: FunctionPassContext) in
 
-      for instruction in block.instructions {
-        if let release = lastRelease {
-          // We only do the optimization for stack promoted object, because for
-          // these we know that they don't have associated objects, which are
-          // _not_ released by the deinit method.
-          if let deallocStackRef = instruction as? DeallocStackRefInst {
-            if !context.continueWithNextSubpassRun(for: release) {
-              return
-            }
-            tryDevirtualizeReleaseOfObject(context, release, deallocStackRef)
-            lastRelease = nil
-            continue
+  for block in function.blocks {
+    // The last `release_value`` or `strong_release`` instruction before the
+    // deallocation.
+    var lastRelease: RefCountingInst?
+
+    for instruction in block.instructions {
+      if let release = lastRelease {
+        // We only do the optimization for stack promoted object, because for
+        // these we know that they don't have associated objects, which are
+        // _not_ released by the deinit method.
+        if let deallocStackRef = instruction as? DeallocStackRefInst {
+          if !context.continueWithNextSubpassRun(for: release) {
+            return
           }
+          tryDevirtualizeReleaseOfObject(context, release, deallocStackRef)
+          lastRelease = nil
+          continue
         }
+      }
 
-        switch instruction {
-          case is ReleaseValueInst, is StrongReleaseInst:
-            lastRelease = instruction as? RefCountingInst
-          case is DeallocRefInst, is SetDeallocatingInst:
+      switch instruction {
+        case is ReleaseValueInst, is StrongReleaseInst:
+          lastRelease = instruction as? RefCountingInst
+        case is DeallocRefInst, is SetDeallocatingInst:
+          lastRelease = nil
+        default:
+          if instruction.mayRelease {
             lastRelease = nil
-          default:
-            if instruction.mayRelease {
-              lastRelease = nil
-            }
-        }
+          }
       }
     }
   }
-)
+}
 
 /// Tries to de-virtualize the final release of a stack-promoted object.
 private func tryDevirtualizeReleaseOfObject(

@@ -29,6 +29,7 @@ class AssociatedTypeDecl;
 class ASTContext;
 struct ASTNode;
 class CallExpr;
+class CaseStmt;
 class Decl;
 class DeclContext;
 class DeclRefExpr;
@@ -389,6 +390,11 @@ public:
                               ArrayRef<ProtocolConformanceRef> conformances,
                                      ArrayRef<Expr *> args);
 
+  /// Build a call to the stdlib function that should be called when unavailable
+  /// code is reached unexpectedly.
+  static CallExpr *
+  createDiagnoseUnavailableCodeReachedCallExpr(ASTContext &ctx);
+
   /// Returns true if this derivation is trying to use a context that isn't
   /// appropriate for deriving.
   ///
@@ -452,6 +458,16 @@ public:
   static Pattern *enumElementPayloadSubpattern(
       EnumElementDecl *enumElementDecl, char varPrefix, DeclContext *varContext,
       SmallVectorImpl<VarDecl *> &boundVars, bool useLabels = false);
+
+  /// Creates a synthesized case statement that has the following structure:
+  ///
+  ///     case .<elt>, ..., .<elt>:
+  ///       _diagnoseUnavailableCodeReached()
+  ///
+  /// The number of \c .<elt> matches is equal to \p subPatternCount.
+  static CaseStmt *unavailableEnumElementCaseStmt(
+      Type enumType, EnumElementDecl *enumElementDecl, DeclContext *parentDC,
+      unsigned subPatternCount = 1);
 
   static VarDecl *indexedVarDecl(char prefixChar, int index, Type type,
                                  DeclContext *varContext);

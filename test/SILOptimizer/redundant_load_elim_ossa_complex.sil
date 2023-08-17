@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elim | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elimination | %FileCheck %s
 // TODO : Add a version with semantic-arc-opts when #34971 is landed or DCE is enabled on OSSA
 
 // REQUIRES: swift_in_compiler
@@ -46,8 +46,9 @@ bb0(%0 : $*NonTrivialStruct):
 }
 
 // CHECK-LABEL: sil [ossa] @rle_simple2 :
-// CHECK: load
-// CHECK-NOT: load 
+// CHECK:         load
+// CHECK:       bb1:
+// CHECK-NEXT:    load 
 // CHECK-LABEL: } // end sil function 'rle_simple2'
 sil [ossa] @rle_simple2 : $@convention(thin) (@in NonTrivialStruct) -> @owned Klass {
 bb0(%0 : $*NonTrivialStruct):
@@ -69,8 +70,9 @@ bb3:
 }
 
 // CHECK-LABEL: sil [ossa] @rle_simple3 :
-// CHECK: load
-// CHECK-NOT: load 
+// CHECK:         load
+// CHECK:       bb1:
+// CHECK-NEXT:    load 
 // CHECK-LABEL: } // end sil function 'rle_simple3'
 sil [ossa] @rle_simple3 : $@convention(thin) (@in NonTrivialStruct) -> @owned Klass {
 bb0(%0 : $*NonTrivialStruct):
@@ -261,12 +263,9 @@ bb1:
   return %val1 : $Klass
 }
 
-// Test to make sure we generate only one copy_value of the load
 // CHECK-LABEL: sil [ossa] @rle_nodoublecopy2 : 
-// CHECK: load
-// CHECK: copy_value
-// CHECK-NOT: copy_value
-// CHECK-NOT: load 
+// CHECK:       bb3:
+// CHECK-NEXT:    load [take]
 // CHECK-LABEL: } // end sil function 'rle_nodoublecopy2'
 sil [ossa] @rle_nodoublecopy2 : $@convention(thin) (@in NonTrivialStruct) -> @owned Klass {
 bb0(%0 : $*NonTrivialStruct):
@@ -366,8 +365,8 @@ bb0(%0 : $*TripleKlass):
 }
 
 // CHECK-LABEL: sil [ossa] @rle_redundantload_does_not_postdominate1 : 
-// CHECK: load
-// CHECK-NOT: load 
+// CHECK:       bb5:
+// CHECK-NEXT:    load [take]
 // CHECK-LABEL: } // end sil function 'rle_redundantload_does_not_postdominate1'
 sil [ossa] @rle_redundantload_does_not_postdominate1 : $@convention(thin) (@in NonTrivialStruct) -> () {
 bb0(%0 : $*NonTrivialStruct):
@@ -400,8 +399,8 @@ bb6:
 }
 
 // CHECK-LABEL: sil [ossa] @rle_redundantload_does_not_postdominate2 : 
-// CHECK: load
-// CHECK-NOT: load 
+// CHECK:       bb1:
+// CHECK-NEXT:    load [take]
 // CHECK-LABEL: } // end sil function 'rle_redundantload_does_not_postdominate2'
 sil [ossa] @rle_redundantload_does_not_postdominate2 : $@convention(thin) (@in NonTrivialStruct, @owned Klass) -> () {
 bb0(%0 : $*NonTrivialStruct, %1 : @owned $Klass):
@@ -428,8 +427,8 @@ bb2:
 }
 
 // CHECK-LABEL: sil [ossa] @rle_redundantload_does_not_postdominate3 : 
-// CHECK: load
-// CHECK-NOT: load 
+// CHECK:       bb1:
+// CHECK-NEXT:    load [copy]
 // CHECK-LABEL: } // end sil function 'rle_redundantload_does_not_postdominate3'
 sil [ossa] @rle_redundantload_does_not_postdominate3 : $@convention(thin) (@in NonTrivialStruct) -> () {
 bb0(%0 : $*NonTrivialStruct):
@@ -453,8 +452,8 @@ bb2:
 }
 
 // CHECK-LABEL: sil [ossa] @rle_redundantload_does_not_postdominate4 : 
-// CHECK: load
-// CHECK-NOT: load 
+// CHECK:       bb1:
+// CHECK-NEXT:    load [copy]
 // CHECK-LABEL: } // end sil function 'rle_redundantload_does_not_postdominate4'
 sil [ossa] @rle_redundantload_does_not_postdominate4 : $@convention(thin) (@in NonTrivialStruct) -> () {
 bb0(%0 : $*NonTrivialStruct):
@@ -653,10 +652,6 @@ bb8a:
  br bb10
 
 bb9:
-  %21 = struct_element_addr %1 : $*NonTrivialStruct, #NonTrivialStruct.val
-  %22 = load [copy] %21 : $*Klass
-  %23 = function_ref @use_klass : $@convention(thin) (@owned Klass) -> ()
-  %24 = apply %23(%22) : $@convention(thin) (@owned Klass) -> ()
   br bb10
 
 bb10:
@@ -669,11 +664,6 @@ bb10:
 // CHECK-LABEL: sil [ossa] @load_to_load_conflicting_branches_diamond :
 // CHECK: bb0(
 // CHECK: = load
-// CHECK: bb1:
-// CHECK-NOT: = load
-// CHECK: store
-// CHECK-NOT: = load
-// CHECK: bb2:
 // CHECK: bb3([[A:%[0-9]+]] : @owned $Klass):
 // CHECK-NOT: = load
 // CHECK: apply %{{[0-9]+}}([[A]])
@@ -740,8 +730,8 @@ bb3(%4 : @owned $NonTrivialStruct):
 }
 
 // CHECK-LABEL: sil [ossa] @rle_forwarding_arg_in_diff_region :
-// CHECK: bb3
-// CHECK-NOT: = load
+// CHECK:       bb6:
+// CHECK-NEXT:    load [copy]
 // CHECK-LABEL: } // end sil function 'rle_forwarding_arg_in_diff_region'
 sil [ossa] @rle_forwarding_arg_in_diff_region : $@convention(thin) (@in NonTrivialStruct) -> @owned Klass {
 bb0(%0 : $*NonTrivialStruct):
@@ -778,8 +768,8 @@ bb7:
 }
 
 // CHECK-LABEL: @rle_fixlifetimeof_intermediate_phis :
-// CHECK: load
-// CHECK-NOT: load
+// CHECK:       bb5:
+// CHECK-NEXT:    load [copy]
 // CHECK-LABEL: end sil function 'rle_fixlifetimeof_intermediate_phis'
 sil [ossa] @rle_fixlifetimeof_intermediate_phis : $@convention(thin) (@in NonTrivialStruct, @owned Klass, @owned Klass) -> @owned Klass {
 bb0(%0 : $*NonTrivialStruct, %1 : @owned $Klass, %2 : @owned $Klass):
@@ -825,7 +815,8 @@ bb9:
 }
 
 // CHECK-LABEL: @rle_ownershipkindmergetest :
-// CHECK-NOT: load
+// CHECK:       bb3:
+// CHECK-NEXT:    load [copy]
 // CHECK-LABEL: end sil function 'rle_ownershipkindmergetest'
 sil [ossa] @rle_ownershipkindmergetest : $@convention(thin) (@owned FakeOptional<Klass>) -> () {
 bb0(%0 : @owned $FakeOptional<Klass>):

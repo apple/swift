@@ -110,23 +110,15 @@ void ObjCReason::describe(const Decl *D) const {
     break;
 
   case ObjCReason::OverridesObjC: {
-    unsigned kind = isa<VarDecl>(D) ? 0
-                  : isa<SubscriptDecl>(D) ? 1
-                  : isa<ConstructorDecl>(D) ? 2
-                  : 3;
-
     auto overridden = cast<ValueDecl>(D)->getOverriddenDecl();
-    overridden->diagnose(diag::objc_overriding_objc_decl,
-                         kind, overridden->getName());
+    overridden->diagnose(diag::objc_overriding_objc_decl, overridden);
     break;
   }
 
   case ObjCReason::WitnessToObjC: {
     auto requirement = getObjCRequirement();
-    requirement->diagnose(diag::objc_witness_objc_requirement,
-                D->getDescriptiveKind(), requirement->getName(),
-                cast<ProtocolDecl>(requirement->getDeclContext())
-                  ->getName());
+    requirement->diagnose(diag::objc_witness_objc_requirement, requirement,
+                          cast<ProtocolDecl>(requirement->getDeclContext()));
     break;
   }
 
@@ -303,7 +295,7 @@ static void diagnoseFunctionParamNotRepresentable(
   } else {
     if (auto typeRepr = P->getTypeRepr())
       SR = typeRepr->getSourceRange();
-    diagnoseTypeNotRepresentableInObjC(AFD, P->getType(), SR, behavior);
+    diagnoseTypeNotRepresentableInObjC(AFD, P->getTypeInContext(), SR, behavior);
   }
   Reason.describe(AFD);
 }
@@ -344,7 +336,7 @@ static bool isParamListRepresentableInObjC(const AbstractFunctionDecl *AFD,
       return false;
     }
 
-    if (param->getType()->hasError())
+    if (param->getTypeInContext()->hasError())
       return false;
 
     if (param->hasAttachedPropertyWrapper()) {
@@ -352,7 +344,7 @@ static bool isParamListRepresentableInObjC(const AbstractFunctionDecl *AFD,
           ForeignLanguage::ObjectiveC,
           const_cast<AbstractFunctionDecl *>(AFD)))
         continue;
-    } else if (param->getType()->isRepresentableIn(
+    } else if (param->getTypeInContext()->isRepresentableIn(
           ForeignLanguage::ObjectiveC,
           const_cast<AbstractFunctionDecl *>(AFD))) {
       continue;
@@ -362,7 +354,7 @@ static bool isParamListRepresentableInObjC(const AbstractFunctionDecl *AFD,
     // foreign error convention that replaces NSErrorPointer with ()
     // and this is the replaced parameter.
     AbstractFunctionDecl *overridden;
-    if (param->getType()->isVoid() && AFD->hasThrows() &&
+    if (param->getTypeInContext()->isVoid() && AFD->hasThrows() &&
         (overridden = AFD->getOverriddenDecl())) {
       auto foreignError = overridden->getForeignErrorConvention();
       if (foreignError &&
@@ -467,8 +459,7 @@ static bool checkObjCActorIsolation(const ValueDecl *VD, ObjCReason Reason) {
   case ActorIsolation::ActorInstance:
     if (!canExposeActorIsolatedAsObjC(VD, isolation)) {
       // Actor-isolated functions cannot be @objc.
-      VD->diagnose(diag::actor_isolated_objc, VD->getDescriptiveKind(),
-                   VD->getName());
+      VD->diagnose(diag::actor_isolated_objc, VD);
       Reason.describe(VD);
       if (auto FD = dyn_cast<FuncDecl>(VD)) {
         addAsyncNotes(const_cast<FuncDecl *>(FD));
@@ -997,7 +988,7 @@ bool swift::isRepresentableInObjC(
 
       while (errorParameterIndex > 0) {
         // Skip over trailing closures.
-        auto type = paramList->get(errorParameterIndex - 1)->getType();
+        auto type = paramList->get(errorParameterIndex - 1)->getTypeInContext();
 
         // It can't be a trailing closure unless it has a specific form.
         // Only consider the rvalue type.
@@ -1695,9 +1686,8 @@ bool IsObjCRequest::evaluate(Evaluator &evaluator, ValueDecl *VD) const {
       ASTContext &ctx = dc->getASTContext();
       auto behavior = behaviorLimitForObjCReason(*isObjC, ctx);
       if (storageObjCAttr && storageObjCAttr->isSwift3Inferred()) {
-        storage->diagnose(diag::accessor_swift3_objc_inference,
-                 storage->getDescriptiveKind(), storage->getName(),
-                 isa<SubscriptDecl>(storage), accessor->isSetter())
+        storage->diagnose(diag::accessor_swift3_objc_inference, storage,
+                          accessor->isSetter())
           .fixItInsert(storage->getAttributeInsertionLoc(/*forModifier=*/false),
                        "@objc ")
           .limitBehavior(behavior);
@@ -1861,17 +1851,14 @@ static ObjCSelector inferObjCName(ValueDecl *decl) {
     // If this requirement has a different name from one we've seen,
     // note the ambiguity.
     if (*requirementObjCName != *req->getObjCRuntimeName()) {
-      decl->diagnose(diag::objc_ambiguous_inference,
-                     decl->getDescriptiveKind(), decl->getName(),
+      decl->diagnose(diag::objc_ambiguous_inference, decl,
                      *requirementObjCName, *req->getObjCRuntimeName());
 
       // Note the candidates and what Objective-C names they provide.
       auto diagnoseCandidate = [&](ValueDecl *req) {
         auto proto = cast<ProtocolDecl>(req->getDeclContext());
         auto diag = decl->diagnose(diag::objc_ambiguous_inference_candidate,
-                                   req->getName(),
-                                   proto->getName(),
-                                   *req->getObjCRuntimeName());
+                                   req, proto, *req->getObjCRuntimeName());
         fixDeclarationObjCName(diag, decl,
                                decl->getObjCRuntimeName(/*skipIsObjC=*/true),
                                req->getObjCRuntimeName());
@@ -1958,13 +1945,12 @@ void markAsObjC(ValueDecl *D, ObjCReason reason,
           // methods.
           if (declProvidingInheritedAsyncConvention
               && inheritedAsyncConvention != reqAsyncConvention) {
-            method->diagnose(diag::objc_ambiguous_async_convention,
-                             method->getName());
+            method->diagnose(diag::objc_ambiguous_async_convention, method);
             declProvidingInheritedAsyncConvention->diagnose(
                 diag::objc_ambiguous_async_convention_candidate,
-                declProvidingInheritedAsyncConvention->getName());
+                declProvidingInheritedAsyncConvention);
             reqMethod->diagnose(diag::objc_ambiguous_async_convention_candidate,
-                                reqMethod->getName());
+                                reqMethod);
             break;
           }
 
@@ -1981,13 +1967,12 @@ void markAsObjC(ValueDecl *D, ObjCReason reason,
           // methods.
           if (declProvidingInheritedErrorConvention
               && inheritedErrorConvention != reqErrorConvention) {
-            method->diagnose(diag::objc_ambiguous_error_convention,
-                             method->getName());
+            method->diagnose(diag::objc_ambiguous_error_convention, method);
             declProvidingInheritedErrorConvention->diagnose(
                 diag::objc_ambiguous_error_convention_candidate,
-                declProvidingInheritedErrorConvention->getName());
+                declProvidingInheritedErrorConvention);
             reqMethod->diagnose(diag::objc_ambiguous_error_convention_candidate,
-                                reqMethod->getName());
+                                reqMethod);
             break;
           }
 
@@ -2644,7 +2629,7 @@ bool swift::diagnoseObjCMethodConflicts(SourceFile &sf) {
 
       if (redeclSame)
         Ctx.Diags.diagnose(originalDecl, diag::invalid_redecl_prev,
-                           originalDecl->getBaseName());
+                           originalDecl);
       else
         Ctx.Diags.diagnose(originalDecl, diag::objc_declared_here,
                            origDiagInfo.first, origDiagInfo.second);
@@ -2881,9 +2866,16 @@ namespace {
 class ObjCImplementationChecker {
   DiagnosticEngine &diags;
 
-  template<typename ...ArgTypes>
-  InFlightDiagnostic diagnose(ArgTypes &&...Args) {
-    auto diag = diags.diagnose(std::forward<ArgTypes>(Args)...);
+  template<typename Loc, typename ...ArgTypes>
+  InFlightDiagnostic diagnose(Loc loc, Diag<ArgTypes...> diagID,
+                        typename detail::PassArgument<ArgTypes>::type... Args) {
+    auto diag = diags.diagnose(loc, diagID, std::forward<ArgTypes>(Args)...);
+
+    // WORKAROUND (5.9): Soften newly-introduced errors to make things easier
+    // for early adopters.
+    if (diags.declaredDiagnosticKindFor(diagID.ID) == DiagnosticKind::Error)
+      diag.wrapIn(diag::wrap_objc_implementation_will_become_error);
+
     return diag;
   }
 
@@ -3138,14 +3130,13 @@ private:
 
       // Ambiguous match (many requirements match one candidate)
       diagnose(cand, diag::objc_implementation_multiple_matching_requirements,
-                     cand->getDescriptiveKind(), cand);
+                     cand);
 
       bool shouldOfferFix = !candExplicitObjCName;
       for (auto req : matchedRequirements.matches) {
         auto diag =
             diagnose(cand, diag::objc_implementation_one_matched_requirement,
-                           req->getDescriptiveKind(), req,
-                           *req->getObjCRuntimeName(), shouldOfferFix,
+                           req, *req->getObjCRuntimeName(), shouldOfferFix,
                            req->getObjCRuntimeName()->getString(scratch));
         if (shouldOfferFix) {
           fixDeclarationObjCName(diag, cand, cand->getObjCRuntimeName(),
@@ -3187,14 +3178,13 @@ private:
       auto ext =
           cast<ExtensionDecl>(reqIDC->getImplementationContext());
       diagnose(ext, diag::objc_implementation_multiple_matching_candidates,
-                    req->getDescriptiveKind(), req,
-                    *req->getObjCRuntimeName());
+                    req, *req->getObjCRuntimeName());
 
       for (auto cand : cands.matches) {
         bool shouldOfferFix = !unmatchedCandidates[cand];
         auto diag =
             diagnose(cand, diag::objc_implementation_candidate_impl_here,
-                           cand->getDescriptiveKind(), cand, shouldOfferFix,
+                           cand, shouldOfferFix,
                            req->getObjCRuntimeName()->getString(scratch));
 
         if (shouldOfferFix) {
@@ -3204,8 +3194,7 @@ private:
         }
       }
 
-      diagnose(req, diag::objc_implementation_requirement_here,
-                    req->getDescriptiveKind(), req);
+      diagnose(req, diag::objc_implementation_requirement_here, req);
     }
 
     // Remove matched candidates and requirements from the unmatched lists.
@@ -3377,16 +3366,14 @@ private:
     case MatchOutcome::WrongImplicitObjCName:
     case MatchOutcome::WrongExplicitObjCName: {
       auto diag = diagnose(cand, diag::objc_implementation_wrong_objc_name,
-                           *cand->getObjCRuntimeName(),
-                           cand->getDescriptiveKind(), cand, reqObjCName);
+                           *cand->getObjCRuntimeName(), cand, reqObjCName);
       fixDeclarationObjCName(diag, cand, explicitObjCName, reqObjCName);
       return;
     }
 
     case MatchOutcome::WrongSwiftName: {
       auto diag = diagnose(cand, diag::objc_implementation_wrong_swift_name,
-                           reqObjCName, req->getDescriptiveKind(),
-                           req->getName());
+                           reqObjCName, req);
       fixDeclarationName(diag, cand, req->getName());
       if (!explicitObjCName) {
         // Changing the Swift name will probably change the implicitly-computed
@@ -3400,34 +3387,31 @@ private:
     case MatchOutcome::WrongStaticness: {
       auto diag = diagnose(cand,
                            diag::objc_implementation_class_or_instance_mismatch,
-                           cand->getDescriptiveKind(), cand,
-                           req->getDescriptiveKind());
+                           cand, req->getDescriptiveKind());
       fixDeclarationStaticSpelling(diag, cand, getStaticSpelling(req));
       return;
     }
 
     case MatchOutcome::WrongCategory:
       diagnose(cand, diag::objc_implementation_wrong_category,
-               cand->getDescriptiveKind(), cand,
-               getCategoryName(req->getDeclContext()),
+               cand, getCategoryName(req->getDeclContext()),
                getCategoryName(cand->getDeclContext()->
                                  getImplementedObjCContext()));
       return;
 
     case MatchOutcome::WrongDeclKind:
       diagnose(cand, diag::objc_implementation_wrong_decl_kind,
-               cand->getDescriptiveKind(), cand, req->getDescriptiveKind());
+               cand, req->getDescriptiveKind());
       return;
 
     case MatchOutcome::WrongType:
       diagnose(cand, diag::objc_implementation_type_mismatch,
-               cand->getDescriptiveKind(), cand,
-               getMemberType(cand), getMemberType(req));
+               cand, getMemberType(cand), getMemberType(req));
       return;
 
     case MatchOutcome::WrongWritability:
       diagnose(cand, diag::objc_implementation_must_be_settable,
-               cand->getDescriptiveKind(), cand, req->getDescriptiveKind());
+               cand, req->getDescriptiveKind());
       return;
 
     case MatchOutcome::WrongRequiredAttr: {
@@ -3435,7 +3419,7 @@ private:
 
       auto diag =
         diagnose(cand, diag::objc_implementation_required_attr_mismatch,
-                 cand->getDescriptiveKind(), cand, shouldBeRequired);
+                 cand, req->getDescriptiveKind(),  shouldBeRequired);
       
       if (shouldBeRequired)
         diag.fixItInsert(cand->getAttributeInsertionLoc(/*forModifier=*/true),
@@ -3453,38 +3437,36 @@ private:
       if (reqConv && !candConv)
         diagnose(cand,
                  diag::objc_implementation_candidate_has_error_convention,
-                 cand->getDescriptiveKind(), cand);
+                 cand);
       else if (!reqConv && candConv)
         diagnose(cand,
                  diag::objc_implementation_candidate_lacks_error_convention,
-                 cand->getDescriptiveKind(), cand);
+                 cand);
       else if (reqConv->getKind() != candConv->getKind())
         diagnose(cand,
                  diag::objc_implementation_mismatched_error_convention_kind,
-                 cand->getDescriptiveKind(), cand, candConv->getKind(),
-                 reqConv->getKind());
+                 cand, candConv->getKind(), reqConv->getKind());
       else if (reqConv->getErrorParameterIndex()
                   != candConv->getErrorParameterIndex())
         diagnose(cand,
                  diag::objc_implementation_mismatched_error_convention_index,
-                 cand->getDescriptiveKind(), cand,
+                 cand,
                  candConv->getErrorParameterIndex() + 1,
                  reqConv->getErrorParameterIndex() + 1);
       else if (reqConv->isErrorParameterReplacedWithVoid()
                   != candConv->isErrorParameterReplacedWithVoid())
         diagnose(cand,
                  diag::objc_implementation_mismatched_error_convention_void_param,
-                 cand->getDescriptiveKind(), cand,
-                 candConv->isErrorParameterReplacedWithVoid());
+                 cand, candConv->isErrorParameterReplacedWithVoid());
       else if (reqConv->isErrorOwned() != candConv->isErrorOwned())
         diagnose(cand,
                  diag::objc_implementation_mismatched_error_convention_ownership,
-                 cand->getDescriptiveKind(), cand, candConv->isErrorOwned());
+                 cand, candConv->isErrorOwned());
       else
         // Catch-all; probably shouldn't happen.
         diagnose(cand,
                  diag::objc_implementation_mismatched_error_convention_other,
-                 cand->getDescriptiveKind(), cand);
+                 cand);
 
       return;
     }
@@ -3522,8 +3504,7 @@ public:
                         ->getImplementationContext();
 
       diagnose(ext->getDecl(), diag::objc_implementation_missing_impl,
-               getCategoryName(req->getDeclContext()),
-               req->getDescriptiveKind(), req);
+               getCategoryName(req->getDeclContext()), req);
 
       // FIXME: Should give fix-it to add stub implementation
     }
@@ -3533,9 +3514,17 @@ public:
     for (auto &pair : unmatchedCandidates) {
       auto cand = pair.first;
 
+      // `isObjCMemberImplementation()` incorrectly returns true for required
+      // inits that are overrides because checking in that accessor would create
+      // a cycle between override computations and access control. Don't
+      // diagnose such candidates.
+      // FIXME: Refactor around this so these methods are never made candidates.
+      if (auto ctor = dyn_cast<ConstructorDecl>(cand))
+        if (ctor->isRequired() && !ctor->getOverriddenDecls().empty())
+          continue;
+
       diagnose(cand, diag::member_of_objc_implementation_not_objc_or_final,
-               cand->getDescriptiveKind(), cand,
-               cand->getDeclContext()->getSelfClassDecl());
+               cand, cand->getDeclContext()->getSelfClassDecl());
 
       if (canBeRepresentedInObjC(cand))
         diagnose(cand, diag::fixit_add_private_for_objc_implementation,

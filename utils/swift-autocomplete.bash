@@ -57,7 +57,6 @@ _swift_complete()
       -keep-will-throw-call \
       -looprotate-single-block-loop \
       -looprotate-size-limit \
-      -lslocation-dump-use-new-projection \
       -max-local-apply-recur-depth \
       -max-partial-store-count \
       -optimize-opaque-address-lowering \

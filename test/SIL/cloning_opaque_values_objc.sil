@@ -1,0 +1,33 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -enable-sil-opaque-values -inline %s | %FileCheck %s
+
+// Check cloning of instructions that are only legal in opaque values mode.
+
+// REQUIRES: objc_interop
+
+import Swift
+
+struct UnownedBox<T : AnyObject> {
+  unowned var value: T
+}
+
+// CHECK-LABEL: sil [ossa] @unowned_copy_value_caller : {{.*}} {
+// CHECK:       bb0([[STRONG:%[^,]+]] :
+// CHECK:         [[UNOWNED:%[^,]+]] = unowned_copy_value [[STRONG]]
+// CHECK:         destroy_value [[STRONG]]
+// CHECK:         [[RETVAL:%[^,]+]] = struct $UnownedBox<T> ([[UNOWNED]] :
+// CHECK:         return [[RETVAL]]
+// CHECK-LABEL: } // end sil function 'unowned_copy_value_caller'
+sil [ossa] @unowned_copy_value_caller : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T> {
+bb0(%value : @owned $T):
+  %callee = function_ref @unowned_copy_value : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T>
+  %retval = apply %callee<T>(%value) : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T>
+  return %retval : $UnownedBox<T>
+}
+
+sil [always_inline] [ossa] @unowned_copy_value : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T> {
+bb0(%owned_value : @owned $T):
+  %unowned_value = unowned_copy_value %owned_value : $T
+  destroy_value %owned_value : $T
+  %instance = struct $UnownedBox<T> (%unowned_value : $@sil_unowned T)
+  return %instance : $UnownedBox<T>
+}

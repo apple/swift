@@ -6,7 +6,7 @@
 import CustomDestructor
 
 protocol InitWithDummy {
-  init(dummy: DummyStruct)
+  init(_: DummyStruct)
 }
 
 extension HasUserProvidedDestructorAndDummy : InitWithDummy { }
@@ -24,7 +24,7 @@ extension HasUserProvidedDestructorAndDummy : InitWithDummy { }
 // CHECK-LABEL: define {{.*}}@{{_ZN33HasUserProvidedDestructorAndDummyD(1|2)Ev|"\?\?1HasUserProvidedDestructorAndDummy@@QEAA@XZ"}}
 // CHECK: ret
 public func testHasUserProvidedDestructorAndDummy() {
-  _ = HasUserProvidedDestructorAndDummy(dummy: DummyStruct())
+  _ = HasUserProvidedDestructorAndDummy(DummyStruct())
 }
 
 // CHECK-LABEL: define {{.*}}void @"$s4main26testHasDefaultedDestructoryyF"

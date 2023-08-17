@@ -53,7 +53,7 @@ function(_add_host_swift_compile_options name)
     set(DEPLOYMENT_VERSION "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_DEPLOYMENT_VERSION}")
   endif()
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID")
     set(DEPLOYMENT_VERSION ${SWIFT_ANDROID_API_LEVEL})
   endif()
 
@@ -141,7 +141,7 @@ function(add_pure_swift_host_library name)
   set_property(TARGET ${name}
     PROPERTY BUILD_WITH_INSTALL_RPATH YES)
 
-  if(APSHL_SHARED AND CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  if(APSHL_SHARED AND CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Allow install_name_tool to update paths (for rdar://109473564)
     set_property(TARGET ${name} APPEND_STRING PROPERTY
                  LINK_FLAGS " -Xlinker -headerpad_max_install_names")
@@ -267,7 +267,7 @@ function(add_pure_swift_host_tool name)
   add_executable(${name} ${APSHT_SOURCES})
   _add_host_swift_compile_options(${name})
 
-  if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+  if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
     set_property(TARGET ${name}
       APPEND PROPERTY INSTALL_RPATH
         "@executable_path/../lib/swift/host")

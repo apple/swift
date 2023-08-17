@@ -691,7 +691,7 @@ bb2:
 // CHECK-NOT: Function: 'test_borrow_checked_cast_switch_enum_control_flow'
 sil [ossa] @test_borrow_checked_cast_switch_enum_control_flow : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : @owned $Klass):
-  checked_cast_br %0 : $Klass to SuperKlass, bb1, bb2
+  checked_cast_br Klass in %0 : $Klass to SuperKlass, bb1, bb2
 
 bb1(%1 : @owned $SuperKlass):
   destroy_value %1 : $SuperKlass
@@ -721,7 +721,7 @@ bb3(%borrow : @guaranteed $FakeOptional<Klass>, %mKlass : @owned $FakeOptional<K
 // CHECK-NOT: Error#: {{[0-9][0-9]*}}. End Error in Function: 'test_borrow_checked_cast_switch_enum_control_flow_incorrect'
 sil [ossa] @test_borrow_checked_cast_switch_enum_control_flow_incorrect : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : @owned $Klass):
-  checked_cast_br %0 : $Klass to SuperKlass, bb1, bb2
+  checked_cast_br Klass in %0 : $Klass to SuperKlass, bb1, bb2
 
 bb1(%1 : @owned $SuperKlass):
   destroy_value %1 : $SuperKlass

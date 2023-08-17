@@ -38,11 +38,14 @@ class NamedDecl;
 }
 
 namespace swift {
+  class ConstructorDecl;
   class Decl;
   class DeclAttribute;
   class DiagnosticEngine;
+  class FuncDecl;
   class GeneratedSourceInfo;
   class SourceManager;
+  class TypeAliasDecl;
   class ValueDecl;
   class SourceFile;
 
@@ -109,7 +112,7 @@ namespace swift {
     Unsigned,
     Identifier,
     ObjCSelector,
-    ValueDecl,
+    Decl,
     Type,
     TypeRepr,
     FullyQualifiedType,
@@ -143,7 +146,7 @@ namespace swift {
       StringRef StringVal;
       DeclNameRef IdentifierVal;
       ObjCSelector ObjCSelectorVal;
-      const ValueDecl *TheValueDecl;
+      const Decl *TheDecl;
       Type TypeVal;
       TypeRepr *TyR;
       FullyQualified<Type> FullyQualifiedTypeVal;
@@ -194,8 +197,8 @@ namespace swift {
       : Kind(DiagnosticArgumentKind::ObjCSelector), ObjCSelectorVal(S) {
     }
 
-    DiagnosticArgument(const ValueDecl *VD)
-      : Kind(DiagnosticArgumentKind::ValueDecl), TheValueDecl(VD) {
+    DiagnosticArgument(const Decl *VD)
+      : Kind(DiagnosticArgumentKind::Decl), TheDecl(VD) {
     }
 
     DiagnosticArgument(Type T)
@@ -305,9 +308,9 @@ namespace swift {
       return ObjCSelectorVal;
     }
 
-    const ValueDecl *getAsValueDecl() const {
-      assert(Kind == DiagnosticArgumentKind::ValueDecl);
-      return TheValueDecl;
+    const Decl *getAsDecl() const {
+      assert(Kind == DiagnosticArgumentKind::Decl);
+      return TheDecl;
     }
 
     Type getAsType() const {
@@ -1496,13 +1499,6 @@ namespace swift {
     /// The unescaped message to display to the user.
     const StringRef Message;
   };
-
-/// Returns a value that can be used to select between accessor kinds in
-/// diagnostics.
-///
-/// This is correlated with diag::availability_deprecated and others.
-std::pair<unsigned, DeclName>
-getAccessorKindAndNameForDiagnostics(const ValueDecl *D);
 
 /// Retrieve the macro name for a generated source info that represents
 /// a macro expansion.

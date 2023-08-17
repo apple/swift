@@ -51,7 +51,7 @@ public struct Bat {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "init1",
 // CHECK-NEXT:        "type": "ExtractCalls.Bar",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractCalls3BarV",
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",
@@ -65,7 +65,7 @@ public struct Bat {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "init2",
 // CHECK-NEXT:        "type": "ExtractCalls.Bat",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractCalls3BatV",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",
@@ -92,7 +92,7 @@ public struct Bat {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "init3",
 // CHECK-NEXT:        "type": "ExtractCalls.Bat",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractCalls3BatV",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",
@@ -118,7 +118,7 @@ public struct Bat {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "func1",
 // CHECK-NEXT:        "type": "Swift.Int",
-// CHECK-NEXT:        "mangledTypeName": "Si",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",
@@ -128,7 +128,7 @@ public struct Bat {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "init4",
 // CHECK-NEXT:        "type": "Swift.Optional<ExtractCalls.Bar>",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractCalls3BarVSg",
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:        "isStatic": "true",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",
@@ -142,7 +142,7 @@ public struct Bat {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "ext1",
 // CHECK-NEXT:        "type": "ExtractCalls.Foo.Boo",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractCalls3FooV3BooV",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",

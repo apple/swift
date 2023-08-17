@@ -118,10 +118,10 @@ struct SomeStruct {
   // expected-note@+1 2 {{'staticStructFunc()' declared here}}
   static func staticStructFunc() async { }
 
-  // expected-note@+1 3 {{'getter:instanceProp()' declared here}}
+  // expected-note@+1 3 {{getter for 'instanceProp' declared here}}
   var instanceProp: Int { get async { 1 } }
   var regInstanceProp: Int { get { 1 } set { } }
-  // expected-note@+1 {{'getter:classProp()' declared here}}
+  // expected-note@+1 {{getter for 'classProp' declared here}}
   static var classProp: Int { get async { 1 } }
 
   @available(*, renamed: "getter:instanceProp()")

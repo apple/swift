@@ -288,3 +288,14 @@ bool BridgedInstruction::maySynchronizeNotConsideringSideEffects() const {
 bool BridgedInstruction::mayBeDeinitBarrierNotConsideringSideEffects() const {
   return ::mayBeDeinitBarrierNotConsideringSideEffects(getInst());
 }
+
+//===----------------------------------------------------------------------===//
+//                               BridgedNominalTypeDecl
+//===----------------------------------------------------------------------===//
+
+bool BridgedNominalTypeDecl::isStructWithUnreferenceableStorage() const {
+  if (auto *structDecl = dyn_cast<swift::StructDecl>(decl)) {
+    return structDecl->hasUnreferenceableStorage();
+  }
+  return false;
+}

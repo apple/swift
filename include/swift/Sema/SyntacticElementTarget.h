@@ -23,6 +23,7 @@
 #include "swift/AST/Stmt.h"
 #include "swift/AST/TypeLoc.h"
 #include "swift/Sema/ConstraintLocator.h"
+#include "swift/Sema/ContextualTypeInfo.h"
 
 namespace swift {
 
@@ -71,18 +72,8 @@ private:
       /// type-checked.
       DeclContext *dc;
 
-      // TODO: Fold the 3 below fields into ContextualTypeInfo
-
-      /// The purpose of the contextual type.
-      ContextualTypePurpose contextualPurpose;
-
-      /// The type to which the expression should be converted.
-      TypeLoc convertType;
-
-      /// The locator for the contextual type conversion constraint, or
-      /// \c nullptr to use the default locator which is anchored directly on
-      /// the expression.
-      ConstraintLocator *convertTypeLocator;
+      /// The contextual type info for the expression.
+      ContextualTypeInfo contextualInfo;
 
       /// When initializing a pattern from the expression, this is the
       /// pattern.
@@ -171,24 +162,13 @@ private:
 public:
   SyntacticElementTarget(Expr *expr, DeclContext *dc,
                          ContextualTypePurpose contextualPurpose,
-                         Type convertType,
-                         ConstraintLocator *convertTypeLocator,
-                         bool isDiscarded)
-      : SyntacticElementTarget(expr, dc, contextualPurpose,
-                               TypeLoc::withoutLoc(convertType),
-                               convertTypeLocator, isDiscarded) {}
-
-  SyntacticElementTarget(Expr *expr, DeclContext *dc,
-                         ContextualTypePurpose contextualPurpose,
                          Type convertType, bool isDiscarded)
-      : SyntacticElementTarget(expr, dc, contextualPurpose, convertType,
-                               /*convertTypeLocator*/ nullptr, isDiscarded) {}
+      : SyntacticElementTarget(
+            expr, dc, ContextualTypeInfo(convertType, contextualPurpose),
+            isDiscarded) {}
 
   SyntacticElementTarget(Expr *expr, DeclContext *dc,
-                         ContextualTypePurpose contextualPurpose,
-                         TypeLoc convertType,
-                         ConstraintLocator *convertTypeLocator,
-                         bool isDiscarded);
+                         ContextualTypeInfo contextualInfo, bool isDiscarded);
 
   SyntacticElementTarget(ClosureExpr *closure, Type convertType) {
     kind = Kind::closure;
@@ -375,26 +355,31 @@ public:
     llvm_unreachable("invalid decl context type");
   }
 
-  ContextualTypePurpose getExprContextualTypePurpose() const {
+  /// Get the contextual type info for an expression target.
+  ContextualTypeInfo getExprContextualTypeInfo() const {
     assert(kind == Kind::expression);
-    return expression.contextualPurpose;
+    return expression.contextualInfo;
   }
 
+  /// Get the contextual type purpose for an expression target.
+  ContextualTypePurpose getExprContextualTypePurpose() const {
+    return getExprContextualTypeInfo().purpose;
+  }
+
+  /// Get the contextual type for an expression target.
   Type getExprContextualType() const {
     return getExprContextualTypeLoc().getType();
   }
 
+  /// Get the contextual type for an expression target.
   TypeLoc getExprContextualTypeLoc() const {
-    assert(kind == Kind::expression);
-
     // For an @autoclosure parameter, the conversion type is
     // the result of the function type.
-    if (FunctionType *autoclosureParamType = getAsAutoclosureParamType()) {
-      return TypeLoc(expression.convertType.getTypeRepr(),
-                     autoclosureParamType->getResult());
-    }
+    auto typeLoc = getExprContextualTypeInfo().typeLoc;
+    if (FunctionType *autoclosureParamType = getAsAutoclosureParamType())
+      return TypeLoc(typeLoc.getTypeRepr(), autoclosureParamType->getResult());
 
-    return expression.convertType;
+    return typeLoc;
   }
 
   /// Retrieve the type to which an expression should be converted, or
@@ -408,33 +393,32 @@ public:
   /// Retrieve the conversion type locator for the expression, or \c nullptr
   /// if it has not been set.
   ConstraintLocator *getExprConvertTypeLocator() const {
-    assert(kind == Kind::expression);
-    return expression.convertTypeLocator;
+    return getExprContextualTypeInfo().locator;
   }
 
   /// Returns the autoclosure parameter type, or \c nullptr if the
   /// expression has a different kind of context.
   FunctionType *getAsAutoclosureParamType() const {
-    assert(kind == Kind::expression);
-    if (expression.contextualPurpose == CTP_AutoclosureDefaultParameter)
-      return expression.convertType.getType()->castTo<FunctionType>();
+    if (getExprContextualTypePurpose() == CTP_AutoclosureDefaultParameter)
+      return getExprContextualTypeInfo().getType()->castTo<FunctionType>();
+
     return nullptr;
   }
 
   void setExprConversionType(Type type) {
     assert(kind == Kind::expression);
-    expression.convertType = TypeLoc::withoutLoc(type);
+    expression.contextualInfo.typeLoc = TypeLoc::withoutLoc(type);
   }
 
   void setExprConversionTypeLoc(TypeLoc type) {
     assert(kind == Kind::expression);
-    expression.convertType = type;
+    expression.contextualInfo.typeLoc = type;
   }
 
   /// Whether this target is for an initialization expression and pattern.
   bool isForInitialization() const {
     return kind == Kind::expression &&
-           expression.contextualPurpose == CTP_Initialization;
+           getExprContextualTypePurpose() == CTP_Initialization;
   }
 
   /// For a pattern initialization target, retrieve the pattern.
@@ -448,7 +432,7 @@ public:
 
   ExprPattern *getExprPattern() const {
     assert(kind == Kind::expression);
-    assert(expression.contextualPurpose == CTP_ExprPattern);
+    assert(getExprContextualTypePurpose() == CTP_ExprPattern);
     return cast<ExprPattern>(expression.pattern);
   }
 
@@ -575,11 +559,16 @@ public:
       return;
     }
 
-    assert(kind == Kind::expression);
-    assert(expression.contextualPurpose == CTP_Initialization ||
-           expression.contextualPurpose == CTP_ForEachStmt ||
-           expression.contextualPurpose == CTP_ForEachSequence ||
-           expression.contextualPurpose == CTP_ExprPattern);
+    switch (getExprContextualTypePurpose()) {
+    case CTP_Initialization:
+    case CTP_ForEachStmt:
+    case CTP_ForEachSequence:
+    case CTP_ExprPattern:
+      break;
+    default:
+      assert(false && "Unexpected contextual type purpose");
+      break;
+    }
     expression.pattern = pattern;
   }
 

@@ -12,7 +12,6 @@
 import argparse
 import glob
 import os
-import pipes
 import platform
 import shlex
 import shutil
@@ -27,7 +26,7 @@ def verbose_print_command(command):
         if platform.system() == 'Windows':
             print(subprocess.list2cmdline(command))
         else:
-            print(" ".join(pipes.quote(c) for c in command))
+            print(" ".join(shlex.quote(c) for c in command))
         sys.stdout.flush()
 
 

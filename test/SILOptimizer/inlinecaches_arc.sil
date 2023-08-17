@@ -15,7 +15,7 @@ sil @_TFC4main3FoocfMS0_FT_S0_ : $@convention(method) (@owned Foo) -> @owned Foo
 // CHECK-LABEL: _TF4main7my_mainFCS_3FooSi
 // CHECK: bb0
 // CHECK-NOT: strong_retain
-// CHECK: checked_cast_br [exact] %0 : $Foo to Foo
+// CHECK: checked_cast_br [exact] Foo in %0 : $Foo to Foo
 
 // CHECK: bb1
 // CHECK: class_method

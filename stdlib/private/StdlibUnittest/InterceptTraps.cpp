@@ -10,12 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-// No signals support on WASI yet, see https://github.com/WebAssembly/WASI/issues/166.
-#if !defined(__wasi__)
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__wasi__)
 #include <unistd.h>
 #endif
 #if defined(_WIN32)
@@ -50,8 +48,6 @@ static void CrashCatcher(int Sig) {
   _exit(0);
 }
 
-#endif // __wasi__
-
 #if defined(_WIN32)
 static LONG WINAPI
 VectoredCrashHandler(PEXCEPTION_POINTERS ExceptionInfo) {
@@ -74,9 +70,6 @@ void installTrapInterceptor() {
   // Disable buffering on stdout so that everything is printed before crashing.
   setbuf(stdout, 0);
 
-// No signals support on WASI yet, see https://github.com/WebAssembly/WASI/issues/166.
-#if !defined(__wasi__)
-
 #if defined(_WIN32)
   _set_abort_behavior(0, _WRITE_ABORT_MSG);
 #endif
@@ -93,5 +86,3 @@ void installTrapInterceptor() {
   signal(SIGSYS,  CrashCatcher);
 #endif
 }
-
-#endif // !defined(__wasi__)

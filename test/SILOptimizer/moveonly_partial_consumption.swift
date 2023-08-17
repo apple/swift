@@ -224,11 +224,10 @@ func addressOnlyTestArg(_ x: borrowing AddressOnlyType) {
     // expected-error @-1 {{'x' is borrowed and cannot be consumed}}
     // expected-error @-2 {{'x' is borrowed and cannot be consumed}}
     // expected-error @-3 {{'x' is borrowed and cannot be consumed}}
-    // expected-error @-4 {{'x' is borrowed and cannot be consumed}}
     let _ = x.e // expected-note {{consumed here}}
     let _ = x.k
     let _ = x.l.e // expected-note {{consumed here}}
-    let _ = x.l.k // expected-note {{consumed here}}
+    let _ = x.l.k
     switch x.lEnum { // expected-note {{consumed here}}
     case .first:
         break

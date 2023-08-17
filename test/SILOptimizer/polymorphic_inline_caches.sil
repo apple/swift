@@ -38,7 +38,7 @@ bb0(%0 : $A, %1 : $Builtin.Int32):
   %5 = class_method %0 : $A, #A.ping : (A) -> (Builtin.Int32) -> Builtin.Int32, $@convention(method) (Builtin.Int32, @guaranteed A) -> Builtin.Int32
   // CHECK-NOT: apply
   %6 = apply %5(%1, %0) : $@convention(method) (Builtin.Int32, @guaranteed A) -> Builtin.Int32
-  // CHECK: checked_cast_br [exact] %0 : $A to A, bb2, bb3
+  // CHECK: checked_cast_br [exact] A in %0 : $A to A, bb2, bb3
   // CHECK: bb1
   strong_release %0 : $A
   // CHECK: return
@@ -47,14 +47,14 @@ bb0(%0 : $A, %1 : $Builtin.Int32):
   // CHECK: [[APING:%.*]] = function_ref @_TFC25polymorphic_inline_caches1A4pingfS0_FBi32_Bi32_
   // CHECK: apply [[APING]]
   // CHECK: bb3
-  // CHECK: checked_cast_br [exact] %0 : $A to B, bb5, bb6
+  // CHECK: checked_cast_br [exact] A in %0 : $A to B, bb5, bb6
   // CHECK: bb4
   // CHECK: br bb1
   // CHECK: bb5
   // CHECK: [[BPING:%.*]] = function_ref @_TFC25polymorphic_inline_caches1B4pingfS0_FBi32_Bi32_
   // CHECK: apply [[BPING]]
   // CHECK: bb6
-  // CHECK: checked_cast_br [exact] %0 : $A to C, bb8, bb9
+  // CHECK: checked_cast_br [exact] A in %0 : $A to C, bb8, bb9
   // CHECK: bb7
   // CHECK: br bb4
   // CHECK: bb8
@@ -80,7 +80,7 @@ bb0(%0 : $A, %1 : $Builtin.Int32):
   // CHECK-NOT: apply
   %6 = apply %4(%0) : $@convention(thin) (A) -> Builtin.Int32
   %7 = apply %5(%1, %0) : $@convention(method) (Builtin.Int32, @guaranteed A) -> Builtin.Int32
-  // CHECK: checked_cast_br [exact] %0 : $A to A, bb2, bb3
+  // CHECK: checked_cast_br [exact] A in %0 : $A to A, bb2, bb3
   // CHECK: bb1
   strong_release %0 : $A
   // CHECK: return
@@ -89,14 +89,14 @@ bb0(%0 : $A, %1 : $Builtin.Int32):
   // CHECK: [[APING:%.*]] = function_ref @_TFC25polymorphic_inline_caches1A4pingfS0_FBi32_Bi32_
   // CHECK: apply [[APING]]
   // CHECK: bb3
-  // CHECK: checked_cast_br [exact] %0 : $A to B, bb5, bb6
+  // CHECK: checked_cast_br [exact] A in %0 : $A to B, bb5, bb6
   // CHECK: bb4
   // CHECK: br bb1
   // CHECK: bb5
   // CHECK: [[BPING:%.*]] = function_ref @_TFC25polymorphic_inline_caches1B4pingfS0_FBi32_Bi32_
   // CHECK: apply [[BPING]]
   // CHECK: bb6
-  // CHECK: checked_cast_br [exact] %0 : $A to C, bb8, bb9
+  // CHECK: checked_cast_br [exact] A in %0 : $A to C, bb8, bb9
   // CHECK: bb7
   // CHECK: br bb4
   // CHECK: bb8
@@ -162,7 +162,7 @@ bb0(%0 : $Builtin.NativeObject):
   strong_release %0 : $Builtin.NativeObject
   %7 = tuple ()
   return %7 : $()
-  // CHECK: checked_cast_br [exact] [[CAST]] : $E to E, bb2, bb3
+  // CHECK: checked_cast_br [exact] E in [[CAST]] : $E to E, bb2, bb3
   // CHECK: bb1
   // CHECK: strong_release %0
   // CHECK: return
@@ -171,7 +171,7 @@ bb0(%0 : $Builtin.NativeObject):
   // CHECK: strong_retain %0
   // CHECK: apply [[EFOO]]
   // CHECK: bb3
-  // CHECK: checked_cast_br [exact] [[CAST]] : $E to F, bb5, bb6
+  // CHECK: checked_cast_br [exact] E in [[CAST]] : $E to F, bb5, bb6
   // CHECK: bb4
   // CHECK: br bb1
   // CHECK: bb5
@@ -179,7 +179,7 @@ bb0(%0 : $Builtin.NativeObject):
   // CHECK: strong_retain %0
   // CHECK: apply [[FFOO]]
   // CHECK: bb6
-  // CHECK: checked_cast_br [exact] [[CAST]] : $E to G, bb8, bb9
+  // CHECK: checked_cast_br [exact] E in [[CAST]] : $E to G, bb8, bb9
   // CHECK: bb7
   // CHECK: bb8
   // CHECK: [[GFOO:%.*]] = function_ref @_TFC5casts1G3foofS0_FT_T_
@@ -204,7 +204,7 @@ bb0(%0 : $E):
   strong_release %0 : $E
   %7 = tuple ()
   return %7 : $()
-  // CHECK: checked_cast_br [exact] [[CAST]] : $F to F, bb2, bb3
+  // CHECK: checked_cast_br [exact] F in [[CAST]] : $F to F, bb2, bb3
   // CHECK: bb1
   // CHECK: strong_release %0
   // CHECK: return

@@ -701,15 +701,6 @@ namespace {
       if (auto *MD = dyn_cast<MacroDecl>(VD))
         printGenericParameters(OS, MD->getParsedGenericParams());
 
-      if (auto *var = dyn_cast<VarDecl>(VD)) {
-        PrintWithColorRAII(OS, TypeColor) << " type='";
-        if (var->hasInterfaceType())
-          var->getType().print(PrintWithColorRAII(OS, TypeColor).getOS());
-        else
-          PrintWithColorRAII(OS, TypeColor) << "<null type>";
-        PrintWithColorRAII(OS, TypeColor) << "'";
-      }
-
       if (VD->hasInterfaceType()) {
         PrintWithColorRAII(OS, InterfaceTypeColor) << " interface type='";
         VD->getInterfaceType()->print(
@@ -1004,10 +995,6 @@ namespace {
           << " apiName=" << P->getArgumentName();
 
       if (P->hasInterfaceType()) {
-        PrintWithColorRAII(OS, TypeColor) << " type='";
-        P->getType().print(PrintWithColorRAII(OS, TypeColor).getOS());
-        PrintWithColorRAII(OS, TypeColor) << "'";
-
         PrintWithColorRAII(OS, InterfaceTypeColor) << " interface type='";
         P->getInterfaceType().print(
             PrintWithColorRAII(OS, InterfaceTypeColor).getOS());
@@ -1415,8 +1402,6 @@ void swift::printContext(raw_ostream &os, DeclContext *dc) {
     case InitializerKind::PropertyWrapper:
       os << "property wrapper initializer";
       break;
-    case InitializerKind::RuntimeAttribute:
-      os << "runtime attribute initializer";
     }
     break;
 

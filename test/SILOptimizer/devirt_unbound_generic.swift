@@ -44,7 +44,7 @@ class Derived<T> : Base<T> {
 
 // Check that testDevirt is specialized and uses speculative devirtualization.
 // CHECK-LABEL: sil shared [noinline] @{{.*}}testDevirt
-// CHECK: checked_cast_br [exact] %{{.*}} : $CC<Int32> to CC<Int32>
+// CHECK: checked_cast_br [exact] CC<Int32> in %{{.*}} : $CC<Int32> to CC<Int32>
 // CHECK: class_method
 // CHECK: }
 @inline(never)

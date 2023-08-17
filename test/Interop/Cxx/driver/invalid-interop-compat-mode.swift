@@ -2,8 +2,8 @@
 // RUN: split-file %s %t
 // RUN: not %target-swift-frontend -typecheck -I %t/Inputs  %t/test.swift  -cxx-interoperability-mode=swift-5.8 2>&1 | %FileCheck %s
 
-// Note: swift-5.9 is still supported, but will be removed.
 // RUN: %target-swift-frontend -typecheck -I %t/Inputs  %t/test.swift  -cxx-interoperability-mode=swift-5.9
+// RUN: %target-swift-frontend -typecheck -I %t/Inputs  %t/test.swift  -cxx-interoperability-mode=upcoming-swift
 
 //--- Inputs/module.modulemap
 module Test {

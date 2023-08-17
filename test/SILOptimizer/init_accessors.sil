@@ -1,0 +1,95 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -definite-init -raw-sil-inst-lowering %s | %FileCheck %s
+
+import Builtin
+import Swift
+import SwiftShims
+
+struct Test {
+  @_hasStorage var _x: Int { get set }
+  var x: Int {
+    @storageRestrictions(initializes: _x) init
+    get
+    set
+  }
+  init(v: Int)
+  init(v: Int, other: Int)
+}
+
+sil private [ossa] @$s14init_accessors4TestV1xSivi : $@convention(thin) (Int) -> @out Int {
+bb0(%0 : $*Int, %1 : $Int):
+  %2 = mark_uninitialized [out] %0 : $*Int
+  debug_value %1 : $Int, let, name "newValue", argno 1, implicit
+  %4 = begin_access [modify] [unknown] %2 : $*Int
+  assign %1 to %4 : $*Int
+  end_access %4 : $*Int
+  %7 = tuple ()
+  return %7 : $()
+}
+
+sil hidden [ossa] @$s14init_accessors4TestV1xSivs : $@convention(method) (Int, @inout Test) -> () {
+bb0(%0 : $Int, %1 : $*Test):
+  debug_value %0 : $Int, let, name "newValue", argno 1, implicit
+  debug_value %1 : $*Test, var, name "self", argno 2, implicit, expr op_deref
+  %4 = begin_access [modify] [unknown] %1 : $*Test
+  %5 = struct_element_addr %4 : $*Test, #Test._x
+  assign %0 to %5 : $*Int
+  end_access %4 : $*Test
+  %8 = tuple ()
+  return %8 : $()
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s14init_accessors4TestV1vACSi_tcfC : $@convention(method) (Int, @thin Test.Type) -> Test
+// CHECK: [[INIT_REF:%.*]] = function_ref @$s14init_accessors4TestV1xSivi : $@convention(thin) (Int) -> @out Int
+// CHECK: [[SELF_REF:%.*]] = begin_access [modify] [dynamic] [[SELF:%.*]] : $*Test
+// CHECK-NEXT: [[FIELD_REF:%.*]] = struct_element_addr [[SELF_REF]] : $*Test, #Test._x
+// CHECK-NEXT: {{.*}} = apply [[INIT_REF]]([[FIELD_REF]], %0) : $@convention(thin) (Int) -> @out Int
+sil hidden [ossa] @$s14init_accessors4TestV1vACSi_tcfC : $@convention(method) (Int, @thin Test.Type) -> Test {
+bb0(%0 : $Int, %1 : $@thin Test.Type):
+  %2 = alloc_box ${ var Test }, var, name "self"
+  %3 = mark_uninitialized [rootself] %2 : ${ var Test }
+  %4 = project_box %3 : ${ var Test }, 0
+  debug_value %0 : $Int, let, name "v", argno 1
+  %6 = begin_access [modify] [unknown] %4 : $*Test
+  %7 = function_ref @$s14init_accessors4TestV1xSivi : $@convention(thin) (Int) -> @out Int
+  %8 = function_ref @$s14init_accessors4TestV1xSivs : $@convention(method) (Int, @inout Test) -> ()
+  %9 = partial_apply [callee_guaranteed] %8(%6) : $@convention(method) (Int, @inout Test) -> ()
+  assign_or_init #Test.x, self %6 : $*Test, value %0 : $Int, init %7 : $@convention(thin) (Int) -> @out Int, set %9 : $@callee_guaranteed (Int) -> ()
+  end_access %6 : $*Test
+  destroy_value %9 : $@callee_guaranteed (Int) -> ()
+  %13 = load [trivial] %4 : $*Test
+  destroy_value %3 : ${ var Test }
+  return %13 : $Test
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s14init_accessors4TestV1v5otherACSi_SitcfC : $@convention(method) (Int, Int, @thin Test.Type) -> Test
+// CHECK: [[INIT_REF:%.*]] = function_ref @$s14init_accessors4TestV1xSivi : $@convention(thin) (Int) -> @out Int
+// CHECK: [[FIELD_REF:%.*]] = struct_element_addr {{.*}} : $*Test, #Test._x
+// CHECK-NEXT: {{.*}} = apply [[INIT_REF]]([[FIELD_REF]], %0) : $@convention(thin) (Int) -> @out Int
+// CHECK: [[SETTER_REF:%.*]] = function_ref @$s14init_accessors4TestV1xSivs : $@convention(method) (Int, @inout Test) -> ()
+// CHECK-NEXT: [[SETTER_CLOSURE:%.*]] = partial_apply [callee_guaranteed] [[SETTER_REF]]([[SELF_REF:%.*]]) : $@convention(method) (Int, @inout Test) -> ()
+// CHECK-NEXT: {{.*}} = apply [[SETTER_CLOSURE]](%1) : $@callee_guaranteed (Int) -> ()
+sil hidden [ossa] @$s14init_accessors4TestV1v5otherACSi_SitcfC : $@convention(method) (Int, Int, @thin Test.Type) -> Test {
+bb0(%0 : $Int, %1 : $Int, %2 : $@thin Test.Type):
+  %3 = alloc_box ${ var Test }, var, name "self"
+  %4 = mark_uninitialized [rootself] %3 : ${ var Test }
+  %5 = project_box %4 : ${ var Test }, 0
+  debug_value %0 : $Int, let, name "v", argno 1
+  debug_value %1 : $Int, let, name "other", argno 2
+  %8 = begin_access [modify] [unknown] %5 : $*Test
+  %9 = function_ref @$s14init_accessors4TestV1xSivi : $@convention(thin) (Int) -> @out Int
+  %10 = function_ref @$s14init_accessors4TestV1xSivs : $@convention(method) (Int, @inout Test) -> ()
+  %11 = partial_apply [callee_guaranteed] %10(%8) : $@convention(method) (Int, @inout Test) -> ()
+  assign_or_init #Test.x, self %8 : $*Test, value %0 : $Int, init %9 : $@convention(thin) (Int) -> @out Int, set %11 : $@callee_guaranteed (Int) -> ()
+  end_access %8 : $*Test
+  destroy_value %11 : $@callee_guaranteed (Int) -> ()
+  %15 = begin_access [modify] [unknown] %5 : $*Test
+  %16 = function_ref @$s14init_accessors4TestV1xSivi : $@convention(thin) (Int) -> @out Int
+  %17 = function_ref @$s14init_accessors4TestV1xSivs : $@convention(method) (Int, @inout Test) -> ()
+  %18 = partial_apply [callee_guaranteed] %17(%15) : $@convention(method) (Int, @inout Test) -> ()
+  assign_or_init #Test.x, self %15 : $*Test, value %1 : $Int, init %16 : $@convention(thin) (Int) -> @out Int, set %18 : $@callee_guaranteed (Int) -> ()
+  end_access %15 : $*Test
+  destroy_value %18 : $@callee_guaranteed (Int) -> ()
+  %22 = load [trivial] %5 : $*Test
+  destroy_value %4 : ${ var Test }
+  return %22 : $Test
+}

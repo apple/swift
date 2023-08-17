@@ -7,13 +7,13 @@ if(SWIFT_SOURCEKIT_USE_INPROC_LIBRARY)
 else()
   target_link_libraries(complete-test PRIVATE sourcekitd)
 endif()
-if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   target_link_libraries(complete-test PRIVATE
     dispatch
     BlocksRuntime)
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set_target_properties(complete-test PROPERTIES
     INSTALL_RPATH "@executable_path/../lib")
   target_link_options(complete-test PRIVATE

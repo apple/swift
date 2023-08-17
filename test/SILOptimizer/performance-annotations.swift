@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -experimental-performance-annotations -emit-sil %s -o /dev/null -verify
+// RUN: %target-swift-frontend -parse-as-library -emit-sil %s -o /dev/null -verify
 // REQUIRES: swift_stdlib_no_asserts,optimized_stdlib
 // REQUIRES: swift_in_compiler
 
@@ -11,7 +11,7 @@ open class Cl {
   final func finalMethod() {}
 }
 
-func initFunc() -> Int { return 3 }
+func initFunc() -> Int { return Int.random(in: 0..<10) }
 
 struct Str : P {
   let x: Int
@@ -163,8 +163,8 @@ class H {
 }
 
 struct MyStruct {
-  static var v: Int = {  // expected-note {{called from here}}
-    return H().hash      // expected-error {{Using type 'H' can cause metadata allocation or locks}}
+  static var v: Int = {      // expected-error {{Using type 'H' can cause metadata allocation or locks}}
+    return H().hash
   }()
 }
 
@@ -328,5 +328,60 @@ extension Y {
 @_noLocks
 public func testClosurePassing(a: inout Y) -> Int {
     return a.Xsort()
+}
+
+struct LargeGenericStruct<T> {
+  var a: T
+  var b: T
+  var c: T
+  var d: T
+  var e: T
+  var f: T
+  var g: T
+  var h: T
+}
+
+var largeGeneric = LargeGenericStruct<Int>(a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8)
+
+@_noLocks
+func testLargeGenericStruct() -> LargeGenericStruct<Int> {
+  return largeGeneric
+}
+
+struct ContainsLargeGenericStruct {
+  var s: LargeGenericStruct<Int>
+}
+
+var clgs = ContainsLargeGenericStruct(s: LargeGenericStruct<Int>(a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8))
+
+@_noLocks
+func testClgs() -> ContainsLargeGenericStruct {
+  return clgs
+}
+
+struct NestedGenericStruct<T> {
+  var a: T
+  var b: T
+  var c: LargeGenericStruct<T>
+  var d: T
+  var e: T
+  var f: T
+  var g: T
+  var h: T
+}
+
+var nestedGeneric = NestedGenericStruct(a: 1, b: 2, c: LargeGenericStruct<Int>(a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8), d: 4, e: 5, f: 6, g: 7, h: 8)
+
+@_noLocks
+func testNestedGenericStruct() -> NestedGenericStruct<Int> {
+  return nestedGeneric
+}
+
+var x = 24
+let pointerToX = UnsafePointer(&x)
+
+@_noLocks
+func testPointerToX() -> UnsafePointer<Int> {
+  return pointerToX
 }
 

@@ -880,12 +880,8 @@ public:
   void setBody(BraceStmt * b) { Body = b; }
 
   SourceLoc getLoc() const { return SubExpr ? SubExpr->getLoc() : SourceLoc(); }
-  
-  SourceLoc getStartLoc() const {
-    return SubExpr ? SubExpr->getStartLoc() : SourceLoc();
-  }
 
-  SourceLoc getEndLoc() const;
+  SourceRange getSourceRange() const;
 
   static bool classof(const Expr *E) {
     return E->getKind() == ExprKind::Tap;

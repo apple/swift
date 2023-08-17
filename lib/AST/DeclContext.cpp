@@ -820,15 +820,6 @@ unsigned DeclContext::printContext(raw_ostream &OS, const unsigned indent,
       }
       break;
     }
-
-    case InitializerKind::RuntimeAttribute: {
-      auto init = cast<RuntimeAttributeInitializer>(this);
-      auto *decl = init->getAttachedToDecl();
-
-      OS << "RuntimeAttribute attachedTo="
-         << init->getAttachedToDecl()->getName() << ", attribute=";
-      init->getAttr()->print(OS, decl);
-    }
     }
     break;
 
@@ -928,6 +919,12 @@ ArrayRef<Decl *> IterableDeclContext::getABIMembers() const {
       ctx.evaluator,
       ABIMembersRequest{const_cast<IterableDeclContext *>(this)},
       ArrayRef<Decl *>());
+}
+
+IterableDeclContext::DeclsForLowering
+IterableDeclContext::getMembersForLowering() const {
+  return DeclsForLowering(getABIMembers(),
+                          AvailableDuringLoweringDeclFilter<Decl>());
 }
 
 ArrayRef<Decl *> IterableDeclContext::getAllMembers() const {

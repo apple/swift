@@ -177,3 +177,19 @@ bb0:
   %len = pack_length $Pack{repeat each T, repeat each T, Int, Float, String}
   return %len : $Builtin.Word
 }
+
+// Translate the pattern type of a pack expansion type when
+// emitting tuple type metadata for layout.  rdar://110971671
+
+// CHECK-LABEL: define{{.*}} @test_pack_expansion_for_layout
+// CHECK:         [[PACK_LEN:%.*]] = add [[INT]] %0, 1
+// CHECK-NEXT:    [[VANISHES:%.*]] = icmp eq [[INT]] [[PACK_LEN]], 1
+// CHECK-NEXT:    br i1 [[VANISHES]],
+// CHECK:         call swiftcc %swift.metadata_response @swift_getTupleTypeMetadata(
+sil @test_pack_expansion_for_layout : $<each T> () -> () {
+bb0:
+  %tuple = alloc_stack $(Int, repeat () async throws -> each T)
+  dealloc_stack %tuple : $*(Int, repeat () async throws -> each T)
+  %result = tuple ()
+  return %result : $()
+}

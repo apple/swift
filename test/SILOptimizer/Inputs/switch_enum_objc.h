@@ -12,3 +12,18 @@ enum Coin {
   CoinHeads,
   CoinTails
 } __attribute__((enum_extensibility(closed)));
+
+// Swift should preserve branches matching the unavailable elements in clang
+// enums since there are not strong compiler protections preventing these values
+// from being instantiated at runtime.
+
+enum Dimension {
+  DimensionX __attribute__((swift_name("x"))),
+  DimensionY __attribute__((swift_name("y"))),
+  DimensionZ __attribute__((swift_name("z"))) __attribute__((unavailable)),
+} __attribute__((enum_extensibility(open)));
+
+enum UnfairCoin {
+  UnfairCoinHeads,
+  UnfairCoinTails __attribute__((unavailable)),
+} __attribute__((enum_extensibility(closed)));

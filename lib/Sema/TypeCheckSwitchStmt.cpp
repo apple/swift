@@ -828,8 +828,8 @@ namespace {
           auto children = E->getAllElements();
           llvm::transform(
               children, std::back_inserter(arr), [&](EnumElementDecl *eed) {
-                // Don't force people to match unavailable cases; they can't
-                // even write them.
+                // Don't force people to match unavailable cases since they
+                // should not be instantiated at run time.
                 if (AvailableAttr::isUnavailable(eed)) {
                   return Space();
                 }

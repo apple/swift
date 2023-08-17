@@ -19,7 +19,7 @@ func downcast(b: B) -> D {
 func isa(b: B) -> Bool {
   // CHECK: bb0([[ARG:%.*]] : @guaranteed $B):
   // CHECK:   [[COPIED_BORROWED_ARG:%.*]] = copy_value [[ARG]]
-  // CHECK:   checked_cast_br [[COPIED_BORROWED_ARG]] : $B to D, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
+  // CHECK:   checked_cast_br B in [[COPIED_BORROWED_ARG]] : $B to D, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
   //
   // CHECK: [[YES]]([[CASTED_VALUE:%.*]] : @owned $D):
   // CHECK:   integer_literal {{.*}} -1
@@ -55,7 +55,7 @@ func downcast_archetype<T : B>(b: B) -> T {
 // CHECK-LABEL: sil hidden [ossa] @$s5casts12is_archetype{{[_0-9a-zA-Z]*}}F
 func is_archetype<T : B>(b: B, _: T) -> Bool {
   // CHECK: bb0([[ARG1:%.*]] : @guaranteed $B, [[ARG2:%.*]] : @guaranteed $T):
-  // CHECK:   checked_cast_br {{%.*}}, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
+  // CHECK:   checked_cast_br {{.*}}, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
   // CHECK: [[YES]]([[CASTED_ARG:%.*]] : @owned $T):
   // CHECK:   integer_literal {{.*}} -1
   // CHECK:   destroy_value [[CASTED_ARG]]
@@ -67,7 +67,7 @@ func is_archetype<T : B>(b: B, _: T) -> Bool {
 // CHECK: } // end sil function '$s5casts12is_archetype{{[_0-9a-zA-Z]*}}F'
 
 // CHECK: sil hidden [ossa] @$s5casts20downcast_conditional{{[_0-9a-zA-Z]*}}F
-// CHECK:   checked_cast_br {{%.*}} : $B to D
+// CHECK:   checked_cast_br B in {{%.*}} : $B to D
 // CHECK:   bb{{[0-9]+}}({{.*}} : $Optional<D>)
 func downcast_conditional(b: B) -> D? {
   return b as? D

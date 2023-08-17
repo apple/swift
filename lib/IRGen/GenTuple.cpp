@@ -512,7 +512,7 @@ namespace {
     }
 
     StructLayout performLayout(ArrayRef<const TypeInfo *> fieldTypes) {
-      return StructLayout(IGM, /*decl=*/nullptr, LayoutKind::NonHeapObject,
+      return StructLayout(IGM, /*type=*/ llvm::None, LayoutKind::NonHeapObject,
                           LayoutStrategy::Universal, fieldTypes);
     }
   };
@@ -642,4 +642,29 @@ llvm::Optional<unsigned>
 irgen::getPhysicalTupleElementStructIndex(IRGenModule &IGM, SILType tupleType,
                                           unsigned fieldNo) {
   FOR_TUPLE_IMPL(IGM, tupleType, getElementStructIndex, fieldNo);
+}
+
+/// Emit a string encoding the labels in the given tuple type.
+llvm::Constant *irgen::getTupleLabelsString(IRGenModule &IGM,
+                                            CanTupleType type) {
+  bool hasLabels = false;
+  llvm::SmallString<128> buffer;
+  for (auto &elt : type->getElements()) {
+    if (elt.hasName()) {
+      hasLabels = true;
+      buffer.append(elt.getName().str());
+    }
+
+    // Each label is space-terminated.
+    buffer += ' ';
+  }
+
+  // If there are no labels, use a null pointer.
+  if (!hasLabels) {
+    return llvm::ConstantPointerNull::get(IGM.Int8PtrTy);
+  }
+
+  // Otherwise, create a new string literal.
+  // This method implicitly adds a null terminator.
+  return IGM.getAddrOfGlobalString(buffer);
 }

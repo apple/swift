@@ -14,8 +14,8 @@ Centralized command line and file system interface for the build script.
 # ----------------------------------------------------------------------------
 
 import os
-import pipes
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
@@ -35,7 +35,7 @@ def _fatal_error(message):
 
 
 def _quote(arg):
-    return pipes.quote(str(arg))
+    return shlex.quote(str(arg))
 
 
 def quote_command(args):

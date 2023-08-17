@@ -136,7 +136,7 @@ bb0:
   debug_value %0 : $Foo2                          // id: %2
   strong_retain %0 : $Foo2                        // id: %3
   %4 = upcast %0 : $Foo2 to $Foo                  // users: %5, %6, %17, %23
-  checked_cast_br %0 : $Foo2 to Foo2, bb1, bb6    // id: %6
+  checked_cast_br Foo2 in %0 : $Foo2 to Foo2, bb1, bb6    // id: %6
 
 bb1(%7 : $Foo2):                                  // Preds: bb0
   %8 = enum $Optional<Foo2>, #Optional.some!enumelt, %7 : $Foo2 // user: %9
@@ -179,7 +179,7 @@ sil private [always_inline] @_TF4mainP33_9ACC0692747077F216D14C36CD9276715speakF
 bb0(%0 : $Foo):
   debug_value %0 : $Foo                           // id: %1
   strong_retain %0 : $Foo                         // id: %2
-  checked_cast_br %0 : $Foo to Foo2, bb1, bb2    // id: %3
+  checked_cast_br Foo in %0 : $Foo to Foo2, bb1, bb2    // id: %3
 
 bb1(%4 : $Foo2):                                  // Preds: bb0
   %5 = enum $Optional<Foo2>, #Optional.some!enumelt, %4 : $Foo2 // user: %6

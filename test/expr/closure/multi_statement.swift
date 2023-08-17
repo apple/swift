@@ -694,3 +694,28 @@ func test_recursive_var_reference_in_multistatement_closure() {
     }
   }
 }
+
+// https://github.com/apple/swift/issues/67363
+func test_result_builder_in_member_chaining() {
+  @resultBuilder
+  struct Builder {
+    static func buildBlock<T>(_: T) -> Int { 42 }
+  }
+
+  struct Test {
+    static func test<T>(fn: () -> T) -> T {
+      fn()
+    }
+
+    func builder(@Builder _: () -> Int) {}
+  }
+
+  Test.test {
+    let test = Test()
+    return test
+  // FIXME: This call should type-check, currently closure is resolved before overload of `builder` is picked.
+  }.builder { // expected-error {{cannot convert value of type '()' to closure result type 'Int'}}
+    let result = ""
+    result
+  }
+}

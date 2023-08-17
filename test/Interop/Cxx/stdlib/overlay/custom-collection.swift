@@ -1,7 +1,6 @@
 // RUN: %target-run-simple-swift(-I %S/Inputs -Xfrontend -enable-experimental-cxx-interop)
 //
 // REQUIRES: executable_test
-// REQUIRES: OS=macosx || OS=linux-gnu
 
 import StdlibUnittest
 import CustomSequence
@@ -47,6 +46,24 @@ CxxCollectionTestSuite.test("SimpleArrayWrapper as Swift.Collection") {
   let mapped = c.map { $0 + 1 }
   expectEqual(mapped.first, 11)
   expectEqual(mapped.last, 51)
+}
+
+CxxCollectionTestSuite.test("HasInheritedTemplatedConstRACIterator as Swift.Collection") {
+  let c = HasInheritedTemplatedConstRACIteratorInt()
+  expectEqual(c.first, 1)
+  expectEqual(c.last, 5)
+
+  let reduced = c.reduce(0, +)
+  expectEqual(reduced, 15)
+}
+
+CxxCollectionTestSuite.test("HasInheritedTemplatedConstRACIteratorOutOfLineOps as Swift.Collection") {
+  let c = HasInheritedTemplatedConstRACIteratorOutOfLineOpsInt()
+  expectEqual(c.first, 1)
+  expectEqual(c.last, 3)
+
+  let reduced = c.reduce(0, +)
+  expectEqual(reduced, 6)
 }
 
 runAllTests()

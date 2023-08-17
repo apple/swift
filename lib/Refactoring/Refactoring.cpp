@@ -3442,7 +3442,7 @@ collectMembersForInit(ResolvedCursorInfoPtr CursorInfo,
 
     auto NameRange =
         Lexer::getCharSourceRangeFromSourceRange(SM, varDecl->getNameLoc());
-    memberVector.emplace_back(NameRange, varDecl->getType(), defaultInit);
+    memberVector.emplace_back(NameRange, varDecl->getTypeInContext(), defaultInit);
   }
 
   return targetLocation;
@@ -4230,7 +4230,7 @@ bool RefactoringActionConvertToComputedProperty::performChange() {
   
   // Get type
   auto SV = Binding->getSingleVar();
-  auto SVType = SV->getType();
+  auto SVType = SV->getTypeInContext();
   auto TR = SV->getTypeReprOrParentPatternTypeRepr();
   
   SmallString<64> DeclBuffer;
@@ -4516,7 +4516,7 @@ struct AsyncHandlerDesc {
   /// Get the type of the completion handler.
   swift::Type getType() const {
     if (auto Var = Handler.dyn_cast<const VarDecl *>()) {
-      return Var->getType();
+      return Var->getTypeInContext();
     } else if (auto Func = Handler.dyn_cast<const AbstractFunctionDecl *>()) {
       auto Type = Func->getInterfaceType();
       // Undo the self curry thunk if we are referencing a member function.
@@ -5365,7 +5365,7 @@ public:
       return false;
     if (getResultParam() == Param)
       return true;
-    return HandlerDesc.shouldUnwrap(Param->getType());
+    return HandlerDesc.shouldUnwrap(Param->getTypeInContext());
   }
 
   /// Whether \p Param is the known Bool parameter that indicates success or
@@ -7174,7 +7174,7 @@ private:
   void addFallbackVars(ArrayRef<const ParamDecl *> FallbackParams,
                        const ClosureCallbackParams &AllParams) {
     for (auto *Param : FallbackParams) {
-      auto Ty = Param->getType();
+      auto Ty = Param->getTypeInContext();
       auto ParamName = newNameFor(Param);
 
       // If this is the known bool success param, we can use 'let' and type it
@@ -8060,7 +8060,7 @@ private:
         llvm_unreachable("Already handled");
       case BlockKind::ERROR:
         if (ErrParam) {
-          if (HandlerDesc.shouldUnwrap(ErrParam->getType())) {
+          if (HandlerDesc.shouldUnwrap(ErrParam->getTypeInContext())) {
             Placeholders.insert(ErrParam);
             Unwraps.insert(ErrParam);
           }
@@ -8070,7 +8070,7 @@ private:
         break;
       case BlockKind::SUCCESS:
         for (auto *SuccessParam : SuccessParams) {
-          auto Ty = SuccessParam->getType();
+          auto Ty = SuccessParam->getTypeInContext();
           if (HandlerDesc.shouldUnwrap(Ty)) {
             // Either unwrap or replace with a placeholder if there's some other
             // reference

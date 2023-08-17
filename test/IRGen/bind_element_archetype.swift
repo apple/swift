@@ -8,7 +8,7 @@ public protocol Q {
 
 public func f<T: P>(_: T) {}
 
-public func foo1<each T: Q>(t: repeat each T, u: repeat each T.A) {
+public func foo1<each T: Q>(t: repeat each T, u: repeat (each T).A) {
   repeat f(each u)
 }
 

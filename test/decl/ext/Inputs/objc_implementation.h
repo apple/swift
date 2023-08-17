@@ -157,6 +157,12 @@
 
 @end
 
+@interface ObjCImplSubclass : ObjCClass
+
+@end
+
+
+
 struct ObjCStruct {
   int foo;
 };

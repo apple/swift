@@ -300,7 +300,7 @@ bb3:
 // CHECK-NEXT:   [[DEST_ADDR:%.*]] = alloc_stack $Klass
 // CHECK-NEXT:   store [[ARG_MOVE]] to [init] [[SRC_ADDR]]
 // CHECK-NEXT:   [[RELOADED_ARG:%.*]] = load [take] [[SRC_ADDR]]
-// CHECK-NEXT:   checked_cast_br [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
+// CHECK-NEXT:   checked_cast_br Builtin.NativeObject in [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
 //
 // ==> On success, we store the value into dest. The destroy is not from the
 // ==> optimizer, but from the code.
@@ -330,7 +330,7 @@ bb0(%0 : @owned $Builtin.NativeObject):
 sil [ossa] @get_klass_type : $@convention(thin) () -> @out @thick Klass.Type
 
 // CHECK-LABEL: sil [ossa] @term_nonossa_checked_cast_addr_br_takealways_caller2 :
-// CHECK: checked_cast_br {{.*}} : $@thick Klass.Type to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]], forwarding: @owned
+// CHECK: checked_cast_br Klass in {{.*}} : $@thick Klass.Type to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]], forwarding: @owned
 // CHECK: [[SUCCESS_BB]]({{.*}}@owned $AnotherKlass):
 // CHECK: [[FAILURE_BB]]([[FAILURE_ARG:%.*]] :
 // CHECK: } // end sil function 'term_nonossa_checked_cast_addr_br_takealways_caller2'
@@ -376,7 +376,7 @@ bb3:
 // CHECK-NEXT:   [[DEST_ADDR:%.*]] = alloc_stack $Klass
 // CHECK-NEXT:   store [[ARG_MOVE]] to [init] [[SRC_ADDR]]
 // CHECK-NEXT:   [[RELOADED_ARG:%.*]] = load [take] [[SRC_ADDR]]
-// CHECK-NEXT:   checked_cast_br [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
+// CHECK-NEXT:   checked_cast_br Builtin.NativeObject in [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
 //
 // CHECK: [[SUCCESS_BB]]([[CAST_VALUE:%.*]] :
 // ==> On success, we store into dest and destroy dest.
@@ -433,7 +433,7 @@ bb3:
 // CHECK-NEXT:   [[DEST_ADDR:%.*]] = alloc_stack $Klass
 // CHECK-NEXT:   store [[ARG_MOVE]] to [init] [[SRC_ADDR]]
 // CHECK-NEXT:   [[RELOADED_ARG:%.*]] = load_borrow [[SRC_ADDR]]
-// CHECK-NEXT:   checked_cast_br [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
+// CHECK-NEXT:   checked_cast_br Builtin.NativeObject in [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
 //
 // CHECK: [[SUCCESS_BB]]([[CAST_VALUE:%.*]] : @guaranteed
 // CHECK-NEXT:   [[CAST_VALUE_COPY:%.*]] = copy_value [[CAST_VALUE]]

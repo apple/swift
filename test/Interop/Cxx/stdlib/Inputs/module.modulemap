@@ -22,3 +22,9 @@ module StdPair {
   header "std-pair.h"
   requires cplusplus
 }
+
+module MsvcUseVecIt {
+  header "msvc-std-vector-it.h"
+  requires cplusplus
+  export *
+}

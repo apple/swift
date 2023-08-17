@@ -826,9 +826,9 @@ static SILValue tryRewriteToPartialApplyStack(
                
     bool origIsUnusedDuringClosureLifetime = true;
 
-    class OrigUnusedDuringClosureLifetimeWalker final
-      : public TransitiveAddressWalker
-    {
+    class OrigUnusedDuringClosureLifetimeWalker
+        : public TransitiveAddressWalker<
+              OrigUnusedDuringClosureLifetimeWalker> {
       SSAPrunedLiveness &closureLiveness;
       bool &origIsUnusedDuringClosureLifetime;
     public:
@@ -837,8 +837,8 @@ static SILValue tryRewriteToPartialApplyStack(
         : closureLiveness(closureLiveness),
           origIsUnusedDuringClosureLifetime(origIsUnusedDuringClosureLifetime)
       {}
-    
-      virtual bool visitUse(Operand *origUse) override {
+
+      bool visitUse(Operand *origUse) {
         LLVM_DEBUG(llvm::dbgs() << "looking at use\n";
                    origUse->getUser()->printInContext(llvm::dbgs());
                    llvm::dbgs() << "\n");
@@ -857,7 +857,7 @@ static SILValue tryRewriteToPartialApplyStack(
         return true;
       }
     };
-    
+
     OrigUnusedDuringClosureLifetimeWalker origUseWalker(closureLiveness,
                                              origIsUnusedDuringClosureLifetime);
     auto walkResult = std::move(origUseWalker).walk(orig);
@@ -889,12 +889,28 @@ static SILValue tryRewriteToPartialApplyStack(
     destroy->dump();
     */
     SILBuilderWithScope builder(std::next(destroy->getIterator()));
-    insertDestroyOfCapturedArguments(newPA, builder,
-                                     [&](SILValue arg) -> bool {
-                                       // Don't need to destroy if we borrowed
-                                       // in place .
-                                       return !borrowedOriginals.count(arg);
-                                     },
+    // This getCapturedArg hack attempts to perfectly compensate for all the
+    // other hacks involved in gathering new arguments above.
+    auto getArgToDestroy = [&](SILValue argValue) -> SILValue {
+      // A MoveOnlyWrapperToCopyableValueInst may produce a trivial value. Be
+      // careful not to emit an extra destroy of the original.
+      if (argValue->getType().isTrivial(argValue->getFunction()))
+        return SILValue();
+
+      // We may have inserted a new begin_borrow->moveonlywrapper_to_copyvalue
+      // when creating the new arguments. Now we need to end that borrow.
+      if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(argValue))
+        if (m->hasGuaranteedInitialKind())
+          argValue = m->getOperand();
+      auto *argBorrow = dyn_cast<BeginBorrowInst>(argValue);
+      if (argBorrow) {
+        argValue = argBorrow->getOperand();
+        builder.createEndBorrow(newPA->getLoc(), argBorrow);
+      }
+      // Don't need to destroy if we borrowed in place .
+      return borrowedOriginals.count(argValue) ? SILValue() : argValue;
+    };
+    insertDestroyOfCapturedArguments(newPA, builder, getArgToDestroy,
                                      newPA->getLoc());
   }
   /* DEBUG
@@ -919,13 +935,17 @@ static SILValue tryRewriteToPartialApplyStack(
   if (unreachableBlocks.count(newPA->getParent()))
     return closureOp;
 
+  auto getAddressToDealloc = [&](SILValue argAddress) -> SILValue {
+    if (auto moveWrapper =
+        dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(argAddress)) {
+      argAddress = moveWrapper->getOperand();
+    }
+    // Don't need to destroy if we borrowed in place .
+    return borrowedOriginals.count(argAddress) ? SILValue() : argAddress;
+  };
   insertDeallocOfCapturedArguments(
       newPA, dominanceAnalysis->get(closureUser->getFunction()),
-      [&](SILValue arg) -> bool {
-        // Don't need to destroy if we borrowed
-        // in place.
-        return !borrowedOriginals.count(arg);
-      });
+      getAddressToDealloc);
 
   return closureOp;
 }

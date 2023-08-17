@@ -27,6 +27,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
   var asyncContext: Address
   var first: Bool
   var isAsync: Bool
+  var done: Bool
 
   #if os(Linux)
   var elf32Cache: [Int:Elf32Image<FileImageSource>] = [:]
@@ -44,6 +45,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
     fp = Address(context.framePointer)
     first = true
     isAsync = false
+    done = false
     asyncContext = 0
     reader = memoryReader
 
@@ -134,6 +136,10 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
   }
 
   public mutating func next() -> Backtrace.Frame? {
+    if done {
+      return nil
+    }
+
     if first {
       first = false
       pc = stripPtrAuth(pc)
@@ -149,6 +155,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
         if strippedFp == 0
              || !Context.isAlignedForStack(framePointer:
                                              Context.Address(strippedFp)) {
+          done = true
           return nil
         }
 
@@ -158,10 +165,12 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
                                              as: Address.self))
           next = try reader.fetch(from: Address(strippedFp), as: Address.self)
         } catch {
+          done = true
           return nil
         }
 
         if next <= fp || pc == 0 {
+          done = true
           return nil
         }
 
@@ -173,6 +182,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
 
       isAsync = true
       if !fetchAsyncContext() {
+        done = true
         return nil
       }
     }
@@ -183,6 +193,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
     let strippedCtx = stripPtrAuth(asyncContext)
 
     if strippedCtx == 0 {
+      done = true
       return nil
     }
 
@@ -197,6 +208,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
       next = Address(next32)
       pc = stripPtrAuth(Address(pc32))
     } catch {
+      done = true
       return nil
     }
     #else
@@ -206,6 +218,7 @@ public struct FramePointerUnwinder<C: Context, M: MemoryReader>: Sequence, Itera
       next = try reader.fetch(from: strippedCtx, as: Address.self)
       pc = stripPtrAuth(try reader.fetch(from: strippedCtx + 8, as: Address.self))
     } catch {
+      done = true
       return nil
     }
 

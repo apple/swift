@@ -150,8 +150,9 @@ namespace {
           operandValue = operandValue.borrow(SGF, Loc);
         }
         SGF.B.createCheckedCastBranch(Loc, /*exact*/ false, operandValue,
-                                      origTargetTL.getLoweredType(), TargetType,
-                                      trueBB, falseBB, TrueCount, FalseCount);
+                                      SourceType, origTargetTL.getLoweredType(),
+                                      TargetType, trueBB, falseBB, TrueCount,
+                                      FalseCount);
       }
 
       // Emit the success block.

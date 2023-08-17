@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.9
 //===--- Package.swift.in - SwiftCompiler SwiftPM package -----------------===//
 //
 // This source file is part of the Swift.org open source project
@@ -14,20 +14,6 @@
 import PackageDescription
 
 private extension Target {
-  static let defaultSwiftSettings: [SwiftSetting] = [
-    .unsafeFlags([
-      "-Xfrontend", "-validate-tbd-against-ir=none",
-      "-Xfrontend", "-enable-experimental-cxx-interop",
-      // Bridging modules and headers
-      "-Xcc", "-I", "-Xcc", "../include",
-      // LLVM modules and headers
-      "-Xcc", "-I", "-Xcc", "../../llvm-project/llvm/include",
-      // Clang modules and headers
-      "-Xcc", "-I", "-Xcc", "../../llvm-project/clang/include",
-      "-cross-module-optimization"
-    ]),
-  ]
-
   static func compilerModuleTarget(
     name: String,
     dependencies: [Dependency],
@@ -40,7 +26,15 @@ private extension Target {
         path: path ?? "Sources/\(name)",
         exclude: ["CMakeLists.txt"],
         sources: sources,
-        swiftSettings: defaultSwiftSettings + swiftSettings)
+        cxxSettings: [
+          .headerSearchPath("../include"),
+          .headerSearchPath("../../llvm-project/llvm/include"),
+          .headerSearchPath("../../llvm-project/clang/include"),
+        ],
+        swiftSettings: [
+          .interoperabilityMode(.Cxx),
+          .unsafeFlags(["-cross-module-optimization"]),
+        ] + swiftSettings)
     }
 }
 
@@ -86,5 +80,6 @@ let package = Package(
     .compilerModuleTarget(
       name: "Optimizer",
       dependencies: ["Basic", "SIL", "Parse"]),
-  ]
+  ],
+  cxxLanguageStandard: .cxx17
 )

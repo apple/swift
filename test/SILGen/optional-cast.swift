@@ -16,7 +16,7 @@ class B : A {}
 //   If so, pull the value out and check whether it's a B.
 // CHECK:    [[IS_PRESENT]]([[VAL:%.*]] :
 // CHECK-NEXT: [[X_VALUE:%.*]] = init_enum_data_addr [[PB]] : $*Optional<B>, #Optional.some
-// CHECK-NEXT: checked_cast_br [[VAL]] : $A to B, [[IS_B:bb.*]], [[NOT_B:bb[0-9]+]]
+// CHECK-NEXT: checked_cast_br A in [[VAL]] : $A to B, [[IS_B:bb.*]], [[NOT_B:bb[0-9]+]]
 //
 //   If so, materialize that and inject it into x.
 // CHECK:    [[IS_B]]([[T0:%.*]] : @owned $B):
@@ -79,7 +79,7 @@ func foo(_ y : A?) {
 //
 //   If so, pull out the A and check whether it's a B.
 // CHECK:    [[PPPP]]([[VAL:%.*]] :
-// CHECK-NEXT: checked_cast_br [[VAL]] : $A to B, [[IS_B:bb.*]], [[NOT_B:bb[0-9]+]]
+// CHECK-NEXT: checked_cast_br A in [[VAL]] : $A to B, [[IS_B:bb.*]], [[NOT_B:bb[0-9]+]]
 //
 //   If so, inject it back into an optional.
 //   TODO: We're going to switch back out of this; we really should peephole it.
@@ -146,7 +146,7 @@ func bar(_ y : A????) {
 // CHECK:         switch_enum [[ARG_COPY]]
 // CHECK:       bb1([[VAL:%.*]] : @owned $AnyObject):
 // CHECK-NEXT:    [[X_VALUE:%.*]] = init_enum_data_addr [[PB]] : $*Optional<B>, #Optional.some
-// CHECK-NEXT:    checked_cast_br [[VAL]] : $AnyObject to B, [[IS_B:bb.*]], [[NOT_B:bb[0-9]+]]
+// CHECK-NEXT:    checked_cast_br AnyObject in [[VAL]] : $AnyObject to B, [[IS_B:bb.*]], [[NOT_B:bb[0-9]+]]
 // CHECK:       [[IS_B]]([[CASTED_VALUE:%.*]] : @owned $B):
 // CHECK:         store [[CASTED_VALUE]] to [init] [[X_VALUE]]
 // CHECK:       [[NOT_B]]([[ORIGINAL_VALUE:%.*]] : @owned $AnyObject):

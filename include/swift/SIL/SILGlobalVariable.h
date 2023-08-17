@@ -42,6 +42,7 @@ class SILGlobalVariable
   static SwiftMetatype registeredMetatype;
     
 public:
+  using iterator = SILBasicBlock::iterator;
   using const_iterator = SILBasicBlock::const_iterator;
 
 private:
@@ -182,6 +183,8 @@ public:
 
   const_iterator begin() const { return StaticInitializerBlock.begin(); }
   const_iterator end() const { return StaticInitializerBlock.end(); }
+  iterator begin() { return StaticInitializerBlock.begin(); }
+  iterator end() { return StaticInitializerBlock.end(); }
 
   void dropAllReferences() {
     StaticInitializerBlock.dropAllReferences();

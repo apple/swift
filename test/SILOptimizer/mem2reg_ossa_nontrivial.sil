@@ -145,9 +145,10 @@ bb0(%0 : @owned $Klass, %1 : @owned $Klass):
 
 // CHECK-LABEL: sil [ossa] @multiple_store_vals3 :
 // CHECK-NOT: alloc_stack
-// CHECK: [[COPY0:%.*]] = copy_value %0 : $Klass
+// The COPY0 copy/destroy is eliminated by owned value canonicalization.
+//      : [[COPY0:%.*]] = copy_value %0 : $Klass
 // CHECK: [[COPY1:%.*]] = copy_value %1 : $Klass
-// CHECK: destroy_value [[COPY0]] : $Klass
+//      : destroy_value [[COPY0]] : $Klass
 // CHECK: [[FUNC:%.*]] = function_ref @blackhole_spl :
 // CHECK: apply [[FUNC]]([[COPY1]]) : $@convention(thin) (@guaranteed Klass) -> ()
 // CHECK: destroy_value [[COPY1]] : $Klass
@@ -353,8 +354,9 @@ bb0(%0 : @owned $Klass, %1 : @owned $Klass):
 
 // CHECK-LABEL: sil [ossa] @basic_block_with_loads_copy_and_take :
 // CHECK-NOT: alloc_stack
-// CHECK: [[COPY:%.*]] = copy_value %0 : $Klass
-// CHECK: destroy_value [[COPY]] : $Klass
+// The COPY/destroy pair is eliminated by owned value canonicalization.
+//      : [[COPY:%.*]] = copy_value %0 : $Klass
+//      : destroy_value [[COPY]] : $Klass
 // CHECK: destroy_value %0 : $Klass
 // CHECK-LABEL: } // end sil function 'basic_block_with_loads_copy_and_take'
 sil [ossa] @basic_block_with_loads_copy_and_take : $@convention(thin) (@owned Klass) -> () {

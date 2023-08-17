@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/IDE/FuzzyStringMatcher.h"
+#include "swift/Basic/Compiler.h"
 #include "gtest/gtest.h"
 
 using FuzzyStringMatcher = swift::ide::FuzzyStringMatcher;
@@ -53,26 +54,31 @@ TEST(FuzzyStringMatcher, SingleCharacterMatching) {
 
 TEST(FuzzyStringMatcher, UnicodeMatching) {
   // Single code point matching.
-  EXPECT_TRUE(FuzzyStringMatcher(u8"\u2602a\U0002000Bz")
-                  .matchesCandidate(u8"\u2602A\U0002000BZ"));
+  EXPECT_TRUE(FuzzyStringMatcher(SWIFT_UTF8("\u2602a\U0002000Bz"))
+                  .matchesCandidate(SWIFT_UTF8("\u2602A\U0002000BZ")));
 
   // Same-order combining marks.
-  EXPECT_TRUE(FuzzyStringMatcher(u8"a\u0323\u0307")
-                  .matchesCandidate(u8"A\u0323\u0307"));
+  EXPECT_TRUE(FuzzyStringMatcher(SWIFT_UTF8("a\u0323\u0307"))
+                  .matchesCandidate(SWIFT_UTF8("A\u0323\u0307")));
 
   // FIXME: Canonical equivalence. These should be the same.
-  EXPECT_FALSE(FuzzyStringMatcher(u8"a\u0307\u0323")
-                   .matchesCandidate(u8"A\u0323\u0307"));
-  EXPECT_FALSE(FuzzyStringMatcher(u8"a\u00C5").matchesCandidate(u8"A\u030A"));
+  EXPECT_FALSE(FuzzyStringMatcher(SWIFT_UTF8("a\u0307\u0323"))
+                   .matchesCandidate(SWIFT_UTF8("A\u0323\u0307")));
+  EXPECT_FALSE(FuzzyStringMatcher(SWIFT_UTF8("a\u00C5"))
+                   .matchesCandidate(SWIFT_UTF8("A\u030A")));
 
   // FIXME: Compatibility equivalence.  It would be good to make these the same
   // too, since we're fuzzy matching.
-  EXPECT_FALSE(FuzzyStringMatcher(u8"fi").matchesCandidate(u8"\uFB01"));
-  EXPECT_FALSE(FuzzyStringMatcher(u8"25").matchesCandidate(u8"2\u2075"));
+  EXPECT_FALSE(FuzzyStringMatcher(SWIFT_UTF8("fi"))
+                   .matchesCandidate(SWIFT_UTF8("\uFB01")));
+  EXPECT_FALSE(FuzzyStringMatcher(SWIFT_UTF8("25"))
+                   .matchesCandidate(SWIFT_UTF8("2\u2075")));
 
   // FIXME: Case-insensitivity in non-ASCII characters.
-  EXPECT_FALSE(FuzzyStringMatcher(u8"\u00E0").matchesCandidate(u8"\u00C0"));
-  EXPECT_FALSE(FuzzyStringMatcher(u8"ss").matchesCandidate(u8"\u00DF"));
+  EXPECT_FALSE(FuzzyStringMatcher(SWIFT_UTF8("\u00E0"))
+                   .matchesCandidate(SWIFT_UTF8("\u00C0")));
+  EXPECT_FALSE(FuzzyStringMatcher(SWIFT_UTF8("ss"))
+                   .matchesCandidate(SWIFT_UTF8("\u00DF")));
 }
 
 TEST(FuzzyStringMatcher, BasicScoring) {

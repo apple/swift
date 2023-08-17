@@ -33,18 +33,30 @@ print("a = \(a)") // CHECK-E2E: a = 1002
 a = 1004
 print("a = \(a)") // CHECK-E2E-NEXT: a = 1004
 
-// CHECK-SIL-LABEL: sil private @$s1M2f1yyFyyXEfU3_
+// CHECK-SIL-LABEL: sil hidden @$s1M2f1yyF
+// CHECK-SIL-NOT: _debuggerTestingCheckExpect
 func f1() {
+  // We don't attempt to instrument in this case because we don't try
+  // to prove that the var decl is definitively initialized.
+  var e: Int
+  e = 5001
+  print("e = \(e)") // CHECK-E2E-NEXT: e = 5001
+}
+
+f1()
+
+// CHECK-SIL-LABEL: sil private @$s1M2f2yyFyyXEfU3_
+func f2() {
   var b = 2001
   b = 2002
   // CHECK-SIL: function_ref {{.*}}_debuggerTestingCheckExpectyySS_SStF
   print("b = \(b)") // CHECK-E2E-NEXT: b = 2002
 }
 
-f1()
+f2()
 
-// CHECK-SIL-LABEL: sil private @$s1M2f2yyFyyXEfU_yyXEfU4_
-func f2() {
+// CHECK-SIL-LABEL: sil private @$s1M2f3yyFyyXEfU_yyXEfU4_
+func f3() {
   var c: Int = 3001
   ({ () -> () in
     c = 3002
@@ -53,29 +65,17 @@ func f2() {
   })()
 }
 
-f2()
+f3()
 
-// CHECK-SIL-LABEL: sil private @$s1M2f3yySaySiGzFyyXEfU5_
-func f3(_ d: inout [Int]) {
+// CHECK-SIL-LABEL: sil private @$s1M2f4yySaySiGzFyyXEfU5_
+func f4(_ d: inout [Int]) {
   d[0] = 4002
   // CHECK-SIL: function_ref {{.*}}_debuggerTestingCheckExpectyySS_SStF
   print("d[0] = \(d[0])") // CHECK-E2E-NEXT: d[0] = 4002
 }
 
 var d: [Int] = [4001]
-f3(&d)
-
-// CHECK-SIL-LABEL: sil hidden @$s1M2f4yyF
-// CHECK-SIL-NOT: _debuggerTestingCheckExpect
-func f4() {
-  // We don't attempt to instrument in this case because we don't try
-  // to prove that the var decl is definitively initialized.
-  var e: Int
-  e = 5001
-  print("e = \(e)") // CHECK-E2E-NEXT: e = 5001
-}
-
-f4()
+f4(&d)
 
 // CHECK-SIL-LABEL: sil private @$s1M2f5yySSzFyyXEfU6_
 func f5(_ v: inout String) {

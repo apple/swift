@@ -52,6 +52,7 @@ struct Unsafe {
 };
 
 struct HasAmbiguousUnsafeMethods {
+  HasAmbiguousUnsafeMethods(const HasAmbiguousUnsafeMethods&);
   Unsafe getUnsafe() const { return Unsafe(); }
   Unsafe getUnsafe() { return Unsafe(); }
 };

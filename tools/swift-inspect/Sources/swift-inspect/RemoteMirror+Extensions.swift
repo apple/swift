@@ -119,32 +119,35 @@ extension SwiftReflectionContextRef {
     return words[2]
   }
 
-  internal func iterateConformanceCache(_ body: ConformanceIterationCallback) throws {
+  internal func iterateConformanceCache(_ body: @escaping ConformanceIterationCallback) throws {
     var body = body
-    if let error = swift_reflection_iterateConformanceCache(self, {
-          let callback = $2!.bindMemory(to: ConformanceIterationCallback.self, capacity: 1)
-          callback.pointee($0, $1)
-        }, &body) {
+    if let error = withUnsafeMutablePointer(to: &body, {
+      swift_reflection_iterateConformanceCache(self, {
+        $2!.bindMemory(to: ConformanceIterationCallback.self, capacity: 1).pointee($0, $1)
+      }, $0)
+    }) {
       throw Error(cString: error)
     }
   }
 
-  internal func iterateMetadataAllocations(_ body: MetadataAllocationIterationCallback) throws {
+  internal func iterateMetadataAllocations(_ body: @escaping MetadataAllocationIterationCallback) throws {
     var body = body
-    if let error = swift_reflection_iterateMetadataAllocations(self, {
-          let callback = $1!.bindMemory(to: MetadataAllocationIterationCallback.self, capacity: 1)
-          callback.pointee($0)
-        }, &body) {
+    if let error = withUnsafeMutablePointer(to: &body, {
+      swift_reflection_iterateMetadataAllocations(self, {
+        $1!.bindMemory(to: MetadataAllocationIterationCallback.self, capacity: 1).pointee($0)
+      }, $0)
+    }) {
       throw Error(cString: error)
     }
   }
 
-  internal func iterateMetadataAllocationBacktraces(_ body: MetadataAllocationBacktraceIterationCallback) throws {
+  internal func iterateMetadataAllocationBacktraces(_ body: @escaping MetadataAllocationBacktraceIterationCallback) throws {
     var body = body
-    if let error = swift_reflection_iterateMetadataAllocationBacktraces(self, {
-          let callback = $3!.bindMemory(to: MetadataAllocationBacktraceIterationCallback.self, capacity: 1)
-          callback.pointee($0, $1, $2!)
-        }, &body) {
+    if let error = withUnsafeMutablePointer(to: &body, {
+      swift_reflection_iterateMetadataAllocationBacktraces(self, {
+        $3!.bindMemory(to: MetadataAllocationBacktraceIterationCallback.self, capacity: 1).pointee($0, $1, $2!)
+      }, $0)
+    }) {
       throw Error(cString: error)
     }
   }

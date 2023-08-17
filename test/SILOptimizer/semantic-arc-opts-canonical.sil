@@ -451,7 +451,7 @@ bb3:
 
 // CHECK-LABEL: sil [ossa] @testTypeDependentCheckCast : $@convention(thin) (@guaranteed Klass, @thick @dynamic_self Klass.Type) -> () {
 // CHECK: bb0(%0 : @guaranteed $Klass, %1 : $@thick @dynamic_self Klass.Type):
-// CHECK:   checked_cast_br %0 : $Klass to @dynamic_self Klass, bb1, bb2 // type-defs: %1; id: %2
+// CHECK:   checked_cast_br Klass in %0 : $Klass to @dynamic_self Klass, bb1, bb2 // type-defs: %1; id: %2
 //
 // CHECK: bb1([[CAST:%.*]] : @guaranteed $Klass):
 // CHECK:   [[SOME:%.*]] = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, [[CAST]] : $Klass
@@ -473,7 +473,7 @@ bb3:
 sil [ossa] @testTypeDependentCheckCast : $@convention(thin) (@guaranteed Klass, @thick @dynamic_self Klass.Type) -> () {
 bb0(%0 : @guaranteed $Klass, %1 : $@thick @dynamic_self Klass.Type):
   %2 = copy_value %0 : $Klass
-  checked_cast_br %2 : $Klass to @dynamic_self Klass, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to @dynamic_self Klass, bb1, bb2
 
 bb1(%4 : @owned $Klass):
   %5 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %4 : $Klass

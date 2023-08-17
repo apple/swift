@@ -257,9 +257,14 @@ MemBehavior MemoryBehaviorVisitor::visitStoreInst(StoreInst *SI) {
   // If the store dest cannot alias the pointer in question and we are not
   // releasing anything due to an assign, then the specified value cannot be
   // modified by the store.
-  if (!mayAlias(SI->getDest()) &&
-      SI->getOwnershipQualifier() != StoreOwnershipQualifier::Assign)
+  if (!mayAlias(SI->getDest())) {
+    if (SI->getOwnershipQualifier() == StoreOwnershipQualifier::Assign) {
+      // Consider side effects of the destructor
+      return AA->getMemoryEffectOnEscapedAddress(V, SI);
+    }
+
     return MemBehavior::None;
+  }
 
   // Otherwise, a store just writes.
   LLVM_DEBUG(llvm::dbgs() << "  Could not prove store does not alias inst. "

@@ -1259,12 +1259,13 @@ AssignByWrapperInst::AssignByWrapperInst(SILDebugLocation Loc,
   sharedUInt8().AssignByWrapperInst.mode = uint8_t(mode);
 }
 
-AssignOrInitInst::AssignOrInitInst(SILDebugLocation Loc, SILValue Self,
-                                   SILValue Src, SILValue Initializer,
-                                   SILValue Setter, AssignOrInitInst::Mode Mode)
+AssignOrInitInst::AssignOrInitInst(SILDebugLocation Loc, VarDecl *P,
+                                   SILValue Self, SILValue Src,
+                                   SILValue Initializer, SILValue Setter,
+                                   AssignOrInitInst::Mode Mode)
     : InstructionBase<SILInstructionKind::AssignOrInitInst,
                       NonValueInstruction>(Loc),
-      Operands(this, Self, Src, Initializer, Setter) {
+      Operands(this, Self, Src, Initializer, Setter), Property(P) {
   assert(Initializer->getType().is<SILFunctionType>());
   sharedUInt8().AssignOrInitInst.mode = uint8_t(Mode);
   Assignments.resize(getNumInitializedProperties());
@@ -1291,23 +1292,11 @@ bool AssignOrInitInst::isPropertyAlreadyInitialized(unsigned propertyIdx) {
 }
 
 StringRef AssignOrInitInst::getPropertyName() const {
-  auto *accessor = getReferencedInitAccessor();
-  assert(accessor);
-  return cast<VarDecl>(accessor->getStorage())->getNameStr();
+  return Property->getNameStr();
 }
 
 AccessorDecl *AssignOrInitInst::getReferencedInitAccessor() const {
-  SILValue initRef = getInitializer();
-  SILFunction *accessorFn = nullptr;
-
-  if (auto *PAI = dyn_cast<PartialApplyInst>(initRef)) {
-    accessorFn = PAI->getReferencedFunctionOrNull();
-  } else {
-    accessorFn = cast<FunctionRefInst>(initRef)->getReferencedFunctionOrNull();
-  }
-
-  assert(accessorFn);
-  return dyn_cast_or_null<AccessorDecl>(accessorFn->getDeclContext());
+  return Property->getOpaqueAccessor(AccessorKind::Init);
 }
 
 unsigned AssignOrInitInst::getNumInitializedProperties() const {
@@ -2551,8 +2540,8 @@ UnconditionalCheckedCastInst *UnconditionalCheckedCastInst::create(
 
 CheckedCastBranchInst *CheckedCastBranchInst::create(
     SILDebugLocation DebugLoc, bool IsExact, SILValue Operand,
-    SILType DestLoweredTy, CanType DestFormalTy, SILBasicBlock *SuccessBB,
-    SILBasicBlock *FailureBB, SILFunction &F,
+    CanType SrcFormalTy, SILType DestLoweredTy, CanType DestFormalTy,
+    SILBasicBlock *SuccessBB, SILBasicBlock *FailureBB, SILFunction &F,
     ProfileCounter Target1Count, ProfileCounter Target2Count,
     ValueOwnershipKind forwardingOwnershipKind) {
   SILModule &module = F.getModule();
@@ -2561,12 +2550,12 @@ CheckedCastBranchInst *CheckedCastBranchInst::create(
   SmallVector<SILValue, 8> TypeDependentOperands;
   collectTypeDependentOperands(TypeDependentOperands, F, DestFormalTy);
   unsigned size =
-      totalSizeToAlloc<swift::Operand>(1 + TypeDependentOperands.size());
+      totalSizeToAlloc<swift::Operand>(3 + TypeDependentOperands.size());
   void *Buffer = module.allocateInst(size, alignof(CheckedCastBranchInst));
   return ::new (Buffer) CheckedCastBranchInst(
-      DebugLoc, IsExact, Operand, TypeDependentOperands, DestLoweredTy,
-      DestFormalTy, SuccessBB, FailureBB, Target1Count, Target2Count,
-      forwardingOwnershipKind, preservesOwnership);
+      DebugLoc, IsExact, Operand, SrcFormalTy, TypeDependentOperands,
+      DestLoweredTy, DestFormalTy, SuccessBB, FailureBB, Target1Count,
+      Target2Count, forwardingOwnershipKind, preservesOwnership);
 }
 
 MetatypeInst *MetatypeInst::create(SILDebugLocation Loc, SILType Ty,

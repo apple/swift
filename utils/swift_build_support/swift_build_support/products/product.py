@@ -339,7 +339,7 @@ class Product(object):
 
         return toolchain_file
 
-    def get_linux_abi(self, arch):
+    def get_linux_target_components(self, arch):
         # Map tuples of (platform, arch) to ABI
         #
         # E.x.: Hard ABI or Soft ABI for Linux map to gnueabihf
@@ -348,22 +348,37 @@ class Product(object):
             'armv7': ('arm', 'gnueabihf')
         }
 
-        # Default is just arch, gnu
-        sysroot_arch, abi = arch_platform_to_abi.get(arch, (arch, 'gnu'))
-        return sysroot_arch, abi
+        abi = 'gnu'
+        vendor = 'unknown'
+
+        try:
+            output = shell.capture([self.toolchain.cc, "--print-target-triple"])
+
+            # clang can't handle default `*-unknown-linux-*` components on Alpine,
+            # it needs special handling to propagate `vendor` and `abi` intact
+            if 'alpine-linux-musl' in output:
+                vendor = 'alpine'
+                abi = 'musl'
+
+            sysroot_arch, abi = arch_platform_to_abi.get(arch, (arch, abi))
+
+        except BaseException:
+            # Default is just arch, gnu
+            sysroot_arch, abi = arch_platform_to_abi.get(arch, (arch, abi))
+        return sysroot_arch, vendor, abi
 
     def get_linux_sysroot(self, platform, arch):
         if not self.is_cross_compile_target('{}-{}'.format(platform, arch)):
             return None
-        sysroot_arch, abi = self.get_linux_abi(arch)
+        sysroot_arch, abi = self.get_linux_target_components(arch)
         # $ARCH-$PLATFORM-$ABI
         # E.x.: aarch64-linux-gnu
         sysroot_dirname = '{}-{}-{}'.format(sysroot_arch, platform, abi)
         return os.path.join(os.sep, 'usr', sysroot_dirname)
 
     def get_linux_target(self, platform, arch):
-        sysroot_arch, abi = self.get_linux_abi(arch)
-        return '{}-unknown-linux-{}'.format(sysroot_arch, abi)
+        sysroot_arch, vendor, abi = self.get_linux_target_components(arch)
+        return '{}-{}-linux-{}'.format(sysroot_arch, vendor, abi)
 
     def generate_linux_toolchain_file(self, platform, arch):
         """

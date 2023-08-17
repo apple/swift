@@ -21,6 +21,14 @@ import gizmo
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} i32 @main
 // CHECK:         call swiftcc %swift.metadata_response @"$sSo16NSRuncingOptionsVMa"(i64 0)
 
+func use_metadata<T: Equatable>(_ t:T){}
+use_metadata(NSRuncingOptions.mince)
+
+// CHECK-LABEL: define linkonce_odr hidden swiftcc %swift.metadata_response @"$sSo16NSRuncingOptionsVMa"(i64 %0)
+// CHECK:         call swiftcc %swift.metadata_response @swift_getForeignTypeMetadata([[INT]] %0,
+// CHECK-SAME:    @"$sSo16NSRuncingOptionsVMf"
+// CHECK-SAME:    [[NOUNWIND_READNONE:#[0-9]+]]
+
 // CHECK: define hidden swiftcc i16 @"$s12objc_ns_enum09imported_C9_inject_aSo16NSRuncingOptionsVyF"()
 // CHECK:   ret i16 123
 func imported_enum_inject_a() -> NSRuncingOptions {
@@ -86,14 +94,6 @@ func imported_enum_inject_negative_unsigned_b() -> NSNegativeUnsignedOptions {
 func test_enum_without_name_Equatable(_ obj: TestThatEnumType) -> Bool {
   return obj.getValue() != .ValueOfThatEnumType
 }
-
-func use_metadata<T: Equatable>(_ t:T){}
-use_metadata(NSRuncingOptions.mince)
-
-// CHECK-LABEL: define linkonce_odr hidden swiftcc %swift.metadata_response @"$sSo16NSRuncingOptionsVMa"(i64 %0)
-// CHECK:         call swiftcc %swift.metadata_response @swift_getForeignTypeMetadata([[INT]] %0,
-// CHECK-SAME:    @"$sSo16NSRuncingOptionsVMf"
-// CHECK-SAME:    [[NOUNWIND_READNONE:#[0-9]+]]
 
 @objc enum ExportedToObjC: Int {
   case Foo = -1, Bar, Bas

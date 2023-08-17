@@ -141,9 +141,9 @@ protected:
     if (!theClass->hasKnownSwiftImplementation())
       return;
 
-    forEachMemberToLower(theClass, [&](Decl *member) {
+    for (Decl *member : theClass->getMembersForLowering()) {
       maybeAddMember(member);
-    });
+    }
   }
 };
 

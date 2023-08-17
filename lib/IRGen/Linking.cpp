@@ -537,11 +537,6 @@ std::string LinkEntity::mangleAsString() const {
     return mangler.mangleExtendedExistentialTypeShapeSymbol(
                      genSig, existentialType, isUnique);
   }
-
-  case Kind::RuntimeDiscoverableAttributeRecord: {
-    auto *attr = cast<NominalTypeDecl>(getDecl());
-    return mangler.mangleRuntimeAccessibleAttributeRecord(attr);
-  }
   }
   llvm_unreachable("bad entity kind!");
 }
@@ -888,9 +883,6 @@ SILLinkage LinkEntity::getLinkage(ForDefinition_t forDefinition) const {
   case Kind::ExtendedExistentialTypeShape:
     return (isExtendedExistentialTypeShapeShared()
               ? SILLinkage::Shared : SILLinkage::Private);
-  case Kind::RuntimeDiscoverableAttributeRecord:
-    return SILLinkage::Private;
-
   }
   llvm_unreachable("bad link entity kind");
 }
@@ -985,7 +977,6 @@ bool LinkEntity::isContextDescriptor() const {
   case Kind::DistributedAccessor:
   case Kind::AccessibleFunctionRecord:
   case Kind::ExtendedExistentialTypeShape:
-  case Kind::RuntimeDiscoverableAttributeRecord:
     return false;
   }
   llvm_unreachable("invalid descriptor");
@@ -1113,8 +1104,6 @@ llvm::Type *LinkEntity::getDefaultDeclarationType(IRGenModule &IGM) const {
     return IGM.AccessibleFunctionRecordTy;
   case Kind::ExtendedExistentialTypeShape:
     return IGM.RelativeAddressTy;
-  case Kind::RuntimeDiscoverableAttributeRecord:
-    return IGM.RuntimeDiscoverableAttributeTy;
   default:
     llvm_unreachable("declaration LLVM type not specified");
   }
@@ -1147,7 +1136,6 @@ Alignment LinkEntity::getAlignment(IRGenModule &IGM) const {
   case Kind::OpaqueTypeDescriptorRecord:
   case Kind::AccessibleFunctionRecord:
   case Kind::ExtendedExistentialTypeShape:
-  case Kind::RuntimeDiscoverableAttributeRecord:
     return Alignment(4);
   case Kind::AsyncFunctionPointer:
   case Kind::DispatchThunkAsyncFunctionPointer:
@@ -1312,7 +1300,6 @@ bool LinkEntity::isWeakImported(ModuleDecl *module) const {
   case Kind::DifferentiabilityWitness:
   case Kind::AccessibleFunctionRecord:
   case Kind::ExtendedExistentialTypeShape:
-  case Kind::RuntimeDiscoverableAttributeRecord:
     return false;
 
   case Kind::AsyncFunctionPointer:
@@ -1458,10 +1445,6 @@ DeclContext *LinkEntity::getDeclContextForEmission() const {
   case Kind::DistributedAccessor:
   case Kind::AccessibleFunctionRecord: {
     return getSILFunction()->getParentModule();
-  }
-
-  case Kind::RuntimeDiscoverableAttributeRecord: {
-    return nullptr;
   }
   }
   llvm_unreachable("invalid decl kind");

@@ -217,7 +217,7 @@ func testVarPeer() {
 #if TEST_DIAGNOSTICS
 // Macros cannot be attached to function parameters
 
-// expected-error@+1{{'peer' macro cannot be attached to parameter}}
+// expected-error@+1{{'peer' macro cannot be attached to parameter ('x')}}
 func test(@declareVarValuePeer x: Int) {}
 #endif
 
@@ -235,3 +235,18 @@ func testStructWithPeers() {
   let x = SomeStructWithPeerProperties()
   print(x)
 }
+
+
+#if TEST_DIAGNOSTICS
+@available(*, deprecated, message: "This macro is deprecated.")
+@attached(peer, names: overloaded)
+macro deprecatedAddCompletionHandler() = #externalMacro(module: "MacroDefinition", type: "AddCompletionHandler")
+
+
+// expected-warning@+1{{'deprecatedAddCompletionHandler()' is deprecated: This macro is deprecated.}}
+@deprecatedAddCompletionHandler
+func fDeprecated(a: Int, for b: String, _ value: Double) async -> String {
+  return b
+}
+
+#endif

@@ -28,7 +28,7 @@ bb0(%0 : $Node):
 //CHECK-DIRECT-NEXT:  = icmp eq ptr
 //CHECK-INDIRECT-NEXT:  = icmp eq ptr
 //CHECK-NEXT:  br i1
-  checked_cast_br [exact] %0 : $Node to ParentNode, bb2, bb3 // id: %2
+  checked_cast_br [exact] Node in %0 : $Node to ParentNode, bb2, bb3 // id: %2
 
 bb1:                                   // Preds: bb2 bb3
   return undef : $Int
@@ -64,7 +64,7 @@ bb0(%0 : $BaseBase):
 //CHECK: load
 //CHECK: icmp eq ptr
 //CHECK: br
-  checked_cast_br [exact] %0 : $BaseBase to DerivedInt, bb2, bb3 // id: %2
+  checked_cast_br [exact] BaseBase in %0 : $BaseBase to DerivedInt, bb2, bb3 // id: %2
 
 bb1:
   return undef : $Int

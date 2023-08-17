@@ -1024,3 +1024,24 @@ bb0:
   return %r : $()
 }
 
+// CHECK-LABEL: @test_store_assign
+// CHECK:       PAIR #0.
+// CHECK-NEXT:      store %2 to [assign] %0 : $*C
+// CHECK-NEXT:    %0 = argument of bb0 : $*C
+// CHECK-NEXT:    r=1,w=1
+// CHECK:       PAIR #1.
+// CHECK-NEXT:      store %2 to [assign] %0 : $*C
+// CHECK-NEXT:    %1 = argument of bb0 : $*C
+// CHECK-NEXT:    r=0,w=0
+// CHECK:       PAIR #2.
+// CHECK-NEXT:      store %2 to [assign] %0 : $*C
+// CHECK-NEXT:      %3 = global_addr @globalC : $*C
+// CHECK-NEXT:    r=1,w=1
+sil [ossa] @test_store_assign : $@convention(thin) (@inout C, @inout C, @owned C) -> () {
+bb0(%0 : $*C, %1 : $*C, %2 : @owned $C):
+  %3 = global_addr @globalC : $*C
+  store %2 to [assign] %0 : $*C
+  %r = tuple ()
+  return %r : $()
+}
+

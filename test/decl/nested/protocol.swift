@@ -114,3 +114,16 @@ func testLookup<T: OuterForUFI.Inner>(_ x: T) {
   x.req()
   x.extMethod()
 }
+
+// rdar://problem/113103854
+
+protocol Q {
+  associatedtype A
+}
+
+struct OuterNonGeneric {
+  protocol P: Q where Self.A == Int {}
+  // expected-error@-1 {{protocol 'P' cannot be nested inside another declaration}}
+}
+
+func usesProtoWithWhereClause<T: OuterNonGeneric.P>(_: T) {}

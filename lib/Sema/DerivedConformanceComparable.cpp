@@ -41,8 +41,8 @@ deriveBodyComparable_enum_uninhabited_lt(AbstractFunctionDecl *ltDecl, void *) {
   auto aParam = args->get(0);
   auto bParam = args->get(1);
 
-  assert(!cast<EnumDecl>(aParam->getType()->getAnyNominal())->hasCases());
-  assert(!cast<EnumDecl>(bParam->getType()->getAnyNominal())->hasCases());
+  assert(!cast<EnumDecl>(aParam->getInterfaceType()->getAnyNominal())->hasCases());
+  assert(!cast<EnumDecl>(bParam->getInterfaceType()->getAnyNominal())->hasCases());
 
   SmallVector<ASTNode, 0> statements;
   auto body = BraceStmt::create(C, SourceLoc(), statements, SourceLoc());
@@ -62,7 +62,7 @@ deriveBodyComparable_enum_noAssociatedValues_lt(AbstractFunctionDecl *ltDecl,
   auto aParam = args->get(0);
   auto bParam = args->get(1);
 
-  auto enumDecl = cast<EnumDecl>(aParam->getType()->getAnyNominal());
+  auto enumDecl = cast<EnumDecl>(aParam->getInterfaceType()->getAnyNominal());
 
   // Generate the conversion from the enums to integer indices.
   SmallVector<ASTNode, 8> statements;
@@ -98,8 +98,8 @@ deriveBodyComparable_enum_hasAssociatedValues_lt(AbstractFunctionDecl *ltDecl, v
   auto aParam = args->get(0);
   auto bParam = args->get(1);
 
-  Type enumType = aParam->getType();
-  auto enumDecl = cast<EnumDecl>(aParam->getType()->getAnyNominal());
+  Type enumType = aParam->getTypeInContext();
+  auto enumDecl = cast<EnumDecl>(aParam->getInterfaceType()->getAnyNominal());
 
   SmallVector<ASTNode, 8> statements;
   SmallVector<ASTNode, 4> cases;
@@ -342,5 +342,7 @@ void DerivedConformance::tryDiagnoseFailedComparableDerivation(
                          rawType, nominal->getDeclaredInterfaceType(),
                          comparableProto->getDeclaredInterfaceType());
     }
+    // FIXME: Diagnose potentially unavailable enum elements that are preventing
+    // Comparable synthesis.
   }
 }

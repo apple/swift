@@ -548,7 +548,7 @@ bb1:
   strong_retain %17 : $Test
   %19 = class_method %17 : $Test, #Test.testing : (Test) -> () -> UInt64, $@convention(method) (@guaranteed Test) -> UInt64
   %20 = load %7 : $*UInt64
-  checked_cast_br [exact] %17 : $Test to Test, bb3, bb4
+  checked_cast_br [exact] Test in %17 : $Test to Test, bb3, bb4
 bb2:
 // CHECK: bb2:
 // CHECK-NOT: strong_retain
@@ -1262,7 +1262,7 @@ bb0(%0 : $Optional<X>):
 
 bb1:                                              // Preds: bb0
   %3 = unchecked_enum_data %0 : $Optional<X>, #Optional.some!enumelt // users: %4, %13, %14, %15
-  checked_cast_br [exact] %3 : $X to X, bb4, bb5 // id: %4
+  checked_cast_br [exact] X in %3 : $X to X, bb4, bb5 // id: %4
 
 // Make sure we were able to sink the release.
 // CHECK: strong_release
@@ -1305,13 +1305,13 @@ bb5:                                              // Preds: bb1
 sil @canonicalize_casts: $@convention(thin) (@owned X) -> Int32 {
 bb0(%0 : $X):
   debug_value %0 : $X, let, name "x" // id: %1
-  checked_cast_br %0 : $X to Y, bb1, bb3         // id: %2
+  checked_cast_br X in %0 : $X to Y, bb1, bb3         // id: %2
 
 bb1(%3 : $Y):                                     // Preds: bb0
   debug_value %3 : $Y, let, name "z" // id: %4
   %5 = upcast %3 : $Y to $X                       // users: %6, %7, %21, %23
   %6 = class_method %5 : $X, #X.ping : (X) -> () -> (), $@convention(method) (@guaranteed X) -> () // users: %21, %23
-  checked_cast_br [exact] %5 : $X to Y, bb5, bb6 // id: %7
+  checked_cast_br [exact] X in %5 : $X to Y, bb5, bb6 // id: %7
 
 bb2:                                              // Preds: bb5 bb6
   //CHECK: strong_release %0

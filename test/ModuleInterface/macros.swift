@@ -50,11 +50,11 @@
 @attached(accessor, names: named(init)) public macro AccessorInitFunc() = #externalMacro(module: "SomeModule", type: "AccessorInitFuncMacro")
 
 // CHECK: #if compiler(>=5.3) && $Macros && $AttachedMacros
-// CHECK: @attached(extension) @attached(conformance) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
+// CHECK: @attached(extension, conformances: Swift.Sendable) @attached(member) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
 // CHECK-NEXT: #else
-// CHECK: @attached(conformance) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
+// CHECK: @attached(member) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
 // CHECK-NEXT: #endif
-@attached(extension) @attached(conformance) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
+@attached(extension, conformances: Sendable) @attached(member) public macro AddSendable() = #externalMacro(module: "SomeModule", type: "SendableExtensionMacro")
 
 // CHECK-NOT: internalStringify
 @freestanding(expression) macro internalStringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "SomeModule", type: "StringifyMacro")

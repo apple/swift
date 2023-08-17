@@ -1,8 +1,8 @@
-// RUN: %target-swift-frontend -enable-experimental-feature InitAccessors -primary-file %s -Onone -emit-sil \
+// RUN: %target-swift-frontend -primary-file %s -Onone -emit-sil \
 // RUN:   -Xllvm -sil-print-after=raw-sil-inst-lowering \
 // RUN:   -o /dev/null -module-name init_accessors 2>&1 | %FileCheck %s
 
-// REQUIRES: asserts
+class NSObject {}
 
 struct TestInit {
   var x: Int
@@ -395,6 +395,30 @@ func test_local_with_memberwise() {
   _ = TestMemberwiseGeneric(a: 1, pair: ("a", [0]))
 }
 
+// CHECK-LABEL: sil private [ossa] @$s14init_accessors023test_type_lowering_for_A9_accessoryyF4TestL_V2fnADyxq_Gq_xc_tcfC : $@convention(method) <T, U> (@owned @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T, U>, @thin Test<T, U>.Type) -> @owned Test<T, U>
+// CHECK: {{.*}} = function_ref @$s14init_accessors023test_type_lowering_for_A9_accessoryyF4TestL_V2fnyq_xcvi : $@convention(thin) <τ_0_0, τ_0_1> (@owned @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <τ_0_0, τ_0_1>) -> @out Optional<@callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <τ_0_0, τ_0_1>>
+func test_type_lowering_for_init_accessor() {
+  struct Test<T, U> {
+    var _fn: ((T) -> U)? = nil
+
+    // CHECK-LABEL: sil private [ossa] @$s14init_accessors023test_type_lowering_for_A9_accessoryyF4TestL_V2fnyq_xcvi : $@convention(thin) <T, U> (@owned @callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T, U>) -> @out Optional<@callee_guaranteed @substituted <τ_0_0, τ_0_1> (@in_guaranteed τ_0_0) -> @out τ_0_1 for <T, U>>
+    var fn: (T) -> U {
+      @storageRestrictions(initializes: _fn)
+      init { _fn = newValue }
+      get { _fn! }
+      set { _fn = newValue }
+    }
+
+    init(fn: @escaping (T) -> U) {
+      self.fn = fn
+    }
+  }
+
+  _ = Test<Int, () -> Void> { _ in
+    return {}
+  } // Ok
+}
+
 func test_assignments() {
   struct Test {
     var _a: Int
@@ -452,6 +476,34 @@ func test_assignments() {
     init(a: Int, b: Int) {
       self.a = a
       self.pair = (0, b)
+    }
+  }
+}
+
+// rdar://112417250 (Crash with macro expansion on generic NSObject subclass)
+// self is already borrowed within the initializer.
+//
+// CHECK-LABEL: sil private [ossa] @$s14init_accessors8testObjCyyF07GenericD9CSubclassL_CyADyxGxcfc : $@convention(method) <T> (@in T, @owned GenericObjCSubclass<T>) -> @owned GenericObjCSubclass<T> {
+// CHECK: [[BORROW:%.*]] = load_borrow %{{.*}} : $*GenericObjCSubclass<T>
+// CHECK: ref_element_addr [[BORROW]] : $GenericObjCSubclass<T>, #<abstract function>GenericObjCSubclass._value
+// CHECK: apply
+// CHECK: end_borrow [[BORROW]] : $GenericObjCSubclass<T>
+// CHECK-NOT: end_borrow [[BORROW]] : $GenericObjCSubclass<T>
+func testObjC() {
+  class GenericObjCSubclass<T>: NSObject {
+    var _value: T
+
+    var value: T {
+      @storageRestrictions(initializes: _value)
+      init {
+        self._value = newValue
+      }
+      get { _value }
+      set { _value = newValue }
+    }
+
+    init(_ value: T) {
+      self.value = value
     }
   }
 }

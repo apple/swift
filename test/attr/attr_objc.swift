@@ -364,7 +364,7 @@ protocol subject_containerObjCProtocol1 {
 @objc // access-note-move{{subject_containerObjCProtocol2}}
 protocol subject_containerObjCProtocol2 {
   init(a: Int)
-  // expected-note@-1 {{'init' previously declared here}}
+  // expected-note@-1 {{'init(a:)' previously declared here}}
 
   @objc // FIXME: Access notes can't distinguish between init(a:) overloads
   init(a: Double)
@@ -2104,7 +2104,7 @@ class Super {
   var foo: Int { get { return 3 } } // expected-note 2{{overridden declaration is here}}
 
   @objc // access-note-move{{Super.process(i:)}}
-  func process(i: Int) -> Int { } // expected-note {{overriding '@objc' method 'process(i:)' here}}
+  func process(i: Int) -> Int { } // expected-note {{overriding '@objc' instance method 'process(i:)' here}}
 }
 
 class Sub1 : Super {

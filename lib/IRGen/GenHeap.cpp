@@ -274,7 +274,7 @@ HeapLayout::HeapLayout(IRGenModule &IGM, LayoutStrategy strategy,
                        ArrayRef<const TypeInfo *> fieldTypeInfos,
                        llvm::StructType *typeToFill,
                        NecessaryBindings &&bindings, unsigned bindingsIndex)
-    : StructLayout(IGM, /*decl=*/nullptr, LayoutKind::HeapObject, strategy,
+    : StructLayout(IGM, /*type=*/ llvm::None, LayoutKind::HeapObject, strategy,
                    fieldTypeInfos, typeToFill),
       ElementTypes(fieldTypes.begin(), fieldTypes.end()),
       Bindings(std::move(bindings)), BindingsIndex(bindingsIndex) {

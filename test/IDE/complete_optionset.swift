@@ -17,7 +17,7 @@ func foo() {
 }
 
 @attached(member, names: named(RawValue), named(rawValue), named(`init`), arbitrary)
-@attached(conformance)
+@attached(extension, conformances: OptionSet)
 public macro OptionSet<RawType>() =
   #externalMacro(module: "SwiftMacros", type: "OptionSetMacro")
 
@@ -28,7 +28,6 @@ public macro OptionSet<RawType>() =
 // MEMBER_STATIC: Decl[StaticVar]/CurrNominal:        secondDay[#ShippingOptions#]; name=secondDay
 // MEMBER_STATIC: Decl[StaticVar]/CurrNominal:        priority[#ShippingOptions#]; name=priority
 // MEMBER_STATIC: Decl[StaticVar]/CurrNominal:        standard[#ShippingOptions#]; name=standard
-// MEMBER_STATIC: Decl[TypeAlias]/CurrNominal:        ArrayLiteralElement[#ShippingOptions#]; name=ArrayLiteralElement
 // MEMBER_STATIC: Decl[TypeAlias]/CurrNominal:        Element[#ShippingOptions#]; name=Element
 // MEMBER_STATIC: Decl[Constructor]/Super/IsSystem:   init()[#ShippingOptions#]; name=init()
 // MEMBER_STATIC: Decl[Constructor]/Super/IsSystem:   init({#(sequence): Sequence#})[#ShippingOptions#]; name=init(:)

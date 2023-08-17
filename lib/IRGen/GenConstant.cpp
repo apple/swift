@@ -379,6 +379,20 @@ Explosion irgen::emitConstantValue(IRGenModule &IGM, SILValue operand,
     llvm::Type *ty = IGM.getTypeInfo(FRI->getType()).getStorageType();
     fnPtr = llvm::ConstantExpr::getBitCast(fnPtr, ty);
     return fnPtr;
+  } else if (auto *gAddr = dyn_cast<GlobalAddrInst>(operand)) {
+    SILGlobalVariable *var = gAddr->getReferencedGlobal();
+    auto &ti = IGM.getTypeInfo(var->getLoweredType());
+    auto expansion = IGM.getResilienceExpansionForLayout(var);
+    assert(ti.isFixedSize(expansion));
+    if (ti.isKnownEmpty(expansion)) {
+      return llvm::ConstantPointerNull::get(IGM.OpaquePtrTy);
+    }
+
+    Address addr = IGM.getAddrOfSILGlobalVariable(var, ti, NotForDefinition);
+    return addr.getAddress();
+  } else if (auto *atp = dyn_cast<AddressToPointerInst>(operand)) {
+    auto *val = emitConstantValue(IGM, atp->getOperand()).claimNextConstant();
+    return val;
   } else {
     llvm_unreachable("Unsupported SILInstruction in static initializer!");
   }

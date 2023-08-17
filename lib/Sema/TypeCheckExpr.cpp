@@ -585,7 +585,7 @@ Expr *TypeChecker::buildCheckedRefExpr(VarDecl *value, DeclContext *UseDC,
                                        DeclNameLoc loc, bool Implicit) {
   auto type = constraints::ConstraintSystem::getUnopenedTypeOfReference(
       value, Type(), UseDC,
-      [&](VarDecl *var) -> Type { return value->getType(); });
+      [&](VarDecl *var) -> Type { return value->getTypeInContext(); });
   auto semantics = value->getAccessSemanticsFromContext(UseDC,
                                                        /*isAccessOnSelf*/false);
   return new (value->getASTContext())

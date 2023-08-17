@@ -115,7 +115,7 @@ func class_archetype_to_class
 func class_archetype_is_class
 <T:ClassBound>(_ t:T) -> Bool {
   return t is C
-  // CHECK: checked_cast_br {{%.*}} to C
+  // CHECK: checked_cast_br {{.*}} to C
 }
 
 // CHECK-LABEL: sil hidden [ossa] @$s13generic_casts022opaque_existential_to_C10_archetype{{[_0-9a-zA-Z]*}}F
@@ -207,13 +207,13 @@ func class_existential_to_class(_ p: ClassBound) -> C {
 // CHECK-LABEL: sil hidden [ossa] @$s13generic_casts021class_existential_is_C0{{[_0-9a-zA-Z]*}}F
 func class_existential_is_class(_ p: ClassBound) -> Bool {
   return p is C
-  // CHECK: checked_cast_br {{%.*}} to C
+  // CHECK: checked_cast_br {{.*}} to C
 }
 
 // CHECK-LABEL: sil hidden [ossa] @$s13generic_casts27optional_anyobject_to_classyAA1CCSgyXlSgF
 func optional_anyobject_to_class(_ p: AnyObject?) -> C? {
   return p as? C
-  // CHECK: checked_cast_br {{%.*}} : $AnyObject to C
+  // CHECK: checked_cast_br AnyObject in {{%.*}} : $AnyObject to C
 }
 
 // The below tests are to ensure we don't dig into an optional operand when

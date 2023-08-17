@@ -47,8 +47,8 @@ let bigStructGlobalArray : [BigStruct] = [
 ]
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} internal swiftcc void @"$s22big_types_corner_cases21OptionalInoutFuncTypeC7executeyys5Error_pSgFyyXEfU_"(ptr nocapture dereferenceable({{.*}}) %0, ptr %1, ptr nocapture dereferenceable({{.*}})
-// CHECK: call void @"$s22big_types_corner_cases9BigStructVSgs5Error_pSgIegig_SgWOe
-// CHECK: call void @"$s22big_types_corner_cases9BigStructVSgs5Error_pSgIegig_SgWOy
+// CHECK: call void @"$s22big_types_corner_cases9BigStructVSgs5Error_pSgIegng_SgWOe
+// CHECK: call void @"$s22big_types_corner_cases9BigStructVSgs5Error_pSgIegng_SgWOy
 // CHECK: ret void
 
 public func f1_returns_BigType(_ x: BigStruct) -> BigStruct {

@@ -222,6 +222,8 @@ XIElement findXIElement(const Metadata *type) {
 void swift::swift_initEnumMetadataSinglePayloadWithLayoutString(
     EnumMetadata *self, EnumLayoutFlags layoutFlags,
     const Metadata *payloadType, unsigned emptyCases) {
+  assert(self->hasLayoutString());
+
   auto *payloadLayout = payloadType->getTypeLayout();
   size_t payloadSize = payloadLayout->size;
   unsigned payloadNumExtraInhabitants = payloadLayout->getNumExtraInhabitants();

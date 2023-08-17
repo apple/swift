@@ -12,12 +12,12 @@ class SwiftClass {}
 sil_vtable SwiftClass {}
 sil @$s13partial_apply10SwiftClassCfD : $@async @convention(method) (SwiftClass) -> ()
 
-sil @partially_applyable_to_class : $@async @convention(thin) (@owned SwiftClass) -> () {
+sil @partially_applyable_to_class : $@async @convention(thin) (@guaranteed SwiftClass) -> () {
 entry(%c : $SwiftClass):
   %0 = builtin "int_trap"() : $Never
   unreachable
 }
-sil @partially_applyable_to_two_classes : $@async @convention(thin) (@owned SwiftClass, @owned SwiftClass) -> () {
+sil @partially_applyable_to_two_classes : $@async @convention(thin) (@guaranteed SwiftClass, @guaranteed SwiftClass) -> () {
 entry(%c : $SwiftClass, %d : $SwiftClass):
   %0 = builtin "int_trap"() : $Never
   unreachable
@@ -29,16 +29,16 @@ sil @use_closure : $@async @convention(thin) (@noescape @async @callee_guarantee
 // CHECK: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @partial_apply_class(
 sil @partial_apply_class : $@async @convention(thin) (SwiftClass) -> @async @callee_guaranteed () -> () {
 entry(%c : $SwiftClass):
-  %f = function_ref @partially_applyable_to_class : $@async @convention(thin) (@owned SwiftClass) -> ()
-  %g = partial_apply [callee_guaranteed] %f(%c) : $@async @convention(thin) (@owned SwiftClass) -> ()
+  %f = function_ref @partially_applyable_to_class : $@async @convention(thin) (@guaranteed SwiftClass) -> ()
+  %g = partial_apply [callee_guaranteed] %f(%c) : $@async @convention(thin) (@guaranteed SwiftClass) -> ()
   return %g : $@async @callee_guaranteed () -> ()
 }
 
 // CHECK: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @partial_apply_class_on_stack(
 sil @partial_apply_class_on_stack : $@async @convention(thin) (@owned SwiftClass) -> () {
 entry(%a : $SwiftClass):
-  %f = function_ref @partially_applyable_to_class : $@async @convention(thin) (@owned SwiftClass) -> ()
-  %c = partial_apply [callee_guaranteed] [on_stack] %f(%a) : $@async @convention(thin) (@owned SwiftClass) -> ()
+  %f = function_ref @partially_applyable_to_class : $@async @convention(thin) (@guaranteed SwiftClass) -> ()
+  %c = partial_apply [callee_guaranteed] [on_stack] %f(%a) : $@async @convention(thin) (@guaranteed SwiftClass) -> ()
   %use = function_ref @use_closure : $@async @convention(thin) (@noescape @async @callee_guaranteed () -> ()) -> ()
   apply %use(%c) : $@async @convention(thin) (@noescape @async @callee_guaranteed () -> ()) -> ()
   dealloc_stack %c : $@noescape @async @callee_guaranteed () ->()
@@ -51,8 +51,8 @@ entry(%a : $SwiftClass):
 
 sil @partial_apply_two_classes_on_stack : $@async @convention(thin) (@owned SwiftClass, @owned SwiftClass) -> () {
 entry(%a : $SwiftClass, %b: $SwiftClass):
-  %f = function_ref @partially_applyable_to_two_classes : $@async @convention(thin) (@owned SwiftClass, @owned SwiftClass) -> ()
-  %c = partial_apply [callee_guaranteed] [on_stack] %f(%a, %b) : $@async @convention(thin) (@owned SwiftClass, @owned SwiftClass) -> ()
+  %f = function_ref @partially_applyable_to_two_classes : $@async @convention(thin) (@guaranteed SwiftClass, @guaranteed SwiftClass) -> ()
+  %c = partial_apply [callee_guaranteed] [on_stack] %f(%a, %b) : $@async @convention(thin) (@guaranteed SwiftClass, @guaranteed SwiftClass) -> ()
   %use = function_ref @use_closure : $@async @convention(thin) (@noescape @async @callee_guaranteed () -> ()) -> ()
   apply %use(%c) : $@async @convention(thin) (@noescape @async @callee_guaranteed () -> ()) -> ()
   dealloc_stack %c : $@noescape @async @callee_guaranteed () ->()
@@ -201,7 +201,7 @@ bb0(%x : $*SwiftClassPair):
   return %p : $@async @callee_guaranteed (Int) -> Int
 }
 
-sil public @captured_fixed_and_dependent_params : $@async @convention(thin) <A> (@owned SwiftClass, @in A, Int) -> () {
+sil public @captured_fixed_and_dependent_params : $@async @convention(thin) <A> (@guaranteed SwiftClass, @in_guaranteed A, Int) -> () {
 entry(%c : $SwiftClass, %a : $*A, %i : $Int):
   %0 = builtin "int_trap"() : $Never
   unreachable
@@ -211,8 +211,8 @@ entry(%c : $SwiftClass, %a : $*A, %i : $Int):
 // CHECK-LABEL: define internal swift{{(tail)?}}cc void @"$s35captured_fixed_and_dependent_paramsTA"(
 sil @partial_apply_indirect_non_fixed_layout : $@async @convention(thin) <T> (@owned SwiftClass, @in T, Int) -> @async @callee_guaranteed () -> () {
 bb0(%a : $SwiftClass, %b : $*T, %c : $Int):
-  %f = function_ref @captured_fixed_and_dependent_params : $@async @convention(thin) <B> (@owned SwiftClass, @in B, Int) -> ()
-  %p = partial_apply [callee_guaranteed] %f<T>(%a, %b, %c) : $@async @convention(thin) <C> (@owned SwiftClass, @in C, Int) -> ()
+  %f = function_ref @captured_fixed_and_dependent_params : $@async @convention(thin) <B> (@guaranteed SwiftClass, @in_guaranteed B, Int) -> ()
+  %p = partial_apply [callee_guaranteed] %f<T>(%a, %b, %c) : $@async @convention(thin) <C> (@guaranteed SwiftClass, @in_guaranteed C, Int) -> ()
   return %p : $@async @callee_guaranteed () -> ()
 }
 
@@ -248,27 +248,27 @@ class Sub : Base {
 
 sil_vtable Sub {}
 
-sil @parametric_casting_closure : $@async @convention(thin) <C where C : Base> (@owned Base) -> @owned C {
+sil @parametric_casting_closure : $@async @convention(thin) <C where C : Base> (@guaranteed Base) -> @owned C {
 bb0(%0 : $Base):
   %1 = unconditional_checked_cast %0 : $Base to C
   return %1 : $C
 }
 
 sil public_external @receive_closure : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed () -> (@owned C)) -> ()
-sil public_external @receive_closure2 : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed (@owned Base) -> (@owned C)) -> ()
+sil public_external @receive_closure2 : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed (@guaranteed Base) -> (@owned C)) -> ()
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @test_partial_apply(
 // CHECK-LABEL: define internal swift{{(tail)?}}cc void @"$s26parametric_casting_closureTA"(
 // CHECK-LABEL: define internal swift{{(tail)?}}cc void @"$s26parametric_casting_closureTA.{{[0-9]+}}"(
 sil @test_partial_apply : $@async @convention(thin) (@owned Base) -> () {
 bb0(%0 : $Base):
- %1 = function_ref @parametric_casting_closure : $@async @convention(thin) <C where C : Base> (@owned Base) -> @owned C
- %6 = partial_apply [callee_guaranteed] %1<Sub>() : $@async @convention(thin) <C where C : Base> (@owned Base) -> @owned C
- %2 = partial_apply [callee_guaranteed] %1<Sub>(%0) : $@async @convention(thin) <C where C : Base> (@owned Base) -> @owned C
+ %1 = function_ref @parametric_casting_closure : $@async @convention(thin) <C where C : Base> (@guaranteed Base) -> @owned C
+ %6 = partial_apply [callee_guaranteed] %1<Sub>() : $@async @convention(thin) <C where C : Base> (@guaranteed Base) -> @owned C
+ %2 = partial_apply [callee_guaranteed] %1<Sub>(%0) : $@async @convention(thin) <C where C : Base> (@guaranteed Base) -> @owned C
  %3 = function_ref @receive_closure : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed () -> (@owned C)) -> ()
  %4 = apply %3<Sub>(%2) : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed () -> (@owned C)) -> ()
- %5 = function_ref @receive_closure2 : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed (@owned Base) -> (@owned C)) -> ()
- %8 = apply %5<Sub>(%6) : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed (@owned Base) -> (@owned C)) -> ()
+ %5 = function_ref @receive_closure2 : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed (@guaranteed Base) -> (@owned C)) -> ()
+ %8 = apply %5<Sub>(%6) : $@async @convention(thin) <C where C : Base> (@owned @async @callee_guaranteed (@guaranteed Base) -> (@owned C)) -> ()
  %7 = tuple ()
  return %7 : $()
 }
@@ -372,7 +372,7 @@ sil @partial_apply_generic_indirect_return2 : $@async @convention(thin) (Int) ->
 
 struct SwiftStruct {}
 
-sil @fun : $@async @convention(thin) (@thin SwiftStruct.Type, @owned SwiftClass) -> () {
+sil @fun : $@async @convention(thin) (@thin SwiftStruct.Type, @guaranteed SwiftClass) -> () {
 entry(%t : $@thin SwiftStruct.Type, %c : $SwiftClass):
   %0 = builtin "int_trap"() : $Never
   unreachable
@@ -382,8 +382,8 @@ entry(%t : $@thin SwiftStruct.Type, %c : $SwiftClass):
 
 sil @partial_apply_thin_type : $@async @convention(thin) (@thin SwiftStruct.Type, @owned SwiftClass) -> @async @callee_guaranteed () -> () {
 entry(%0: $@thin SwiftStruct.Type, %1: $SwiftClass):
-  %fun = function_ref @fun : $@async @convention(thin) (@thin SwiftStruct.Type, @owned SwiftClass) -> ()
-  %closure = partial_apply [callee_guaranteed] %fun (%0, %1) : $@async @convention(thin) (@thin SwiftStruct.Type, @owned SwiftClass) -> ()
+  %fun = function_ref @fun : $@async @convention(thin) (@thin SwiftStruct.Type, @guaranteed SwiftClass) -> ()
+  %closure = partial_apply [callee_guaranteed] %fun (%0, %1) : $@async @convention(thin) (@thin SwiftStruct.Type, @guaranteed SwiftClass) -> ()
   return %closure : $@async @callee_guaranteed () -> ()
 }
 
@@ -483,7 +483,7 @@ bb0(%x : $*SwiftClassPair):
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @partial_apply_stack_callee_guaranteed_indirect_in_class_pair_param(
 // CHECK-LABEL: define internal swift{{(tail)?}}cc void @"$s37indirect_in_captured_class_pair_paramTA"(
-sil public @indirect_in_captured_class_pair_param : $@async @convention(thin) (Int, @in SwiftClassPair) -> Int {
+sil public @indirect_in_captured_class_pair_param : $@async @convention(thin) (Int, @in_guaranteed SwiftClassPair) -> Int {
 entry(%i : $Int, %p : $*SwiftClassPair):
   %0 = builtin "int_trap"() : $Never
   unreachable
@@ -491,8 +491,8 @@ entry(%i : $Int, %p : $*SwiftClassPair):
 
 sil @partial_apply_stack_callee_guaranteed_indirect_in_class_pair_param : $@async @convention(thin) (@in SwiftClassPair) -> () {
 bb0(%x : $*SwiftClassPair):
-  %f = function_ref @indirect_in_captured_class_pair_param : $@async @convention(thin) (Int, @in SwiftClassPair) -> Int
-  %p = partial_apply [callee_guaranteed] [on_stack] %f(%x) : $@async @convention(thin) (Int, @in SwiftClassPair) -> Int
+  %f = function_ref @indirect_in_captured_class_pair_param : $@async @convention(thin) (Int, @in_guaranteed SwiftClassPair) -> Int
+  %p = partial_apply [callee_guaranteed] [on_stack] %f(%x) : $@async @convention(thin) (Int, @in_guaranteed SwiftClassPair) -> Int
   %u = function_ref @use_closure2 : $@async @convention(thin) (@noescape @async @callee_guaranteed (Int) -> Int) -> ()
   %r = apply %u(%p) : $@async @convention(thin) (@noescape @async @callee_guaranteed (Int) -> Int) -> ()
   dealloc_stack %p : $@noescape @async @callee_guaranteed (Int) ->(Int)
@@ -504,7 +504,7 @@ bb0(%x : $*SwiftClassPair):
 
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swift{{(tail)?}}cc void @partial_apply_stack_callee_guaranteed_indirect_in_constant_class_pair_param(
 // CHECK-LABEL: define internal swift{{(tail)?}}cc void @"$s46indirect_in_constant_captured_class_pair_paramTA"(
-sil public @indirect_in_constant_captured_class_pair_param : $@async @convention(thin) (Int, @in_constant SwiftClassPair) -> Int {
+sil public @indirect_in_constant_captured_class_pair_param : $@async @convention(thin) (Int, @in_guaranteed SwiftClassPair) -> Int {
 entry(%i : $Int, %ic : $*SwiftClassPair):
   %0 = builtin "int_trap"() : $Never
   unreachable
@@ -512,8 +512,8 @@ entry(%i : $Int, %ic : $*SwiftClassPair):
 
 sil @partial_apply_stack_callee_guaranteed_indirect_in_constant_class_pair_param : $@async @convention(thin) (@in SwiftClassPair) -> () {
 bb0(%x : $*SwiftClassPair):
-  %f = function_ref @indirect_in_constant_captured_class_pair_param : $@async @convention(thin) (Int, @in_constant SwiftClassPair) -> Int
-  %p = partial_apply [callee_guaranteed] [on_stack] %f(%x) : $@async @convention(thin) (Int, @in_constant SwiftClassPair) -> Int
+  %f = function_ref @indirect_in_constant_captured_class_pair_param : $@async @convention(thin) (Int, @in_guaranteed SwiftClassPair) -> Int
+  %p = partial_apply [callee_guaranteed] [on_stack] %f(%x) : $@async @convention(thin) (Int, @in_guaranteed SwiftClassPair) -> Int
   %u = function_ref @use_closure2 : $@async @convention(thin) (@noescape @async @callee_guaranteed (Int) -> Int) -> ()
   %r = apply %u(%p) : $@async @convention(thin) (@noescape @async @callee_guaranteed (Int) -> Int) -> ()
   dealloc_stack %p : $@noescape @async @callee_guaranteed (Int) ->(Int)

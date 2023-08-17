@@ -594,7 +594,8 @@ public:
   /// Tracer object for counting SIL (and other events) caused by this instance.
   FrontendStatsTracer StatsTracer;
 
-  SILGenFunction(SILGenModule &SGM, SILFunction &F, DeclContext *DC);
+  SILGenFunction(SILGenModule &SGM, SILFunction &F, DeclContext *DC,
+                 bool IsEmittingTopLevelCode = false);
   ~SILGenFunction();
   
   /// Return a stable reference to the current cleanup.
@@ -693,6 +694,9 @@ public:
     return SGM.Types.getConstantInfo(context, constant);
   }
 
+  bool isEmittingTopLevelCode() { return IsEmittingTopLevelCode; }
+  void stopEmittingTopLevelCode() { IsEmittingTopLevelCode = false; }
+
   llvm::Optional<SILAccessEnforcement>
   getStaticEnforcement(VarDecl *var = nullptr);
   llvm::Optional<SILAccessEnforcement>
@@ -714,6 +718,8 @@ public:
                                       bool ForMetaInstruction = false);
 
 private:
+  bool IsEmittingTopLevelCode;
+
   const SILDebugScope *getOrCreateScope(SourceLoc SLoc);
   const SILDebugScope *getMacroScope(SourceLoc SLoc);
   const SILDebugScope *
@@ -802,6 +808,22 @@ public:
   void emitMemberInitializers(DeclContext *dc, VarDecl *selfDecl,
                               NominalTypeDecl *nominal);
 
+  /// Generates code to initialize stored property from its
+  /// initializer.
+  ///
+  /// \param dc The DeclContext containing the current function.
+  /// \param selfDecl The 'self' declaration within the current function.
+  /// \param field The stored property that has to be initialized.
+  /// \param substitutions The substitutions to apply to initializer and setter.
+  void emitMemberInitializer(DeclContext *dc, VarDecl *selfDecl,
+                             PatternBindingDecl *field,
+                             SubstitutionMap substitutions);
+
+  void emitMemberInitializationViaInitAccessor(DeclContext *dc,
+                                               VarDecl *selfDecl,
+                                               PatternBindingDecl *member,
+                                               SubstitutionMap subs);
+
   /// Emit a method that initializes the ivars of a class.
   void emitIVarInitializer(SILDeclRef ivarInitializer);
 
@@ -813,6 +835,22 @@ public:
   /// with either argument (if property appears in `acesses` list`) or result
   /// value assignment.
   void emitInitAccessor(AccessorDecl *accessor);
+
+  /// Generates code to emit the given setter reference to the given base value.
+  SILValue emitApplyOfSetterToBase(SILLocation loc, SILDeclRef setter,
+                                   ManagedValue base,
+                                   SubstitutionMap substitutions);
+
+  /// Emit `assign_or_init` instruction that is going to either initialize
+  /// or assign the given value to the given field.
+  ///
+  /// \param loc The location to use for the instruction.
+  /// \param selfValue The 'self' value.
+  /// \param field The field to assign or initialize.
+  /// \param newValue the value to assign/initialize the field with.
+  /// \param substitutions The substitutions to apply to initializer and setter.
+  void emitAssignOrInit(SILLocation loc, ManagedValue selfValue, VarDecl *field,
+                        ManagedValue newValue, SubstitutionMap substitutions);
 
   /// Generates code to destroy the instance variables of a class.
   ///
@@ -884,6 +922,9 @@ public:
   /// Generate code to obtain the address of the given global variable.
   ManagedValue emitGlobalVariableRef(SILLocation loc, VarDecl *var,
                                      llvm::Optional<ActorIsolation> actorIso);
+
+  void emitMarkFunctionEscapeForTopLevelCodeGlobals(SILLocation Loc,
+                                                    CaptureInfo CaptureInfo);
 
   /// Generate a lazy global initializer.
   void emitLazyGlobalInitializer(PatternBindingDecl *binding,
@@ -2211,7 +2252,7 @@ public:
   /// Used for emitting SILArguments of bare functions, such as thunks.
   void collectThunkParams(
       SILLocation loc, SmallVectorImpl<ManagedValue> &params,
-      SmallVectorImpl<SILArgument *> *indirectResultParams = nullptr);
+      SmallVectorImpl<ManagedValue> *indirectResultParams = nullptr);
 
   /// Build the type of a function transformation thunk.
   CanSILFunctionType buildThunkType(CanSILFunctionType &sourceType,

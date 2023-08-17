@@ -84,14 +84,15 @@ SILGenFunction::emitDynamicMethodRef(SILLocation loc, SILDeclRef constant,
   if (constant.isForeignToNativeThunk()) {
     if (!SGM.hasFunction(constant))
       SGM.emitForeignToNativeThunk(constant);
-    return ManagedValue::forUnmanaged(B.createFunctionRefFor(
+    return ManagedValue::forObjectRValueWithoutOwnership(B.createFunctionRefFor(
         loc, SGM.getFunction(constant, NotForDefinition)));
   }
 
   // Otherwise, we need a dynamic dispatch thunk.
   SILFunction *F = SGM.getDynamicThunk(constant, constantTy);
 
-  return ManagedValue::forUnmanaged(B.createFunctionRefFor(loc, F));
+  return ManagedValue::forObjectRValueWithoutOwnership(
+      B.createFunctionRefFor(loc, F));
 }
 
 void SILGenModule::emitForeignToNativeThunk(SILDeclRef thunk) {
@@ -295,7 +296,8 @@ SILFunction *SILGenModule::getOrCreateForeignAsyncCompletionHandlerImplFunction(
       auto continuationAddr = SGF.B.createProjectBlockStorage(loc, blockStorage);
       auto continuationVal = SGF.B.createLoad(loc, continuationAddr,
                                            LoadOwnershipQualifier::Trivial);
-      auto continuation = ManagedValue::forUnmanaged(continuationVal);
+      auto continuation =
+          ManagedValue::forObjectRValueWithoutOwnership(continuationVal);
 
       // Check for an error if the convention includes one.
       // Increment the error and flag indices if present.  They do not account

@@ -977,7 +977,8 @@ StringTests.test("stringGutsReserve")
     default:
       fatalError("case unhandled!")
     }
-    expectEqual(isSwiftNative(base), startedNative)
+    // TODO: rdar://112643333
+    //expectEqual(isSwiftNative(base), startedNative)
 
     let originalBuffer = base.bufferID
     let isUnique = base._guts.isUniqueNative

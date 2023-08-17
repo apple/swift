@@ -660,6 +660,15 @@ void toolchains::Darwin::addPlatformSpecificPluginFrontendArgs(
     llvm::sys::path::remove_filename(platformPath); // specific SDK
     llvm::sys::path::remove_filename(platformPath); // SDKs
     llvm::sys::path::remove_filename(platformPath); // Developer
+
+    StringRef platformName = llvm::sys::path::filename(platformPath);
+    if (platformName.endswith("Simulator.platform")){
+      StringRef devicePlatformName =
+          platformName.drop_back(strlen("Simulator.platform"));
+      llvm::sys::path::remove_filename(platformPath); // Platform
+      llvm::sys::path::append(platformPath, devicePlatformName + "OS.platform");
+    }
+
     llvm::sys::path::append(platformPath, "Developer");
     addExternalPluginFrontendArgs(platformPath, inputArgs, arguments);
   }

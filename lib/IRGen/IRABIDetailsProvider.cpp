@@ -149,7 +149,7 @@ public:
     llvm::SmallVector<const ParamDecl *, 8> silParamMapping;
     for (auto param : *fd->getParameters()) {
       if (auto *tuple =
-              param->getType()->getDesugaredType()->getAs<TupleType>()) {
+              param->getInterfaceType()->getAs<TupleType>()) {
         if (tuple->getNumElements() > 0)
           return llvm::None;
       }

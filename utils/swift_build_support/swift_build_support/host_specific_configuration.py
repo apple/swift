@@ -260,6 +260,8 @@ class HostSpecificConfiguration(object):
                 StdlibDeploymentTarget.AppleWatchSimulator)
         if not stage_dependent_args.build_android:
             platforms_to_skip_build.add(StdlibDeploymentTarget.Android)
+        if not args.build_wasm:
+            platforms_to_skip_build.add(StdlibDeploymentTarget.WASI)
         return platforms_to_skip_build
 
     def __platforms_to_skip_test(self, args, stage_dependent_args):

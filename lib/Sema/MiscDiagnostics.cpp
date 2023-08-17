@@ -601,8 +601,7 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
         .fixItInsertAfter(arg->getEndLoc(), ")");
 
       // Point to callee parameter
-      Ctx.Diags.diagnose(calleeParam, diag::decl_declared_here,
-                         calleeParam->getName());
+      Ctx.Diags.diagnose(calleeParam, diag::decl_declared_here, calleeParam);
     }
 
     llvm::Optional<MagicIdentifierLiteralExpr::Kind>
@@ -784,9 +783,8 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       Ctx.Diags.diagnose(DRE->getLoc(), diag::warn_unqualified_access,
                          VD->getBaseIdentifier(),
                          VD->getDescriptiveKind(),
-                         declParent->getDescriptiveKind(),
-                         declParent->getName());
-      Ctx.Diags.diagnose(VD, diag::decl_declared_here, VD->getName());
+                         declParent);
+      Ctx.Diags.diagnose(VD, diag::decl_declared_here, VD);
 
       if (VD->getDeclContext()->isTypeContext()) {
         Ctx.Diags.diagnose(DRE->getLoc(), diag::fix_unqualified_access_member)
@@ -1591,7 +1589,7 @@ static void diagRecursivePropertyAccess(const Expr *E, const DeclContext *DC) {
 static bool closureHasWeakSelfCapture(const AbstractClosureExpr *ACE) {
   if (auto closureExpr = dyn_cast<ClosureExpr>(ACE)) {
     if (auto selfDecl = closureExpr->getCapturedSelfDecl()) {
-      return selfDecl->getType()->is<WeakStorageType>();
+      return selfDecl->getInterfaceType()->is<WeakStorageType>();
     }
   }
 
@@ -1934,7 +1932,7 @@ static void diagnoseImplicitSelfUseInClosure(const Expr *E,
       // If we've already captured something with the name "self" other than
       // the actual self param, offer special diagnostics.
       if (auto *VD = closureExpr->getCapturedSelfDecl()) {
-        if (!VD->getType()->is<WeakStorageType>()) {
+        if (!VD->getInterfaceType()->is<WeakStorageType>()) {
           Diags.diagnose(VD->getLoc(), diag::note_other_self_capture);
         }
         
@@ -2377,7 +2375,7 @@ static void diagnoseUnownedImmediateDeallocationImpl(ASTContext &ctx,
   ctx.Diags.diagnose(diagLoc, diag::unowned_assignment_requires_strong)
     .highlight(diagRange);
 
-  ctx.Diags.diagnose(varDecl, diag::decl_declared_here, varDecl->getName());
+  ctx.Diags.diagnose(varDecl, diag::decl_declared_here, varDecl);
 }
 
 void swift::diagnoseUnownedImmediateDeallocation(ASTContext &ctx,
@@ -3378,7 +3376,7 @@ VarDeclUsageChecker::~VarDeclUsageChecker() {
     
     // If this variable has WeakStorageType, then it can be mutated in ways we
     // don't know.
-    if (var->getType()->is<WeakStorageType>())
+    if (var->getInterfaceType()->is<WeakStorageType>())
       access |= RK_Written;
     
     // Diagnose variables that were never used (other than their
@@ -4830,7 +4828,7 @@ static bool diagnoseHasSymbolCondition(PoundHasSymbolInfo *info,
     // and may indicate the developer has mis-identified the declaration
     // they want to check (or forgot to import the module weakly).
     ctx.Diags.diagnose(symbolExpr->getLoc(), diag::has_symbol_decl_must_be_weak,
-                       decl->getDescriptiveKind(), decl->getName());
+                       decl);
     return true;
   }
 
@@ -5039,8 +5037,7 @@ static void diagnoseUnintendedOptionalBehavior(const Expr *E,
                               ? diag::iuo_to_any_coercion_note_func_result
                               : diag::iuo_to_any_coercion_note;
 
-          Ctx.Diags.diagnose(decl->getLoc(), noteDiag,
-                             decl->getDescriptiveKind(), decl->getName());
+          Ctx.Diags.diagnose(decl->getLoc(), noteDiag, decl);
         }
       } else {
         Ctx.Diags.diagnose(subExpr->getStartLoc(),
@@ -5298,7 +5295,7 @@ static void diagnoseDeprecatedWritableKeyPath(const Expr *E,
               !storage->isSetterAccessibleFrom(DC)) {
             Ctx.Diags.diagnose(keyPathExpr->getLoc(),
                                swift::diag::expr_deprecated_writable_keypath,
-                               storage->getName());
+                               storage);
           }
         }
       }
@@ -6236,8 +6233,7 @@ void swift::diagnoseCopyableTypeContainingMoveOnlyType(
       DE.diagnoseWithNotes(
           copyableNominalType->diagnose(
               diag::noncopyable_within_copyable,
-              copyableNominalType->getDescriptiveKind(),
-              copyableNominalType->getBaseName()),
+              copyableNominalType),
           [&]() {
             eltDecl->diagnose(
                 diag::
@@ -6252,8 +6248,7 @@ void swift::diagnoseCopyableTypeContainingMoveOnlyType(
     DE.diagnoseWithNotes(
         copyableNominalType->diagnose(
             diag::noncopyable_within_copyable,
-            copyableNominalType->getDescriptiveKind(),
-            copyableNominalType->getBaseName()),
+            copyableNominalType),
         [&]() {
           varDecl->diagnose(
               diag::noncopyable_within_copyable_location,

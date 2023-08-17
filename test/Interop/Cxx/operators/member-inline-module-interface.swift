@@ -206,7 +206,7 @@
 // CHECK: }
 
 // CHECK: struct Iterator {
-// CHECK:   var pointee: Int32 { mutating get }
+// CHECK:   var pointee: Int32 { mutating get set }
 // CHECK:   @available(*, unavailable, message: "use .pointee property")
 // CHECK:   mutating func __operatorStar() -> UnsafeMutablePointer<Int32>
 // CHECK: }
@@ -224,8 +224,8 @@
 // CHECK: }
 
 // CHECK: struct AmbiguousOperatorStar {
-// CHECK-NEXT:   var pointee: Int32 { get }
 // CHECK-NEXT:   init()
+// CHECK-NEXT:   var pointee: Int32
 // CHECK-NEXT:   @available(*, unavailable, message: "use .pointee property")
 // CHECK-NEXT:   mutating func __operatorStar() -> UnsafeMutablePointer<Int32>
 // CHECK-NEXT:   @available(*, unavailable, message: "use .pointee property")
@@ -233,8 +233,8 @@
 // CHECK-NEXT: }
 
 // CHECK: struct AmbiguousOperatorStar2 {
-// CHECK-NEXT:   var pointee: Int32 { get }
 // CHECK-NEXT:   init()
+// CHECK-NEXT:   var pointee: Int32
 // CHECK-NEXT:   @available(*, unavailable, message: "use .pointee property")
 // CHECK-NEXT:   mutating func __operatorStar() -> UnsafeMutablePointer<Int32>
 // CHECK-NEXT:   @available(*, unavailable, message: "use .pointee property")

@@ -92,6 +92,11 @@ public:
 class ClassWithDestructor {
   int m = 0;
 public:
+#if __is_target_os(windows)
+  // On windows, force this type to be address-only.
+  inline ClassWithDestructor() noexcept {}
+  inline ClassWithDestructor(const ClassWithDestructor &other) noexcept : m(other.m)  {}
+#endif
   inline ~ClassWithDestructor() {
     (void)freeFunctionNoThrow(0);
   }
@@ -100,6 +105,11 @@ public:
 class ClassWithThrowingDestructor {
   int m = 0;
 public:
+#if __is_target_os(windows)
+  // On windows, force this type to be address-only.
+  inline ClassWithThrowingDestructor() noexcept {}
+  inline ClassWithThrowingDestructor(const ClassWithThrowingDestructor &other) noexcept : m(other.m) {}
+#endif
   inline ~ClassWithThrowingDestructor() noexcept(false) {
     throw 2;
   }
@@ -139,6 +149,8 @@ struct StructWithDefaultConstructor {
 
 
 struct NonTrivial {
+  NonTrivial() noexcept;
+  NonTrivial(const NonTrivial &other) noexcept;
   ~NonTrivial() {}
 };
 
@@ -270,23 +282,25 @@ func testStructWithDefaultDestructor() -> CInt {
   return result
 }
 
-let _ = testFreeFunctionNoThrowOnly()
-let _ = testFreeFunctionCalls()
-let _ = testMethodCalls()
-testTemplateCalls()
-testFuncPtrCall()
-testCFuncPtrCall()
-testProtocolConformanceThunkInvoke()
-let _ = testSubscriptThunkInvoke()
-testClassWithDestructor()
-testClassWithThrowingDestructor()
-let _ = testClassWithCopyConstructor()
-let _ = testClassWithThrowingCopyConstructor()
-let _ = testClassWithThrowingConstructor()
-let _ = testClassWithNoThrowingConstructor()
-let _ = testStructWithDefaultConstructor()
-let _ = testStructWithDefaultCopyConstructor()
-let _ = testStructWithDefaultDestructor()
+public func test() {
+  let _ = testFreeFunctionNoThrowOnly()
+  let _ = testFreeFunctionCalls()
+  let _ = testMethodCalls()
+  testTemplateCalls()
+  testFuncPtrCall()
+  testCFuncPtrCall()
+  testProtocolConformanceThunkInvoke()
+  let _ = testSubscriptThunkInvoke()
+  testClassWithDestructor()
+  testClassWithThrowingDestructor()
+  let _ = testClassWithCopyConstructor()
+  let _ = testClassWithThrowingCopyConstructor()
+  let _ = testClassWithThrowingConstructor()
+  let _ = testClassWithNoThrowingConstructor()
+  let _ = testStructWithDefaultConstructor()
+  let _ = testStructWithDefaultCopyConstructor()
+  let _ = testStructWithDefaultDestructor()
+}
 
 // CHECK: define {{.*}} @"$s4test0A23FreeFunctionNoThrowOnlys5Int32VyF"() #[[#SWIFTMETA:]] {
 // CHECK-NEXT: :

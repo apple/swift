@@ -1,0 +1,538 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -deadobject-elim %s | %FileCheck %s
+
+import Swift
+import Builtin
+import SwiftShims
+
+//////////
+// Data //
+//////////
+
+class TrivialDestructor {
+  var int : Builtin.Int32
+  var ptr : Builtin.NativeObject
+  init()
+  deinit { }
+}
+
+class Kl {}
+
+class NontrivialDestructor {
+  @_hasStorage var p : Kl 
+  @_hasStorage var i : Int 
+  init()
+}
+
+class ArrayStorage {
+  @_hasStorage var bodyField : Kl 
+  init()
+}
+
+protocol P { }
+struct X : P { }
+
+sil @$s4main17TrivialDestructorCfD : $@convention(method) (@owned TrivialDestructor) -> () {
+bb0(%0 : $TrivialDestructor):
+  // Alloc/Dealloc stack should not disrupt elimination of the
+  // alloc_ref.
+  %1 = alloc_stack $Builtin.Int64
+  dealloc_stack %1 : $*Builtin.Int64
+
+  // Storing into the struct should not disrupt elimination of the
+  // alloc_ref.
+  %2 = ref_element_addr %0 : $TrivialDestructor, #TrivialDestructor.int
+  %3 = integer_literal $Builtin.Int32, 1
+  store %3 to %2 : $*Builtin.Int32
+
+  // Calling a builtin without side effects should not disrupt
+  // elimination of the alloc_ref.
+  %4 = integer_literal $Builtin.Int32, 0
+  %6 = builtin "xor_Int32" (%4 : $Builtin.Int32, %3 : $Builtin.Int32) : $Builtin.Int32
+
+  // Calling dealloc ref on self should not disrupt elimination of the
+  // alloc_ref.
+  dealloc_ref %0 : $TrivialDestructor
+
+  %7 = tuple()
+  return %7 : $()
+}
+
+// Fake destructor for NontrivialDestructor
+sil [ossa] @$s4main20NontrivialDestructorCfD : $@convention(method) (@owned NontrivialDestructor) -> () {
+bb0(%0 : @owned $NontrivialDestructor):
+  dealloc_ref %0 : $NontrivialDestructor
+  %7 = tuple()
+  return %7 : $()
+}
+
+sil @ptr_user : $@convention(thin) (Builtin.NativeObject) -> ()
+sil @int_user : $@convention(thin) (Builtin.Int32) -> ()
+
+///////////
+// Tests //
+///////////
+
+// Trivial case. Remove the alloc_ref.
+//
+// CHECK-LABEL: sil [ossa] @trivial_destructor_trivial : $@convention(thin) () -> () {
+// CHECK: bb0
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+sil [ossa] @trivial_destructor_trivial : $@convention(thin) () -> () {
+  %0 = alloc_ref $TrivialDestructor
+  destroy_value %0 : $TrivialDestructor
+  %1 = tuple()
+  return %1 : $()
+}
+
+// If the destructor is not called, we don't care about it.
+//
+// CHECK-LABEL: sil [ossa] @devirtualized_destructor : $@convention(thin) () -> () {
+// CHECK: bb0
+// CHECK-NEXT: tuple
+// CHECK-NEXT: return
+sil [ossa] @devirtualized_destructor : $@convention(thin) () -> () {
+  %0 = alloc_ref $NontrivialDestructor
+  set_deallocating %0 : $NontrivialDestructor
+  fix_lifetime %0 : $NontrivialDestructor
+  dealloc_ref %0 : $NontrivialDestructor
+  %1 = tuple()
+  return %1 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @store_to_non_trivial_property1
+// CHECK-NOT:   alloc_ref [stack] $NontrivialDestructor
+// CHECK: } // end sil function 'store_to_non_trivial_property1'
+sil [ossa] @store_to_non_trivial_property1 : $@convention(thin) () -> () {
+bb0:
+  %0 = apply undef () : $@convention(thin) () -> @owned Kl
+  %1 = alloc_ref [stack] $NontrivialDestructor
+  %2 = begin_borrow %1 : $NontrivialDestructor
+  %3 = ref_element_addr %2 : $NontrivialDestructor, #NontrivialDestructor.p
+  store %0 to [init] %3 : $*Kl
+  end_borrow %2 : $NontrivialDestructor
+  set_deallocating %1 : $NontrivialDestructor
+  destroy_value %1 : $NontrivialDestructor
+  dealloc_stack_ref %1 : $NontrivialDestructor
+  %r = tuple ()
+  return %r : $()
+}
+
+// CHECK-LABEL: sil [ossa] @store_to_trivial_property
+// CHECK-NOT: alloc_ref
+// CHECK: } // end sil function 'store_to_trivial_property'
+sil [ossa] @store_to_trivial_property : $@convention(thin) (Int) -> () {
+bb0(%0 : $Int):
+  %1 = alloc_ref [stack] $NontrivialDestructor
+  %2 = begin_borrow %1 : $NontrivialDestructor
+  %3 = ref_element_addr %2 : $NontrivialDestructor, #NontrivialDestructor.i
+  %4 = begin_access [modify] [dynamic] %3 : $*Int
+  store %0 to [trivial] %4 : $*Int
+  end_access %4 : $*Int
+  end_borrow %2 : $NontrivialDestructor
+  set_deallocating %1 : $NontrivialDestructor
+  dealloc_ref %1 : $NontrivialDestructor
+  dealloc_stack_ref %1 : $NontrivialDestructor
+  %r = tuple ()
+  return %r : $()
+}
+
+
+// We load/use a pointer from the alloc_ref, do nothing.
+//
+// CHECK-LABEL: sil [ossa] @trivial_destructor_load : $@convention(thin) () -> () {
+// CHECK: alloc_ref
+sil [ossa] @trivial_destructor_load : $@convention(thin) () -> () {
+  %0 = alloc_ref $TrivialDestructor
+  %1 = begin_borrow %0 : $TrivialDestructor
+  %2 = ref_element_addr %1 : $TrivialDestructor, #TrivialDestructor.int
+  %3 = load [trivial] %2 : $*Builtin.Int32
+  %4 = function_ref @int_user : $@convention(thin) (Builtin.Int32) -> ()
+  apply %4 (%3) : $@convention(thin) (Builtin.Int32) -> ()
+  end_borrow %1 : $TrivialDestructor
+  destroy_value %0 : $TrivialDestructor
+  %r = tuple()
+  return %r : $()
+}
+
+// We store into the alloc_ref, eliminate it!
+//
+// CHECK-LABEL: sil [ossa] @trivial_destructor_store_into : $@convention(thin) () -> () {
+// CHECK-NOT: alloc_ref
+// CHECK-LABEL: } // end sil function 'trivial_destructor_store_into'
+sil [ossa] @trivial_destructor_store_into : $@convention(thin) () -> () {
+  %0 = alloc_ref $TrivialDestructor
+  %b = begin_borrow %0 : $TrivialDestructor
+  %1 = ref_element_addr %b : $TrivialDestructor, #TrivialDestructor.int
+  %2 = integer_literal $Builtin.Int32, 5
+  store %2 to [trivial] %1 : $*Builtin.Int32
+  end_borrow %b : $TrivialDestructor
+  destroy_value %0 : $TrivialDestructor
+  %4 = tuple()
+  return %4 : $()
+}
+
+// We store a pointer from the alloc_ref, don't do anything!
+//
+// CHECK-LABEL: sil [ossa] @trivial_destructor_store_ptr
+// CHECK: alloc_ref
+// CHECK-LABEL: } // end sil function 'trivial_destructor_store_ptr'
+sil [ossa] @trivial_destructor_store_ptr : $@convention(thin) (@inout Builtin.RawPointer) -> () {
+bb0(%0 : $*Builtin.RawPointer):
+  %1 = alloc_ref $TrivialDestructor
+  %b = begin_borrow %1 : $TrivialDestructor
+  %2 = ref_element_addr %b : $TrivialDestructor, #TrivialDestructor.int
+  %3 = address_to_pointer %2 : $*Builtin.Int32 to $Builtin.RawPointer
+  store %3 to [trivial] %0 : $*Builtin.RawPointer
+  end_borrow %b : $TrivialDestructor
+  destroy_value %1 : $TrivialDestructor
+  %4 = tuple()
+  return %4 : $()
+}
+
+// We are returning the alloc_ref, do nothing.
+//
+// CHECK-LABEL: sil [ossa] @trivial_destructor_return_value_use :
+// CHECK: alloc_ref
+// CHECK-LABEL: } // end sil function 'trivial_destructor_return_value_use'
+sil [ossa] @trivial_destructor_return_value_use : $@convention(thin) () -> @owned TrivialDestructor {
+  %0 = alloc_ref $TrivialDestructor
+  return %0 : $TrivialDestructor
+}
+
+// CHECK-LABEL: sil [ossa] @trivial_destructor_refcount_inst_on_value : $@convention(thin) () -> () {
+// CHECK-NOT: alloc_ref
+// CHECK-LABEL: } // end sil function 'trivial_destructor_refcount_inst_on_value'
+sil [ossa] @trivial_destructor_refcount_inst_on_value : $@convention(thin) () -> () {
+  %0 = alloc_ref $TrivialDestructor
+  %copy = copy_value %0 : $TrivialDestructor
+  destroy_value %copy : $TrivialDestructor
+  destroy_value %0 : $TrivialDestructor
+  %1 = tuple()
+  return %1 : $()
+}
+
+class NonTrivialDestructor {
+  var ptr : Builtin.NativeObject
+
+  init()
+  deinit { }
+}
+
+sil [ossa] @_TFC4main17NonTrivialDestructorD : $@convention(method) (@owned NonTrivialDestructor) -> () {
+bb0(%0 : @owned $NonTrivialDestructor):
+  %b = begin_borrow %0 : $NonTrivialDestructor
+  %1 = ref_element_addr %b : $NonTrivialDestructor, #NonTrivialDestructor.ptr
+  %2 = load [copy] %1 : $*Builtin.NativeObject
+  end_borrow %b : $NonTrivialDestructor
+  destroy_value %2 : $Builtin.NativeObject
+  dealloc_ref %0 : $NonTrivialDestructor
+  %3 = tuple()
+  return %3 : $()
+}
+
+class NonTrivialDestructor2 {
+  var ptr : NonTrivialDestructor
+
+  init()
+  deinit { }
+}
+
+// Test if dealloc_ref on a different value disrupts the algorithm.
+sil [ossa] @_TFC4main17NonTrivialDestructor2D : $@convention(method) (@owned NonTrivialDestructor2) -> () {
+bb0(%0 : @owned $NonTrivialDestructor2):
+  %b = begin_borrow %0 : $NonTrivialDestructor2
+  %1 = ref_element_addr %b : $NonTrivialDestructor2, #NonTrivialDestructor2.ptr
+  %2 = load [copy] %1 : $*NonTrivialDestructor
+  end_borrow %b : $NonTrivialDestructor2
+  dealloc_ref %2 : $NonTrivialDestructor
+  dealloc_ref %0 : $NonTrivialDestructor2
+  %3 = tuple()
+  return %3 : $()
+}
+
+class NonTrivialDestructor3 {
+  var ptr : Builtin.NativeObject
+
+  init()
+  deinit { }
+}
+
+// Make sure a non-builtin apply disrupts the algorithm.
+sil [ossa] @_TFC4main17NonTrivialDestructor3D : $@convention(method) (@owned NonTrivialDestructor3) -> () {
+bb0(%0 : @owned $NonTrivialDestructor3):
+  %b = begin_borrow %0 : $NonTrivialDestructor3
+  %1 = ref_element_addr %b : $NonTrivialDestructor3, #NonTrivialDestructor3.ptr
+  %2 = load [take] %1 : $*Builtin.NativeObject
+  %3 = function_ref @ptr_user : $@convention(thin) (Builtin.NativeObject) -> ()
+  apply %3 (%2) : $@convention(thin) (Builtin.NativeObject) -> ()
+  destroy_value %2 : $Builtin.NativeObject
+  end_borrow %b : $NonTrivialDestructor3
+  dealloc_ref %0 : $NonTrivialDestructor3
+  %4 = tuple()
+  return %4 : $()
+}
+
+class NonTrivialObjCDestructor {
+  var ptr : Builtin.NativeObject
+
+  init() { }
+  deinit { }
+}
+
+// Make sure we do not handle objc_methods
+sil [ossa] @_TFC4main17NonTrivialObjCDestructorD : $@convention(objc_method) (@owned NonTrivialObjCDestructor) -> () {
+bb0(%0 : @owned $NonTrivialObjCDestructor):
+  dealloc_ref %0 : $NonTrivialObjCDestructor
+  %1 = tuple()
+  return %1 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @non_trivial_destructor_objc_destructor : $@convention(thin) () -> () {
+// CHECK: alloc_ref
+// CHECK-LABEL: } // end sil function 'non_trivial_destructor_objc_destructor'
+sil [ossa] @non_trivial_destructor_objc_destructor : $@convention(thin) () -> () {
+  %0 = alloc_ref $NonTrivialObjCDestructor
+  destroy_value %0 : $NonTrivialObjCDestructor
+  %1 = tuple()
+  return %1 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @non_trivial_destructor_on_stack : $@convention(thin) () -> () {
+// CHECK:      bb0:
+// CHECK-NEXT:   %0 = tuple ()
+// CHECK-NEXT:   return %0
+sil [ossa] @non_trivial_destructor_on_stack : $@convention(thin) () -> () {
+  %0 = alloc_stack $NonTrivialDestructor
+  dealloc_stack %0 : $*NonTrivialDestructor
+  %1 = tuple()
+  return %1 : $()
+}
+
+sil [ossa] @non_trivial_destructor_on_stack_with_stores1 : $@convention(thin) (@owned NonTrivialDestructor) -> () {
+bb0(%0 : @owned $NonTrivialDestructor):
+  %copy = copy_value %0 : $NonTrivialDestructor
+  %1 = alloc_stack $NonTrivialDestructor
+  store %0 to [init] %1 : $*NonTrivialDestructor
+  store %copy to [assign] %1 : $*NonTrivialDestructor
+  destroy_addr %1 : $*NonTrivialDestructor
+  dealloc_stack %1 : $*NonTrivialDestructor
+  %2 = tuple()
+  return %2 : $()
+}
+
+sil [ossa] @non_trivial_destructor_on_stack_with_stores2 : $@convention(thin) (@owned NonTrivialDestructor, @owned NonTrivialDestructor) -> () {
+bb0(%0 : @owned $NonTrivialDestructor, %1 : @owned $NonTrivialDestructor):
+  %2 = alloc_stack $NonTrivialDestructor
+  store %0 to [init] %2 : $*NonTrivialDestructor
+  store %1 to [assign] %2 : $*NonTrivialDestructor
+  destroy_addr %2 : $*NonTrivialDestructor
+  dealloc_stack %2 : $*NonTrivialDestructor
+  %3 = tuple()
+  return %3 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @trivial_destructor_on_stack : $@convention(thin) () -> () {
+// CHECK-NOT: alloc_stack
+// CHECK-NOT: dealloc_stack
+// CHECK: return
+sil [ossa] @trivial_destructor_on_stack : $@convention(thin) () -> () {
+  %0 = alloc_stack $Int
+  destroy_addr %0 : $*Int
+  dealloc_stack %0 : $*Int
+  %1 = tuple()
+  return %1 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_dead_enum_stackloc :
+// CHECK:      bb0:
+// CHECK-NEXT:   %0 = tuple ()
+// CHECK-NEXT:   return %0
+sil [ossa] @remove_dead_enum_stackloc : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack $FloatingPointRoundingRule
+  inject_enum_addr %0 : $*FloatingPointRoundingRule, #FloatingPointRoundingRule.toNearestOrEven!enumelt
+  destroy_addr %0 : $*FloatingPointRoundingRule
+  dealloc_stack %0 : $*FloatingPointRoundingRule
+  %1 = tuple ()
+  return %1 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_dead_optional_existential :
+// CHECK:      bb0(%0 : $X):
+// CHECK-NEXT:   %1 = tuple ()
+// CHECK-NEXT:   return %1
+sil [ossa] @remove_dead_optional_existential : $@convention(thin) (X) -> () {
+bb0(%0 : $X):
+  %3 = alloc_stack $Optional<P>
+  %4 = init_enum_data_addr %3 : $*Optional<P>, #Optional.some!enumelt
+  %5 = init_existential_addr %4 : $*P, $X
+  store %0 to [trivial] %5 : $*X
+  inject_enum_addr %3 : $*Optional<P>, #Optional.some!enumelt
+  destroy_addr %3 : $*Optional<P>
+  dealloc_stack %3 : $*Optional<P>
+  %10 = tuple ()
+  return %10 : $()
+}
+
+// If we have an instruction that mayTrap that uses the alloc_ref, we can't
+// eliminate it.
+//
+// CHECK-LABEL: sil [ossa] @trivial_destructor_may_trap : $@convention(thin) () -> () {
+// CHECK: alloc_ref
+sil [ossa] @trivial_destructor_may_trap : $@convention(thin) () -> () {
+  %0 = alloc_ref $TrivialDestructor
+  %1 = unconditional_checked_cast %0 : $TrivialDestructor to AnyObject
+  destroy_value %1 : $AnyObject
+  %4 = tuple()
+  return %4 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_dead_array_with_destroy_simple
+// CHECK-NOT:   alloc_ref
+// CHECK:      } // end sil function 'remove_dead_array_with_destroy_simple'
+sil [ossa] @remove_dead_array_with_destroy_simple : $@convention(thin) () -> () {
+bb0:
+  %0 = apply undef () : $@convention(thin) () -> @owned Kl
+  %copy = copy_value %0 : $Kl
+  %3 = integer_literal $Builtin.Word, 2
+  %4 = alloc_ref [tail_elems $Kl * %3 : $Builtin.Word] $ArrayStorage
+  %5 = begin_borrow %4 : $ArrayStorage
+  %11 = ref_tail_addr %5 : $ArrayStorage, $Kl
+  store %0 to [init] %11 : $*Kl
+  %27 = integer_literal $Builtin.Word, 1
+  %28 = index_addr %11 : $*Kl, %27 : $Builtin.Word
+  store %copy to [init] %28 : $*Kl
+  set_deallocating %4 : $ArrayStorage
+  %65 = address_to_pointer %11 : $*Kl to $Builtin.RawPointer
+  %66 = metatype $@thick Kl.Type
+  %67 = builtin "destroyArray"<Kl>(%66 : $@thick Kl.Type, %65 : $Builtin.RawPointer, %3 : $Builtin.Word) : $()
+  end_borrow %5 : $ArrayStorage
+  dealloc_ref %4 : $ArrayStorage
+  %10 = tuple ()
+  return %10 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_dead_array_with_destroy_complex
+// CHECK-NOT:   alloc_ref
+// CHECK:      } // end sil function 'remove_dead_array_with_destroy_complex'
+sil [ossa] @remove_dead_array_with_destroy_complex : $@convention(thin) (@guaranteed String, Int, UInt) -> () {
+bb0(%0 : @guaranteed $String, %1 : $Int, %2 : $UInt):
+  %copy0 = copy_value %0 : $String
+  %copy1 = copy_value %0 : $String
+  %3 = integer_literal $Builtin.Word, 2
+  %4 = alloc_ref [stack] [tail_elems $(Int, String) * %3 : $Builtin.Word] $_ContiguousArrayStorage<(Int, String)>
+  %5 = upcast %4 : $_ContiguousArrayStorage<(Int, String)> to $__ContiguousArrayStorageBase
+  %6 = struct $_SwiftArrayBodyStorage (%1 : $Int, %2 : $UInt)
+  %7 = struct $_ArrayBody (%6 : $_SwiftArrayBodyStorage)
+  %b = begin_borrow %5 : $__ContiguousArrayStorageBase
+  %9 = ref_element_addr %b : $__ContiguousArrayStorageBase, #__ContiguousArrayStorageBase.countAndCapacity
+  store %7 to [trivial] %9 : $*_ArrayBody
+  %11 = ref_tail_addr %b : $__ContiguousArrayStorageBase, $(Int, String)
+  %12 = tuple_element_addr %11 : $*(Int, String), 0
+  %13 = tuple_element_addr %11 : $*(Int, String), 1
+  store %1 to [trivial] %12 : $*Int
+  store %copy0 to [init] %13 : $*String
+  %27 = integer_literal $Builtin.Word, 1
+  %28 = index_addr %11 : $*(Int, String), %27 : $Builtin.Word
+  %29 = tuple_element_addr %28 : $*(Int, String), 0
+  %30 = tuple_element_addr %28 : $*(Int, String), 1
+  store %1 to [trivial] %29 : $*Int
+  store %copy1 to [init] %30 : $*String
+  set_deallocating %5 : $__ContiguousArrayStorageBase
+  %64 = ref_tail_addr %b : $__ContiguousArrayStorageBase, $(Int, String)
+  %65 = address_to_pointer %64 : $*(Int, String) to $Builtin.RawPointer
+  %66 = metatype $@thick (Int, String).Type
+  %67 = builtin "destroyArray"<(Int, String)>(%66 : $@thick (Int, String).Type, %65 : $Builtin.RawPointer, %3 : $Builtin.Word) : $()
+  end_borrow %b : $__ContiguousArrayStorageBase
+  dealloc_ref %5 : $__ContiguousArrayStorageBase
+  dealloc_stack_ref %4 : $_ContiguousArrayStorage<(Int, String)>
+  %10 = tuple ()
+  return %10 : $()
+}
+
+struct II { }
+
+struct I {
+  @_hasStorage public let x: II { get }
+}
+
+struct S2 { }
+
+sil @getter1 : $@convention(method) (@guaranteed KeyPath<I, II>, S2) -> @out II
+sil @kpgetter1 : $@convention(thin) (@in_guaranteed S2, UnsafeRawPointer) -> @out II
+sil @getter2 : $@convention(method) (@guaranteed String, Foo) -> @owned String
+sil @kpgetter2 : $@convention(thin) (@in_guaranteed Foo, UnsafeRawPointer) -> @out String
+sil @equ : $@convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Bool
+sil @hsh : $@convention(thin) (UnsafeRawPointer) -> Int
+
+
+// CHECK-LABEL: sil [ossa] @remove_dead_keypath
+// CHECK-NOT:   keypath
+// CHECK: } // end sil function 'remove_dead_keypath'
+sil [ossa] @remove_dead_keypath: $@convention(thin) () -> () {
+bb0:
+  %0 = keypath $KeyPath<I, II>, (root $I; stored_property #I.x : $II)
+  %1 = keypath $KeyPath<S2, II>, (root $S2; gettable_property $II, id @getter1 : $@convention(method) (@guaranteed KeyPath<I, II>, S2) -> @out II, getter @kpgetter1: $@convention(thin) (@in_guaranteed S2, UnsafeRawPointer) -> @out II, indices [%$0 : $KeyPath<I, II> : $KeyPath<I, II>], indices_equals @equ : $@convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Bool, indices_hash @hsh : $@convention(thin) (UnsafeRawPointer) -> Int) (%0)
+  destroy_value %1 : $KeyPath<S2, II>
+  %r = tuple ()
+  return %r : $()
+}
+
+struct Foo {
+  subscript(x: String) -> String { get }
+  init()
+}
+
+// CHECK-LABEL: sil [ossa] @remove_nontrivial_dead_keypath
+// CHECK-NOT:   keypath
+// CHECK: } // end sil function 'remove_nontrivial_dead_keypath'
+sil [ossa] @remove_nontrivial_dead_keypath : $@convention(thin) (@owned String) -> () {
+bb0(%0 : @owned $String):
+  %3 = keypath $KeyPath<Foo, String>, (root $Foo; gettable_property $String,  id @getter2 : $@convention(method) (@guaranteed String, Foo) -> @owned String, getter @kpgetter2 : $@convention(thin) (@in_guaranteed Foo, UnsafeRawPointer) -> @out String, indices [%$0 : $String : $String], indices_equals @equ : $@convention(thin) (UnsafeRawPointer, UnsafeRawPointer) -> Bool, indices_hash @hsh : $@convention(thin) (UnsafeRawPointer) -> Int) (%0) // user: %4
+  destroy_value %3 : $KeyPath<Foo, String>
+  %r = tuple ()
+  return %r : $()
+} 
+
+sil @createit : $@convention(thin) () -> @owned Kl
+
+// Check that we don't crash here.
+sil [ossa] @not_dominating_stores : $@convention(thin) () -> () {
+bb0:
+  %7 = integer_literal $Builtin.Word, 1
+  %10 = alloc_ref [stack] [tail_elems $Kl * %7 : $Builtin.Word] $_ContiguousArrayStorage<Kl>
+  %b = begin_borrow %10 : $_ContiguousArrayStorage<Kl> 
+  %11 = upcast %b : $_ContiguousArrayStorage<Kl> to $__ContiguousArrayStorageBase
+  %18 = ref_tail_addr %11 : $__ContiguousArrayStorageBase, $Kl
+  %35 = function_ref @createit : $@convention(thin) () -> @owned Kl
+  cond_br undef, bb1, bb2
+bb1:
+  %36 = apply %35() : $@convention(thin) () -> @owned Kl
+  store %36 to [init] %18 : $*Kl
+  br bb3
+bb2:
+  %46 = apply %35() : $@convention(thin) () -> @owned Kl
+  store %46 to [init] %18 : $*Kl
+  br bb3
+bb3:
+  end_borrow %b : $_ContiguousArrayStorage<Kl>
+  destroy_value %10 : $_ContiguousArrayStorage<Kl>
+  dealloc_stack_ref %10 : $_ContiguousArrayStorage<Kl>
+  %1 = tuple()
+  return %1 : $()
+}
+
+sil [ossa] @$ss23_ContiguousArrayStorageCfD : $@convention(method) <Element> (@owned _ContiguousArrayStorage<Element>) -> () {
+bb0(%0 : @owned $_ContiguousArrayStorage<Element>):
+  %b = begin_borrow %0 : $_ContiguousArrayStorage<Element>
+  %1 = ref_tail_addr %b : $_ContiguousArrayStorage<Element>, $Element
+  %2 = address_to_pointer %1 : $*Element to $Builtin.RawPointer
+  %10 = metatype $@thick Element.Type
+  %12 = builtin "destroyArray"<Element>(%10 : $@thick Element.Type, %2 : $Builtin.RawPointer, undef : $Builtin.Word) : $()
+  end_borrow %b :  $_ContiguousArrayStorage<Element>
+  dealloc_ref %0 : $_ContiguousArrayStorage<Element>
+  %15 = tuple ()
+  return %15 : $()
+}
+

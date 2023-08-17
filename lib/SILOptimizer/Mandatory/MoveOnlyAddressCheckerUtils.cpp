@@ -280,6 +280,8 @@
 using namespace swift;
 using namespace swift::siloptimizer;
 
+#pragma clang optimize off
+
 llvm::cl::opt<bool> DisableMoveOnlyAddressCheckerLifetimeExtension(
     "move-only-address-checker-disable-lifetime-extension",
     llvm::cl::init(false),
@@ -342,7 +344,7 @@ static void convertMemoryReinitToInitForm(SILInstruction *memInst,
     break;
   }
   }
-  
+
   // Insert a new debug_value instruction after the reinitialization, so that
   // the debugger knows that the variable is in a usable form again.
   insertDebugValueBefore(memInst->getNextInstruction(), debugVar,
@@ -931,6 +933,7 @@ void UseState::initializeLiveness(
   // We begin by initializing all of our init uses.
   for (auto initInstAndValue : initInsts) {
     LLVM_DEBUG(llvm::dbgs() << "Found def: " << *initInstAndValue.first);
+
     liveness.initializeDef(initInstAndValue.first, initInstAndValue.second);
   }
 
@@ -1028,12 +1031,41 @@ void UseState::initializeLiveness(
     liveness.initializeDef(address, liveness.getTopLevelSpan());
   }
 
+  if (auto *ptai = dyn_cast<PointerToAddressInst>(
+          stripAccessMarkers(address->getOperand()))) {
+    assert(ptai->isStrict());
+    LLVM_DEBUG(llvm::dbgs() << "Found pointer to address use... "
+                               "adding mark_must_check as init!\n");
+    recordInitUse(address, address, liveness.getTopLevelSpan());
+    liveness.initializeDef(address, liveness.getTopLevelSpan());
+  }
+
   // Now that we have finished initialization of defs, change our multi-maps
   // from their array form to their map form.
   liveness.finishedInitializationOfDefs();
 
   LLVM_DEBUG(llvm::dbgs() << "Liveness with just inits:\n";
              liveness.print(llvm::dbgs()));
+
+  for (auto initInstAndValue : initInsts) {
+    // If our init inst is a store_borrow, treat the end_borrow as liveness
+    // uses.
+    //
+    // NOTE: We do not need to check for access scopes here since store_borrow
+    // can only apply to alloc_stack today.
+    if (auto *sbi = dyn_cast<StoreBorrowInst>(initInstAndValue.first)) {
+      // We can only store_borrow if our mark_must_check is a
+      // no_consume_or_assign.
+      assert(address->getCheckKind() ==
+                 MarkMustCheckInst::CheckKind::NoConsumeOrAssign &&
+             "store_borrow implies no_consume_or_assign since we cannot "
+             "consume a borrowed inited value");
+      for (auto *ebi : sbi->getEndBorrows()) {
+        liveness.updateForUse(ebi, initInstAndValue.second,
+                              false /*lifetime ending*/);
+      }
+    }
+  }
 
   // Now at this point, we have defined all of our defs so we can start adding
   // uses to the liveness.
@@ -1437,14 +1469,14 @@ struct CopiedLoadBorrowEliminationState {
 /// An early transform that we run to convert any load_borrow that are copied
 /// directly or that have any subelement that is copied to a load [copy]. This
 /// lets the rest of the optimization handle these as appropriate.
-struct CopiedLoadBorrowEliminationVisitor final
-    : public TransitiveAddressWalker {
+struct CopiedLoadBorrowEliminationVisitor
+    : public TransitiveAddressWalker<CopiedLoadBorrowEliminationVisitor> {
   CopiedLoadBorrowEliminationState &state;
 
   CopiedLoadBorrowEliminationVisitor(CopiedLoadBorrowEliminationState &state)
       : state(state) {}
 
-  bool visitUse(Operand *op) override {
+  bool visitUse(Operand *op) {
     LLVM_DEBUG(llvm::dbgs() << "CopiedLBElim visiting ";
                llvm::dbgs() << " User: " << *op->getUser());
     auto *lbi = dyn_cast<LoadBorrowInst>(op->getUser());
@@ -1489,19 +1521,30 @@ struct CopiedLoadBorrowEliminationVisitor final
         // We can only hit this if our load_borrow was copied.
         llvm_unreachable("We should never hit this");
 
-      case OperandOwnership::GuaranteedForwarding:
+      case OperandOwnership::GuaranteedForwarding: {
+        SmallVector<SILValue, 8> forwardedValues;
+        auto *fn = nextUse->getUser()->getFunction();
+        ForwardingOperand(nextUse).visitForwardedValues([&](SILValue value) {
+          if (value->getType().isTrivial(fn))
+            return true;
+          forwardedValues.push_back(value);
+          return true;
+        });
+
+        // If we do not have any forwarded values, just continue.
+        if (forwardedValues.empty())
+          continue;
+
+        while (!forwardedValues.empty()) {
+          for (auto *use : forwardedValues.pop_back_val()->getUses())
+            useWorklist.push_back(use);
+        }
+
         // If we have a switch_enum, we always need to convert it to a load
         // [copy] since we need to destructure through it.
         shouldConvertToLoadCopy |= isa<SwitchEnumInst>(nextUse->getUser());
-
-        ForwardingOperand(nextUse).visitForwardedValues([&](SILValue value) {
-          for (auto *use : value->getUses()) {
-            useWorklist.push_back(use);
-          }
-          return true;
-        });
         continue;
-
+      }
       case OperandOwnership::Borrow:
         LLVM_DEBUG(llvm::dbgs() << "        Found recursive borrow!\n");
         // Look through borrows.
@@ -1814,7 +1857,7 @@ void PartialReinitChecker::performPartialReinitChecking(
 namespace {
 
 /// Visit all of the uses of value in preparation for running our algorithm.
-struct GatherUsesVisitor final : public TransitiveAddressWalker {
+struct GatherUsesVisitor : public TransitiveAddressWalker<GatherUsesVisitor> {
   MoveOnlyAddressCheckerPImpl &moveChecker;
   UseState &useState;
   MarkMustCheckInst *markedValue;
@@ -1830,7 +1873,7 @@ struct GatherUsesVisitor final : public TransitiveAddressWalker {
       : moveChecker(moveChecker), useState(useState), markedValue(markedValue),
         diagnosticEmitter(diagnosticEmitter) {}
 
-  bool visitUse(Operand *op) override;
+  bool visitUse(Operand *op);
   void reset(MarkMustCheckInst *address) { useState.address = address; }
   void clear() { useState.clear(); }
 
@@ -1952,6 +1995,22 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
   // Ignore end_access.
   if (isa<EndAccessInst>(user))
     return true;
+
+  // This visitor looks through store_borrow instructions but does visit the
+  // end_borrow of the store_borrow. If we see such an end_borrow, register the
+  // store_borrow instead. Since we use sets, if we visit multiple end_borrows,
+  // we will only record the store_borrow once.
+  if (auto *ebi = dyn_cast<EndBorrowInst>(user)) {
+    if (auto *sbi = dyn_cast<StoreBorrowInst>(ebi->getOperand())) {
+      LLVM_DEBUG(llvm::dbgs() << "Found store_borrow: " << *sbi);
+      auto leafRange = TypeTreeLeafTypeRange::get(op->get(), getRootAddress());
+      if (!leafRange)
+        return false;
+
+      useState.recordInitUse(user, op->get(), *leafRange);
+      return true;
+    }
+  }
 
   if (auto *di = dyn_cast<DebugValueInst>(user)) {
     // Save the debug_value if it is attached directly to this mark_must_check.
@@ -2311,6 +2370,18 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
               semantics::NO_MOVEONLY_DIAGNOSTICS)) {
         diagnosticEmitter.emitEarlierPassEmittedDiagnostic(markedValue);
         return false;
+      }
+    }
+
+    // If our partial apply takes this parameter as an inout parameter and it
+    // has the no move only diagnostics marker on it, do not emit an error
+    // either.
+    if (auto *f = pas->getCalleeFunction()) {
+      if (f->hasSemanticsAttr(semantics::NO_MOVEONLY_DIAGNOSTICS)) {
+        if (ApplySite(pas).getCaptureConvention(*op).isInoutConvention()) {
+          diagnosticEmitter.emitEarlierPassEmittedDiagnostic(markedValue);
+          return false;
+        }
       }
     }
 
@@ -2761,7 +2832,7 @@ void MoveOnlyAddressCheckerPImpl::insertDestroysOnBoundary(
     auto interestingUser = liveness.getInterestingUser(inst);
     SmallVector<std::pair<TypeTreeLeafTypeRange, IsInterestingUser>, 4> ranges;
     if (interestingUser) {
-      interestingUser->getContiguousRanges(ranges);
+      interestingUser->getContiguousRanges(ranges, bv);
     }
 
     for (auto rangePair : ranges) {
@@ -2799,12 +2870,14 @@ void MoveOnlyAddressCheckerPImpl::insertDestroysOnBoundary(
           auto *block = inst->getParent();
           for (auto *succBlock : block->getSuccessorBlocks()) {
             auto iter = mergeBlocks.find(succBlock);
-            if (iter == mergeBlocks.end())
+            if (iter == mergeBlocks.end()) {
               iter = mergeBlocks.insert({succBlock, bits}).first;
-            else {
+            } else {
+              // NOTE: We use |= here so that different regions of the same
+              // terminator get updated appropriately.
               SmallBitVector &alreadySetBits = iter->second;
               bool hadCommon = alreadySetBits.anyCommon(bits);
-              alreadySetBits &= bits;
+              alreadySetBits |= bits;
               if (hadCommon)
                 continue;
             }

@@ -96,6 +96,14 @@ bool ClangSyntaxPrinter::printNominalTypeOutsideMemberDeclInnerStaticAssert(
 }
 
 void ClangSyntaxPrinter::printClangTypeReference(const clang::Decl *typeDecl) {
+  if (cast<clang::NamedDecl>(typeDecl)->getDeclName().isEmpty() &&
+      isa<clang::TagDecl>(typeDecl)) {
+    if (auto *tnd =
+            cast<clang::TagDecl>(typeDecl)->getTypedefNameForAnonDecl()) {
+      printClangTypeReference(tnd);
+      return;
+    }
+  }
   auto &clangCtx = typeDecl->getASTContext();
   clang::PrintingPolicy pp(clangCtx.getLangOpts());
   const auto *NS = clang::NestedNameSpecifier::getRequiredQualification(

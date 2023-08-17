@@ -724,9 +724,13 @@ public:
 
     /// Populates the provided vector with contiguous ranges of bits which are
     /// users of the same sort.
+    ///
+    /// All bits not selected by \p selectedBits are assumed to be
+    /// IsInterestingUser::NonUser.
     void getContiguousRanges(
         SmallVectorImpl<std::pair<TypeTreeLeafTypeRange, IsInterestingUser>>
-            &ranges) const {
+            &ranges,
+        const SmallBitVector &selectedBits) const {
       if (liveBits.size() == 0)
         return;
 
@@ -734,7 +738,8 @@ public:
       llvm::Optional<std::pair<unsigned, IsInterestingUser>> current =
           llvm::None;
       for (unsigned bit = 0, size = liveBits.size(); bit < size; ++bit) {
-        auto interesting = isInterestingUser(bit);
+        auto interesting = selectedBits.test(bit) ? isInterestingUser(bit)
+                                                  : IsInterestingUser::NonUser;
         if (!current) {
           current = {bit, interesting};
           continue;

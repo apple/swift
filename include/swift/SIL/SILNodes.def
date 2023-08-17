@@ -453,10 +453,12 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
   // alone by OSSA optimizations.
   SINGLE_VALUE_INST(ExplicitCopyValueInst, explicit_copy_value,
                     SingleValueInstruction, None, DoesNotRelease)
-#define UNCHECKED_REF_STORAGE(Name, name, ...) \
-  SINGLE_VALUE_INST(StrongCopy##Name##ValueInst, strong_copy_##name##_value, \
+  // Produce a @sil_unowned value from the specified value of reference type.
+  SINGLE_VALUE_INST(UnownedCopyValueInst, unowned_copy_value,
                     SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
-#define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, name, ...) \
+  SINGLE_VALUE_INST(WeakCopyValueInst, weak_copy_value,
+                    SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
+#define REF_STORAGE(Name, name, ...) \
   SINGLE_VALUE_INST(StrongCopy##Name##ValueInst, strong_copy_##name##_value, \
                     SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
 #include "swift/AST/ReferenceStorage.def"
@@ -694,12 +696,12 @@ ABSTRACT_VALUE_AND_INST(SingleValueInstruction, ValueBase, SILInstruction)
                     SingleValueInstruction, MayHaveSideEffects, DoesNotRelease)
 
   // BindMemory and RebindMemory have no physical side effect. Semantically they
-  // write to their affected memory region because any reads or writes accessing
+  // access their affected memory region because any reads or writes accessing
   // that memory must be dependent on the bind operation.
   SINGLE_VALUE_INST(BindMemoryInst, bind_memory,
-                    SILInstruction, MayWrite, DoesNotRelease)
+                    SILInstruction, MayReadWrite, DoesNotRelease)
   SINGLE_VALUE_INST(RebindMemoryInst, rebind_memory,
-                    SILInstruction, MayWrite, DoesNotRelease)
+                    SILInstruction, MayReadWrite, DoesNotRelease)
 
 SINGLE_VALUE_INST_RANGE(SingleValueInstruction, AllocStackInst, RebindMemoryInst)
 NODE_RANGE(ValueBase, SILPhiArgument, RebindMemoryInst)

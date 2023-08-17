@@ -18,8 +18,8 @@
 
 // CHECK: [[SWIFT]]
 // CHECK: DEPEND START
-// CHECK: Record | system | Swift.Math.Floating | [[MODULE]] | {{.+}}.swiftinterface_Math_Floating-{{.*}}
 // CHECK: Record | system | Swift.String | [[MODULE]] | {{.+}}.swiftinterface_String-{{.*}}
+// CHECK: Record | system | Swift.Math.Floating | [[MODULE]] | {{.+}}.swiftinterface_Math_Floating-{{.*}}
 // CHECK: DEPEND END
 
 func test1() {

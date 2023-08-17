@@ -3,6 +3,8 @@
 
 namespace Namespace {
 
+using SimpleTypealias = int;
+
 struct Parent {
   struct Child {};
 };

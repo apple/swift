@@ -709,6 +709,8 @@ MetadataResponse emitCheckTypeMetadataState(IRGenFunction &IGF,
 OperationCost getCheckTypeMetadataStateCost(DynamicMetadataRequest request,
                                             MetadataResponse response);
 
+ParameterFlags getABIParameterFlags(ParameterTypeFlags flags);
+
 } // end namespace irgen
 } // end namespace swift
 

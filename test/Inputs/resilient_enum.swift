@@ -208,3 +208,28 @@ public enum ResilientIndirectEnum {
   // -2
   indirect case B(ResilientIndirectEnum, ResilientIndirectEnum)
 }
+
+public enum ResilientEnumWithUnavailableCase {
+  case available
+
+  @available(*, unavailable)
+  case unavailable
+}
+
+public enum ResilientEnumWithUnavailableCaseAndPayload {
+  @available(*, unavailable)
+  case int(_ i: UnavailableResilientInt)
+
+  case double(_ d: ResilientDouble)
+}
+
+extension ResilientEnumWithUnavailableCaseAndPayload {
+  @_alwaysEmitIntoClient
+  public var intValue: Int {
+    switch self {
+    case .int(let i): return i.i
+    case .double(let d): return Int(d.d)
+    default: return -1
+    }
+  }
+}

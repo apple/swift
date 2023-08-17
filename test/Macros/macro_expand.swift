@@ -76,7 +76,7 @@ macro Invalid() = #externalMacro(module: "MacroDefinition", type: "InvalidMacro"
 
 @Invalid
 struct Bad {}
-// expected-note@-1 18 {{in expansion of macro 'Invalid' here}}
+// expected-note@-2 18 {{in expansion of macro 'Invalid' on struct 'Bad' here}}
 
 // CHECK-DIAGS: error: macro expansion cannot introduce import
 // CHECK-DIAGS: error: macro expansion cannot introduce precedence group
@@ -140,9 +140,9 @@ func testFileID(a: Int, b: Int) {
   // CHECK-AST: macro_expansion_expr type='String'{{.*}}name=line
   print("Builtin result is \(#fileID)")
   print(
-    /// CHECK-IR-DAG: ![[L1:[0-9]+]] = !DILocation(line: [[@LINE+1]], column: 5
+    /// CHECK-IR-DAG: ![[L1:[0-9]+]] = distinct !DILocation(line: [[@LINE+1]], column: 5
     #addBlocker(
-      /// CHECK-IR-DAG: ![[L2:[0-9]+]] = !DILocation({{.*}}inlinedAt: ![[L1]])
+      /// CHECK-IR-DAG: ![[L2:[0-9]+]] = distinct !DILocation({{.*}}inlinedAt: ![[L1]])
       /// CHECK-IR-DAG: ![[L3:[0-9]+]] = !DILocation({{.*}}inlinedAt: ![[L2]])
       #stringify(a - b)
       )
@@ -547,3 +547,23 @@ func testExpressionAsDeclarationMacro() {
   // expected-error@-1{{macro implementation type 'StringifyMacro' doesn't conform to required protocol 'DeclarationMacro' (from macro 'stringifyAsDeclMacro')}}
 #endif
 }
+
+// Deprecated macro
+@available(*, deprecated, message: "This macro is deprecated.")
+@freestanding(expression) macro deprecatedStringify<T>(_ value: T) -> (T, String) = #externalMacro(module: "MacroDefinition", type: "StringifyMacro")
+
+@available(*, deprecated, message: "This macro is deprecated.")
+@freestanding(declaration) macro deprecatedStringifyAsDeclMacro<T>(_ value: T) = #externalMacro(module: "MacroDefinition", type: "StringifyMacro")
+
+func testDeprecated() {
+  // expected-warning@+1{{'deprecatedStringify' is deprecated: This macro is deprecated.}}
+  _ = #deprecatedStringify(1 + 1)
+}
+
+#if TEST_DIAGNOSTICS
+struct DeprecatedStructWrapper {
+  // expected-error@+2{{macro implementation type 'StringifyMacro' doesn't conform to required protocol 'DeclarationMacro' (from macro 'deprecatedStringifyAsDeclMacro')}}
+  // expected-warning@+1{{'deprecatedStringifyAsDeclMacro' is deprecated: This macro is deprecated.}}
+  #deprecatedStringifyAsDeclMacro(1 + 1)
+}
+#endif

@@ -82,5 +82,11 @@ module std {
       requires cplusplus
       export *
     }
+
+    module cstdlib {
+      header "cstdlib"
+      requires cplusplus
+      export *
+    }
   }
 }

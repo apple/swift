@@ -391,9 +391,6 @@ void SILDeclRef::print(raw_ostream &OS) const {
   case SILDeclRef::Kind::PropertyWrapperInitFromProjectedValue:
     OS << "!projectedvalueinit";
     break;
-  case SILDeclRef::Kind::RuntimeAttributeGenerator:
-    OS << "!attrgenerator";
-    break;
   }
 
   if (isForeign)
@@ -1806,7 +1803,11 @@ public:
       }
     }
 
-    *this << "self " << getIDAndType(AI->getSelf());
+    *this << "#";
+    printFullContext(AI->getProperty()->getDeclContext(), PrintState.OS);
+    *this << AI->getPropertyName();
+
+    *this << ", self " << getIDAndType(AI->getSelf());
     *this << ", value " << getIDAndType(AI->getSrc());
     *this << ", init " << getIDAndType(AI->getInitializer())
           << ", set " << getIDAndType(AI->getSetter());
@@ -1914,6 +1915,7 @@ public:
   void visitCheckedCastBranchInst(CheckedCastBranchInst *CI) {
     if (CI->isExact())
       *this << "[exact] ";
+    *this << CI->getSourceFormalType() << " in ";
     *this << getIDAndType(CI->getOperand()) << " to " << CI->getTargetFormalType()
           << ", " << Ctx.getID(CI->getSuccessBB()) << ", "
           << Ctx.getID(CI->getFailureBB());
@@ -2136,12 +2138,15 @@ public:
     *this << getIDAndType(I->getOperand());
   }
 
-#define UNCHECKED_REF_STORAGE(Name, ...)                                       \
-  void visitStrongCopy##Name##ValueInst(StrongCopy##Name##ValueInst *I) {      \
-    *this << getIDAndType(I->getOperand());                                    \
+  void visitUnownedCopyValueInst(UnownedCopyValueInst *I) {
+    *this << getIDAndType(I->getOperand());
   }
 
-#define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)            \
+  void visitWeakCopyValueInst(WeakCopyValueInst *I) {
+    *this << getIDAndType(I->getOperand());
+  }
+
+#define REF_STORAGE(Name, ...)                                                 \
   void visitStrongCopy##Name##ValueInst(StrongCopy##Name##ValueInst *I) {      \
     *this << getIDAndType(I->getOperand());                                    \
   }

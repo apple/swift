@@ -191,26 +191,27 @@ InoutParameterAutoDiffTests.test("InoutClassParameter") {
   }
 }
 
-// https://github.com/apple/swift/issues/55745
-// Test function with non-wrt `inout` parameter, which should be
-// treated as a differentiability result.
+// Test function with wrt `inout` parameter, which should be treated as a differentiability result.
+// Original issue https://github.com/apple/swift/issues/55745 deals with non-wrt `inout` which
+// we explicitly disallow now
+
 
 protocol P_55745 {
-  @differentiable(reverse, wrt: x)
+  @differentiable(reverse, wrt: (x, y))
   func method(_ x: Float, _ y: inout Float)
 
-  @differentiable(reverse, wrt: x)
+  @differentiable(reverse, wrt: (x, y))
   func genericMethod<T: Differentiable>(_ x: T, _ y: inout T)
 }
 
 InoutParameterAutoDiffTests.test("non-wrt inout parameter") {
   struct Struct: P_55745 {
-    @differentiable(reverse, wrt: x)
+    @differentiable(reverse, wrt: (x, y))
     func method(_ x: Float, _ y: inout Float) {
       y = y * x
     }
 
-    @differentiable(reverse, wrt: x)
+    @differentiable(reverse, wrt: (x, y))
     func genericMethod<T: Differentiable>(_ x: T, _ y: inout T) {
       y = x
     }

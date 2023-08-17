@@ -250,7 +250,7 @@ void SILGenFunction::emitLazyGlobalInitializer(PatternBindingDecl *binding,
   // Add unused context pointer argument required to pass to `Builtin.once`
   SILBasicBlock &entry = *F.begin();
 
-  if (shouldLowerToUnavailableCodeStub(binding))
+  if (binding->requiresUnavailableDeclABICompatibilityStubs())
     emitApplyOfUnavailableCodeReached();
 
   SILType rawPointerSILTy =
@@ -292,7 +292,7 @@ static void emitOnceCall(SILGenFunction &SGF, VarDecl *global,
 void SILGenFunction::emitGlobalAccessor(VarDecl *global,
                                         SILGlobalVariable *onceToken,
                                         SILFunction *onceFunc) {
-  if (shouldLowerToUnavailableCodeStub(global))
+  if (global->requiresUnavailableDeclABICompatibilityStubs())
     emitApplyOfUnavailableCodeReached();
 
   emitOnceCall(*this, global, onceToken, onceFunc);

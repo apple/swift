@@ -56,9 +56,9 @@ extension SourceManager {
 
     let detached: Node
     if let operatorTable = operatorTable {
-      detached = operatorTable.foldAll(node) { _ in }.as(Node.self)!.detach()
+      detached = operatorTable.foldAll(node) { _ in }.as(Node.self)!.detached
     } else {
-      detached = node.detach()
+      detached = node.detached
     }
 
     detachedNodes[Syntax(detached)] = (node.root, node.position.utf8Offset)

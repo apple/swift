@@ -1,0 +1,92 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -onone-simplification -simplify-instruction=pointer_to_address | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+class C {}
+
+// CHECK-LABEL: sil @remove_conversion :
+// CHECK-NOT:     address_to_pointer
+// CHECK-NOT:     pointer_to_address
+// CHECK:         [[L:%.*]] = load %0
+// CHECK:         return [[L]]
+// CHECK:       } // end sil function 'remove_conversion'
+sil @remove_conversion : $@convention(thin) (@in Int) -> Int {
+bb0(%0 : $*Int):
+  %1 = address_to_pointer %0 : $*Int to $Builtin.RawPointer
+  %2 = pointer_to_address %1 : $Builtin.RawPointer to [strict] $*Int
+  %3 = load %2 : $*Int
+  return %3 : $Int
+}
+
+// CHECK-LABEL: sil @mismatching_type :
+// CHECK:         address_to_pointer
+// CHECK:         [[A:%.*]] = pointer_to_address
+// CHECK:         [[L:%.*]] = load [[A]]
+// CHECK:         return [[L]]
+// CHECK:       } // end sil function 'mismatching_type'
+sil @mismatching_type : $@convention(thin) (@in Int) -> Bool {
+bb0(%0 : $*Int):
+  %1 = address_to_pointer %0 : $*Int to $Builtin.RawPointer
+  %2 = pointer_to_address %1 : $Builtin.RawPointer to [strict] $*Bool
+  %3 = load %2 : $*Bool
+  return %3 : $Bool
+}
+
+// CHECK-LABEL: sil @no_strict :
+// CHECK:         address_to_pointer
+// CHECK:         [[A:%.*]] = pointer_to_address
+// CHECK:         [[L:%.*]] = load [[A]]
+// CHECK:         return [[L]]
+// CHECK:       } // end sil function 'no_strict'
+sil @no_strict : $@convention(thin) (@in Int) -> Int {
+bb0(%0 : $*Int):
+  %1 = address_to_pointer %0 : $*Int to $Builtin.RawPointer
+  %2 = pointer_to_address %1 : $Builtin.RawPointer to $*Int
+  %3 = load %2 : $*Int
+  return %3 : $Int
+}
+
+// CHECK-LABEL: sil [ossa] @borrow_escape :
+// CHECK:         address_to_pointer
+// CHECK:         [[A:%.*]] = pointer_to_address
+// CHECK:         [[L:%.*]] = load [trivial] [[A]]
+// CHECK:         return [[L]]
+// CHECK:       } // end sil function 'borrow_escape'
+sil [ossa] @borrow_escape : $@convention(thin) (@guaranteed C) -> Int {
+bb0(%0 : @guaranteed $C):
+  %1 = begin_borrow %0 : $C
+  %2 = ref_tail_addr %1: $C, $Int
+  %3 = address_to_pointer %2 : $*Int to $Builtin.RawPointer
+  end_borrow %1 : $C
+  %5 = pointer_to_address %3 : $Builtin.RawPointer to [strict] $*Int
+  %6 = load [trivial] %5 : $*Int
+  return %6 : $Int
+}
+
+sil @createC : $@convention(thin) () -> @owned C
+
+// CHECK-LABEL: sil @non_ossa_local_ownership :
+// CHECK:         [[A:%.*]] = ref_tail_addr
+// CHECK-NOT:     address_to_pointer
+// CHECK-NOT:     pointer_to_address
+// CHECK:         [[L:%.*]] = load [[A]]
+// CHECK:         return [[L]]
+// CHECK:       } // end sil function 'non_ossa_local_ownership'
+sil @non_ossa_local_ownership : $@convention(thin) () -> Int {
+bb0:
+  %f = function_ref @createC : $@convention(thin) () -> @owned C
+  %0 = apply %f() : $@convention(thin) () -> @owned C
+  %2 = ref_tail_addr %0: $C, $Int
+  %3 = address_to_pointer %2 : $*Int to $Builtin.RawPointer
+  %5 = pointer_to_address %3 : $Builtin.RawPointer to [strict] $*Int
+  %6 = load %5 : $*Int
+  strong_release %0 : $C
+  return %6 : $Int
+}
+

@@ -32,6 +32,3 @@ public func run() {
   }
   test(&p, size: size)
 }
-
-run()
-

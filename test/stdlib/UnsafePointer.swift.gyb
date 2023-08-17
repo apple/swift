@@ -537,6 +537,7 @@ ${SelfName}TestSuite.test("pointer(to:)") {
 % end
 }
 
+#if !os(WASI)
 ${SelfName}TestSuite.test("pointer(to:).overflow") {
   struct Example {
     var a = false
@@ -558,6 +559,7 @@ ${SelfName}TestSuite.test("pointer(to:).overflow") {
   let doublePointer = p.pointer(to: \.d)
   expectNotNil(doublePointer)
 }
+#endif
 
 % end
 

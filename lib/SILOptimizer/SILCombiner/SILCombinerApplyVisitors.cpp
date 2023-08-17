@@ -362,7 +362,7 @@ bool SILCombiner::tryOptimizeKeypathOffsetOf(ApplyInst *AI,
       // generate an undef offset for struct_element_addr of C tail-allocated
       // arrays.
       VarDecl *propDecl = component.getStoredPropertyDecl();
-      if (propDecl->hasClangNode() && propDecl->getType()->isVoid())
+      if (propDecl->hasClangNode() && propDecl->getInterfaceType()->isVoid())
         return false;
 
       if (!parentTy.getStructOrBoundGenericStruct())
@@ -418,7 +418,7 @@ bool SILCombiner::tryOptimizeKeypathOffsetOf(ApplyInst *AI,
     if (!intDecl || intDecl->getStoredProperties().size() != 1)
       return false;
     VarDecl *member = intDecl->getStoredProperties()[0];
-    CanType builtinIntTy = member->getType()->getCanonicalType();
+    CanType builtinIntTy = member->getInterfaceType()->getCanonicalType();
     if (!isa<BuiltinIntegerType>(builtinIntTy))
       return false;
 

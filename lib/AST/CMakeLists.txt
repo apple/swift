@@ -128,7 +128,7 @@ add_swift_host_library(swiftAST STATIC
   )
 
 if(SWIFT_FORCE_OPTIMIZED_TYPECHECKER)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL MSVC)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
     target_compile_options(swiftAST PRIVATE /O2 /Ob2)
   else()
     target_compile_options(swiftAST PRIVATE -O3)
@@ -165,12 +165,5 @@ endif()
 target_link_libraries(swiftAST
   PUBLIC swiftBasic
   PRIVATE swiftMarkup)
-
-# intrinsics_gen is the LLVM tablegen target that generates the include files
-# where intrinsics and attributes are declared. swiftAST depends on these
-# headers.
-# For more information see the comment at the top of lib/CMakeLists.txt.
-add_dependencies(swift-ast-generated-headers intrinsics_gen clang-tablegen-targets)
-add_dependencies(swiftAST swift-ast-generated-headers)
 
 set_swift_llvm_is_available(swiftAST)

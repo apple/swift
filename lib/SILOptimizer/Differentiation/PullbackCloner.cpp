@@ -864,6 +864,7 @@ public:
   ///    Adjoint: (adj[x0], adj[x1], ...) += apply @fn_pullback (adj[y0], ...)
   void visitApplyInst(ApplyInst *ai) {
     assert(getPullbackInfo().shouldDifferentiateApplySite(ai));
+
     // Skip `array.uninitialized_intrinsic` applications, which have special
     // `store` and `copy_addr` support.
     if (ArraySemanticsCall(ai, semantics::ARRAY_UNINITIALIZED_INTRINSIC))
@@ -901,11 +902,11 @@ public:
     });
     SmallVector<SILValue, 8> origAllResults;
     collectAllActualResultsInTypeOrder(ai, origDirectResults, origAllResults);
-    // Append `inout` arguments after original results.
+    // Append semantic result arguments after original results.
     for (auto paramIdx : applyInfo.config.parameterIndices->getIndices()) {
       auto paramInfo = ai->getSubstCalleeConv().getParamInfoForSILArg(
           ai->getNumIndirectResults() + paramIdx);
-      if (!paramInfo.isIndirectMutating())
+      if (!paramInfo.isAutoDiffSemanticResult())
         continue;
       origAllResults.push_back(
           ai->getArgumentsWithoutIndirectResults()[paramIdx]);
@@ -981,10 +982,10 @@ public:
     auto allResultsIt = allResults.begin();
     for (unsigned i : applyInfo.config.parameterIndices->getIndices()) {
       auto origArg = ai->getArgument(ai->getNumIndirectResults() + i);
-      // Skip adjoint accumulation for `inout` arguments.
+      // Skip adjoint accumulation for semantic results arguments.
       auto paramInfo = ai->getSubstCalleeConv().getParamInfoForSILArg(
           ai->getNumIndirectResults() + i);
-      if (paramInfo.isIndirectMutating())
+      if (paramInfo.isAutoDiffSemanticResult())
         continue;
       auto tan = *allResultsIt++;
       if (tan->getType().isAddress()) {
@@ -1175,7 +1176,7 @@ public:
           } else {
             auto substMap = tangentVectorTy->getMemberSubstitutionMap(
                 field->getModuleContext(), field);
-            auto fieldTy = field->getType().subst(substMap);
+            auto fieldTy = field->getInterfaceType().subst(substMap);
             auto fieldSILTy = getTypeLowering(fieldTy).getLoweredType();
             assert(fieldSILTy.isObject());
             eltVals.push_back(makeZeroAdjointValue(fieldSILTy));
@@ -1251,7 +1252,7 @@ public:
         } else {
           auto substMap = tangentVectorTy->getMemberSubstitutionMap(
               field->getModuleContext(), field);
-          auto fieldTy = field->getType().subst(substMap);
+          auto fieldTy = field->getInterfaceType().subst(substMap);
           auto fieldSILTy = getTypeLowering(fieldTy).getLoweredType();
           assert(fieldSILTy.isObject());
           eltVals.push_back(makeZeroAdjointValue(fieldSILTy));
@@ -2036,6 +2037,7 @@ bool PullbackCloner::Implementation::run() {
       // the adjoint buffer of the original result.
       auto seedParamInfo =
           pullback.getLoweredFunctionType()->getParameters()[seedIndex];
+
       if (seedParamInfo.isIndirectInOut()) {
         setAdjointBuffer(originalExitBlock, origResult, seed);
       }
@@ -2123,7 +2125,7 @@ bool PullbackCloner::Implementation::run() {
   // Collect differentiation parameter adjoints.
   // Do a first pass to collect non-inout values.
   for (auto i : getConfig().parameterIndices->getIndices()) {
-    if (!conv.getParameters()[i].isIndirectMutating()) {
+    if (!conv.getParameters()[i].isAutoDiffSemanticResult()) {
        addRetElt(i);
      }
   }
@@ -2136,14 +2138,14 @@ bool PullbackCloner::Implementation::run() {
     const auto &pullbackConv = pullback.getConventions();
     SmallVector<SILArgument *, 1> pullbackInOutArgs;
     for (auto pullbackArg : enumerate(pullback.getArgumentsWithoutIndirectResults())) {
-      if (pullbackConv.getParameters()[pullbackArg.index()].isIndirectMutating())
+      if (pullbackConv.getParameters()[pullbackArg.index()].isAutoDiffSemanticResult())
         pullbackInOutArgs.push_back(pullbackArg.value());
     }
 
     unsigned pullbackInoutArgumentIdx = 0;
     for (auto i : getConfig().parameterIndices->getIndices()) {
       // Skip non-inout parameters.
-      if (!conv.getParameters()[i].isIndirectMutating())
+      if (!conv.getParameters()[i].isAutoDiffSemanticResult())
         continue;
 
       // For functions with multiple basic blocks, accumulation is needed
@@ -2698,7 +2700,7 @@ bool PullbackCloner::Implementation::runForSemanticMemberGetter() {
         } else {
           auto substMap = tangentVectorTy->getMemberSubstitutionMap(
               field->getModuleContext(), field);
-          auto fieldTy = field->getType().subst(substMap);
+          auto fieldTy = field->getInterfaceType().subst(substMap);
           auto fieldSILTy = getTypeLowering(fieldTy).getLoweredType();
           assert(fieldSILTy.isObject());
           eltVals.push_back(makeZeroAdjointValue(fieldSILTy));

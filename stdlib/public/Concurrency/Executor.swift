@@ -89,8 +89,8 @@ public protocol SerialExecutor: Executor {
   ///
   /// This check is not used when performing executor switching.
   ///
-  /// This check is used when performing `preconditionTaskOnActorExecutor`, `preconditionTaskOnActorExecutor`,
-  /// `assumeOnActorExecutor` and similar APIs which assert about the same "exclusive serial execution context".
+  /// This check is used when performing ``Actor/assertIsolated()``, ``Actor/preconditionIsolated()``,
+  /// ``Actor/assumeIsolated()`` and similar APIs which assert about the same "exclusive serial execution context".
   ///
   /// - Parameter other: the executor to compare with.
   /// - Returns: true, if `self` and the `other` executor actually are mutually exclusive

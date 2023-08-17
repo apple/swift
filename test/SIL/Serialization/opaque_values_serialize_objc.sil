@@ -1,0 +1,30 @@
+// First parse this and then emit a *.sib. Then read in the *.sib, then recreate
+// RUN: %empty-directory(%t)
+// FIXME: <rdar://problem/29281364> sil-opt -verify is broken
+// RUN: %target-sil-opt %s -enable-sil-opaque-values -emit-sib -o %t/tmp.sib -module-name opaqueval
+// RUN: %target-sil-opt %t/tmp.sib -enable-sil-opaque-values -verify -o %t/tmp.2.sib -module-name opaqueval
+// RUN: %target-sil-opt %t/tmp.2.sib -enable-sil-opaque-values -emit-sorted-sil -verify -module-name opaqueval | %FileCheck %s
+
+// REQUIRES: objc_interop
+
+sil_stage raw
+
+import Builtin
+import Swift
+
+struct UnownedBox<T : AnyObject> {
+  unowned var value: T
+}
+
+// CHECK-LABEL: sil [ossa] @test_unowned_copy_value : {{.*}} {
+// CHECK:       bb0([[VALUE:%[^,]+]] :
+// CHECK:         unowned_copy_value [[VALUE]]
+// CHECK-LABEL: } // end sil function 'test_unowned_copy_value'
+sil [ossa] @test_unowned_copy_value : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T> {
+bb0(%owned_value : @owned $T):
+  %unowned_value = unowned_copy_value %owned_value : $T
+  destroy_value %owned_value : $T
+  %instance = struct $UnownedBox<T> (%unowned_value : $@sil_unowned T)
+  return %instance : $UnownedBox<T>
+}
+

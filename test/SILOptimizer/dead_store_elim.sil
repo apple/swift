@@ -1,4 +1,5 @@
 // RUN: %target-sil-opt %s -dead-store-elimination -enable-sil-verify-all | %FileCheck %s
+// RUN: %target-sil-opt %s -compute-side-effects -dead-store-elimination -enable-sil-verify-all | %FileCheck %s --check-prefix=CHECK-SEA-DSE
 
 // REQUIRES: swift_in_compiler
 
@@ -1612,4 +1613,50 @@ bb0(%0 : $Int, %1 : @owned $IntAndFoo, %2 : $*IntAndFoo):
   store %1 to [assign] %2 : $*IntAndFoo
   %r = tuple ()
   return %r : $()
+}
+
+// CHECK-LABEL: sil @test_bind_memory  :
+// CHECK:         store %0
+// CHECK:       end sil function 'test_bind_memory'
+sil @test_bind_memory : $@convention(thin) (UInt64, Builtin.Word) -> Builtin.Int8 {
+bb0(%0 : $UInt64, %1 : $Builtin.Word):
+  %35 = alloc_stack $(UInt64, UInt64)
+  %36 = tuple_element_addr %35 : $*(UInt64, UInt64), 0
+  store %0 to %36 : $*UInt64
+  %50 = address_to_pointer %35 : $*(UInt64, UInt64) to $Builtin.RawPointer
+  %52 = bind_memory %50 : $Builtin.RawPointer, %1 : $Builtin.Word to $*UInt8
+  %72 = pointer_to_address %50 : $Builtin.RawPointer to [strict] $*UInt8
+  %75 = struct_element_addr %72 : $*UInt8, #UInt8._value
+  %76 = load %75 : $*Builtin.Int8
+  dealloc_stack %35 : $*(UInt64, UInt64)
+  return %76 : $Builtin.Int8
+}
+
+class Klass {}
+
+sil @klassClosure : $@convention(thin) (@in_guaranteed Klass) -> ()
+
+sil @test_pa_without_apply : $@convention(thin) (@in Klass) -> @callee_guaranteed () -> () {
+bb0(%0 : $*Klass):
+  %3 = function_ref @klassClosure : $@convention(thin) (@in_guaranteed Klass) -> ()
+  %4 = partial_apply [callee_guaranteed] %3(%0) : $@convention(thin) (@in_guaranteed Klass) -> ()
+  return %4 : $@callee_guaranteed ()  -> ()
+}
+
+// CHECK-SEA-DSE: sil @dont_dead_store_capture :
+// CHECK-SEA-DSE: store
+// CHECK-SEA-DSE: } // end sil function 'dont_dead_store_capture'
+sil @dont_dead_store_capture : $@convention(thin) (@in_guaranteed (Klass, Klass)) -> () {
+bb0(%0 : $*(Klass, Klass)):
+  %ele = tuple_element_addr %0 : $*(Klass, Klass), 1
+  %1 = load %ele : $*Klass
+  %3 = alloc_stack $Klass
+  store %1 to %3 : $*Klass
+  strong_retain %1 : $Klass
+  %4 = function_ref @test_pa_without_apply : $@convention(thin) (@in Klass) -> @callee_guaranteed () -> ()
+  %5 = apply %4(%3) : $@convention(thin) (@in Klass) -> @callee_guaranteed () -> ()
+  %6 = apply %5() : $@callee_guaranteed () -> ()
+  dealloc_stack %3 : $*Klass
+  %7 = tuple ()
+  return %7 : $()
 }

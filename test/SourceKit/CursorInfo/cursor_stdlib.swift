@@ -21,6 +21,19 @@ func foo2(_ a : inout [S1]) {
 import Swift
 func foo3(a: Float, b: Bool) {}
 
+struct MyColor: _ExpressibleByColorLiteral {
+    init(_colorLiteralRed: Float, green: Float, blue: Float, alpha: Float) { red = colorLiteralRed }
+    var red: Float
+}
+public typealias _ColorLiteralType = MyColor
+let colorResource = #colorLiteral(red: 0.8549019694, green: 0.250980407, blue: 0.4784313738, alpha: 1)
+
+let arrLiteral = [1, 2, 3]
+let arrNonConst = [1, 2, d]
+
+let dictLiteral = [1:2, 3:4]
+let dictNonCost = [1:2, 3:d]
+
 // REQUIRES: objc_interop
 
 // RUN: %empty-directory(%t)
@@ -222,3 +235,58 @@ func foo3(a: Float, b: Bool) {}
 
 // RUN: %sourcekitd-test -req=cursor -pos=22:25 %s -- %s -target %target-triple %clang-importer-sdk-nosource -I %t | %FileCheck -check-prefix=CHECK-BOOL1 %s
 // CHECK-BOOL1: s:Sb
+
+// RUN: %sourcekitd-test -req=cursor -pos=29:29 %s -- %s -target %target-triple %clang-importer-sdk-nosource -I %t | %FileCheck -check-prefix=CHECK-OBJ-LITERAL %s
+// CHECK-OBJ-LITERAL: source.lang.swift.ref.struct (24:8-24:15)
+// CHECK-OBJ-LITERAL-NEXT: MyColor
+// CHECK-OBJ-LITERAL-NEXT: s:13cursor_stdlib7MyColorV
+// CHECK-OBJ-LITERAL-NEXT: source.lang.swift
+// CHECK-OBJ-LITERAL-NEXT: MyColor.Type
+// CHECK-OBJ-LITERAL-NEXT: $s13cursor_stdlib7MyColorVmD
+// CHECK-OBJ-LITERAL-NEXT: cursor_stdlib
+// CHECK-OBJ-LITERAL-NEXT: <Declaration>struct MyColor : <Type usr="s:s26_ExpressibleByColorLiteralP">_ExpressibleByColorLiteral</Type></Declaration>
+// CHECK-OBJ-LITERAL-NEXT: <decl.struct><syntaxtype.keyword>struct</syntaxtype.keyword> <decl.name>MyColor</decl.name> : <ref.protocol usr="s:s26_ExpressibleByColorLiteralP">_ExpressibleByColorLiteral</ref.protocol></decl.struct>
+
+// RUN: %sourcekitd-test -req=cursor -pos=31:18 %s -- %s -target %target-triple %clang-importer-sdk-nosource -I %t | %FileCheck -check-prefix=CHECK-ARRAY1 %s
+// CHECK-ARRAY1: source.lang.swift.ref.function.constructor
+// CHECK-ARRAY1-NEXT: init(arrayLiteral:)
+// CHECK-ARRAY1-NEXT: s:Sa12arrayLiteralSayxGxd_tcfc
+// CHECK-ARRAY1-NEXT: source.lang.swift
+// CHECK-ARRAY1-NEXT: <Element> (Array<Element>.Type) -> (Element...) -> Array<Element>
+// CHECK-ARRAY1-NEXT: $s12arrayLiteralSayxGxd_tcD
+// CHECK-ARRAY1-NEXT: Swift
+// CHECK-ARRAY1-NEXT: <Group>Collection/Array</Group>
+// CHECK-ARRAY1-NEXT: SYSTEM
+
+// RUN: %sourcekitd-test -req=cursor -pos=32:19 %s -- %s -target %target-triple %clang-importer-sdk-nosource -I %t | %FileCheck -check-prefix=CHECK-ARRAY2 %s
+// CHECK-ARRAY2: source.lang.swift.ref.function.constructor
+// CHECK-ARRAY2-NEXT: init(arrayLiteral:)
+// CHECK-ARRAY2-NEXT: s:Sa12arrayLiteralSayxGxd_tcfc
+// CHECK-ARRAY2-NEXT: source.lang.swift
+// CHECK-ARRAY2-NEXT: <Element> (Array<Element>.Type) -> (Element...) -> Array<Element>
+// CHECK-ARRAY2-NEXT: $s12arrayLiteralSayxGxd_tcD
+// CHECK-ARRAY2-NEXT: Swift
+// CHECK-ARRAY2-NEXT: <Group>Collection/Array</Group>
+// CHECK-ARRAY2-NEXT: SYSTEM
+
+// RUN: %sourcekitd-test -req=cursor -pos=34:19 %s -- %s -target %target-triple %clang-importer-sdk-nosource -I %t | %FileCheck -check-prefix=CHECK-DICT1 %s
+// CHECK-DICT1: source.lang.swift.ref.function.constructor
+// CHECK-DICT1-NEXT: init(dictionaryLiteral:)
+// CHECK-DICT1-NEXT: s:SD17dictionaryLiteralSDyxq_Gx_q_td_tcfc
+// CHECK-DICT1-NEXT: source.lang.swift
+// CHECK-DICT1-NEXT: <Key, Value where Key : Hashable> (Dictionary<Key, Value>.Type) -> ((Key, Value)...) -> Dictionary<Key, Value>
+// CHECK-DICT1-NEXT: $s17dictionaryLiteralSDyxq_Gx_q_td_tcD
+// CHECK-DICT1-NEXT: Swift
+// CHECK-DICT1-NEXT: <Group>Collection/HashedCollections</Group>
+// CHECK-DICT1-NEXT: SYSTEM
+
+// RUN: %sourcekitd-test -req=cursor -pos=35:19 %s -- %s -target %target-triple %clang-importer-sdk-nosource -I %t | %FileCheck -check-prefix=CHECK-DICT2 %s
+// CHECK-DICT2: source.lang.swift.ref.function.constructor
+// CHECK-DICT2-NEXT: init(dictionaryLiteral:)
+// CHECK-DICT2-NEXT: s:SD17dictionaryLiteralSDyxq_Gx_q_td_tcfc
+// CHECK-DICT2-NEXT: source.lang.swift
+// CHECK-DICT2-NEXT: <Key, Value where Key : Hashable> (Dictionary<Key, Value>.Type) -> ((Key, Value)...) -> Dictionary<Key, Value>
+// CHECK-DICT2-NEXT: $s17dictionaryLiteralSDyxq_Gx_q_td_tcD
+// CHECK-DICT2-NEXT: Swift
+// CHECK-DICT2-NEXT: <Group>Collection/HashedCollections</Group>
+// CHECK-DICT2-NEXT: SYSTEM

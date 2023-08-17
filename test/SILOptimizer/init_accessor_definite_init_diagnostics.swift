@@ -1,6 +1,4 @@
-// RUN: %target-swift-frontend -enable-experimental-feature InitAccessors -enable-copy-propagation=requested-passes-only -emit-sil -primary-file %s -o /dev/null -verify
-
-// REQUIRES: asserts
+// RUN: %target-swift-frontend -enable-copy-propagation=requested-passes-only -emit-sil -primary-file %s -o /dev/null -verify
 
 struct Test1 {
   var x: Int // expected-note {{variable defined here}}
@@ -244,6 +242,29 @@ do {
       self.a = v
       self.a = v // expected-error {{immutable value 'a' may only be initialized once}}
       self.b = v
+    }
+  }
+}
+
+do {
+  class Entity {
+    var _age: Int
+    var age: Int = 0 {
+      @storageRestrictions(initializes: _age)
+      init { _age = newValue }
+      get { _age }
+      set { _age = newValue }
+    }
+  }
+
+  class Person : Entity {
+    init(age: Int) {
+      self.age = age // expected-error {{'self' used in property access 'age' before 'super.init' call}}
+    }
+
+    init(otherAge: Int) {
+      super.init()
+      self.age = otherAge // Ok
     }
   }
 }

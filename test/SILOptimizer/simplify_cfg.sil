@@ -1115,8 +1115,8 @@ sil @redundant_checked_cast_br : $@convention(method) (@guaranteed Base) -> () {
 bb0(%0 : $Base):
 // CHECK: [[METHOD:%.*]] = class_method %0 : $Base, #Base.middle : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
   %1 = class_method %0 : $Base, #Base.middle : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
-// CHECK: checked_cast_br [exact] %0 : $Base to Base, [[SUCCESS:bb[0-9]+]], [[FAIL:bb[0-9]+]]
-  checked_cast_br [exact] %0 : $Base to Base, bb2, bb7
+// CHECK: checked_cast_br [exact] Base in %0 : $Base to Base, [[SUCCESS:bb[0-9]+]], [[FAIL:bb[0-9]+]]
+  checked_cast_br [exact] Base in %0 : $Base to Base, bb2, bb7
 
 // CHECK: bb1
 bb1:
@@ -1127,7 +1127,7 @@ bb2(%5 : $Base):
 // CHECK: [[SUCCESS]]
   %7 = class_method %0 : $Base, #Base.inner : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
 // CHECK-NOT: checked_cast_br
-  checked_cast_br [exact] %0 : $Base to Base, bb3, bb5
+  checked_cast_br [exact] Base in %0 : $Base to Base, bb3, bb5
 // CHECK: [[INNER:%.*]] = function_ref @_TFC3ccb4Base5innerfS0_FT_T_ : $@convention(method) (@guaranteed Base) -> ()
 // CHECK: apply [[INNER]]
 // CHECK: br bb1
@@ -1163,8 +1163,8 @@ sil @not_redundant_checked_cast_br : $@convention(method) (@guaranteed Base) -> 
 bb0(%0 : $Base):
 // CHECK: [[METHOD:%.*]] = class_method %0 : $Base, #Base.middle : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
   %1 = class_method %0 : $Base, #Base.middle : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
-// CHECK: checked_cast_br [exact] %0 : $Base to Base, [[SUCCESS:bb[0-9]+]], [[FAIL:bb[0-9]+]]
-  checked_cast_br [exact] %0 : $Base to Base, bb2, bb7
+// CHECK: checked_cast_br [exact] Base in %0 : $Base to Base, [[SUCCESS:bb[0-9]+]], [[FAIL:bb[0-9]+]]
+  checked_cast_br [exact] Base in %0 : $Base to Base, bb2, bb7
 
 // CHECK: bb1:
 // CHECK: tuple ()
@@ -1199,8 +1199,8 @@ bb6(%17 : $()):
   br bb1
 
 bb7:
-// CHECK: checked_cast_br [exact] %0 : $Base to Derived
-  checked_cast_br [exact] %0 : $Base to Derived, bb3, bb5
+// CHECK: checked_cast_br [exact] Base in %0 : $Base to Derived
+  checked_cast_br [exact] Base in %0 : $Base to Derived, bb3, bb5
 }
 
 // CHECK-LABEL: sil @failing_checked_cast_br
@@ -1208,8 +1208,8 @@ sil @failing_checked_cast_br : $@convention(method) (@guaranteed Base) -> () {
 bb0(%0 : $Base):
 // CHECK: [[METHOD:%.*]] = class_method %0 : $Base, #Base.middle : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
   %1 = class_method %0 : $Base, #Base.middle : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
-// CHECK: checked_cast_br [exact] %0 : $Base to Base, [[SUCCESS:bb[0-9]+]], [[FAIL:bb[0-9]+]]
-  checked_cast_br [exact] %0 : $Base to Base, bb2, bb7
+// CHECK: checked_cast_br [exact] Base in %0 : $Base to Base, [[SUCCESS:bb[0-9]+]], [[FAIL:bb[0-9]+]]
+  checked_cast_br [exact] Base in %0 : $Base to Base, bb2, bb7
 
 // CHECK-LABEL: bb1
 bb1:
@@ -1220,13 +1220,13 @@ bb2(%5 : $Base):
 // CHECK: [[SUCCESS]]
 // CHECK: [[METHOD2:%.*]] = class_method %0 : $Base, #Base.inner : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
   %7 = class_method %0 : $Base, #Base.inner : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
-// CHECK-NOT: checked_cast_br [exact] %0 : $Base to Derived
+// CHECK-NOT: checked_cast_br [exact] Base in %0 : $Base to Derived
 // CHECK: apply [[METHOD2]]
 // Check that checked_cast_br [exact] was replaced by a branch to the failure BB of the checked_cast_br.
 // This is because bb2 is reached via the success branch of the checked_cast_br [exact] from bb0.
 // It means that the exact dynamic type of %0 is $Base. Thus it cannot be $Derived.
 // CHECK: br bb1
-  checked_cast_br [exact] %5 : $Base to Derived, bb3, bb5
+  checked_cast_br [exact] Base in %5 : $Base to Derived, bb3, bb5
 
 bb3(%9 : $Derived):
   %10 = function_ref @_TFC3ccb4Base5innerfS0_FT_T_ : $@convention(method) (@guaranteed Base) -> ()
@@ -1263,7 +1263,7 @@ sil @no_checked_cast_br_threading_with_alloc_ref_stack : $@convention(method) (@
 bb0(%0 : $Base):
   %fu = function_ref @unknown : $@convention(thin) () -> ()
   %fu2 = function_ref @unknown2 : $@convention(thin) () -> ()
-  checked_cast_br [exact] %0 : $Base to Base, bb1, bb2
+  checked_cast_br [exact] Base in %0 : $Base to Base, bb1, bb2
 
 bb1(%1 : $Base):
   apply %fu() : $@convention(thin) () -> ()
@@ -1275,7 +1275,7 @@ bb2:
 
 bb3:
   %a = alloc_ref [stack] $Base
-  checked_cast_br [exact] %0 : $Base to Base, bb4, bb5
+  checked_cast_br [exact] Base in %0 : $Base to Base, bb4, bb5
 
 bb4(%2 : $Base):
   apply %fu() : $@convention(thin) () -> ()
@@ -1720,7 +1720,7 @@ class E : B {}
 sil @checked_cast_anyobject_metatypeinst_to_class : $@convention(thin)() -> () {
 bb0:
   %0 = metatype $@thick AnyObject.Protocol
-  checked_cast_br %0 : $@thick AnyObject.Protocol to B.Type, bb1, bb2
+  checked_cast_br AnyObject.Protocol in %0 : $@thick AnyObject.Protocol to B.Type, bb1, bb2
 
 bb1(%3 : $@thick B.Type):
   br bb3
@@ -2095,7 +2095,7 @@ bb3(%a3 : $Builtin.Int1):
 sil @successful_checked_cast_br_on_alloc_ref : $() -> Builtin.Int32 {
 bb0:
   %1 = alloc_ref $B
-  checked_cast_br [exact] %1 : $B to B, bb1, bb2
+  checked_cast_br [exact] B in %1 : $B to B, bb1, bb2
 
 bb1(%2 : $B):
   %3 = integer_literal $Builtin.Int32, 1
@@ -2122,7 +2122,7 @@ sil @failing_checked_cast_br_on_alloc_ref : $() -> Builtin.Int32 {
 bb0:
   %1 = alloc_ref $E
   %2 = upcast %1 : $E to $B
-  checked_cast_br [exact] %2 : $B to B, bb1, bb2
+  checked_cast_br [exact] B in %2 : $B to B, bb1, bb2
 
 bb1(%3 : $B):
   %4 = integer_literal $Builtin.Int32, 1
@@ -3186,7 +3186,7 @@ bb1:
 
 
 bb2(%18 : $Base):
-  checked_cast_br %18 : $Base to Derived, bb3, bb4
+  checked_cast_br Base in %18 : $Base to Derived, bb3, bb4
 
 bb3(%21 : $Derived):
   %22 = integer_literal $Builtin.Int1, -1
@@ -3201,7 +3201,7 @@ bb5(%26 : $Builtin.Int1):
   cond_br %26, bb6, bb19
 
 bb6:
-  checked_cast_br %18 : $Base to Derived, bb7, bb8
+  checked_cast_br Base in %18 : $Base to Derived, bb7, bb8
 
 
 bb7(%29 : $Derived):
@@ -3221,7 +3221,7 @@ bb10(%36 : $Derived):
   br bb11
 
 bb11:
-  checked_cast_br %18 : $Base to Derived, bb12, bb13
+  checked_cast_br Base in %18 : $Base to Derived, bb12, bb13
 
 
 bb12(%43 : $Derived):

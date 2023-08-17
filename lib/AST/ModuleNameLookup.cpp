@@ -78,7 +78,7 @@ public:
       lookupKind(lookupKind) {}
 
 private:
-  /// Returns whether it's okay to stop recursively searching imports, given 
+  /// Returns whether it's okay to stop recursively searching imports, given
   /// that we found something non-overloadable.
   static bool canReturnEarly() {
     return true;
@@ -161,6 +161,8 @@ void ModuleNameLookup<LookupStrategy>::lookupInModule(
       decls.begin() + currentCount, decls.end(),
       [&](ValueDecl *VD) {
         if (resolutionKind == ResolutionKind::TypesOnly && !isa<TypeDecl>(VD))
+          return true;
+        if (resolutionKind == ResolutionKind::MacrosOnly && !isa<MacroDecl>(VD))
           return true;
         if (respectAccessControl &&
             !VD->isAccessibleFrom(moduleScopeContext, false,
@@ -310,6 +312,9 @@ void namelookup::simple_display(llvm::raw_ostream &out, ResolutionKind kind) {
     return;
   case ResolutionKind::TypesOnly:
     out << "TypesOnly";
+    return;
+  case ResolutionKind::MacrosOnly:
+    out << "MacrosOnly";
     return;
   }
   llvm_unreachable("Unhandled case in switch");

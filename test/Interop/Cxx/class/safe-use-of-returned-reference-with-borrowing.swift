@@ -8,6 +8,8 @@
 // aborrowed value.
 // RUN: %target-swift-frontend -DBORROW_PASS_TO_VALUE_PARAM -emit-ir -o /dev/null -I %t %t/test.swift -enable-experimental-cxx-interop -verify
 
+// REQUIRES: rdar111065819
+
 //--- Inputs/module.modulemap
 module CxxTest {
     header "test.h"

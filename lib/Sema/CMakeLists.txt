@@ -67,7 +67,6 @@ add_swift_host_library(swiftSema STATIC
   TypeCheckProtocolInference.cpp
   TypeCheckRegex.cpp
   TypeCheckRequestFunctions.cpp
-  TypeCheckRuntimeMetadataAttr.cpp
   TypeCheckStmt.cpp
   TypeCheckStorage.cpp
   TypeCheckSwitchStmt.cpp
@@ -75,7 +74,7 @@ add_swift_host_library(swiftSema STATIC
   TypeChecker.cpp
   IDETypeCheckingRequests.cpp)
 if(SWIFT_FORCE_OPTIMIZED_TYPECHECKER)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL MSVC)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")
     target_compile_options(swiftSema PRIVATE /O2 /Ob2)
   else()
     target_compile_options(swiftSema PRIVATE -O3)

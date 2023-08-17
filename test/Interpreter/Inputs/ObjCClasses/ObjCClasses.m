@@ -191,3 +191,9 @@ static unsigned counter = 0;
 }
 
 @end
+
+@implementation ObjCPrintOnDealloc
+- (void)dealloc {
+  printf("ObjCPrintOnDealloc deinitialized!\n");
+}
+@end

@@ -1,7 +1,6 @@
 // RUN: %target-run-simple-swift(-I %S/Inputs -Xfrontend -enable-experimental-cxx-interop)
 //
 // REQUIRES: executable_test
-// REQUIRES: OS=macosx || OS=linux-gnu
 
 import StdlibUnittest
 import CustomSequence
@@ -57,6 +56,24 @@ CxxSequenceTestSuite.test("SimpleSequence.forEach") {
     array.append($0)
   }
   expectEqual([1, 2, 3, 4] as [Int32], array)
+}
+
+CxxSequenceTestSuite.test("HasInheritedConstIterator to Swift.Array") {
+  let seq = HasInheritedConstIterator()
+  let array = Array(seq)
+  expectEqual([1, 2, 3, 4, 5] as [Int32], array)
+}
+
+CxxSequenceTestSuite.test("HasInheritedTemplatedConstIterator to Swift.Array") {
+  let seq = HasInheritedTemplatedConstIteratorInt()
+  let array = Array(seq)
+  expectEqual([1, 2, 3, 4, 5, 6] as [Int32], array)
+}
+
+CxxSequenceTestSuite.test("HasInputOutputConstIterator to Swift.Array") {
+  let seq = HasInputOutputConstIterator()
+  let array = Array(seq)
+  expectEqual([5, 4, 3, 2, 1] as [Int32], array)
 }
 
 runAllTests()

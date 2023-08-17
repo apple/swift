@@ -117,7 +117,7 @@ static llvm::Optional<unsigned> scoreParamAndArgNameTypo(StringRef paramName,
   return dist;
 }
 
-static bool isPackExpansionType(Type type) {
+bool constraints::isPackExpansionType(Type type) {
   if (type->is<PackExpansionType>())
     return true;
 
@@ -135,21 +135,30 @@ bool constraints::isSingleUnlabeledPackExpansionTuple(Type type) {
 }
 
 Type constraints::getPatternTypeOfSingleUnlabeledPackExpansionTuple(Type type) {
-  if (!isSingleUnlabeledPackExpansionTuple(type)) {
-    return {};
+  if (isSingleUnlabeledPackExpansionTuple(type)) {
+    auto tuple = type->getRValueType()->castTo<TupleType>();
+    const auto &tupleElement = tuple->getElementType(0);
+    if (auto *expansion = tupleElement->getAs<PackExpansionType>()) {
+      return expansion->getPatternType();
+    }
+    if (auto *typeVar = tupleElement->getAs<TypeVariableType>()) {
+      auto *locator = typeVar->getImpl().getLocator();
+      if (auto expansionElement =
+              locator->getLastElementAs<LocatorPathElt::PackExpansionType>()) {
+        return expansionElement->getOpenedType()->getPatternType();
+      }
+    }
   }
-  auto tuple = type->getRValueType()->castTo<TupleType>();
-  auto *expansion = tuple->getElementType(0)->castTo<PackExpansionType>();
-  return expansion->getPatternType();
+  return {};
 }
 
-static bool containsPackExpansionType(ArrayRef<AnyFunctionType::Param> params) {
+bool constraints::containsPackExpansionType(ArrayRef<AnyFunctionType::Param> params) {
   return llvm::any_of(params, [&](const auto &param) {
     return isPackExpansionType(param.getPlainType());
   });
 }
 
-static bool containsPackExpansionType(TupleType *tuple) {
+bool constraints::containsPackExpansionType(TupleType *tuple) {
   return llvm::any_of(tuple->getElements(), [&](const auto &elt) {
     return isPackExpansionType(elt.getType());
   });
@@ -4201,7 +4210,16 @@ static void enumerateOptionalConversionRestrictions(
 /// Determine whether we can bind the given type variable to the given
 /// fixed type.
 static bool isBindable(TypeVariableType *typeVar, Type type) {
-  return !ConstraintSystem::typeVarOccursInType(typeVar, type) &&
+  // Disallow recursive bindings.
+  if (ConstraintSystem::typeVarOccursInType(typeVar, type))
+    return false;
+
+  // If type variable we are about to bind represents a pack
+  // expansion type, allow the binding to happen regardless of
+  // what the \c type is, because contextual type is just a hint
+  // in this situation and type variable would be bound to its
+  // opened type instead.
+  return typeVar->getImpl().isPackExpansion() ||
          !type->is<DependentMemberType>();
 }
 
@@ -4430,6 +4448,13 @@ ConstraintSystem::matchTypesBindTypeVar(
                : getTypeMatchFailure(locator);
   }
 
+  if (typeVar->getImpl().isKeyPathType()) {
+    if (flags.contains(TMF_BindingTypeVariable))
+      return resolveKeyPath(typeVar, type, locator)
+                 ? getTypeMatchSuccess()
+                 : getTypeMatchFailure(locator);
+  }
+
   assignFixedType(typeVar, type, /*updateState=*/true,
                   /*notifyInference=*/!flags.contains(TMF_BindingTypeVariable));
 
@@ -4621,6 +4646,13 @@ repairViaBridgingCast(ConstraintSystem &cs, Type fromType, Type toType,
   return true;
 }
 
+/// Return tuple of type and number of optionals on that type.
+static std::pair<Type, unsigned> getObjectTypeAndNumUnwraps(Type type) {
+  SmallVector<Type, 2> optionals;
+  Type objType = type->lookThroughAllOptionalTypes(optionals);
+  return std::make_pair(objType, optionals.size());
+}
+
 static bool
 repairViaOptionalUnwrap(ConstraintSystem &cs, Type fromType, Type toType,
                         ConstraintKind matchKind,
@@ -4738,17 +4770,11 @@ repairViaOptionalUnwrap(ConstraintSystem &cs, Type fromType, Type toType,
     }
   }
 
-  auto getObjectTypeAndUnwraps = [](Type type) -> std::pair<Type, unsigned> {
-    SmallVector<Type, 2> optionals;
-    Type objType = type->lookThroughAllOptionalTypes(optionals);
-    return std::make_pair(objType, optionals.size());
-  };
-
   Type fromObjectType, toObjectType;
   unsigned fromUnwraps, toUnwraps;
 
-  std::tie(fromObjectType, fromUnwraps) = getObjectTypeAndUnwraps(fromType);
-  std::tie(toObjectType, toUnwraps) = getObjectTypeAndUnwraps(toType);
+  std::tie(fromObjectType, fromUnwraps) = getObjectTypeAndNumUnwraps(fromType);
+  std::tie(toObjectType, toUnwraps) = getObjectTypeAndNumUnwraps(toType);
 
   // Since equality is symmetric and it decays into a `Bind`, eagerly
   // unwrapping optionals from either side might be incorrect since
@@ -5084,7 +5110,7 @@ bool ConstraintSystem::repairFailures(
     if (auto objType = valueType->getOptionalObjectType())
       valueType = objType;
 
-    if (rawReprType->isTypeVariableOrMember())
+    if (rawReprType->isTypeVariableOrMember() || rawReprType->isPlaceholder())
       return false;
 
     auto rawValue = isRawRepresentable(*this, rawReprType);
@@ -5170,18 +5196,12 @@ bool ConstraintSystem::repairFailures(
     // fix-up here unless last component has already a invalid type or
     // instance fix recorded.
     if (auto *kpExpr = getAsExpr<KeyPathExpr>(anchor)) {
-      auto i = kpExpr->getComponents().size() - 1;
-      auto lastCompLoc = getConstraintLocator(
-          locator.withPathElement(LocatorPathElt::KeyPathComponent(i)));
-      if (hasFixFor(lastCompLoc, FixKind::AllowTypeOrInstanceMember))
-        return true;
-
-      auto lastComponentType = lhs->lookThroughAllOptionalTypes();
-      auto keyPathResultType = rhs->lookThroughAllOptionalTypes();
-
-      // Propagate contextual information from/to keypath result type.
-      (void)matchTypes(lastComponentType, keyPathResultType, matchKind,
-                       TMF_ApplyingFix, getConstraintLocator(locator));
+      if (isKnownKeyPathType(lhs) && isKnownKeyPathType(rhs)) {
+        // If we have keypath capabilities for both sides and one of the bases
+        // is unresolved, it is too early to record fix.
+        if (hasConversionOrRestriction(ConversionRestrictionKind::DeepEquality))
+          return false;
+      }
 
       conversionsOrFixes.push_back(IgnoreContextualType::create(
           *this, lhs, rhs, getConstraintLocator(locator)));
@@ -5339,6 +5359,11 @@ bool ConstraintSystem::repairFailures(
         return true;
 
       if (repairByUsingRawValueOfRawRepresentableType(lhs, rhs))
+        return true;
+
+      // If either side is a placeholder then let's consider this
+      // assignment correctly typed.
+      if (lhs->isPlaceholder() || rhs->isPlaceholder())
         return true;
 
       // Let's try to match source and destination types one more
@@ -6477,6 +6502,19 @@ bool ConstraintSystem::repairFailures(
     if (!fromType || !toType)
       break;
 
+    Type fromObjectType, toObjectType;
+    unsigned fromUnwraps, toUnwraps;
+
+    std::tie(fromObjectType, fromUnwraps) = getObjectTypeAndNumUnwraps(lhs);
+    std::tie(toObjectType, toUnwraps) = getObjectTypeAndNumUnwraps(rhs);
+
+    // If the bound contextual type is more optional than the binding type, then
+    // propogate binding type to contextual type and attempt to solve.
+    if (fromUnwraps < toUnwraps) {
+      (void)matchTypes(fromObjectType, toObjectType, ConstraintKind::Bind,
+                       TMF_ApplyingFix, locator);
+    }
+
     // Drop both `GenericType` elements.
     path.pop_back();
     path.pop_back();
@@ -6575,6 +6613,23 @@ bool ConstraintSystem::repairFailures(
                                            getConstraintLocator(locator));
     conversionsOrFixes.push_back(fix);
     return true;
+  }
+  case ConstraintLocator::KeyPathValue: {
+    if (lhs->isPlaceholder() || rhs->isPlaceholder())
+      return true;
+    if (lhs->isTypeVariableOrMember() || rhs->isTypeVariableOrMember())
+      break;
+
+    auto kpExpr = castToExpr<KeyPathExpr>(anchor);
+    auto i = kpExpr->getComponents().size() - 1;
+    auto lastCompLoc =
+        getConstraintLocator(kpExpr, LocatorPathElt::KeyPathComponent(i));
+    if (hasFixFor(lastCompLoc, FixKind::AllowTypeOrInstanceMember))
+      return true;
+
+    conversionsOrFixes.push_back(IgnoreContextualType::create(
+        *this, lhs, rhs, getConstraintLocator(anchor)));
+    break;
   }
   default:
     break;
@@ -6690,6 +6745,15 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
         return getTypeMatchSuccess();
       }
 
+      // If type variable represents a key path value type, defer binding it to
+      // contextual type in diagnostic mode. We want it to be bound from the
+      // last key path component to help with diagnostics.
+      if (shouldAttemptFixes()) {
+        if (typeVar1 && typeVar1->getImpl().isKeyPathValue() &&
+            !flags.contains(TMF_BindingTypeVariable))
+          return formUnsolvedResult();
+      }
+
       assert((type1->is<TypeVariableType>() != type2->is<TypeVariableType>()) &&
              "Expected a type variable and a non type variable!");
 
@@ -6763,8 +6827,9 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
           // unexpected state for key path diagnostics should we fail.
           if (locator->isLastElement<LocatorPathElt::KeyPathType>() &&
               type2->is<AnyFunctionType>())
-            return matchTypesBindTypeVar(typeVar1, type2, kind, flags, locator,
-                                         formUnsolvedResult);
+            return matchTypesBindTypeVar(typeVar1, type2, kind,
+                                         flags | TMF_BindingTypeVariable,
+                                         locator, formUnsolvedResult);
         }
 
         // Performance optimization: Propagate fully or partially resolved
@@ -8238,6 +8303,17 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyConformsToConstraint(
     return SolutionKind::Solved;
   }
 
+  // We sometimes get a pack expansion type here.
+  if (auto *expansionType = type->getAs<PackExpansionType>()) {
+    // FIXME: Locator
+    addConstraint(ConstraintKind::ConformsTo,
+                  expansionType->getPatternType(),
+                  protocol->getDeclaredInterfaceType(),
+                  locator);
+
+    return SolutionKind::Solved;
+  }
+
   // Copyable is checked structurally, so for better performance, split apart
   // this constraint into individual Copyable constraints on each tuple element.
   if (auto *tupleType = type->getAs<TupleType>()) {
@@ -9367,6 +9443,17 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
     MemberLookupResult result;
     result.OverallResult = MemberLookupResult::Unsolved;
     return result;
+  }
+
+  // Delay member lookup until single-element tuple with pack expansion
+  // is sufficiently resolved.
+  if (isSingleUnlabeledPackExpansionTuple(instanceTy)) {
+    auto elementTy = instanceTy->castTo<TupleType>()->getElementType(0);
+    if (elementTy->is<TypeVariableType>()) {
+      MemberLookupResult result;
+      result.OverallResult = MemberLookupResult::Unsolved;
+      return result;
+    }
   }
 
   // Okay, start building up the result list.
@@ -11517,31 +11604,75 @@ bool ConstraintSystem::resolveClosure(TypeVariableType *typeVar,
   return !generateConstraints(AnyFunctionRef{closure}, closure->getBody());
 }
 
+bool ConstraintSystem::resolveKeyPath(TypeVariableType *typeVar,
+                                      Type contextualType,
+                                      ConstraintLocatorBuilder locator) {
+  auto *keyPathLocator = typeVar->getImpl().getLocator();
+  auto *keyPath = castToExpr<KeyPathExpr>(keyPathLocator->getAnchor());
+
+  if (keyPath->hasSingleInvalidComponent()) {
+    assignFixedType(typeVar, contextualType);
+    return true;
+  }
+
+  auto objectTy = contextualType->lookThroughAllOptionalTypes();
+  {
+    auto &ctx = getASTContext();
+    // `AnyKeyPath` and `PartialKeyPath` represent type-erased versions of
+    // `KeyPath<T, V>`.
+    //
+    // In situations where `AnyKeyPath` or `PartialKeyPath` cannot be used
+    // directly i.e. passing an argument to a parameter represented by a
+    // `AnyKeyPath` or `PartialKeyPath`, let's attempt a `KeyPath` binding which
+    // would then be converted to a `AnyKeyPath` or `PartialKeyPath` since there
+    // is a subtype relationship between them.
+    if (objectTy->isAnyKeyPath()) {
+      auto root = getKeyPathRootType(keyPath);
+      auto value = getKeyPathValueType(keyPath);
+
+      contextualType =
+          BoundGenericType::get(ctx.getKeyPathDecl(), Type(), {root, value});
+    } else if (objectTy->isPartialKeyPath()) {
+      auto rootTy = objectTy->castTo<BoundGenericType>()->getGenericArgs()[0];
+      // Since partial key path is an erased version of `KeyPath`, the value
+      // type would never be used, which means that binding can use
+      // type variable generated for a result of key path expression.
+      auto valueTy = getKeyPathValueType(keyPath);
+
+      contextualType = BoundGenericType::get(ctx.getKeyPathDecl(), Type(),
+                                             {rootTy, valueTy});
+    } else if (isKnownKeyPathType(objectTy)) {
+      auto *keyPathTy = objectTy->castTo<BoundGenericType>();
+      auto args = keyPathTy->getGenericArgs();
+      assert(args.size() == 2);
+
+      auto root = args.front();
+      auto value = getKeyPathValueType(keyPath);
+
+      // Make sure that key path always gets a chance to infer its
+      // value type from the member chain.
+      if (!value->isEqual(args.back())) {
+        contextualType = BoundGenericType::get(
+            keyPathTy->getDecl(), keyPathTy->getParent(), {root, value});
+      }
+    }
+  }
+
+  assignFixedType(typeVar, contextualType);
+  return true;
+}
+
 bool ConstraintSystem::resolvePackExpansion(TypeVariableType *typeVar,
                                             Type contextualType) {
+  assert(typeVar->getImpl().isPackExpansion());
+
   auto *locator = typeVar->getImpl().getLocator();
 
-  Type openedExpansionType;
-  if (auto expansionElt =
-          locator->getLastElementAs<LocatorPathElt::PackExpansionType>()) {
-    openedExpansionType = expansionElt->getOpenedType();
-  }
-
-  if (!openedExpansionType)
-    return false;
+  Type openedExpansionType =
+      locator->castLastElementTo<LocatorPathElt::PackExpansionType>()
+          .getOpenedType();
 
   assignFixedType(typeVar, openedExpansionType, locator);
-
-  // We have a fully resolved contextual pack expansion type, let's
-  // apply it right away.
-  if (!contextualType->isEqual(openedExpansionType)) {
-    assert(contextualType->is<PackExpansionType>() &&
-           !contextualType->hasTypeVariable());
-    auto result = matchTypes(openedExpansionType, contextualType,
-                             ConstraintKind::Equal, {}, locator);
-    return !result.isFailure();
-  }
-
   return true;
 }
 
@@ -12093,6 +12224,7 @@ ConstraintSystem::simplifyKeyPathConstraint(
           return locator->isInKeyPathComponent() &&
                  tv->getImpl().canBindToHole();
         })) {
+      (void)tryMatchRootAndValueFromType(keyPathTy);
       return SolutionKind::Solved;
     }
   }
@@ -13479,6 +13611,17 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifySameShapeConstraint(
                                     : SolutionKind::Solved;
     };
 
+    auto recordShapeMismatchFix = [&]() -> SolutionKind {
+      unsigned impact = 1;
+      if (locator.endsWith<LocatorPathElt::AnyRequirement>())
+        impact = assessRequirementFailureImpact(*this, shape1, locator);
+
+      return recordShapeFix(
+          SkipSameShapeRequirement::create(*this, type1, type2,
+                                           getConstraintLocator(locator)),
+          impact);
+    };
+
     // Let's check whether we can produce a tailored fix for argument/parameter
     // mismatches.
     if (locator.endsWith<LocatorPathElt::PackShape>()) {
@@ -13498,8 +13641,15 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifySameShapeConstraint(
         auto argLoc =
             loc->castLastElementTo<LocatorPathElt::ApplyArgToParam>();
 
-        auto argPack = type1->castTo<PackType>();
-        auto paramPack = type2->castTo<PackType>();
+        if (type1->getAs<PackArchetypeType>() &&
+            type2->getAs<PackArchetypeType>())
+          return recordShapeMismatchFix();
+
+        auto argPack = type1->getAs<PackType>();
+        auto paramPack = type2->getAs<PackType>();
+
+        if (!(argPack && paramPack))
+          return SolutionKind::Error;
 
         // Tailed diagnostic to explode tuples.
         // FIXME: This is very similar to
@@ -13558,14 +13708,7 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifySameShapeConstraint(
       }
     }
 
-    unsigned impact = 1;
-    if (locator.endsWith<LocatorPathElt::AnyRequirement>())
-      impact = assessRequirementFailureImpact(*this, shape1, locator);
-
-    return recordShapeFix(
-        SkipSameShapeRequirement::create(*this, type1, type2,
-                                         getConstraintLocator(locator)),
-        impact);
+    return recordShapeMismatchFix();
   }
 
   return SolutionKind::Error;

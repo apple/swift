@@ -38,7 +38,7 @@ static llvm::Optional<Path> getActualModuleMapPath(
   if (!SDKPath.empty()) {
     result.append(SDKPath.begin(), SDKPath.end());
     llvm::sys::path::append(result, "usr", "lib", "swift");
-    llvm::sys::path::append(result, platform, arch);
+    llvm::sys::path::append(result, platform);
     if (isArchSpecific) {
       llvm::sys::path::append(result, arch);
     }
@@ -344,7 +344,47 @@ static void getLibStdCxxFileMapping(
       "codecvt",
       // C++17 and newer:
       "any", "charconv", "filesystem", "memory_resource", "optional",
-      "string_view", "variant"};
+      "string_view", "variant", "bits/algorithmfwd.h", "bits/align.h",
+      "bits/alloc_traits.h", "bits/allocated_ptr.h", "bits/allocator.h",
+      "bits/atomic_base.h", "bits/atomic_futex.h",
+      "bits/atomic_lockfree_defines.h", "bits/basic_ios.h",
+      "bits/basic_string.h", "bits/c++0x_warning.h", "bits/char_traits.h",
+      "bits/charconv.h", "bits/codecvt.h", "bits/concept_check.h",
+      "bits/cpp_type_traits.h", "bits/cxxabi_forced.h",
+      "bits/cxxabi_init_exception.h", "bits/enable_special_members.h",
+      "bits/erase_if.h", "bits/exception.h", "bits/exception_defines.h",
+      "bits/exception_ptr.h", "bits/forward_list.h", "bits/fs_dir.h",
+      "bits/fs_fwd.h", "bits/fs_ops.h", "bits/fs_path.h", "bits/functexcept.h",
+      "bits/functional_hash.h", "bits/gslice.h", "bits/gslice_array.h",
+      "bits/hash_bytes.h", "bits/hashtable.h", "bits/hashtable_policy.h",
+      "bits/indirect_array.h", "bits/invoke.h", "bits/ios_base.h",
+      "bits/iterator_concepts.h", "bits/locale_classes.h", "bits/locale_conv.h",
+      "bits/locale_facets.h", "bits/locale_facets_nonio.h", "bits/localefwd.h",
+      "bits/mask_array.h", "bits/max_size_type.h", "bits/memoryfwd.h",
+      "bits/move.h", "bits/nested_exception.h", "bits/node_handle.h",
+      "bits/ostream_insert.h", "bits/parse_numbers.h", "bits/postypes.h",
+      "bits/predefined_ops.h", "bits/ptr_traits.h", "bits/quoted_string.h",
+      "bits/random.h", "bits/range_access.h", "bits/ranges_algo.h",
+      "bits/ranges_algobase.h", "bits/ranges_base.h", "bits/ranges_cmp.h",
+      "bits/ranges_uninitialized.h", "bits/ranges_util.h", "bits/refwrap.h",
+      "bits/shared_ptr.h", "bits/shared_ptr_atomic.h", "bits/shared_ptr_base.h",
+      "bits/slice_array.h", "bits/std_abs.h", "bits/std_function.h",
+      "bits/std_mutex.h", "bits/std_thread.h", "bits/stl_algo.h",
+      "bits/stl_algobase.h", "bits/stl_bvector.h", "bits/stl_construct.h",
+      "bits/stl_deque.h", "bits/stl_function.h", "bits/stl_heap.h",
+      "bits/stl_iterator.h", "bits/stl_iterator_base_funcs.h",
+      "bits/stl_iterator_base_types.h", "bits/stl_list.h", "bits/stl_map.h",
+      "bits/stl_multimap.h", "bits/stl_multiset.h", "bits/stl_numeric.h",
+      "bits/stl_pair.h", "bits/stl_queue.h", "bits/stl_raw_storage_iter.h",
+      "bits/stl_relops.h", "bits/stl_set.h", "bits/stl_stack.h",
+      "bits/stl_tempbuf.h", "bits/stl_tree.h", "bits/stl_uninitialized.h",
+      "bits/stl_vector.h", "bits/stream_iterator.h",
+      "bits/streambuf_iterator.h", "bits/stringfwd.h",
+      "bits/this_thread_sleep.h", "bits/uniform_int_dist.h",
+      "bits/unique_lock.h", "bits/unique_ptr.h", "bits/unordered_map.h",
+      "bits/unordered_set.h", "bits/uses_allocator.h",
+      "bits/uses_allocator_args.h", "bits/valarray_after.h",
+      "bits/valarray_array.h", "bits/valarray_before.h"};
   std::string additionalHeaderDirectives;
   llvm::raw_string_ostream os(additionalHeaderDirectives);
   os << contents.substr(0, headerInjectionPoint);

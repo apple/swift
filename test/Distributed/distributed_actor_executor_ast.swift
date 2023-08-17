@@ -27,7 +27,7 @@ distributed actor DefaultWorker {
 // Check DefaultWorker, the DefaultActor version of the synthesis:
 // CHECK:  (class_decl range=[{{.*}}] "DefaultWorker" interface type='DefaultWorker.Type' access=internal non-resilient actor
 // The unowned executor property:
-// CHECK:    (var_decl implicit "unownedExecutor" type='UnownedSerialExecutor' interface type='UnownedSerialExecutor' access=internal final readImpl=getter immutable
+// CHECK:    (var_decl implicit "unownedExecutor" interface type='UnownedSerialExecutor' access=internal final readImpl=getter immutable
 
 // We guard the rest of the body; we only return a default executor if the actor is local:
 // CHECK:       (guard_stmt implicit

@@ -129,6 +129,11 @@ SubElementOffset::computeForAddress(SILValue projectionDerivedFromRoot,
       continue;
     }
 
+    if (auto *sbi = dyn_cast<StoreBorrowInst>(projectionDerivedFromRoot)) {
+      projectionDerivedFromRoot = sbi->getDest();
+      continue;
+    }
+
     if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(
             projectionDerivedFromRoot)) {
       projectionDerivedFromRoot = m->getOperand();

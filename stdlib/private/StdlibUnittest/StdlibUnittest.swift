@@ -24,6 +24,8 @@ import Darwin
 import Glibc
 #elseif canImport(Musl)
 import Musl
+#elseif os(WASI)
+import WASILibc
 #elseif os(Windows)
 import CRT
 import WinSDK
@@ -35,6 +37,12 @@ import ObjectiveC
 
 #if SWIFT_ENABLE_EXPERIMENTAL_CONCURRENCY
 import _Concurrency
+#endif
+
+#if os(WASI)
+let platformSupportsChildProcesses = false
+#else
+let platformSupportsChildProcesses = true
 #endif
 
 extension String {
@@ -1726,7 +1734,7 @@ public func runAllTests() {
   if _isChildProcess {
     _childProcess()
   } else {
-    var runTestsInProcess: Bool = false
+    var runTestsInProcess: Bool = !platformSupportsChildProcesses
     var filter: String?
     var args = [String]()
     var i = 0
@@ -1796,7 +1804,7 @@ public func runAllTestsAsync() async {
   if _isChildProcess {
     await _childProcessAsync()
   } else {
-    var runTestsInProcess: Bool = false
+    var runTestsInProcess: Bool = !platformSupportsChildProcesses
     var filter: String?
     var args = [String]()
     var i = 0

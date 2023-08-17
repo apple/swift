@@ -1104,10 +1104,6 @@ ERROR(expected_expr_throw,PointsToFirstBadToken,
 // Discard Statement
 ERROR(expected_expr_discard,PointsToFirstBadToken,
       "expected expression in 'discard' statement", ())
-WARNING(forget_is_deprecated,PointsToFirstBadToken,
-      "'_forget' keyword is deprecated and will be removed soon; "
-      "use 'discard' instead",
-      ())
 
 // Await/Async
 ERROR(expected_await_not_async,none,
@@ -1845,6 +1841,17 @@ ERROR(documentation_attr_metadata_expected_text,none,
       ())
 ERROR(documentation_attr_duplicate_metadata,none,
       "cannot give more than one metadata argument to the same item", ())
+
+ERROR(attr_rawlayout_expected_label,none,
+      "expected %0 argument to @_rawLayout attribute", (StringRef))
+ERROR(attr_rawlayout_expected_integer_size,none,
+      "expected integer literal size in @_rawLayout attribute", ())
+ERROR(attr_rawlayout_expected_integer_alignment,none,
+      "expected integer literal alignment in @_rawLayout attribute", ())
+ERROR(attr_rawlayout_expected_integer_count,none,
+      "expected integer literal count in @_rawLayout attribute", ())
+ERROR(attr_rawlayout_expected_params,none,
+      "expected %1 argument after %0 argument in @_rawLayout attribute", (StringRef, StringRef))
 
 //------------------------------------------------------------------------------
 // MARK: Generics parsing diagnostics

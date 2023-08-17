@@ -849,6 +849,8 @@ LoadedFile *SerializedModuleLoaderBase::loadAST(
     for (auto name: loadedModuleFile->getAllowableClientNames()) {
       M.addAllowableClientName(Ctx.getIdentifier(name));
     }
+    if (Ctx.LangOpts.BypassResilienceChecks)
+      M.setBypassResilience();
     auto diagLocOrInvalid = diagLoc.value_or(SourceLoc());
     loadInfo.status = loadedModuleFile->associateWithFileContext(
         fileUnit, diagLocOrInvalid, Ctx.LangOpts.AllowModuleWithCompilerErrors);

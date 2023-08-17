@@ -1,4 +1,4 @@
-7// RUN: %empty-directory(%t)
+// RUN: %empty-directory(%t)
 // RUN: %target-swift-emit-module-interface(%t/Library.swiftinterface) %s -module-name Library -enable-experimental-feature MoveOnlyResilientTypes
 // RUN: %target-swift-typecheck-module-from-interface(%t/Library.swiftinterface) -I %t -enable-experimental-feature MoveOnlyResilientTypes
 // RUN: %FileCheck %s < %t/Library.swiftinterface

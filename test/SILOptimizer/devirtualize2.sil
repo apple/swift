@@ -55,7 +55,7 @@ bb0:
 // CHECK: return
 sil @function_with_cm_with_dynamic_type_known_from_checked_cast_br : $@convention(thin) (Bar) -> () {
 bb0(%0 : $Bar):
-  checked_cast_br [exact] %0 : $Bar to Bar, bb1, bb5
+  checked_cast_br [exact] Bar in %0 : $Bar to Bar, bb1, bb5
 
 bb1(%1 : $Bar):
   br bb2(%1 : $Bar)

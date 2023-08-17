@@ -112,7 +112,7 @@ public class Bear {
   // Check that devirtualizer can handle convenience initializers, which have covariant optional
   // return types.
   // CHECK-LABEL: sil @$s23devirt_covariant_return4BearC{{[_0-9a-zA-Z]*}}fC
-  // CHECK: checked_cast_br [exact] %{{.*}} : $@thick Bear.Type to @thick GummyBear.Type
+  // CHECK: checked_cast_br [exact] @thick Bear.Type in %{{.*}} : $@thick Bear.Type to @thick GummyBear.Type
   // CHECK: upcast %{{.*}} : $Optional<GummyBear> to $Optional<Bear>
   // CHECK: }
   public convenience init?(delegateFailure: Bool, failAfter: Bool) {
@@ -235,7 +235,7 @@ public class D2: D1 {
 // that D2.foo() is inlined thanks to this.
 // CHECK-LABEL: sil hidden [noinline] @$s23devirt_covariant_return7driver2ys5Int32VAA2D2CF
 // CHECK-NOT: class_method
-// CHECK: checked_cast_br [exact] %{{.*}} : $D1 to D2
+// CHECK: checked_cast_br [exact] D1 in %{{.*}} : $D1 to D2
 // CHECK: bb2
 // CHECK: global_addr
 // CHECK: load
@@ -279,9 +279,9 @@ class EEE : CCC {
 // Check that c.foo() is devirtualized, because the optimizer can handle the casting the return type
 // correctly, i.e. it can cast (BBB, BBB) into (AAA, AAA)
 // CHECK-LABEL: sil hidden [noinline] @$s23devirt_covariant_return37testDevirtOfMethodReturningTupleTypes_1bAA2AAC_AEtAA3CCCC_AA2BBCtF
-// CHECK: checked_cast_br [exact] %{{.*}} : $CCC to CCC
-// CHECK: checked_cast_br [exact] %{{.*}} : $CCC to DDD
-// CHECK: checked_cast_br [exact] %{{.*}} : $CCC to EEE
+// CHECK: checked_cast_br [exact] CCC in %{{.*}} : $CCC to CCC
+// CHECK: checked_cast_br [exact] CCC in %{{.*}} : $CCC to DDD
+// CHECK: checked_cast_br [exact] CCC in %{{.*}} : $CCC to EEE
 // CHECK: class_method
 // CHECK: }
 @inline(never)
@@ -319,10 +319,10 @@ class DDDD : CCCC {
 // Check devirtualization of methods with optional results, where
 // optional results need to be casted.
 // CHECK-LABEL: sil [noinline] @{{.*}}testOverridingMethodWithOptionalResult
-// CHECK: checked_cast_br [exact] %{{.*}} : $F to F
-// CHECK: checked_cast_br [exact] %{{.*}} : $F to G
+// CHECK: checked_cast_br [exact] F in %{{.*}} : $F to F
+// CHECK: checked_cast_br [exact] F in %{{.*}} : $F to G
 // CHECK: switch_enum
-// CHECK: checked_cast_br [exact] %{{.*}} : $F to H
+// CHECK: checked_cast_br [exact] F in %{{.*}} : $F to H
 // CHECK: switch_enum
 @inline(never)
 public func testOverridingMethodWithOptionalResult(_ f: F) -> (F?, Int)? {

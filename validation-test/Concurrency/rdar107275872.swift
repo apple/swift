@@ -8,6 +8,9 @@
 // REQUIRES: executable_test
 // REQUIRES: concurrency_runtime
 
+// rdar://108260399
+// REQUIRES: optimized_stdlib
+
 import Foundation
 
 @main struct M {

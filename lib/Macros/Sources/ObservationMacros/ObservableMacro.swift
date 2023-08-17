@@ -11,10 +11,9 @@
 
 import SwiftSyntax
 import SwiftSyntaxMacros
-
-@_implementationOnly import SwiftDiagnostics
-@_implementationOnly import SwiftOperators
-@_implementationOnly import SwiftSyntaxBuilder
+import SwiftDiagnostics
+import SwiftOperators
+import SwiftSyntaxBuilder
 
 public struct ObservableMacro {
   static let moduleName = "Observation"
@@ -72,7 +71,7 @@ public struct ObservableMacro {
     AttributeSyntax(
       leadingTrivia: .space,
       atSign: .atSignToken(),
-      attributeName: SimpleTypeIdentifierSyntax(name: .identifier(ignoredMacroName)),
+      attributeName: IdentifierTypeSyntax(name: .identifier(ignoredMacroName)),
       trailingTrivia: .space
     )
   }
@@ -109,10 +108,10 @@ extension DiagnosticsError {
   }
 }
 
-extension ModifierListSyntax {
-  func privatePrefixed(_ prefix: String) -> ModifierListSyntax {
+extension DeclModifierListSyntax {
+  func privatePrefixed(_ prefix: String) -> DeclModifierListSyntax {
     let modifier: DeclModifierSyntax = DeclModifierSyntax(name: "private", trailingTrivia: .space)
-    return ModifierListSyntax([modifier] + filter {
+    return [modifier] + filter {
       switch $0.name.tokenKind {
       case .keyword(let keyword):
         switch keyword {
@@ -127,7 +126,7 @@ extension ModifierListSyntax {
       default:
         return true
       }
-    })
+    }
   }
   
   init(keyword: Keyword) {
@@ -161,7 +160,7 @@ extension PatternBindingListSyntax {
           ),
           typeAnnotation: binding.typeAnnotation,
           initializer: binding.initializer,
-          accessor: binding.accessor,
+          accessorBlock: binding.accessorBlock,
           trailingComma: binding.trailingComma,
           trailingTrivia: binding.trailingTrivia)
         
@@ -174,12 +173,11 @@ extension PatternBindingListSyntax {
 
 extension VariableDeclSyntax {
   func privatePrefixed(_ prefix: String, addingAttribute attribute: AttributeSyntax) -> VariableDeclSyntax {
-    let newAttributes = AttributeListSyntax(
-      (attributes.map(Array.init) ?? []) + [.attribute(attribute)])
+    let newAttributes = attributes + [.attribute(attribute)]
     return VariableDeclSyntax(
       leadingTrivia: leadingTrivia,
       attributes: newAttributes,
-      modifiers: modifiers?.privatePrefixed(prefix) ?? ModifierListSyntax(keyword: .private),
+      modifiers: modifiers.privatePrefixed(prefix),
       bindingSpecifier: TokenSyntax(bindingSpecifier.tokenKind, leadingTrivia: .space, trailingTrivia: .space, presence: .present),
       bindings: bindings.privatePrefixed(prefix),
       trailingTrivia: trailingTrivia
@@ -200,11 +198,11 @@ extension ObservableMacro: MemberMacro {
     providingMembersOf declaration: Declaration,
     in context: Context
   ) throws -> [DeclSyntax] {
-    guard let identified = declaration.asProtocol(IdentifiedDeclSyntax.self) else {
+    guard let identified = declaration.asProtocol(NamedDeclSyntax.self) else {
       return []
     }
     
-    let observableType = identified.identifier
+    let observableType = identified.name
     
     if declaration.isEnum {
       // enumerations cannot store properties
@@ -224,15 +222,6 @@ extension ObservableMacro: MemberMacro {
     declaration.addIfNeeded(ObservableMacro.registrarVariable(observableType), to: &declarations)
     declaration.addIfNeeded(ObservableMacro.accessFunction(observableType), to: &declarations)
     declaration.addIfNeeded(ObservableMacro.withMutationFunction(observableType), to: &declarations)
-
-#if !OBSERVATION_SUPPORTS_PEER_MACROS
-    let storedInstanceVariables = declaration.definedVariables.filter { $0.isValidForObservation }
-    for property in storedInstanceVariables {
-       if property.hasMacroApplication(ObservableMacro.ignoredMacroName) { continue }
-       let storage = DeclSyntax(property.privatePrefixed("_", addingAttribute: ObservableMacro.ignoredAttribute))
-       declaration.addIfNeeded(storage, to: &declarations)
-    }
-#endif
 
     return declarations
   }
@@ -262,7 +251,7 @@ extension ObservableMacro: MemberAttributeMacro {
     
     
     return [
-      AttributeSyntax(attributeName: SimpleTypeIdentifierSyntax(name: .identifier(ObservableMacro.trackedMacroName)))
+      AttributeSyntax(attributeName: IdentifierTypeSyntax(name: .identifier(ObservableMacro.trackedMacroName)))
     ]
   }
 }
@@ -282,12 +271,15 @@ extension ObservableMacro: ExtensionMacro {
     }
 
     let decl: DeclSyntax = """
-      extension \(raw: type.trimmedDescription): \(raw: qualifiedConformanceName) {}
-      """
+        extension \(raw: type.trimmedDescription): \(raw: qualifiedConformanceName) {}
+        """
+    let ext = decl.cast(ExtensionDeclSyntax.self)
 
-    return [
-      decl.cast(ExtensionDeclSyntax.self)
-    ]
+    if let availability = declaration.attributes.availability {
+      return [ext.with(\.attributes, availability)]
+    } else {
+      return [ext]
+    }
   }
 }
 

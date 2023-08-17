@@ -51,6 +51,13 @@ namespace swift {
 /// or false to indicate that matching should exit early.
 template<typename ImplClass>
 class TypeMatcher {
+public:
+  enum class Position : uint8_t {
+    Type,
+    Shape
+  };
+
+private:
   class MatchVisitor : public CanTypeVisitor<MatchVisitor, bool, Type, Type> {
     TypeMatcher &Matcher;
 
@@ -192,11 +199,24 @@ class TypeMatcher {
 
     bool visitPackExpansionType(CanPackExpansionType firstPE, Type secondType,
                                 Type sugaredFirstType) {
-      if (auto secondInOut = secondType->getAs<PackExpansionType>()) {
-        return this->visit(firstPE.getPatternType(),
-                           secondInOut->getPatternType(),
-                           sugaredFirstType->castTo<PackExpansionType>()
-                             ->getPatternType());
+      if (auto secondExpansion = secondType->getAs<PackExpansionType>()) {
+        if (!this->visit(firstPE.getPatternType(),
+                         secondExpansion->getPatternType(),
+                         sugaredFirstType->castTo<PackExpansionType>()
+                           ->getPatternType())) {
+          return false;
+        }
+
+        Matcher.asDerived().pushPosition(Position::Shape);
+        if (!this->visit(firstPE.getCountType(),
+                         secondExpansion->getCountType(),
+                         sugaredFirstType->castTo<PackExpansionType>()
+                           ->getCountType())) {
+          return false;
+        }
+        Matcher.asDerived().popPosition(Position::Shape);
+
+        return true;
       }
 
       return mismatch(firstPE.getPointer(), secondType, sugaredFirstType);
@@ -523,6 +543,9 @@ class TypeMatcher {
   };
 
   bool alwaysMismatchTypeParameters() const { return false; }
+
+  void pushPosition(Position pos) {}
+  void popPosition(Position pos) {}
 
   ImplClass &asDerived() { return static_cast<ImplClass &>(*this); }
 

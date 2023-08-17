@@ -239,9 +239,9 @@ PASS(ARCSequenceOpts, "arc-sequence-opts",
      "ARC Sequence Optimization")
 PASS(ARCLoopOpts, "arc-loop-opts",
      "ARC Loop Optimization")
-PASS(EarlyRedundantLoadElimination, "early-redundant-load-elim",
+SWIFT_FUNCTION_PASS(EarlyRedundantLoadElimination, "early-redundant-load-elimination",
      "Early Redundant Load Elimination")
-PASS(RedundantLoadElimination, "redundant-load-elim",
+SWIFT_FUNCTION_PASS(RedundantLoadElimination, "redundant-load-elimination",
      "Redundant Load Elimination")
 SWIFT_FUNCTION_PASS(DeadStoreElimination, "dead-store-elimination",
      "Dead Store Elimination")
@@ -298,8 +298,6 @@ PASS(Mem2Reg, "mem2reg",
      "Memory to SSA Value Conversion to Remove Stack Allocation")
 SWIFT_FUNCTION_PASS(MemBehaviorDumper, "dump-mem-behavior",
      "Print SIL Instruction MemBehavior from Alias Analysis over all Pairs")
-PASS(LSLocationPrinter, "lslocation-dump",
-     "Print Load-Store Location Results Covering all Accesses")
 SWIFT_FUNCTION_PASS(MergeCondFails, "merge-cond_fails",
      "Merge SIL cond_fail to Eliminate Redundant Overflow Checks")
 PASS(MoveCondFailToPreds, "move-cond-fail-to-preds",
@@ -347,8 +345,6 @@ PASS(ReleaseHoisting, "release-hoisting",
      "SIL release Hoisting")
 PASS(LateReleaseHoisting, "late-release-hoisting",
      "Late SIL release Hoisting Preserving Epilogues")
-PASS(TargetConstantFolding, "target-constant-folding",
-     "Target specific constant folding")
 IRGEN_PASS(LoadableByAddress, "loadable-address",
      "SIL Large Loadable type by-address lowering.")
 PASS(MandatorySILLinker, "mandatory-linker",

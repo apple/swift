@@ -6,11 +6,6 @@
 // REQUIRES: concurrency_runtime
 // UNSUPPORTED: back_deployment_runtime
 
-// https://github.com/apple/swift/issues/56817
-// UNSUPPORTED: OS=linux-gnu
-
-// REQUIRES: rdar78325660
-
 // doesn't matter that it's bool identity function or not
 func boolIdentityFn(_ x : Bool) -> Bool { return x }
 

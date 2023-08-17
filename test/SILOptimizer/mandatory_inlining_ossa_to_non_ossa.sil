@@ -240,7 +240,7 @@ bb0(%0 : $Builtin.NativeObject):
 
 sil [transparent] [ossa] @term_ossa_callee : $@convention(thin) (@owned Builtin.NativeObject, @owned FakeOptional<Klass>) -> () {
 bb0(%0 : @owned $Builtin.NativeObject, %1 : @owned $FakeOptional<Klass>):
-  checked_cast_br %0 : $Builtin.NativeObject to Klass, bb1, bb2
+  checked_cast_br Builtin.NativeObject in %0 : $Builtin.NativeObject to Klass, bb1, bb2
 
 bb1(%1a : @owned $Klass):
   destroy_value %1a : $Klass
@@ -267,7 +267,7 @@ bb6:
 
 // CHECK-LABEL: sil @term_non_ossa_caller : $@convention(thin) (@owned Builtin.NativeObject, @owned FakeOptional<Klass>) -> () {
 // CHECK: bb0([[ARG0:%.*]] : $Builtin.NativeObject, [[ARG1:%.*]] : $FakeOptional<Klass>):
-// CHECK:   checked_cast_br [[ARG0]] : $Builtin.NativeObject to Klass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
+// CHECK:   checked_cast_br Builtin.NativeObject in [[ARG0]] : $Builtin.NativeObject to Klass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
 //
 // CHECK: [[YES]]([[SUCC:%.*]] :
 // CHECK:   release_value [[SUCC]]
@@ -322,7 +322,7 @@ bb3:
 // CHECK-NEXT:   [[DEST_ADDR:%.*]] = alloc_stack $Klass
 // CHECK-NEXT:   store [[ARG]] to [[SRC_ADDR]]
 // CHECK-NEXT:   [[RELOADED_ARG:%.*]] = load [[SRC_ADDR]]
-// CHECK-NEXT:   checked_cast_br [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
+// CHECK-NEXT:   checked_cast_br Builtin.NativeObject in [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
 //
 // ==> On success, we store the value into dest. The destroy is not from the
 // ==> optimizer, but from the code.
@@ -378,7 +378,7 @@ bb3:
 // CHECK-NEXT:   [[DEST_ADDR:%.*]] = alloc_stack $Klass
 // CHECK-NEXT:   store [[ARG]] to [[SRC_ADDR]]
 // CHECK-NEXT:   [[RELOADED_ARG:%.*]] = load [[SRC_ADDR]]
-// CHECK-NEXT:   checked_cast_br [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
+// CHECK-NEXT:   checked_cast_br Builtin.NativeObject in [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
 //
 // CHECK: [[SUCCESS_BB]]([[CAST_VALUE:%.*]] :
 // ==> On success, we store into dest and destroy dest.
@@ -433,7 +433,7 @@ bb3:
 // CHECK-NEXT:   [[DEST_ADDR:%.*]] = alloc_stack $Klass
 // CHECK-NEXT:   store [[ARG]] to [[SRC_ADDR]]
 // CHECK-NEXT:   [[RELOADED_ARG:%.*]] = load [[SRC_ADDR]]
-// CHECK-NEXT:   checked_cast_br [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
+// CHECK-NEXT:   checked_cast_br Builtin.NativeObject in [[RELOADED_ARG]] : $Builtin.NativeObject to Klass, [[SUCCESS_BB:bb[0-9]+]], [[FAILURE_BB:bb[0-9]+]]
 //
 // CHECK: [[SUCCESS_BB]]([[CAST_VALUE:%.*]] :
 // CHECK-NEXT:   strong_retain [[CAST_VALUE]]

@@ -105,7 +105,7 @@ module vcruntime [system] {
     export *
   }
 
-  explicit module stdint {
+  module stdint {
     header "stdint.h"
     export *
   }
@@ -237,6 +237,7 @@ module std [system] {
     }
 
     module cuchar {
+      requires cplusplus11
       header "cuchar"
       export *
     }
@@ -258,26 +259,31 @@ module std [system] {
   }
 
   module any {
+    requires cpluplus17
     header "any"
     export *
   }
 
   module array {
+    requires cplusplus11
     header "array"
     export *
   }
 
   module atomic {
+    requires cplusplus11
     header "atomic"
     export *
   }
 
   module barrier {
+    requires cplusplus20
     header "barrier"
     export *
   }
 
   module bit {
+    requires cplusplus20
     header "bit"
     export *
   }
@@ -288,11 +294,13 @@ module std [system] {
   }
 
   module charconv {
+    requires cplusplus17
     header "charconv"
     export *
   }
 
   module chrono {
+    requires cplusplus11
     header "chrono"
     export *
   }
@@ -303,6 +311,7 @@ module std [system] {
   }
 
   module compare {
+    requires cplusplus20
     header "compare"
     export *
   }
@@ -313,16 +322,19 @@ module std [system] {
   }
 
   module concepts {
+    requires cplusplus20
     header "concepts"
     export *
   }
 
   module condition_variable {
+    requires cplusplus11
     header "condition_variable"
     export *
   }
 
   module coroutine {
+    requires cplusplus20
     header "coroutine"
     export *
   }
@@ -338,21 +350,31 @@ module std [system] {
   }
 
   module execution {
+    requires cplusplus17
     header "execution"
     export *
   }
 
+  module expected {
+    requires cplusplus23
+    header "expected"
+    export *
+  }
+
   module filesystem {
+    requires cplusplus17
     header "filesystem"
     export *
   }
 
   module format {
+    requires cplusplus20
     header "format"
     export *
   }
 
   module forward_list {
+    requires cplusplus11
     header "forward_list"
     export *
   }
@@ -368,26 +390,19 @@ module std [system] {
   }
 
   module future {
+    requires cplusplus11
     header "future"
     export *
   }
 
-/*
-  module hash_map {
-    header "hash_map"
-    export *
-  }
-*/
-
-/*
-  module hash_set {
-    header "hash_set"
-    export *
-  }
-*/
-
   module initializer_list {
+    requires cplusplus11
     header "initializer_list"
+    export *
+  }
+
+  module iomanip {
+    header "iomanip"
     export *
   }
 
@@ -417,6 +432,7 @@ module std [system] {
   }
 
   module latch {
+    requires cplusplus20
     header "latch"
     export *
   }
@@ -447,11 +463,13 @@ module std [system] {
   }
 
   module memory_resource {
+    requires cplusplus17
     header "memory_resource"
     export *
   }
 
   module mutex {
+    requires cplusplus11
     header "mutex"
     export *
   }
@@ -462,6 +480,7 @@ module std [system] {
   }
 
   module numbers {
+    requires cplusplus20
     header "numbers"
     export *
   }
@@ -472,6 +491,7 @@ module std [system] {
   }
 
   module optional {
+    requires cplusplus17
     header "optional"
     export *
   }
@@ -487,31 +507,37 @@ module std [system] {
   }
 
   module random {
+    requires cplusplus11
     header "random"
     export *
   }
 
   module ranges {
+    requires cplusplus20
     header "ranges"
     export *
   }
 
   module ratio {
+    requires cplusplus11
     header "ratio"
     export *
   }
 
   module regex {
+    requires cplusplus11
     header "regex"
     export *
   }
 
   module scoped_allocator {
+    requires cplusplus11
     header "scoped_allocator"
     export *
   }
 
   module semaphore {
+    requires cplusplus20
     header "semaphore"
     export *
   }
@@ -522,26 +548,28 @@ module std [system] {
   }
 
   module shared_mutex {
+    requires cplusplus14
     header "shared_mutex"
     export *
   }
 
   module source_location {
+    requires cplusplus20
     header "source_location"
     export *
   }
 
   module span {
+    requires cplusplus20
     header "span"
     export *
   }
 
-/*
   module spanstream {
+    requires cpluplus23
     header "spanstream"
     export *
   }
-*/
 
   module sstream {
     header "sstream"
@@ -553,12 +581,19 @@ module std [system] {
     export *
   }
 
+  module stacktrace {
+    requires cplusplus23
+    header "stacktrace"
+    export *
+  }
+
   module stdexcept {
     header "stdexcept"
     export *
   }
 
   module stop_token {
+    requires cplusplus20
     header "stop_token"
     export *
   }
@@ -574,6 +609,7 @@ module std [system] {
   }
 
   module string_view {
+    requires cplusplus17
     header "string_view"
     export *
   }
@@ -584,31 +620,37 @@ module std [system] {
   }
 
   module syncstream {
+    requires cplusplus20
     header "syncstream"
     export *
   }
 
   module system_error {
+    requires cplusplus11
     header "system_error"
     export *
   }
 
   module thread {
+    requires cplusplus11
     header "thread"
     export *
   }
 
   module tuple {
+    requires cplusplus11
     header "tuple"
     export *
   }
 
   module type_traits {
+    requires cplusplus11
     header "type_traits"
     export *
   }
 
   module typeindex {
+    requires cplusplus11
     header "typeindex"
     export *
   }
@@ -619,11 +661,13 @@ module std [system] {
   }
 
   module unordered_map {
+    requires cplusplus11
     header "unordered_map"
     export *
   }
 
   module unordered_set {
+    requires cplusplus11
     header "unordered_set"
     export *
   }
@@ -639,6 +683,7 @@ module std [system] {
   }
 
   module variant {
+    requires cplusplus17
     header "variant"
     export *
   }
@@ -649,27 +694,52 @@ module std [system] {
   }
 
   module version {
+    requires cplusplus20
     header "version"
     export *
   }
 
-  explicit module xmemory {
-    header "xmemory"
-    export *
-  }
+  module _Private [system] {
+    requires cplusplus
 
-  explicit module xtr1common {
-    header "xtr1common"
-    export *
-  }
+    explicit module xhash {
+      header "xhash"
+      export *
+    }
 
-  explicit module xstring {
-    header "xstring"
-    export *
-  }
+    explicit module xmemory {
+      header "xmemory"
+      export *
+    }
 
-  explicit module xtree {
-    header "xtree"
-    export *
+    explicit module xstring {
+      header "xstring"
+      export *
+    }
+
+    explicit module xtree {
+      header "xtree"
+      export *
+    }
+
+    explicit module xtr1common {
+      header "xtr1common"
+      export *
+    }
+
+    explicit module xutility {
+      header "xutility"
+      export *
+    }
+
+    explicit module yvals {
+      header "yvals.h"
+      export *
+    }
+
+    explicit module yvals_core {
+      header "yvals_core.h"
+      export *
+    }
   }
 }

@@ -13,12 +13,13 @@
 #ifndef SWIFT_SILOPTIMIZER_OPTIMIZERBRIDGING_H
 #define SWIFT_SILOPTIMIZER_OPTIMIZERBRIDGING_H
 
+#include "swift/Basic/Nullability.h"
 #include "swift/SIL/SILBridging.h"
-#include "swift/SILOptimizer/PassManager/PassManager.h"
 #include "swift/SILOptimizer/Analysis/AliasAnalysis.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
+#include "swift/SILOptimizer/PassManager/PassManager.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
@@ -33,7 +34,7 @@ struct BridgedAliasAnalysis {
   }
 
   typedef swift::MemoryBehavior (* _Nonnull GetMemEffectFn)(
-        BridgedPassContext context, BridgedValue, BridgedInstruction);
+        BridgedPassContext context, BridgedValue, BridgedInstruction, SwiftInt);
   typedef bool (* _Nonnull Escaping2InstFn)(
         BridgedPassContext context, BridgedValue, BridgedInstruction);
   typedef bool (* _Nonnull Escaping2ValFn)(
@@ -207,6 +208,12 @@ struct BridgedPassContext {
     return {pda->get(invocation->getFunction())};
   }
 
+  SWIFT_IMPORT_UNSAFE
+  BridgedNominalTypeDecl getSwiftArrayDecl() const {
+    swift::SILModule *mod = invocation->getPassManager()->getModule();
+    return {mod->getASTContext().getArrayDecl()};
+  }
+
   // SIL modifications
 
   SWIFT_IMPORT_UNSAFE
@@ -252,6 +259,14 @@ struct BridgedPassContext {
   BridgedValue getSILUndef(swift::SILType type) const {
     return {swift::SILUndef::get(type, *invocation->getFunction())};
   }
+
+  // IRGen
+
+  SwiftInt getStaticSize(swift::SILType type) const;
+
+  SwiftInt getStaticAlignment(swift::SILType type) const;
+
+  SwiftInt getStaticStride(swift::SILType type) const;
 
   // Sets
 
@@ -452,6 +467,26 @@ struct BridgedPassContext {
                                           invocation->getTransform());
   }
 
+  // SSAUpdater
+
+  void SSAUpdater_initialize(swift::SILType type, BridgedValue::Ownership ownership) const {
+    invocation->initializeSSAUpdater(type, castToOwnership(ownership));
+  }
+
+  void SSAUpdater_addAvailableValue(BridgedBasicBlock block, BridgedValue value) const {
+    invocation->getSSAUpdater()->addAvailableValue(block.getBlock(), value.getSILValue());
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedValue SSAUpdater_getValueAtEndOfBlock(BridgedBasicBlock block) const {
+    return {invocation->getSSAUpdater()->getValueAtEndOfBlock(block.getBlock())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedValue SSAUpdater_getValueInMiddleOfBlock(BridgedBasicBlock block) const {
+    return {invocation->getSSAUpdater()->getValueInMiddleOfBlock(block.getBlock())};
+  }
+
   // Options
 
   bool enableStackProtection() const {
@@ -477,6 +512,8 @@ struct BridgedPassContext {
 
   bool enableSimplificationFor(BridgedInstruction inst) const;
 };
+
+bool FullApplySite_canInline(BridgedInstruction apply);
 
 //===----------------------------------------------------------------------===//
 //                          Pass registration

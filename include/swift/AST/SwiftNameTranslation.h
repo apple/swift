@@ -79,6 +79,7 @@ enum RepresentationError {
   UnrepresentableEnumCaseTuple,
   UnrepresentableProtocol,
   UnrepresentableMoveOnly,
+  UnrepresentableNested,
 };
 
 /// Constructs a diagnostic that describes the given C++ representation error.

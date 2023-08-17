@@ -113,18 +113,88 @@ func testLocal() {
 
 @DelegatedConformance
 typealias A = Int
-// expected-error@-1 {{'extension' macro cannot be attached to type alias}}
+// expected-error@-2 {{'extension' macro cannot be attached to type alias ('A')}}
 
 @DelegatedConformance
 extension Int {}
-// expected-error@-1 {{'extension' macro cannot be attached to extension}}
+// expected-error@-2 {{'extension' macro cannot be attached to extension (extension of 'Int')}}
 
 @attached(extension, conformances: P)
 macro UndocumentedNamesInExtension() = #externalMacro(module: "MacroDefinition", type: "DelegatedConformanceViaExtensionMacro")
 
 @UndocumentedNamesInExtension
 struct S<Element> {}
-// expected-note@-1 {{in expansion of macro 'UndocumentedNamesInExtension' here}}
+// expected-note@-2 {{in expansion of macro 'UndocumentedNamesInExtension' on generic struct 'S' here}}
 
 // CHECK-DIAGS: error: declaration name 'requirement()' is not covered by macro 'UndocumentedNamesInExtension'
+
+@attached(extension, names: named(requirement))
+macro UndocumentedConformanceInExtension() = #externalMacro(module: "MacroDefinition", type: "AlwaysAddConformance")
+
+@UndocumentedConformanceInExtension
+struct InvalidConformance<Element> {}
+// expected-note@-2 {{in expansion of macro 'UndocumentedConformanceInExtension' on generic struct 'InvalidConformance' here}}
+
+// CHECK-DIAGS: error: conformance to 'P' is not covered by macro 'UndocumentedConformanceInExtension'
+
+@attached(extension)
+macro UndocumentedCodable() = #externalMacro(module: "MacroDefinition", type: "AlwaysAddCodable")
+
+@UndocumentedCodable
+struct TestUndocumentedCodable {}
+// expected-note@-2 {{in expansion of macro 'UndocumentedCodable' on struct 'TestUndocumentedCodable' here}}
+
+// CHECK-DIAGS: error: conformance to 'Codable' (aka 'Decodable & Encodable') is not covered by macro 'UndocumentedCodable'
+
+@attached(extension, conformances: Decodable)
+macro UndocumentedEncodable() = #externalMacro(module: "MacroDefinition", type: "AlwaysAddCodable")
+
+@UndocumentedEncodable
+struct TestUndocumentedEncodable {}
+// expected-note@-2 {{in expansion of macro 'UndocumentedEncodable' on struct 'TestUndocumentedEncodable' here}}
+
+// CHECK-DIAGS: error: conformance to 'Codable' (aka 'Decodable & Encodable') is not covered by macro 'UndocumentedEncodable'
+
 #endif
+
+@attached(extension, conformances: Equatable)
+macro AvailableEquatable() = #externalMacro(module: "MacroDefinition", type: "ConditionallyAvailableConformance")
+
+@available(macOS 99, *)
+@AvailableEquatable
+struct TestAvailability {
+  static let x : any Equatable.Type = TestAvailability.self
+}
+
+protocol P1 {}
+protocol P2 {}
+
+@attached(extension, conformances: P1, P2)
+macro AddAllConformances() = #externalMacro(module: "MacroDefinition", type: "AddAllConformancesMacro")
+
+@AddAllConformances
+struct MultipleConformances {}
+
+// CHECK-DUMP: extension MultipleConformances: P1 {
+// CHECK-DUMP: }
+// CHECK-DUMP: extension MultipleConformances: P2 {
+// CHECK-DUMP: }
+
+@attached(extension, conformances: Equatable, names: named(==))
+macro Equatable() = #externalMacro(module: "MacroDefinition", type: "EquatableViaMembersMacro")
+
+@propertyWrapper
+struct NotEquatable<T> {
+  var wrappedValue: T
+}
+
+@Equatable
+struct HasPropertyWrappers {
+  @NotEquatable
+  var value: Int = 0
+}
+
+func requiresEquatable<T: Equatable>(_: T) { }
+func testHasPropertyWrappers(hpw: HasPropertyWrappers) {
+  requiresEquatable(hpw)
+}

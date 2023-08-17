@@ -547,6 +547,9 @@ void DiagnosticEmitter::emitObjectDiagnosticsForPartialApplyUses(
 static bool isClosureCapture(MarkMustCheckInst *markedValue) {
   SILValue val = markedValue->getOperand();
 
+  // Sometimes we've mark-must-check'd a begin_access.
+  val = stripAccessMarkers(val);
+
   // look past any project-box
   if (auto *pbi = dyn_cast<ProjectBoxInst>(val))
     val = pbi->getOperand();

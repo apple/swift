@@ -1,8 +1,5 @@
 // RUN: %target-run-simple-swift( %import-libdispatch -parse-as-library -sanitize=thread)
 
-// Segfaulted in CI on TSan bot. rdar://78264164
-// REQUIRES: rdar78264164
-
 // REQUIRES: executable_test
 // REQUIRES: concurrency
 // REQUIRES: libdispatch

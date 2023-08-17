@@ -342,6 +342,7 @@ StringTests.test("SameTypeComparisons") {
   expectFalse(xs != xs)
 }
 
+#if !os(WASI)
 StringTests.test("CompareStringsWithUnpairedSurrogates")
   .xfail(
     .always("<rdar://problem/18029104> Strings referring to underlying " +
@@ -357,6 +358,7 @@ StringTests.test("CompareStringsWithUnpairedSurrogates")
     ]
   )
 }
+#endif
 
 StringTests.test("[String].joined() -> String") {
   let s = ["hello", "world"].joined()

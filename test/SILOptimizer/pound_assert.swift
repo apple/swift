@@ -1,5 +1,4 @@
 // RUN: %target-swift-frontend -enable-experimental-static-assert -emit-sil %s -verify
-// RUN: %target-swift-frontend -enable-experimental-static-assert -emit-sil %s -verify
 // REQUIRES: asserts
 
 //===----------------------------------------------------------------------===//

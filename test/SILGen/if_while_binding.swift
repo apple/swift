@@ -316,7 +316,7 @@ func testAsPatternInIfLet(_ a : BaseClass?) {
   // CHECK:   br [[EXITBB:bb[0-9]+]]
 
   // CHECK: [[OPTPRESENTBB]]([[CLS:%.*]] : @owned $BaseClass):
-  // CHECK:   checked_cast_br [[CLS]] : $BaseClass to DerivedClass, [[ISDERIVEDBB:bb[0-9]+]], [[ISBASEBB:bb[0-9]+]]
+  // CHECK:   checked_cast_br BaseClass in [[CLS]] : $BaseClass to DerivedClass, [[ISDERIVEDBB:bb[0-9]+]], [[ISBASEBB:bb[0-9]+]]
 
   // CHECK: [[ISDERIVEDBB]]([[DERIVED_CLS:%.*]] : @owned $DerivedClass):
   // CHECK:   [[DERIVED_CLS_SOME:%.*]] = enum $Optional<DerivedClass>, #Optional.some!enumelt, [[DERIVED_CLS]] : $DerivedClass

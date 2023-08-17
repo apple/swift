@@ -12,9 +12,6 @@
 # directory.
 list(APPEND LLVM_COMMON_DEPENDS intrinsics_gen clang-tablegen-targets)
 
-# Add generated Swift Syntax headers to global dependencies.
-list(APPEND LLVM_COMMON_DEPENDS swift-ast-generated-headers)
-
 # Set up for linking against swift-syntax.
 if (SWIFT_SWIFT_PARSER)
   # Set up linking against the swift-syntax modules.

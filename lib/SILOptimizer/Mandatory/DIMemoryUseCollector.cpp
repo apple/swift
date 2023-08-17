@@ -1200,13 +1200,23 @@ ElementUseCollector::collectAssignOrInitUses(AssignOrInitInst *Inst,
                      ->getDeclContext()
                      ->getSelfNominalTypeDecl();
 
+  auto expansionContext = TypeExpansionContext(TheMemory.getFunction());
+
   auto selfTy = Inst->getSelf()->getType();
 
   auto addUse = [&](VarDecl *property, DIUseKind useKind) {
-    auto expansionContext = TypeExpansionContext(*Inst->getFunction());
+    unsigned fieldIdx = 0;
+    for (auto *VD : typeDC->getStoredProperties()) {
+      if (VD == property)
+        break;
+
+      fieldIdx += getElementCountRec(
+          expansionContext, Module,
+          selfTy.getFieldType(VD, Module, expansionContext), false);
+    }
+
     auto type = selfTy.getFieldType(property, Module, expansionContext);
-    addElementUses(Module.getFieldIndex(typeDC, property), type, Inst, useKind,
-                   property);
+    addElementUses(fieldIdx, type, Inst, useKind, property);
   };
 
   auto initializedElts = Inst->getInitializedProperties();

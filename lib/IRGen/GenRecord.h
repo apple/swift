@@ -863,7 +863,6 @@ public:
     fields.reserve(astFields.size());
     fieldTypesForLayout.reserve(astFields.size());
 
-    bool loadable = true;
     auto fieldsABIAccessible = FieldsAreABIAccessible;
 
     unsigned explosionSize = 0;
@@ -880,7 +879,6 @@ public:
 
       auto loadableFieldTI = dyn_cast<LoadableTypeInfo>(&fieldTI);
       if (!loadableFieldTI) {
-        loadable = false;
         continue;
       }
 
@@ -902,7 +900,7 @@ public:
     }
 
     // Create the type info.
-    if (loadable) {
+    if (layout.isLoadable()) {
       assert(layout.isFixedLayout());
       assert(fieldsABIAccessible);
       return asImpl()->createLoadable(fields, std::move(layout), explosionSize);

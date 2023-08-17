@@ -13,6 +13,11 @@ class Obj : Base {
   @_hasStorage var value: Int64
 }
 
+sil_global [let] @g1 : $Int32 = {
+  %0 = integer_literal $Builtin.Int32, 1
+  %initval = struct $Int32 (%0 : $Builtin.Int32)
+}
+
 // CHECK-LABEL: sil_global private @outline_global_simpleTv_ : $Obj = {
 // CHECK-NEXT:    %0 = integer_literal $Builtin.Int64, 1
 // CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
@@ -45,6 +50,15 @@ class Obj : Base {
 // CHECK-NEXT:    %12 = struct $Int64 (%7 : $Builtin.Int64)
 // CHECK-NEXT:    %13 = tuple (%12 : $Int64, %5 : $Bool)
 // CHECK-NEXT:    %initval = object $Obj (%1 : $Int64, [tail_elems] %6 : $(Int64, Bool), %11 : $(Int64, Bool), %13 : $(Int64, Bool))
+// CHECK-NEXT:  }
+
+// CHECK-LABEL: sil_global private @outline_global_addressTv_ : $Obj = {
+// CHECK-NEXT:    %0 = integer_literal $Builtin.Int64, 1
+// CHECK-NEXT:    %1 = struct $Int64 (%0 : $Builtin.Int64)
+// CHECK-NEXT:    %2 = global_addr @g1 : $*Int32
+// CHECK-NEXT:    %3 = address_to_pointer %2 : $*Int32 to $Builtin.RawPointer
+// CHECK-NEXT:    %4 = struct $UnsafePointer<Int32> (%3 : $Builtin.RawPointer)
+// CHECK-NEXT:    %initval = object $Obj (%1 : $Int64, [tail_elems] %4 : $UnsafePointer<Int32>)
 // CHECK-NEXT:  }
 
 // CHECK-LABEL: sil @outline_global_simple
@@ -341,5 +355,31 @@ bb0:
   store %13 to %28 : $*Bool
   %33 = end_cow_mutation %3 : $Obj
   return %33 : $Obj
+}
+
+// CHECK-LABEL: sil @outline_global_address :
+// CHECK:         [[G:%[0-9]+]] = global_value @outline_global_addressTv_ : $Obj
+// CHECK:         strong_retain [[G]] : $Obj
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'outline_global_address'
+sil @outline_global_address : $@convention(thin) () -> () {
+bb0:
+  %0 = integer_literal $Builtin.Word, 1
+  %1 = integer_literal $Builtin.Int64, 1
+  %4 = struct $Int64 (%1 : $Builtin.Int64)
+  %7 = alloc_ref [tail_elems $Int64 * %0 : $Builtin.Word] $Obj
+  %9 = ref_element_addr %7 : $Obj, #Obj.value
+  store %4 to %9 : $*Int64
+  %11 = ref_tail_addr %7 : $Obj, $UnsafePointer<Int32>
+  %12 = global_addr @g1 : $*Int32
+  %13 = begin_access [read] [dynamic] %12 : $*Int32
+  %14 = address_to_pointer %13 : $*Int32 to $Builtin.RawPointer
+  end_access %13 : $*Int32
+  %16 = struct $UnsafePointer<Int32> (%14 : $Builtin.RawPointer)
+  store %16 to %11 : $*UnsafePointer<Int32>
+  %18 = end_cow_mutation %7 : $Obj
+  strong_release %18 : $Obj
+  %r = tuple ()
+  return %r : $()
 }
 

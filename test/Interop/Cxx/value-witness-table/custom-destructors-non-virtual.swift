@@ -9,7 +9,7 @@ import StdlibUnittest
 var CXXDestructorTestSuite = TestSuite("CXXDestructor")
 
 protocol InitWithPtr {
-  init(value: UnsafeMutablePointer<Int32>!)
+  init(_: UnsafeMutablePointer<Int32>!)
 }
 
 extension HasUserProvidedDestructor : InitWithPtr { }
@@ -26,14 +26,14 @@ extension HasEmptyDestructorAndMemberWithUserDefinedConstructor
 func withCxxDestructorSideEffects<T>(_ _: inout T) { }
 
 func createTypeWithUserProvidedDestructor(_ ptr: UnsafeMutablePointer<Int32>) {
-  var obj = HasUserProvidedDestructor(value: ptr)
+  var obj = HasUserProvidedDestructor(ptr)
   withCxxDestructorSideEffects(&obj)
 }
 
 func createTypeWithEmptyDestructorAndMemberWithUserDefinedConstructor(
   _ ptr: UnsafeMutablePointer<Int32>
 ) {
-  let member = HasUserProvidedDestructor(value: ptr)
+  let member = HasUserProvidedDestructor(ptr)
   var obj = HasEmptyDestructorAndMemberWithUserDefinedConstructor(member: member)
   withCxxDestructorSideEffects(&obj)
 }
@@ -41,7 +41,7 @@ func createTypeWithEmptyDestructorAndMemberWithUserDefinedConstructor(
 func createTypeWithNonTrivialImplicitDestructor(
   _ ptr: UnsafeMutablePointer<Int32>
 ) {
-  let member = HasUserProvidedDestructor(value: ptr)
+  let member = HasUserProvidedDestructor(ptr)
   var obj = HasNonTrivialImplicitDestructor(member: member)
   withCxxDestructorSideEffects(&obj)
 }
@@ -49,7 +49,7 @@ func createTypeWithNonTrivialImplicitDestructor(
 func createTypeWithNonTrivialDefaultDestructor(
   _ ptr: UnsafeMutablePointer<Int32>
 ) {
-  let member = HasUserProvidedDestructor(value: ptr)
+  let member = HasUserProvidedDestructor(ptr)
   var obj = HasNonTrivialDefaultedDestructor(member: member)
   withCxxDestructorSideEffects(&obj)
 }
@@ -58,7 +58,7 @@ func createTypeWithGeneric<T : InitWithPtr>(
   _ ptr: UnsafeMutablePointer<Int32>,
   type: T.Type
 ) {
-  var obj = T(value: ptr)
+  var obj = T(ptr)
   withCxxDestructorSideEffects(&obj)
 }
 
@@ -66,7 +66,7 @@ func createTypeWithProtocol(
   _ ptr: UnsafeMutablePointer<Int32>,
   type: InitWithPtr.Type
 ) {
-  var obj = type.self.init(value: ptr)
+  var obj = type.self.init(ptr)
   withCxxDestructorSideEffects(&obj)
 }
 
@@ -75,7 +75,7 @@ func createTypeWithProtocol(
   type: InitWithPtr.Type,
   holder: InitWithMember.Type
 ) {
-  let member = type.self.init(value: ptr)
+  let member = type.self.init(ptr)
   var obj = holder.self.init(member: member as! HasUserProvidedDestructor)
   withCxxDestructorSideEffects(&obj)
 }

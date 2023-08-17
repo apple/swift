@@ -243,11 +243,11 @@ emitBridgeObjectiveCToNative(SILGenFunction &SGF, SILLocation loc,
   ResultPlanPtr resultPlan =
       ResultPlanBuilder::computeResultPlan(SGF, calleeTypeInfo, loc, context);
   ArgumentScope argScope(SGF, loc);
-  RValue result =
-      SGF.emitApply(std::move(resultPlan), std::move(argScope), loc,
-                    ManagedValue::forUnmanaged(witnessRef), subs,
-                    {objcValue, ManagedValue::forUnmanaged(metatypeValue)},
-                    calleeTypeInfo, ApplyOptions(), context, llvm::None);
+  RValue result = SGF.emitApply(
+      std::move(resultPlan), std::move(argScope), loc,
+      ManagedValue::forObjectRValueWithoutOwnership(witnessRef), subs,
+      {objcValue, ManagedValue::forObjectRValueWithoutOwnership(metatypeValue)},
+      calleeTypeInfo, ApplyOptions(), context, llvm::None);
   return std::move(result).getAsSingleValue(SGF, loc);
 }
 
@@ -681,7 +681,7 @@ static ManagedValue emitNativeToCBridgedNonoptionalValue(SILGenFunction &SGF,
       // when they are converted to an object via objc_metatype_to_object.
       assert(!v.hasCleanup() &&
              "Metatypes are trivial and thus should not have cleanups");
-      return ManagedValue::forUnmanaged(native);
+      return ManagedValue::forObjectRValueWithoutOwnership(native);
     }
   }
 
@@ -1553,7 +1553,7 @@ void SILGenFunction::emitNativeToForeignThunk(SILDeclRef thunk) {
   SILDeclRef native = thunk.asForeign(false);
 
   if (thunk.hasDecl()) {
-    if (shouldLowerToUnavailableCodeStub(thunk.getDecl()))
+    if (thunk.getDecl()->requiresUnavailableDeclABICompatibilityStubs())
       emitApplyOfUnavailableCodeReached();
   }
 
@@ -2068,7 +2068,7 @@ void SILGenFunction::emitForeignToNativeThunk(SILDeclRef thunk) {
   auto nativeFnTy = F.getLoweredFunctionType();
   assert(nativeFnTy == nativeCI.SILFnType);
 
-  if (shouldLowerToUnavailableCodeStub(fd))
+  if (fd->requiresUnavailableDeclABICompatibilityStubs())
     emitApplyOfUnavailableCodeReached();
 
   // Use the same generic environment as the native entry point.
@@ -2242,13 +2242,15 @@ void SILGenFunction::emitForeignToNativeThunk(SILDeclRef thunk) {
         auto bridged = emitNativeToBridgedValue(fd, param, nativeFormalType,
                                                 foreignFormalType,
                                                 foreignLoweredTy);
-        if (foreignParam.getConvention() == ParameterConvention::Indirect_In ||
-            foreignParam.getConvention() == ParameterConvention::Indirect_In_Guaranteed) {
+        if (useLoweredAddresses() &&
+            (foreignParam.getConvention() == ParameterConvention::Indirect_In ||
+             foreignParam.getConvention() ==
+                 ParameterConvention::Indirect_In_Guaranteed)) {
           auto temp = emitTemporaryAllocation(fd, bridged.getType());
           bridged.forwardInto(*this, fd, temp);
           bridged = emitManagedBufferWithCleanup(temp);
         }
-        
+
         if (memberStatus.isInstance() && isSelf) {
           // Fill in the `self` space.
           args[memberStatus.getSelfIndex()] = bridged;
@@ -2295,8 +2297,8 @@ void SILGenFunction::emitForeignToNativeThunk(SILDeclRef thunk) {
     ArgumentScope argScope(*this, fd);
     ManagedValue resultMV =
         emitApply(std::move(resultPlan), std::move(argScope), fd,
-                  ManagedValue::forUnmanaged(fn), subs, args, calleeTypeInfo,
-                  ApplyOptions(), context, llvm::None)
+                  ManagedValue::forObjectRValueWithoutOwnership(fn), subs, args,
+                  calleeTypeInfo, ApplyOptions(), context, llvm::None)
             .getAsSingleValue(*this, fd);
 
     if (indirectResult) {

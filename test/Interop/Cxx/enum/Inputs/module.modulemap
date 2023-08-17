@@ -36,3 +36,8 @@ module CenumsNSOptionsExternC [extern_c] {
 module CFAvailability {
     header "CFAvailability.h"
 }
+
+module NestedEnums {
+    header "nested-enums.h"
+    requires cplusplus
+}

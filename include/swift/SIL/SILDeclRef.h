@@ -163,10 +163,6 @@ struct SILDeclRef {
 
     /// The asynchronous main entry-point function.
     AsyncEntryPoint,
-
-    /// This constant references the generator function used to instantiate
-    /// attribute value associated with a particular declaration.
-    RuntimeAttributeGenerator,
   };
 
   /// Represents the variants of a back deployable function.
@@ -281,9 +277,6 @@ struct SILDeclRef {
 
   /// Produces a SILDeclRef for the entry-point of an async main FileUnit.
   static SILDeclRef getAsyncMainFileEntryPoint(FileUnit *file);
-
-  static SILDeclRef getRuntimeAttributeGenerator(CustomAttr *attr,
-                                                 ValueDecl *decl);
 
   bool isNull() const { return loc.isNull(); }
   explicit operator bool() const { return !isNull(); }
@@ -527,10 +520,6 @@ struct SILDeclRef {
   /// True if the decl ref references a function that is the back deployment
   /// fallback for an original function which may be unavailable at runtime.
   bool isBackDeploymentFallback() const;
-
-  /// True if the decl ref references a function that could be looked up
-  /// at runtime using special API.
-  bool isRuntimeAccessibleFunction() const;
 
   /// True if the decl ref references a method which introduces a new vtable
   /// entry.

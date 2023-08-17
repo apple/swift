@@ -11,8 +11,8 @@
 # ===---------------------------------------------------------------------===#
 
 import os
-import pipes
 import platform
+import shlex
 
 from build_swift.build_swift import argparse
 from build_swift.build_swift.constants import BUILD_SCRIPT_IMPL_PATH
@@ -128,9 +128,9 @@ class BuildScriptInvocation(object):
             "--build-jobs", str(args.build_jobs),
             "--lit-jobs", str(args.lit_jobs),
             "--common-cmake-options=%s" % ' '.join(
-                pipes.quote(opt) for opt in cmake.common_options()),
+                shlex.quote(opt) for opt in cmake.common_options()),
             "--build-args=%s" % ' '.join(
-                pipes.quote(arg) for arg in cmake.build_args()),
+                shlex.quote(arg) for arg in cmake.build_args()),
             "--dsymutil-jobs", str(args.dsymutil_jobs),
             '--build-swift-libexec', str(args.build_swift_libexec).lower(),
             '--swift-enable-backtracing', str(args.swift_enable_backtracing).lower(),
@@ -167,7 +167,7 @@ class BuildScriptInvocation(object):
                     args.host_target, product_name))
             cmake_opts = product.cmake_options
 
-            # FIXME: We should be using pipes.quote here but we run into issues
+            # FIXME: We should be using shlex.quote here but we run into issues
             # with build-script-impl/cmake not being happy with all of the
             # extra "'" in the strings. To fix this easily, we really need to
             # just invoke cmake from build-script directly rather than futzing
@@ -398,7 +398,7 @@ class BuildScriptInvocation(object):
         if args.extra_cmake_options:
             impl_args += [
                 "--extra-cmake-options=%s" % ' '.join(
-                    pipes.quote(opt) for opt in args.extra_cmake_options)
+                    shlex.quote(opt) for opt in args.extra_cmake_options)
             ]
 
         if args.lto_type is not None:

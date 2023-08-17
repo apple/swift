@@ -1027,8 +1027,11 @@ Type ConstraintSystem::openType(Type type, OpenedTypeMap &replacements,
       // that gets introduced by the interface type, see
       // \c openUnboundGenericType for more details.
       if (auto *packTy = type->getAs<PackType>()) {
-        if (auto expansion = packTy->unwrapSingletonPackExpansion())
-          type = expansion->getPatternType();
+        if (auto expansionTy = packTy->unwrapSingletonPackExpansion()) {
+          auto patternTy = expansionTy->getPatternType();
+          if (patternTy->isTypeParameter())
+            return openType(patternTy, replacements, locator);
+        }
       }
 
       if (auto *expansion = type->getAs<PackExpansionType>()) {
@@ -1404,7 +1407,7 @@ Type ConstraintSystem::getUnopenedTypeOfReference(
           return ErrorType::get(getASTContext());
         }
 
-        return wantInterfaceType ? var->getInterfaceType() : var->getType();
+        return wantInterfaceType ? var->getInterfaceType() : var->getTypeInContext();
       },
       memberLocator, wantInterfaceType, adjustForPreconcurrency,
       GetClosureType{*this},
@@ -1929,14 +1932,16 @@ TypeVariableType *ConstraintSystem::openGenericParameter(
   // This lookup only can fail if the stdlib (i.e. the Swift module) has not
   // been loaded because you've passed `-parse-stdlib` and are not building the
   // stdlib itself (which would have `-module-name Swift` too).
-  if (auto *copyable = TypeChecker::getProtocol(getASTContext(), SourceLoc(),
-                                                KnownProtocolKind::Copyable)) {
-    addConstraint(
-        ConstraintKind::ConformsTo, typeVar,
-        copyable->getDeclaredInterfaceType(),
-        locator.withPathElement(LocatorPathElt::GenericParameter(parameter)));
+  if (!outerDC->getParentModule()->isBuiltinModule()) {
+    if (auto *copyable = TypeChecker::getProtocol(getASTContext(), SourceLoc(),
+                                                  KnownProtocolKind::Copyable)) {
+      addConstraint(
+          ConstraintKind::ConformsTo, typeVar,
+          copyable->getDeclaredInterfaceType(),
+          locator.withPathElement(LocatorPathElt::GenericParameter(parameter)));
+    }
   }
-
+  
   return typeVar;
 }
 
@@ -2196,6 +2201,7 @@ static Type typeEraseExistentialSelfReferences(Type refTy, Type baseTy,
 
           case TypePosition::Contravariant:
           case TypePosition::Invariant:
+          case TypePosition::Shape:
             return Type(t);
           }
 
@@ -4736,7 +4742,7 @@ static bool diagnoseAmbiguityWithContextualType(
             contextualTy->is<ProtocolType>()
                 ? diag::overload_result_type_does_not_conform
                 : diag::cannot_convert_candidate_result_to_contextual_type,
-            decl->getName(), fnType->getResult(), contextualTy);
+            decl, fnType->getResult(), contextualTy);
       } else {
         DE.diagnose(decl, diag::found_candidate_type, type);
       }
@@ -4793,12 +4799,11 @@ static bool diagnoseAmbiguityWithGenericRequirements(
   // Produce "no exact matches" diagnostic.
   auto &ctx = cs.getASTContext();
   auto *choice = *overloadChoices.begin();
-  auto name = choice->getName();
 
   ctx.Diags.diagnose(getLoc(primaryFix.second->getLocator()->getAnchor()),
                      diag::no_overloads_match_exactly_in_call,
-                     /*isApplication=*/false, choice->getDescriptiveKind(),
-                     name.isSpecial(), name.getBaseName());
+                     /*isApplication=*/false, choice,
+                     choice->getName().isSpecial());
 
   for (const auto &entry : aggregate) {
     entry.second->diagnose(*entry.first, /*asNote=*/true);
@@ -4891,8 +4896,7 @@ static bool diagnoseAmbiguity(
       }
 
       DE.diagnose(anchor->getLoc(), diag::no_overloads_match_exactly_in_call,
-                  /*isApplication=*/false, decl->getDescriptiveKind(),
-                  name.isSpecial(), name.getBaseName());
+                  /*isApplication=*/false, decl, name.isSpecial());
     } else {
       bool isApplication = llvm::any_of(solutions, [&](const auto &S) {
           return llvm::any_of(S.argumentLists, [&](const auto &pair) {
@@ -4902,8 +4906,7 @@ static bool diagnoseAmbiguity(
 
       DE.diagnose(getLoc(commonAnchor),
                   diag::no_overloads_match_exactly_in_call, isApplication,
-                  decl->getDescriptiveKind(), name.isSpecial(),
-                  name.getBaseName());
+                  decl, name.isSpecial());
     }
 
     // Produce candidate notes
@@ -7199,7 +7202,7 @@ void ConstraintSystem::recordFixedRequirement(ConstraintLocator *reqLocator,
 
 // Replace any error types encountered with placeholders.
 Type ConstraintSystem::getVarType(const VarDecl *var) {
-  auto type = var->getType();
+  auto type = var->getTypeInContext();
 
   // If this declaration is used as part of a code completion
   // expression, solver needs to glance over the fact that

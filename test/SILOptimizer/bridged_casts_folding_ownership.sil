@@ -29,7 +29,7 @@ entry(%0 : $*AnyHashable):
 // CHECK-LABEL: sil {{.*}}@anyhashable_cast_take_always
 // CHECK:         [[BRIDGED:%.*]] = apply {{.*}}(%0)
 // CHECK-NEXT:    destroy_addr %0
-// CHECK-NEXT:    checked_cast_br [[BRIDGED]] : $NSObject to NSObjectSubclass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
+// CHECK-NEXT:    checked_cast_br AnyHashable in [[BRIDGED]] : $NSObject to NSObjectSubclass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
 sil [ossa] @anyhashable_cast_take_always : $@convention(thin) (@in AnyHashable, @owned NSObjectSubclass) -> @owned NSObjectSubclass {
 entry(%0 : $*AnyHashable, %1 : @owned $NSObjectSubclass):
   %2 = alloc_stack $NSObjectSubclass
@@ -52,7 +52,7 @@ bb3(%8 : @owned $NSObjectSubclass):
 // CHECK-LABEL: sil {{.*}}@anyhashable_cast_take_on_success
 // CHECK:         [[BRIDGED:%.*]] = apply {{.*}}(%0)
 // CHECK-NEXT:    destroy_addr %0
-// CHECK-NEXT:    checked_cast_br [[BRIDGED]] : $NSObject to NSObjectSubclass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
+// CHECK-NEXT:    checked_cast_br AnyHashable in [[BRIDGED]] : $NSObject to NSObjectSubclass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
 sil [ossa] @anyhashable_cast_take_on_success : $@convention(thin) (@in AnyHashable, @owned NSObjectSubclass) -> @owned NSObjectSubclass {
 entry(%0 : $*AnyHashable, %1 : @owned $NSObjectSubclass):
   %2 = alloc_stack $NSObjectSubclass
@@ -77,7 +77,7 @@ bb3(%8 : @owned $NSObjectSubclass):
 // CHECK-NOT:         copy_addr
 // CHECK:    [[BRIDGED:%.*]] = apply {{.*}}(%0)
 // CHECK-NOT:    destroy_addr
-// CHECK-NEXT:    checked_cast_br [[BRIDGED]] : $NSObject to NSObjectSubclass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
+// CHECK-NEXT:    checked_cast_br AnyHashable in [[BRIDGED]] : $NSObject to NSObjectSubclass, [[YES:bb[0-9]+]], [[NO:bb[0-9]+]]
 // CHECK:       [[YES]]{{.*}}:
 // CHECK-NOT:    dealloc_stack
 // CHECK:       [[NO]]{{.*}}:

@@ -7,7 +7,6 @@ import StdlibUnittest
 
 var OperatorsTestSuite = TestSuite("Operators")
 
-#if !os(Windows)    // https://github.com/apple/swift/issues/55575
 OperatorsTestSuite.test("LoadableIntWrapper.minus (inline)") {
   var lhs = LoadableIntWrapper(value: 42)
   let rhs = LoadableIntWrapper(value: 23)
@@ -25,7 +24,6 @@ OperatorsTestSuite.test("AddressOnlyIntWrapper.minus") {
 
    expectEqual(19, result.value)
 }
-#endif
 
 OperatorsTestSuite.test("LoadableIntWrapper.equal (inline)") {
   let lhs = LoadableIntWrapper(value: 42)
@@ -94,14 +92,12 @@ OperatorsTestSuite.test("TemplatedWithFriendOperator.equal (inline)") {
   expectTrue(result)
 }
 
-#if !os(Windows)    // https://github.com/apple/swift/issues/55575
 OperatorsTestSuite.test("LoadableBoolWrapper.exclaim (inline)") {
   var wrapper = LoadableBoolWrapper(value: true)
 
   let resultExclaim = !wrapper
   expectEqual(false, resultExclaim.value)
 }
-#endif
 
 OperatorsTestSuite.test("AddressOnlyIntWrapper.call (inline)") {
   var wrapper = AddressOnlyIntWrapper(42)
@@ -267,7 +263,6 @@ OperatorsTestSuite.test("DifferentTypesArrayByVal.subscript (inline)") {
   expectEqual(1.5.rounded(.up), resultDouble.rounded(.up))
 }
 
-#if !os(Windows)    // https://github.com/apple/swift/issues/55575
 OperatorsTestSuite.test("NonTrivialArrayByVal.subscript (inline)") {
   var arr = NonTrivialArrayByVal()
   let NonTrivialByVal = arr[0];
@@ -295,7 +290,6 @@ OperatorsTestSuite.test("DerivedFromNonTrivialArrayByVal.subscript (inline, base
   expectEqual(5, NonTrivialByVal.e)
   expectEqual(6, NonTrivialByVal.f)
 }
-#endif
 
 OperatorsTestSuite.test("PtrByVal.subscript (inline)") {
   var arr = PtrByVal()
@@ -349,6 +343,9 @@ OperatorsTestSuite.test("Iterator.pointee") {
   var iter = Iterator()
   let res = iter.pointee
   expectEqual(123, res)
+
+  iter.pointee = 456
+  expectEqual(456, iter.pointee)
 }
 
 OperatorsTestSuite.test("ConstIterator.pointee") {

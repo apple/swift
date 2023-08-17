@@ -210,7 +210,7 @@ class SubWUnsafeSubscript : SuperWUnsafeSubscript {
   override nonisolated subscript<T>(x : T) -> Int {
     get async {
       // expected-warning@-2{{non-sendable type 'T' in parameter of superclass method overridden by nonisolated subscript 'subscript(_:)' cannot cross actor boundary}}
-      // expected-warning@-2{{non-sendable type 'T' in parameter of superclass method overridden by nonisolated getter '_' cannot cross actor boundary}}
+      // expected-warning@-2{{non-sendable type 'T' in parameter of superclass method overridden by nonisolated getter for subscript 'subscript(_:)' cannot cross actor boundary}}
       // there really shouldn't be two warnings produced here, see rdar://110846040 (Sendable diagnostics reported twice for subscript getters)
       return 0
     }
@@ -229,4 +229,30 @@ extension MyActor {
 func testConversionsAndSendable(a: MyActor, s: any Sendable, f: @Sendable () -> Void) async {
   await a.f(s)
   await a.g(f)
+}
+
+@available(SwiftStdlib 5.1, *)
+final class NonSendable {
+  // expected-note@-1 3 {{class 'NonSendable' does not conform to the 'Sendable' protocol}}
+  var value = ""
+
+  @MainActor
+  func update() {
+    value = "update"
+  }
+
+  func call() async {
+    await update()
+    // expected-warning@-1 {{passing argument of non-sendable type 'NonSendable' into main actor-isolated context may introduce data races}}
+
+    await self.update()
+    // expected-warning@-1 {{passing argument of non-sendable type 'NonSendable' into main actor-isolated context may introduce data races}}
+  }
+}
+
+@available(SwiftStdlib 5.1, *)
+func testNonSendableBaseArg() async {
+  let t = NonSendable()
+  await t.update()
+  // expected-warning@-1 {{passing argument of non-sendable type 'NonSendable' into main actor-isolated context may introduce data races}}
 }

@@ -14,19 +14,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "TypeChecker.h"
+#include "MiscDiagnostics.h"
 #include "TypeCheckAvailability.h"
 #include "TypeCheckConcurrency.h"
 #include "TypeCheckDistributed.h"
 #include "TypeCheckType.h"
-#include "MiscDiagnostics.h"
-#include "swift/Subsystems.h"
+#include "TypeChecker.h"
 #include "swift/AST/ASTPrinter.h"
 #include "swift/AST/ASTScope.h"
-#include "swift/AST/ASTWalker.h"
 #include "swift/AST/ASTVisitor.h"
-#include "swift/AST/DiagnosticsSema.h"
+#include "swift/AST/ASTWalker.h"
 #include "swift/AST/DiagnosticSuppression.h"
+#include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/Identifier.h"
 #include "swift/AST/Initializer.h"
 #include "swift/AST/NameLookup.h"
@@ -41,7 +40,9 @@
 #include "swift/Basic/TopCollection.h"
 #include "swift/Parse/Lexer.h"
 #include "swift/Parse/Parser.h"
+#include "swift/Sema/ConstraintSystem.h"
 #include "swift/Sema/IDETypeChecking.h"
+#include "swift/Subsystems.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/SmallString.h"
@@ -151,16 +152,6 @@ namespace {
     }
   };
 
-  static DeclName getDescriptiveName(AbstractFunctionDecl *AFD) {
-    DeclName name = AFD->getName();
-    if (!name) {
-      if (auto *accessor = dyn_cast<AccessorDecl>(AFD)) {
-        name = accessor->getStorage()->getName();
-      }
-    }
-    return name;
-  }
-
   /// Used for debugging which parts of the code are taking a long time to
   /// compile.
   class FunctionBodyTimer {
@@ -187,7 +178,8 @@ namespace {
         if (AFD) {
           llvm::errs()
             << "\t" << Decl::getDescriptiveKindName(AFD->getDescriptiveKind())
-            << " " << getDescriptiveName(AFD);
+            << " ";
+          AFD->dumpRef(llvm::errs());
         } else {
           llvm::errs() << "\t(closure)";
         }
@@ -198,8 +190,7 @@ namespace {
       if (WarnLimit != 0 && elapsedMS >= WarnLimit) {
         if (AFD) {
           ctx.Diags.diagnose(AFD, diag::debug_long_function_body,
-                             AFD->getDescriptiveKind(), getDescriptiveName(AFD),
-                             elapsedMS, WarnLimit);
+                             AFD, elapsedMS, WarnLimit);
         } else {
           ctx.Diags.diagnose(Function.getLoc(), diag::debug_long_closure_body,
                              elapsedMS, WarnLimit);
@@ -460,13 +451,6 @@ unsigned LocalDiscriminatorsRequest::evaluate(
       node = initInfo.getInitFromProjectedValue();
       break;
     }
-  } else if (auto *runtimeAttrInit =
-                 dyn_cast<RuntimeAttributeInitializer>(dc)) {
-    auto *attachedTo = runtimeAttrInit->getAttachedToDecl();
-    auto generator = attachedTo->getRuntimeDiscoverableAttributeGenerator(
-        runtimeAttrInit->getAttr());
-    if (generator.second)
-      node = generator.first;
   } else {
     params = getParameterList(dc);
   }
@@ -598,7 +582,7 @@ static void checkLabeledStmtShadowing(
       ctx.Diags.diagnose(
           ls->getLabelInfo().Loc, diag::label_shadowed, name);
       ctx.Diags.diagnose(
-          prevLS->getLabelInfo().Loc, diag::invalid_redecl_prev, name);
+          prevLS->getLabelInfo().Loc, diag::invalid_redecl_prev_name, name);
     }
   }
 }
@@ -616,7 +600,7 @@ emitUnresolvedLabelDiagnostics(DiagnosticEngine &DE,
       .fixItReplace(SourceRange(targetLoc),
                     corrections.begin()->Value->getLabelInfo().Name.str());
     DE.diagnose(corrections.begin()->Value->getLabelInfo().Loc,
-                diag::decl_declared_here,
+                diag::name_declared_here,
                 corrections.begin()->Value->getLabelInfo().Name);
   } else {
     // If we have multiple corrections or none, produce a generic diagnostic
@@ -949,10 +933,10 @@ static void checkFallthroughPatternBindingsAndTypes(
         continue;
       }
 
-      if (!previous->getType()->isEqual(expected->getType())) {
+      if (!previous->getTypeInContext()->isEqual(expected->getTypeInContext())) {
         ctx.Diags.diagnose(
             previous->getLoc(), diag::type_mismatch_fallthrough_pattern_list,
-            previous->getType(), expected->getType());
+            previous->getTypeInContext(), expected->getTypeInContext());
         previous->setInvalid();
         expected->setInvalid();
       }
@@ -1553,10 +1537,10 @@ public:
       assert(isa<CaseStmt>(initialCaseVarDecl->getParentPatternStmt()));
 
       if (!initialCaseVarDecl->isInvalid() &&
-          !vd->getType()->isEqual(initialCaseVarDecl->getType())) {
+          !vd->getInterfaceType()->isEqual(initialCaseVarDecl->getInterfaceType())) {
         getASTContext().Diags.diagnose(
             vd->getLoc(), diag::type_mismatch_multiple_pattern_list,
-            vd->getType(), initialCaseVarDecl->getType());
+            vd->getInterfaceType(), initialCaseVarDecl->getInterfaceType());
         vd->setInvalid();
         initialCaseVarDecl->setInvalid();
       }
@@ -1735,7 +1719,7 @@ Stmt *PreCheckReturnStmtRequest::evaluate(Evaluator &evaluator, ReturnStmt *RS,
       ctx.Diags.diagnose(RS->getReturnLoc(), diag::return_non_failable_init)
           .highlight(E->getSourceRange());
       ctx.Diags
-          .diagnose(ctor->getLoc(), diag::make_init_failable, ctor->getName())
+          .diagnose(ctor->getLoc(), diag::make_init_failable, ctor)
           .fixItInsertAfter(ctor->getLoc(), "?");
       RS->setResult(nullptr);
       return RS;
@@ -1751,7 +1735,7 @@ Stmt *PreCheckReturnStmtRequest::evaluate(Evaluator &evaluator, ReturnStmt *RS,
 static bool isDiscardableType(Type type) {
   // If type is `(_: repeat ...)`, it can be discardable.
   if (auto *tuple = type->getAs<TupleType>()) {
-    if (tuple->isSingleUnlabeledPackExpansion()) {
+    if (constraints::isSingleUnlabeledPackExpansionTuple(tuple)) {
       type = tuple->getElementType(0);
     }
   }
@@ -1981,7 +1965,8 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
         // Translate calls to implicit functions to their user-facing names
         if (callee->getBaseName() == ctx.Id_derived_enum_equals ||
             callee->getBaseName() == ctx.Id_derived_struct_equals) {
-          DE.diagnose(fn->getLoc(), diag::expression_unused_result_operator,
+          DE.diagnose(fn->getLoc(),
+                      diag::expression_unused_result_operator_name,
                    ctx.Id_EqualsOperator)
             .highlight(SR1).highlight(SR2);
           return;
@@ -1992,7 +1977,7 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
       if (callee->getName().isOperator())
         diagID = diag::expression_unused_result_operator;
       
-      DE.diagnose(fn->getLoc(), diagID, callee->getName())
+      DE.diagnose(fn->getLoc(), diagID, callee)
         .highlight(SR1).highlight(SR2);
     } else
       DE.diagnose(fn->getLoc(), diag::expression_unused_result_unknown,
@@ -2223,8 +2208,7 @@ static bool checkSuperInit(ConstructorDecl *fromCtor,
         ExportContext::forFunctionBody(fromCtor, loc));
     if (didDiagnose) {
       fromCtor->diagnose(diag::availability_unavailable_implicit_init,
-                         ctor->getDescriptiveKind(), ctor->getName(),
-                         superclassDecl->getName());
+                         ctor, superclassDecl->getName());
     }
 
     // Not allowed to implicitly generate a super.init() call if the init
@@ -2405,6 +2389,13 @@ bool TypeCheckASTNodeAtLocRequest::evaluate(
         return false;
       }
     }
+    if (auto *AFD = dyn_cast<AbstractFunctionDecl>(DC)) {
+      if (AFD->hasBody() && !AFD->isBodyTypeChecked()) {
+        // Pre-check the function body if needed.
+        (void)evaluateOrDefault(evaluator, PreCheckFunctionBodyRequest{AFD},
+                                nullptr);
+      }
+    }
   }
 
   // Find innermost ASTNode at Loc from DC. Results the reference to the found
@@ -2528,6 +2519,26 @@ bool TypeCheckASTNodeAtLocRequest::evaluate(
       if (isa<TapExpr>(E))
         return Action::SkipChildren(E);
 
+      // If the location is within a single-expression branch of a
+      // SingleValueStmtExpr, walk it directly rather than as part of the brace.
+      // This ensures we type-check it a part of the whole expression, unless it
+      // has an inner closure or SVE, in which case we can still pick up a
+      // better node to type-check.
+      if (auto *SVE = dyn_cast<SingleValueStmtExpr>(E)) {
+        SmallVector<Expr *> scratch;
+        for (auto *branch : SVE->getSingleExprBranches(scratch)) {
+          auto branchCharRange = Lexer::getCharSourceRangeFromSourceRange(
+            SM, branch->getSourceRange());
+          if (branchCharRange.contains(Loc)) {
+            if (!branch->walk(*this))
+              return Action::Stop();
+
+            return Action::SkipChildren(E);
+          }
+        }
+        return Action::Continue(E);
+      }
+
       if (auto closure = dyn_cast<ClosureExpr>(E)) {
         // NOTE: When a client wants to type check a closure signature, it
         // requests with closure's 'getLoc()' location.
@@ -2608,11 +2619,6 @@ bool TypeCheckASTNodeAtLocRequest::evaluate(
         // thus the transform couldn't be applied. Perform code completion
         // pretending there was no result builder to recover.
       }
-    } else if (func->hasSingleExpressionBody() &&
-                func->getResultInterfaceType()->isVoid()) {
-       // The function returns void.  We don't need an explicit return, no matter
-       // what the type of the expression is.  Take the inserted return back out.
-      func->getBody()->setLastElement(func->getSingleExpressionBody());
     }
   }
 
@@ -2650,7 +2656,60 @@ bool TypeCheckASTNodeAtLocRequest::evaluate(
 }
 
 BraceStmt *
-TypeCheckFunctionBodyRequest::evaluate(Evaluator &evaluator,
+PreCheckFunctionBodyRequest::evaluate(Evaluator &evaluator,
+                                      AbstractFunctionDecl *AFD) const {
+  auto &ctx = AFD->getASTContext();
+  auto *body = AFD->getBody();
+  assert(body && "Expected body");
+  assert(!AFD->isBodyTypeChecked() && "Body already type-checked?");
+
+  if (auto *func = dyn_cast<FuncDecl>(AFD)) {
+    // Don't apply this pre-checking to functions with result builders.
+    if (getResultBuilderType(func))
+      return body;
+
+    if (func->hasSingleExpressionBody() &&
+        func->getResultInterfaceType()->isVoid()) {
+      // The function returns void.  We don't need an explicit return, no
+      // matter what the type of the expression is. Take the inserted return
+      // back out.
+      body->setLastElement(func->getSingleExpressionBody());
+    }
+    // If there is a single statement in the body that can be turned into a
+    // single expression return, do so now.
+    if (!func->getResultInterfaceType()->isVoid()) {
+      if (auto *S = body->getSingleActiveStatement()) {
+        if (S->mayProduceSingleValue(evaluator)) {
+          auto *SVE = SingleValueStmtExpr::createWithWrappedBranches(
+              ctx, S, /*DC*/ func, /*mustBeExpr*/ false);
+          auto *RS = new (ctx) ReturnStmt(SourceLoc(), SVE);
+          body->setLastElement(RS);
+          func->setHasSingleExpressionBody();
+          func->setSingleExpressionBody(SVE);
+        }
+      }
+    }
+  }
+
+  if (auto *ctor = dyn_cast<ConstructorDecl>(AFD)) {
+    if (body->empty() || !isKnownEndOfConstructor(body->getLastElement())) {
+      // For constructors, we make sure that the body ends with a "return"
+      // stmt, which we either implicitly synthesize, or the user can write.
+      // This simplifies SILGen.
+      SmallVector<ASTNode, 8> Elts(body->getElements().begin(),
+                                   body->getElements().end());
+      Elts.push_back(new (ctx) ReturnStmt(body->getRBraceLoc(),
+                                          /*value*/ nullptr,
+                                          /*implicit*/ true));
+      body = BraceStmt::create(ctx, body->getLBraceLoc(), Elts,
+                               body->getRBraceLoc(), body->isImplicit());
+    }
+  }
+  return body;
+}
+
+BraceStmt *
+TypeCheckFunctionBodyRequest::evaluate(Evaluator &eval,
                                        AbstractFunctionDecl *AFD) const {
   ASTContext &ctx = AFD->getASTContext();
 
@@ -2681,6 +2740,12 @@ TypeCheckFunctionBodyRequest::evaluate(Evaluator &evaluator,
                              range.End);
   };
 
+  // First do a pre-check of the body.
+  body = evaluateOrDefault(eval, PreCheckFunctionBodyRequest{AFD}, nullptr);
+  assert(body);
+
+  // Then apply a result builder if we have one, which if successful will
+  // produce a type-checked body.
   bool alreadyTypeChecked = false;
   if (auto *func = dyn_cast<FuncDecl>(AFD)) {
     if (Type builderType = getResultBuilderType(func)) {
@@ -2695,42 +2760,6 @@ TypeCheckFunctionBodyRequest::evaluate(Evaluator &evaluator,
 
         body->walk(ContextualizeClosuresAndMacros(AFD));
       }
-    } else {
-      if (func->hasSingleExpressionBody() &&
-          func->getResultInterfaceType()->isVoid()) {
-        // The function returns void.  We don't need an explicit return, no
-        // matter what the type of the expression is. Take the inserted return
-        // back out.
-        body->setLastElement(func->getSingleExpressionBody());
-      }
-      // If there is a single statement in the body that can be turned into a
-      // single expression return, do so now.
-      if (!func->getResultInterfaceType()->isVoid()) {
-        if (auto *S = body->getSingleActiveStatement()) {
-          if (S->mayProduceSingleValue(evaluator)) {
-            auto *SVE = SingleValueStmtExpr::createWithWrappedBranches(
-                ctx, S, /*DC*/ func, /*mustBeExpr*/ false);
-            auto *RS = new (ctx) ReturnStmt(SourceLoc(), SVE);
-            body->setLastElement(RS);
-            func->setHasSingleExpressionBody();
-            func->setSingleExpressionBody(SVE);
-          }
-        }
-      }
-    }
-  } else if (auto *ctor = dyn_cast<ConstructorDecl>(AFD)) {
-    if (body->empty() ||
-        !isKnownEndOfConstructor(body->getLastElement())) {
-      // For constructors, we make sure that the body ends with a "return" stmt,
-      // which we either implicitly synthesize, or the user can write.  This
-      // simplifies SILGen.
-      SmallVector<ASTNode, 8> Elts(body->getElements().begin(),
-                                   body->getElements().end());
-      Elts.push_back(new (ctx) ReturnStmt(body->getRBraceLoc(),
-                                          /*value*/nullptr,
-                                          /*implicit*/true));
-      body = BraceStmt::create(ctx, body->getLBraceLoc(), Elts,
-                               body->getRBraceLoc(), body->isImplicit());
     }
   }
 

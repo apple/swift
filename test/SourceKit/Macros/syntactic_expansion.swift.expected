@@ -15,7 +15,6 @@ source.edit.kind.active:
     get {
             _value.wrappedValue
       }
-
     set {
             _value.wrappedValue = newValue
       }
@@ -92,7 +91,6 @@ source.edit.kind.active:
     get {
             _value.wrappedValue
       }
-
     set {
             _value.wrappedValue = newValue
       }

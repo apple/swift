@@ -902,13 +902,14 @@ void swift::emitDestroyOperation(SILBuilder &builder, SILLocation loc,
   callbacks.createdNewInst(u.get<ReleaseValueInst *>());
 }
 
-// *HEY YOU, YES YOU, PLEASE READ*. Even though a textual partial apply is
-// printed with the convention of the closed over function upon it, all
-// non-inout arguments to a partial_apply are passed at +1. This includes
-// arguments that will eventually be passed as guaranteed or in_guaranteed to
-// the closed over function. This is because the partial apply is building up a
-// boxed aggregate to send off to the closed over function. Of course when you
-// call the function, the proper conventions will be used.
+// NOTE: The ownership of the partial_apply argument does not match the
+// convention of the closed over function. All non-inout arguments to a
+// partial_apply are passed at +1 for regular escaping closures and +0 for
+// closures that have been promoted to partial_apply [on_stack]. An escaping
+// partial apply stores each capture in an owned box, even for guaranteed and
+// in_guaranteed argument convention. A non-escaping/on-stack closure either
+// borrows its arguments or takes an inout_aliasable address. Non-escaping
+// closures do not support owned arguments.
 void swift::releasePartialApplyCapturedArg(SILBuilder &builder, SILLocation loc,
                                            SILValue arg,
                                            SILParameterInfo paramInfo,
@@ -1479,7 +1480,7 @@ swift::findLocalApplySites(FunctionRefBaseInst *fri) {
 /// Insert destroys of captured arguments of partial_apply [stack].
 void swift::insertDestroyOfCapturedArguments(
     PartialApplyInst *pai, SILBuilder &builder,
-    llvm::function_ref<bool(SILValue)> shouldInsertDestroy,
+    llvm::function_ref<SILValue(SILValue)> getValueToDestroy,
     SILLocation origLoc) {
   assert(pai->isOnStack());
 
@@ -1488,17 +1489,14 @@ void swift::insertDestroyOfCapturedArguments(
                                     pai->getModule());
   auto loc = CleanupLocation(origLoc);
   for (auto &arg : pai->getArgumentOperands()) {
-    SILValue argValue = arg.get();
-    if (auto *m = dyn_cast<MoveOnlyWrapperToCopyableValueInst>(argValue))
-      if (m->hasGuaranteedInitialKind())
-        argValue = m->getOperand();
-    auto *argBorrow = dyn_cast<BeginBorrowInst>(argValue);
-    if (argBorrow) {
-      argValue = argBorrow->getOperand();
-      builder.createEndBorrow(loc, argBorrow);
-    }
-    if (!shouldInsertDestroy(argValue))
+    SILValue argValue = getValueToDestroy(arg.get());
+    if (!argValue)
       continue;
+
+    assert(!pai->getFunction()->hasOwnership()
+           || (argValue->getOwnershipKind().isCompatibleWith(
+                 OwnershipKind::Owned)));
+
     unsigned calleeArgumentIndex = site.getCalleeArgIndex(arg);
     assert(calleeArgumentIndex >= calleeConv.getSILArgIndexOfFirstParam());
     auto paramInfo = calleeConv.getParamInfoForSILArg(calleeArgumentIndex);
@@ -1506,9 +1504,10 @@ void swift::insertDestroyOfCapturedArguments(
   }
 }
 
-void swift::insertDeallocOfCapturedArguments(PartialApplyInst *pai,
-                         DominanceInfo *domInfo,
-                         llvm::function_ref<bool(SILValue)> shouldInsertDestroy)
+void swift::insertDeallocOfCapturedArguments(
+  PartialApplyInst *pai,
+  DominanceInfo *domInfo,
+  llvm::function_ref<SILValue(SILValue)> getAddressToDealloc)
 {
   assert(pai->isOnStack());
 
@@ -1522,13 +1521,10 @@ void swift::insertDeallocOfCapturedArguments(PartialApplyInst *pai,
     if (!paramInfo.isIndirectInGuaranteed())
       continue;
 
-    SILValue argValue = arg.get();
-    if (!shouldInsertDestroy(argValue)) {
+    SILValue argValue = getAddressToDealloc(arg.get());
+    if (!argValue) {
       continue;
     }
-    if (auto moveWrapper =
-            dyn_cast<MoveOnlyWrapperToCopyableAddrInst>(argValue))
-      argValue = moveWrapper->getOperand();
 
     SmallVector<SILBasicBlock *, 4> boundary;
     auto *asi = cast<AllocStackInst>(argValue);

@@ -162,7 +162,7 @@ func checked_cast_branch(_ x: Float) -> Float {
 // CHECK: [ACTIVE]   %23 = apply %22(%0, %0, %21) : $@convention(method) (Float, Float, @thin Float.Type) -> Float
 
 // CHECK-LABEL: sil hidden [ossa] @${{.*}}checked_cast_branch{{.*}} : $@convention(thin) (Float) -> Float {
-// CHECK:   checked_cast_br %3 : $@thick Int.Type to any Any.Type, bb1, bb2
+// CHECK:   checked_cast_br Int.Type in %3 : $@thick Int.Type to any Any.Type, bb1, bb2
 // CHECK: }
 
 @differentiable(reverse)
@@ -407,23 +407,21 @@ func testArrayUninitializedIntrinsicApplyIndirectResult<T>(_ x: T, _ y: T) -> [W
 
 struct Mut: Differentiable {}
 extension Mut {
-  @differentiable(reverse, wrt: x)
+  @differentiable(reverse, wrt: (self, x))
   mutating func mutatingMethod(_ x: Mut) {}
 }
 
-// CHECK-LABEL: [AD] Activity info for ${{.*}}3MutV14mutatingMethodyyACF at parameter indices (0) and result indices (0)
+// CHECK-LABEL: [AD] Activity info for ${{.*}}3MutV14mutatingMethodyyACF at parameter indices (0, 1) and result indices (0)
 // CHECK: [VARIED] %0 = argument of bb0 : $Mut
-// CHECK: [USEFUL] %1 = argument of bb0 : $*Mut
+// CHECK: [ACTIVE] %1 = argument of bb0 : $*Mut
 
-// TODO(TF-985): Find workaround to avoid marking non-wrt `inout` argument as
-// active.
-@differentiable(reverse, wrt: x)
+@differentiable(reverse, wrt: (nonactive, x))
 func nonActiveInoutArg(_ nonactive: inout Mut, _ x: Mut) {
   nonactive.mutatingMethod(x)
   nonactive = x
 }
 
-// CHECK-LABEL: [AD] Activity info for ${{.*}}17nonActiveInoutArgyyAA3MutVz_ADtF at parameter indices (1) and result indices (0)
+// CHECK-LABEL: [AD] Activity info for ${{.*}}17nonActiveInoutArgyyAA3MutVz_ADtF at parameter indices (0, 1) and result indices (0)
 // CHECK: [ACTIVE] %0 = argument of bb0 : $*Mut
 // CHECK: [ACTIVE] %1 = argument of bb0 : $Mut
 // CHECK: [ACTIVE]   %4 = begin_access [modify] [static] %0 : $*Mut
@@ -449,14 +447,14 @@ func activeInoutArgMutatingMethod(_ x: Mut) -> Mut {
 // CHECK: [ACTIVE]   %11 = begin_access [read] [static] %2 : $*Mut
 // CHECK: [ACTIVE]   %12 = load [trivial] %11 : $*Mut
 
-@differentiable(reverse, wrt: x)
+@differentiable(reverse, wrt: (nonactive, x))
 func activeInoutArgMutatingMethodVar(_ nonactive: inout Mut, _ x: Mut) {
   var result = nonactive
   result.mutatingMethod(x)
   nonactive = result
 }
 
-// CHECK-LABEL: [AD] Activity info for ${{.*}}31activeInoutArgMutatingMethodVaryyAA3MutVz_ADtF at parameter indices (1) and result indices (0)
+// CHECK-LABEL: [AD] Activity info for ${{.*}}31activeInoutArgMutatingMethodVaryyAA3MutVz_ADtF at parameter indices (0, 1) and result indices (0)
 // CHECK: [ACTIVE] %0 = argument of bb0 : $*Mut
 // CHECK: [ACTIVE] %1 = argument of bb0 : $Mut
 // CHECK: [ACTIVE]   %4 = alloc_stack $Mut, var, name "result"
@@ -470,14 +468,14 @@ func activeInoutArgMutatingMethodVar(_ nonactive: inout Mut, _ x: Mut) {
 // CHECK: [ACTIVE]   %15 = begin_access [modify] [static] %0 : $*Mut
 // CHECK: [NONE]   %19 = tuple ()
 
-@differentiable(reverse, wrt: x)
+@differentiable(reverse, wrt: (nonactive, x))
 func activeInoutArgMutatingMethodTuple(_ nonactive: inout Mut, _ x: Mut) {
   var result = (nonactive, x)
   result.0.mutatingMethod(result.0)
   nonactive = result.0
 }
 
-// CHECK-LABEL: [AD] Activity info for ${{.*}}33activeInoutArgMutatingMethodTupleyyAA3MutVz_ADtF at parameter indices (1) and result indices (0)
+// CHECK-LABEL: [AD] Activity info for ${{.*}}33activeInoutArgMutatingMethodTupleyyAA3MutVz_ADtF at parameter indices (0, 1) and result indices (0)
 // CHECK: [ACTIVE] %0 = argument of bb0 : $*Mut
 // CHECK: [ACTIVE] %1 = argument of bb0 : $Mut
 // CHECK: [ACTIVE]   %4 = alloc_stack $(Mut, Mut), var, name "result"
@@ -499,39 +497,39 @@ func activeInoutArgMutatingMethodTuple(_ nonactive: inout Mut, _ x: Mut) {
 // Check `inout` arguments.
 
 @differentiable(reverse)
-func activeInoutArg(_ x: Float) -> Float {
+func activeInoutArg(_ x: inout Float) -> Float {
   var result = x
   result += x
   return result
 }
 
-// CHECK-LABEL: [AD] Activity info for ${{.*}}activeInoutArg{{.*}} at parameter indices (0) and result indices (0)
-// CHECK: [ACTIVE] %0 = argument of bb0 : $Float
+// CHECK-LABEL: [AD] Activity info for ${{.*}}activeInoutArg{{.*}} at parameter indices (0) and result indices (0, 1)
+// CHECK: [ACTIVE] %0 = argument of bb0 : $*Float
 // CHECK: [ACTIVE]   %2 = alloc_stack $Float, var, name "result"
-// CHECK: [ACTIVE]   %5 = begin_access [modify] [static] %2 : $*Float
+// CHECK: [ACTIVE]   %10 = begin_access [modify] [static] %2 : $*Float
 // CHECK: [NONE]   // function_ref static Float.+= infix(_:_:)
-// CHECK: [NONE]   %7 = apply %6(%5, %0, %4) : $@convention(method) (@inout Float, Float, @thin Float.Type) -> ()
-// CHECK: [ACTIVE]   %9 = begin_access [read] [static] %2 : $*Float
-// CHECK: [ACTIVE]   %10 = load [trivial] %9 : $*Float
+// CHECK: [NONE]   %12 = apply %11(%10, %8, %6) : $@convention(method) (@inout Float, Float, @thin Float.Type) -> ()
+// CHECK: [ACTIVE]   %14 = begin_access [read] [static] %2 : $*Float
+// CHECK: [ACTIVE]   %15 = load [trivial] %14 : $*Float
 
 @differentiable(reverse)
-func activeInoutArgNonactiveInitialResult(_ x: Float) -> Float {
+func activeInoutArgNonactiveInitialResult(_ x: inout Float) -> Float {
   var result: Float = 1
   result += x
   return result
 }
 
-// CHECK-LABEL: [AD] Activity info for ${{.*}}activeInoutArgNonactiveInitialResult{{.*}} at parameter indices (0) and result indices (0)
-// CHECK: [ACTIVE] %0 = argument of bb0 : $Float
+// CHECK-LABEL: [AD] Activity info for ${{.*}}activeInoutArgNonactiveInitialResult{{.*}} at parameter indices (0) and result indices (0, 1)
+// CHECK: [ACTIVE] %0 = argument of bb0 : $*Float
 // CHECK: [ACTIVE]   %2 = alloc_stack $Float, var, name "result"
 // CHECK: [NONE]   // function_ref Float.init(_builtinIntegerLiteral:)
 // CHECK: [USEFUL]   %6 = apply %5(%3, %4) : $@convention(method) (Builtin.IntLiteral, @thin Float.Type) -> Float
 // CHECK: [USEFUL]   %8 = metatype $@thin Float.Type
-// CHECK: [ACTIVE]   %9 = begin_access [modify] [static] %2 : $*Float
+// CHECK: [ACTIVE]   %12 = begin_access [modify] [static] %2 : $*Float
 // CHECK: [NONE]   // function_ref static Float.+= infix(_:_:)
-// CHECK: [NONE]   %11 = apply %10(%9, %0, %8) : $@convention(method) (@inout Float, Float, @thin Float.Type) -> ()
-// CHECK: [ACTIVE]   %13 = begin_access [read] [static] %2 : $*Float
-// CHECK: [ACTIVE]   %14 = load [trivial] %13 : $*Float
+// CHECK: [NONE]   %14 = apply %13(%12, %10, %8) : $@convention(method) (@inout Float, Float, @thin Float.Type) -> ()
+// CHECK: [ACTIVE]   %16 = begin_access [read] [static] %2 : $*Float
+// CHECK: [ACTIVE]   %17 = load [trivial] %16 : $*Float
 
 //===----------------------------------------------------------------------===//
 // Throwing function differentiation (`try_apply`)

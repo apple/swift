@@ -1137,7 +1137,7 @@ static SymbolicValue getIndexedElement(SymbolicValue aggregate,
   } else {
     elt = aggregate.getAggregateMembers()[elementNo];
     if (auto *decl = type->getStructOrBoundGenericStruct()) {
-      eltType = decl->getStoredProperties()[elementNo]->getType();
+      eltType = decl->getStoredProperties()[elementNo]->getTypeInContext();
     } else if (auto tuple = type->getAs<TupleType>()) {
       assert(elementNo < tuple->getNumElements() && "invalid index");
       eltType = tuple->getElement(elementNo).getType();
@@ -1213,7 +1213,7 @@ static SymbolicValue setIndexedElement(SymbolicValue aggregate,
   } else {
     oldElts = aggregate.getAggregateMembers();
     if (auto *decl = type->getStructOrBoundGenericStruct()) {
-      eltType = decl->getStoredProperties()[elementNo]->getType();
+      eltType = decl->getStoredProperties()[elementNo]->getTypeInContext();
     } else if (auto tuple = type->getAs<TupleType>()) {
       assert(elementNo < tuple->getNumElements() && "invalid index");
       eltType = tuple->getElement(elementNo).getType();

@@ -147,7 +147,7 @@ ErrorOr<ModuleDependencyInfo> ModuleDependencyScanner::scanInterfaceFile(
     }
 
     // Compute the output path and add it to the command line
-    SmallString<128> outputPathBase(moduleCachePath);
+    SmallString<128> outputPathBase(moduleOutputPath);
     llvm::sys::path::append(
         outputPathBase,
         moduleName.str() + "-" + Hash + "." +
@@ -281,9 +281,11 @@ SerializedModuleLoaderBase::getModuleDependencies(
   // FIXME: submodules?
   scanners.push_back(std::make_unique<PlaceholderSwiftModuleScanner>(
       Ctx, LoadMode, moduleId, Ctx.SearchPathOpts.PlaceholderDependencyModuleMap,
-      delegate, cache.getScanService().createSwiftDependencyTracker()));
+      delegate, cache.getModuleOutputPath(),
+       cache.getScanService().createSwiftDependencyTracker()));
   scanners.push_back(std::make_unique<ModuleDependencyScanner>(
-      Ctx, LoadMode, moduleId, delegate, ModuleDependencyScanner::MDS_plain,
+      Ctx, LoadMode, moduleId, delegate, cache.getModuleOutputPath(),
+      ModuleDependencyScanner::MDS_plain,
       cache.getScanService().createSwiftDependencyTracker()));
 
   // Check whether there is a module with this name that we can import.

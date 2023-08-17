@@ -491,13 +491,32 @@ void IRGenModule::emitSourceFile(SourceFile &SF) {
     if (!getSwiftModule()->getName().is("Cxx"))
       this->addLinkLibrary(LinkLibrary("swiftCxx", LibraryKind::Library));
 
-    // Only link with CxxStdlib on platforms where the overlay is available.
-    // Do not try to link CxxStdlib with itself.
-    if ((target.isOSDarwin() || (target.isOSLinux() && !target.isAndroid())) &&
-        !getSwiftModule()->getName().is("Cxx") &&
-        !getSwiftModule()->getName().is("CxxStdlib") &&
-        !getSwiftModule()->getName().is("std")) {
-      this->addLinkLibrary(LinkLibrary("swiftCxxStdlib", LibraryKind::Library));
+    // Do not try to link CxxStdlib with the C++ standard library, Cxx or
+    // itself.
+    if (llvm::none_of(llvm::ArrayRef{"Cxx", "CxxStdlib", "std"},
+                      [M = getSwiftModule()->getName().str()](StringRef Name) {
+                        return M == Name;
+                      })) {
+      // Only link with CxxStdlib on platforms where the overlay is available.
+      switch (target.getOS()) {
+      case llvm::Triple::Linux:
+        if (!target.isAndroid())
+          this->addLinkLibrary(LinkLibrary("swiftCxxStdlib",
+                                           LibraryKind::Library));
+        break;
+      case llvm::Triple::Win32: {
+        bool isStatic = Context.getModuleByName("CxxStdlib")->isStaticLibrary();
+        this->addLinkLibrary(
+            LinkLibrary(isStatic ? "libswiftCxxStdlib" : "swiftCxxStdlib",
+                        LibraryKind::Library));
+        break;
+      }
+      default:
+        if (target.isOSDarwin())
+          this->addLinkLibrary(LinkLibrary("swiftCxxStdlib",
+                                           LibraryKind::Library));
+        break;
+      }
     }
   }
 
@@ -1563,7 +1582,7 @@ void IRGenerator::noteUseOfTypeGlobals(NominalTypeDecl *type,
   if (!type)
     return;
 
-  assert(!Lowering::shouldSkipLowering(type));
+  assert(type->isAvailableDuringLowering());
 
   // Force emission of ObjC protocol descriptors used by type refs.
   if (auto proto = dyn_cast<ProtocolDecl>(type)) {
@@ -2473,7 +2492,7 @@ void swift::irgen::disableAddressSanitizer(IRGenModule &IGM, llvm::GlobalVariabl
 
 /// Emit a global declaration.
 void IRGenModule::emitGlobalDecl(Decl *D) {
-  if (Lowering::shouldSkipLowering(D))
+  if (!D->isAvailableDuringLowering())
     return;
 
   D->visitAuxiliaryDecls([&](Decl *decl) {
@@ -4514,101 +4533,6 @@ void IRGenModule::emitAccessibleFunctions() {
   }
 }
 
-void IRGenModule::emitRuntimeDiscoverableAttributes(
-    TinyPtrVector<FileUnit *> &filesToEmit) {
-  StringRef sectionName;
-  switch (TargetInfo.OutputObjectFormat) {
-  case llvm::Triple::DXContainer:
-  case llvm::Triple::GOFF:
-  case llvm::Triple::SPIRV:
-  case llvm::Triple::UnknownObjectFormat:
-    llvm_unreachable("Don't know how to emit attribute section for "
-                     "the selected object format.");
-  case llvm::Triple::MachO:
-    sectionName = "__TEXT, __swift5_rattrs, regular";
-    break;
-  case llvm::Triple::ELF:
-  case llvm::Triple::Wasm:
-    sectionName = "swift5_runtime_attributes";
-    break;
-  case llvm::Triple::XCOFF:
-  case llvm::Triple::COFF:
-    sectionName = ".sw5ratt$B";
-    break;
-  }
-
-  // Map attribute type to each declaration it's attached to
-  // and a corresponding generator function.
-  llvm::MapVector<NominalTypeDecl *, SmallVector<SILDeclRef, 2>> attributes;
-  {
-    for (auto *fileUnit : filesToEmit) {
-      auto *SF = dyn_cast<SourceFile>(fileUnit);
-      if (!SF)
-        continue;
-
-      for (auto *decl : SF->getDeclsWithRuntimeDiscoverableAttrs()) {
-        for (auto *attr : decl->getRuntimeDiscoverableAttrs()) {
-          auto *attrType = decl->getRuntimeDiscoverableAttrTypeDecl(attr);
-          attributes[attrType].push_back(
-              SILDeclRef::getRuntimeAttributeGenerator(attr, decl)
-                  .asRuntimeAccessible());
-        }
-      }
-    }
-  }
-
-  auto &SM = getSILModule();
-
-  for (auto &attr : attributes) {
-    auto *attrType = attr.first;
-    const auto &attachedTo = attr.second;
-
-    auto mangledRecordName =
-        LinkEntity::forRuntimeDiscoverableAttributeRecord(attrType)
-            .mangleAsString();
-
-    ConstantInitBuilder builder(*this);
-    ConstantStructBuilder B = builder.beginStruct();
-
-    // Flags
-    B.addInt32(0);
-
-    // Attribute metadata descriptor
-    B.addRelativeAddress(getAddrOfLLVMVariableOrGOTEquivalent(
-        LinkEntity::forNominalTypeDescriptor(attrType)));
-
-    // Number of types it's attached to.
-    B.addInt32(attachedTo.size());
-
-    // Emit all of the trailing objects
-    for (auto &ref : attachedTo) {
-      auto type = ref.getDecl()->getInterfaceType()->getCanonicalType();
-      auto *generator = SM.lookUpFunction(ref);
-
-      B.addRelativeAddress(
-          getTypeRef(type, /*genericSig=*/nullptr, MangledTypeRefRole::Metadata)
-              .first);
-      B.addRelativeAddressOrNull(getAddrOfAccessibleFunctionRecord(generator));
-    }
-
-    B.suggestType(RuntimeDiscoverableAttributeTy);
-
-    auto entity = LinkEntity::forRuntimeDiscoverableAttributeRecord(attrType);
-
-    auto *var = cast<llvm::GlobalVariable>(getAddrOfLLVMVariable(
-        entity, B.finishAndCreateFuture(), DebugTypeInfo()));
-
-    var->setConstant(true);
-    setTrueConstGlobal(var);
-
-    var->setSection(sectionName);
-    var->setAlignment(llvm::MaybeAlign(4));
-
-    disableAddressSanitizer(*this, var);
-    addUsedGlobal(var);
-  }
-}
-
 /// Fetch a global reference to a reference to the given Objective-C class.
 /// The result is of type ObjCClassPtrTy->getPointerTo().
 Address IRGenModule::getAddrOfObjCClassRef(ClassDecl *theClass) {
@@ -5550,7 +5474,7 @@ static Address getAddrOfSimpleVariable(IRGenModule &IGM,
 /// The result is always a GlobalValue.
 Address IRGenModule::getAddrOfFieldOffset(VarDecl *var,
                                           ForDefinition_t forDefinition) {
-  assert(!Lowering::shouldSkipLowering(var));
+  assert(var->isAvailableDuringLowering());
 
   LinkEntity entity = LinkEntity::forFieldOffset(var);
   return getAddrOfSimpleVariable(*this, GlobalVars, entity,
@@ -5559,7 +5483,7 @@ Address IRGenModule::getAddrOfFieldOffset(VarDecl *var,
 
 Address IRGenModule::getAddrOfEnumCase(EnumElementDecl *Case,
                                        ForDefinition_t forDefinition) {
-  assert(!Lowering::shouldSkipLowering(Case));
+  assert(Case->isAvailableDuringLowering());
 
   LinkEntity entity = LinkEntity::forEnumCase(Case);
   auto addr = getAddrOfSimpleVariable(*this, GlobalVars, entity, forDefinition);
@@ -5572,7 +5496,7 @@ Address IRGenModule::getAddrOfEnumCase(EnumElementDecl *Case,
 
 void IRGenModule::emitNestedTypeDecls(DeclRange members) {
   for (Decl *member : members) {
-    if (Lowering::shouldSkipLowering(member))
+    if (!member->isAvailableDuringLowering())
       continue;
 
     member->visitAuxiliaryDecls([&](Decl *decl) {

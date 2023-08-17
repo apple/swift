@@ -781,8 +781,10 @@ struct AsyncTask::PrivateStorage {
 
   // Destroy the opaque storage of the task
   void destroy() {
+#ifndef NDEBUG
     auto oldStatus = _status().load(std::memory_order_relaxed);
     assert(oldStatus.isComplete());
+#endif
 
     this->~PrivateStorage();
   }

@@ -26,6 +26,7 @@
 #include "swift/AST/Pattern.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "clang/AST/DeclObjC.h"
 
 using namespace swift;
 
@@ -353,10 +354,10 @@ static void noteLimitingImport(ASTContext &ctx,
          "a public import shouldn't limit the access level of a decl");
 
   if (auto ITR = dyn_cast_or_null<IdentTypeRepr>(complainRepr)) {
-    const ValueDecl *VD = ITR->getBoundDecl();
-    ctx.Diags.diagnose(limitImport->accessLevelLoc, diag::decl_import_via_here,
-                       DescriptiveDeclKind::Type,
-                       VD->getName(),
+    ValueDecl *VD = ITR->getBoundDecl();
+    ctx.Diags.diagnose(limitImport->accessLevelLoc,
+                       diag::decl_import_via_here,
+                       VD,
                        limitImport->accessLevel,
                        limitImport->module.importedModule->getName());
   } else {
@@ -493,7 +494,7 @@ void AccessControlCheckerBase::checkGlobalActorAccess(const Decl *D) {
           AccessLevel diagAccessLevel) {
         if (checkUsableFromInline) {
           auto diag = D->diagnose(diag::global_actor_not_usable_from_inline,
-                                  D->getDescriptiveKind(), VD->getName());
+                                  VD);
           highlightOffendingType(diag, complainRepr);
           noteLimitingImport(D->getASTContext(), importLimit, complainRepr);
           return;
@@ -503,8 +504,7 @@ void AccessControlCheckerBase::checkGlobalActorAccess(const Decl *D) {
         auto declAccess = isExplicit
                               ? VD->getFormalAccess()
                               : typeAccessScope.requiredAccessForDiagnostics();
-        auto diag = D->diagnose(diag::global_actor_access, declAccess,
-                                D->getDescriptiveKind(), VD->getName(),
+        auto diag = D->diagnose(diag::global_actor_access, declAccess, VD,
                                 diagAccessLevel, globalActorDecl->getName());
         highlightOffendingType(diag, complainRepr);
         noteLimitingImport(D->getASTContext(), importLimit, complainRepr);
@@ -528,6 +528,7 @@ public:
 
     DeclVisitor<AccessControlChecker>::visit(D);
     checkGlobalActorAccess(D);
+    checkAttachedMacrosAccess(D);
   }
 
   // Force all kinds to be handled at a lower level.
@@ -1260,6 +1261,18 @@ public:
       noteLimitingImport(MD->getASTContext(), minImportLimit, complainRepr);
     }
   }
+
+  void checkAttachedMacrosAccess(const Decl *D) {
+    for (auto customAttrC : D->getSemanticAttrs().getAttributes<CustomAttr>()) {
+      auto customAttr = const_cast<CustomAttr *>(customAttrC);
+      auto *macroDecl = D->getResolvedMacro(customAttr);
+      if (macroDecl) {
+        diagnoseDeclAvailability(
+          macroDecl, customAttr->getTypeRepr()->getSourceRange(), nullptr,
+          ExportContext::forDeclSignature(const_cast<Decl *>(D)), llvm::None);
+      }
+    }
+  }
 };
 
 class UsableFromInlineChecker : public AccessControlCheckerBase,
@@ -1789,6 +1802,66 @@ public:
     }
   }
 };
+
+bool isFragileClangType(clang::QualType type) {
+  if (type.isNull())
+    return true;
+  auto underlyingTypePtr = type->getUnqualifiedDesugaredType();
+  // Objective-C types are compatible with library
+  // evolution.
+  if (underlyingTypePtr->isObjCObjectPointerType())
+    return false;
+  // Builtin clang types are compatible with library evolution.
+  if (underlyingTypePtr->isBuiltinType())
+    return false;
+  // Pointers to non-fragile types are non-fragile.
+  if (underlyingTypePtr->isPointerType())
+    return isFragileClangType(underlyingTypePtr->getPointeeType());
+  return true;
+}
+
+bool isFragileClangNode(const ClangNode &node) {
+  auto *decl = node.getAsDecl();
+  if (!decl)
+    return false;
+  // Namespaces by themselves don't impact ABI.
+  if (isa<clang::NamespaceDecl>(decl))
+    return false;
+  // Objective-C type declarations are compatible with library evolution.
+  if (isa<clang::ObjCContainerDecl>(decl))
+    return false;
+  if (auto *fd = dyn_cast<clang::FunctionDecl>(decl)) {
+    if (!isa<clang::CXXMethodDecl>(decl) &&
+        !isFragileClangType(fd->getDeclaredReturnType())) {
+      for (const auto *param : fd->parameters()) {
+        if (isFragileClangType(param->getType()))
+          return true;
+      }
+      // A global function whose return and parameter types are compatible with
+      // library evolution is compatible with library evolution.
+      return false;
+    }
+  }
+  if (auto *md = dyn_cast<clang::ObjCMethodDecl>(decl)) {
+    if (!isFragileClangType(md->getReturnType())) {
+      for (const auto *param : md->parameters()) {
+        if (isFragileClangType(param->getType()))
+          return true;
+      }
+      // An Objective-C method whose return and parameter types are compatible
+      // with library evolution is compatible with library evolution.
+      return false;
+    }
+  }
+  // An Objective-C property whose can be compatible
+  // with library evolution if its type is compatible.
+  if (auto *pd = dyn_cast<clang::ObjCPropertyDecl>(decl))
+    return isFragileClangType(pd->getType());
+  if (auto *typedefDecl = dyn_cast<clang::TypedefNameDecl>(decl))
+    return isFragileClangType(typedefDecl->getUnderlyingType());
+  return true;
+}
+
 } // end anonymous namespace
 
 /// Returns the kind of origin, implementation-only import or SPI declaration,
@@ -1894,6 +1967,14 @@ swift::getDisallowedOriginKind(const Decl *decl,
       DisallowedOriginKind::SPILocal :
       DisallowedOriginKind::SPIImported;
   }
+
+  // C++ APIs do not support library evolution.
+  if (SF->getASTContext().LangOpts.EnableCXXInterop && where.getDeclContext() &&
+      where.getDeclContext()->getAsDecl() &&
+      where.getDeclContext()->getAsDecl()->getModuleContext()->isResilient() &&
+      decl->hasClangNode() && !decl->getModuleContext()->isSwiftShimsModule() &&
+      isFragileClangNode(decl->getClangNode()))
+    return DisallowedOriginKind::FragileCxxAPI;
 
   return DisallowedOriginKind::None;
 }
@@ -2255,15 +2336,14 @@ public:
 
     auto &DE = PGD->getASTContext().Diags;
     auto diag =
-        DE.diagnose(diagLoc, diag::decl_from_hidden_module,
-                    PGD->getDescriptiveKind(), PGD->getName(),
+        DE.diagnose(diagLoc, diag::decl_from_hidden_module, PGD,
                     static_cast<unsigned>(ExportabilityReason::General), M->getName(),
                     static_cast<unsigned>(DisallowedOriginKind::ImplementationOnly)
                     );
     if (refRange.isValid())
       diag.highlight(refRange);
     diag.flush();
-    PGD->diagnose(diag::decl_declared_here, PGD->getName());
+    PGD->diagnose(diag::name_declared_here, PGD->getName());
   }
 
   void visitInfixOperatorDecl(InfixOperatorDecl *IOD) {

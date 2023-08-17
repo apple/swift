@@ -1680,7 +1680,11 @@ class ElfImage<SomeImageSource: ImageSource,
           done = true
         }
 
-        prevState = state
+        if state.endSequence {
+          prevState = nil
+        } else {
+          prevState = state
+        }
       }
     }
 

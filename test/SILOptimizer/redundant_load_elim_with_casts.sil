@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -module-name Swift -redundant-load-elim | %FileCheck -check-prefix=CHECK-FUTURE %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -module-name Swift -redundant-load-elimination | %FileCheck -check-prefix=CHECK-FUTURE %s
 //
 // FIXME: Contains tests which are handled by old RLE, but not current one. Mostly due to casting. Eventually we probably should
 // handle these cases if they turn out to be important.

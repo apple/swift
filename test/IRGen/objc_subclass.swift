@@ -2,6 +2,8 @@
 // RUN: %build-irgen-test-overlays
 // RUN: %target-swift-frontend(mock-sdk: -sdk %S/Inputs -I %t) -primary-file %s -emit-ir | %FileCheck --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize %s
 
+// UNSUPPORTED: OS=watchos
+
 // REQUIRES: objc_interop
 
 // The order of the output seems to change between asserts/noasserts build of
@@ -50,15 +52,15 @@
 // CHECK-32:   [11 x { ptr, ptr, ptr }] [{ ptr, ptr, ptr } {
 // CHECK-32:     ptr @"\01L_selector_data(x)",
 // CHECK-32:     ptr @".str.6.l8@0:4",
-// CHECK-32:     ptr bitcast ptr @"$s13objc_subclass10SwiftGizmoC1xSivgTo{{(\.ptrauth)?}}" to ptr)
+// CHECK-32:     ptr @"$s13objc_subclass10SwiftGizmoC1xSivgTo{{(\.ptrauth)?}}"
 // CHECK-32:   }, { ptr, ptr, ptr } {
 // CHECK-32:     ptr @"\01L_selector_data(setX:)",
 // CHECK-32:     ptr @".str.9.v12@0:4l8",
-// CHECK-32:     ptr bitcast ptr @"$s13objc_subclass10SwiftGizmoC1xSivsTo{{(\.ptrauth)?}}" to ptr)
+// CHECK-32:     ptr @"$s13objc_subclass10SwiftGizmoC1xSivsTo{{(\.ptrauth)?}}"
 // CHECK-32:   }, { ptr, ptr, ptr } {
 // CHECK-32:     ptr @"\01L_selector_data(getX)",
 // CHECK-32:     ptr @".str.6.l8@0:4",
-// CHECK-32:     ptr bitcast ptr @"$s13objc_subclass10SwiftGizmoC4getXSiyFTo{{(\.ptrauth)?}}" to ptr)
+// CHECK-32:     ptr @"$s13objc_subclass10SwiftGizmoC4getXSiyFTo{{(\.ptrauth)?}}"
 // CHECK-32:   }, { ptr, ptr, ptr } {
 // CHECK-32:     ptr @"\01L_selector_data(duplicate)",
 // CHECK-32:     ptr @".str.6.@8@0:4",
@@ -74,7 +76,7 @@
 // CHECK-32:   }, { ptr, ptr, ptr } {
 // CHECK-32:     ptr @"\01L_selector_data(dealloc)",
 // CHECK-32:     ptr @".str.6.v8@0:4",
-// CHECK-32:     ptr bitcast ptr @"$s13objc_subclass10SwiftGizmoCfDTo{{(\.ptrauth)?}}" to ptr)
+// CHECK-32:     ptr @"$s13objc_subclass10SwiftGizmoCfDTo{{(\.ptrauth)?}}"
 // CHECK-32:   }, { ptr, ptr, ptr } {
 // CHECK-32:     ptr @"\01L_selector_data(isEnabled)",
 // CHECK-32:     ptr {{@".str.[^"]+"}},

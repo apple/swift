@@ -244,6 +244,10 @@ bool replayCachedCompilerOutputs(
     Diag.diagnose(SourceLoc(), diag::error_replay_cached_diag,
                   toString(std::move(E)));
     return false;
+  } else {
+    if (CacheRemarks)
+      Diag.diagnose(SourceLoc(), diag::replay_output, "<cached-diagnostics>",
+                    DiagnosticsOutput->Key);
   }
 
   // Replay the result only when everything is resolved.

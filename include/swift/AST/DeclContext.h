@@ -85,6 +85,9 @@ namespace swift {
   class StructDecl;
   class AccessorDecl;
 
+  template <typename T>
+  struct AvailableDuringLoweringDeclFilter;
+
 namespace serialization {
 using DeclID = llvm::PointerEmbeddedInt<unsigned, 31>;
 }
@@ -172,9 +175,6 @@ enum class ConformanceLookupKind : unsigned {
   /// All conformances except structurally-derived conformances, of which
   /// Sendable is the only one.
   NonStructural,
-  /// Exclude conformances added by a macro that has not been expanded
-  /// yet.
-  ExcludeUnexpandedMacros,
 };
 
 /// Describes a diagnostic for a conflict between two protocol
@@ -865,12 +865,11 @@ public:
   /// on.
   DeclRange getMembers() const;
 
-  /// Retrieve the current set of members in this context, without triggering the
-  /// creation of new members via code synthesis, macro expansion, etc.
+  /// Retrieve the current set of members in this context, without triggering
+  /// the creation of new members via code synthesis, macro expansion, etc.
   ///
   /// This operation should only be used in narrow places where any side-effect
-  /// producing operations have been done earlier. For the most part, this means that
-  /// it should only be used in the implementation of
+  /// producing operations have been done earlier.
   DeclRange getCurrentMembers() const;
 
   /// Get the members that were syntactically present in the source code,
@@ -883,6 +882,15 @@ public:
   ///
   /// The resulting list of members will be stable across translation units.
   ArrayRef<Decl *> getABIMembers() const;
+
+  using DeclsForLowering =
+      OptionalTransformRange<ArrayRef<Decl *>,
+                             AvailableDuringLoweringDeclFilter<Decl>>;
+
+  /// Get all of the members within this context that should be included when
+  /// lowering to SIL/IR, including any implicitly-synthesized members. The
+  /// decls returned by \c getABIMembers() are a superset of these decls.
+  DeclsForLowering getMembersForLowering() const;
 
   /// Get all of the members within this context, including any
   /// implicitly-synthesized members.

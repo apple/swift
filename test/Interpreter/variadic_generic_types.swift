@@ -101,7 +101,7 @@ types.test("LayoutReq") {
 }
 
 public struct OuterSeq<each T: Sequence> {
-  public struct InnerSeq<each U: Sequence> where repeat each T.Element == each U.Element {}
+  public struct InnerSeq<each U: Sequence> where repeat (each T).Element == (each U).Element {}
 }
 
 types.test("SameTypeReq") {

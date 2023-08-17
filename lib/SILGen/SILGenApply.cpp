@@ -218,7 +218,7 @@ static ManagedValue borrowedCastToOriginalSelfType(SILGenFunction &SGF,
   if (originalSelfType.is<AnyMetatypeType>()) {
     assert(originalSelfType.isTrivial(SGF.F) &&
            "Metatypes should always be trivial");
-    return ManagedValue::forUnmanaged(originalSelf);
+    return ManagedValue::forObjectRValueWithoutOwnership(originalSelf);
   }
 
   // Otherwise, we have a non-metatype. Use a borrow+unchecked_ref_cast.
@@ -629,14 +629,14 @@ public:
       auto constantInfo =
           SGF.getConstantInfo(SGF.getTypeExpansionContext(), *constant);
       SILValue ref = SGF.emitGlobalFunctionRef(Loc, *constant, constantInfo);
-      return ManagedValue::forUnmanaged(ref);
+      return ManagedValue::forObjectRValueWithoutOwnership(ref);
     }
     case Kind::StandaloneFunctionDynamicallyReplaceableImpl: {
       auto constantInfo =
           SGF.getConstantInfo(SGF.getTypeExpansionContext(), *constant);
       SILValue ref =
           SGF.emitGlobalFunctionRef(Loc, *constant, constantInfo, true);
-      return ManagedValue::forUnmanaged(ref);
+      return ManagedValue::forObjectRValueWithoutOwnership(ref);
     }
     case Kind::ClassMethod: {
       auto methodTy = SGF.SGM.Types.getConstantOverrideType(
@@ -655,7 +655,7 @@ public:
             SILType::getPrimitiveObjectType(methodTy));
       }
       S.pop();
-      return ManagedValue::forUnmanaged(methodVal);
+      return ManagedValue::forObjectRValueWithoutOwnership(methodVal);
     }
     case Kind::SuperMethod: {
       ArgumentScope S(SGF, Loc);
@@ -709,7 +709,7 @@ public:
                                     *constant, constantInfo.getSILType());
       }
       S.pop();
-      return ManagedValue::forUnmanaged(fn);
+      return ManagedValue::forObjectRValueWithoutOwnership(fn);
     }
     case Kind::DynamicMethod: {
       auto closureType = getDynamicMethodLoweredType(
@@ -720,7 +720,7 @@ public:
           Loc, borrowedSelf->getValue(), *constant,
           closureType);
       S.pop();
-      return ManagedValue::forUnmanaged(fn);
+      return ManagedValue::forObjectRValueWithoutOwnership(fn);
     }
     }
     llvm_unreachable("unhandled kind");
@@ -1010,7 +1010,7 @@ public:
       llvm_unreachable("shouldn't happen");
     }
 
-    auto result = ManagedValue::forUnmanaged(convertedValue);
+    auto result = ManagedValue::forObjectRValueWithoutOwnership(convertedValue);
     return {result, SGF.getLoweredType(instanceType)};
   }
 
@@ -1293,10 +1293,10 @@ public:
     // If we're in top-level code, we don't need to physically capture script
     // globals, but we still need to mark them as escaping so that DI can flag
     // uninitialized uses.
-    if (&SGF == SGF.SGM.TopLevelSGF) {
-      SGF.SGM.emitMarkFunctionEscapeForTopLevelCodeGlobals(e,e->getCaptureInfo());
+    if (SGF.isEmittingTopLevelCode()) {
+      SGF.emitMarkFunctionEscapeForTopLevelCodeGlobals(e, e->getCaptureInfo());
     }
-    
+
     // A directly-called closure can be emitted as a direct call instead of
     // really producing a closure object.
 
@@ -1550,9 +1550,12 @@ public:
         self = SGF.emitUndef(selfFormalType);
       } else if (SGF.AllocatorMetatype) {
         self = emitCorrespondingSelfValue(
-            ManagedValue::forUnmanaged(SGF.AllocatorMetatype), arg);
+            ManagedValue::forObjectRValueWithoutOwnership(
+                SGF.AllocatorMetatype),
+            arg);
       } else {
-        self = ManagedValue::forUnmanaged(SGF.emitMetatypeOfValue(expr, arg));
+        self = ManagedValue::forObjectRValueWithoutOwnership(
+            SGF.emitMetatypeOfValue(expr, arg));
       }
     } else {
       // If we haven't allocated "self" yet at this point, do so.
@@ -1565,10 +1568,10 @@ public:
           // initializer is @objc.
           usesObjCAllocation = true;
         }
-        
-        self = allocateObject(
-                      ManagedValue::forUnmanaged(SGF.AllocatorMetatype), arg,
-                      usesObjCAllocation);
+
+        self = allocateObject(ManagedValue::forObjectRValueWithoutOwnership(
+                                  SGF.AllocatorMetatype),
+                              arg, usesObjCAllocation);
 
         // Perform any adjustments needed to 'self'.
         self = emitCorrespondingSelfValue(self, arg);
@@ -1819,7 +1822,8 @@ static PreparedArguments emitStringLiteralArgs(SILGenFunction &SGF, SILLocation 
     AnyFunctionType::Param param(Int32Ty.getASTType());
     PreparedArguments args(llvm::ArrayRef<AnyFunctionType::Param>{param});
     args.add(E, RValue(SGF, E, Int32Ty.getASTType(),
-                       ManagedValue::forUnmanaged(UnicodeScalarValue)));
+                       ManagedValue::forObjectRValueWithoutOwnership(
+                           UnicodeScalarValue)));
     return args;
   }
   }
@@ -1836,10 +1840,9 @@ static PreparedArguments emitStringLiteralArgs(SILGenFunction &SGF, SILLocation 
   auto *isASCIIInst = SGF.B.createIntegerLiteral(E, Int1Ty, isASCII);
 
   ManagedValue EltsArray[] = {
-    ManagedValue::forUnmanaged(string),
-    ManagedValue::forUnmanaged(lengthInst),
-    ManagedValue::forUnmanaged(isASCIIInst)
-  };
+      ManagedValue::forObjectRValueWithoutOwnership(string),
+      ManagedValue::forObjectRValueWithoutOwnership(lengthInst),
+      ManagedValue::forObjectRValueWithoutOwnership(isASCIIInst)};
 
   AnyFunctionType::Param TypeEltsArray[] = {
     AnyFunctionType::Param(EltsArray[0].getType().getASTType()),
@@ -2043,7 +2046,8 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
   auto i1Ty = SILType::getBuiltinIntegerType(1, SGF.getASTContext());
   SILValue boolValue = SGF.B.createIntegerLiteral(booleanLiteral, i1Ty,
                                                   booleanLiteral->getValue());
-  ManagedValue boolManaged = ManagedValue::forUnmanaged(boolValue);
+  ManagedValue boolManaged =
+      ManagedValue::forObjectRValueWithoutOwnership(boolValue);
   CanType ty = boolManaged.getType().getASTType()->getCanonicalType();
   builtinLiteralArgs.emplace(AnyFunctionType::Param(ty));
   builtinLiteralArgs.add(booleanLiteral, RValue(SGF, {boolManaged}, ty));
@@ -2055,7 +2059,7 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
                         IntegerLiteralExpr *integerLiteral) {
   PreparedArguments builtinLiteralArgs;
   ManagedValue integerManaged =
-      ManagedValue::forUnmanaged(SGF.B.createIntegerLiteral(
+      ManagedValue::forObjectRValueWithoutOwnership(SGF.B.createIntegerLiteral(
           integerLiteral,
           SILType::getBuiltinIntegerLiteralType(SGF.getASTContext()),
           integerLiteral->getRawValue()));
@@ -2071,7 +2075,7 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
   PreparedArguments builtinLiteralArgs;
   auto *litTy = floatLiteral->getBuiltinType()->castTo<BuiltinFloatType>();
   ManagedValue floatManaged =
-      ManagedValue::forUnmanaged(SGF.B.createFloatLiteral(
+      ManagedValue::forObjectRValueWithoutOwnership(SGF.B.createFloatLiteral(
           floatLiteral,
           SILType::getBuiltinFloatType(litTy->getFPKind(), SGF.getASTContext()),
           floatLiteral->getValue()));
@@ -2100,7 +2104,7 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
   // The version of the regex string.
   // %3 = integer_literal $Builtin.IntLiteral <version>
   auto versionIntLiteral =
-      ManagedValue::forUnmanaged(SGF.B.createIntegerLiteral(
+      ManagedValue::forObjectRValueWithoutOwnership(SGF.B.createIntegerLiteral(
           expr, SILType::getBuiltinIntegerLiteralType(SGF.getASTContext()),
           expr->getVersion()));
 
@@ -2122,6 +2126,28 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
   args.add(expr, std::move(string));
   args.add(expr, std::move(versionInt));
   return args;
+}
+
+/// Returns the source location in the outermost source file
+/// for the given source location.
+///
+/// If the given source loc is in a macro expansion buffer, this
+/// method walks up the macro expansion buffer tree to the outermost
+/// source file. Otherwise, the method returns the given loc.
+static SourceLoc
+getLocInOutermostSourceFile(SourceManager &sourceManager, SourceLoc loc) {
+  auto outermostLoc = loc;
+  auto bufferID = sourceManager.findBufferContainingLoc(outermostLoc);
+
+  // Walk up the macro expansion buffer tree to the outermost
+  // source file.
+  while (auto generated = sourceManager.getGeneratedSourceInfo(bufferID)) {
+    auto node = ASTNode::getFromOpaqueValue(generated->astNode);
+    outermostLoc = node.getStartLoc();
+    bufferID = sourceManager.findBufferContainingLoc(outermostLoc);
+  }
+
+  return outermostLoc;
 }
 
 static inline PreparedArguments
@@ -2153,7 +2179,8 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
 
   case MagicIdentifierLiteralExpr::Line:
   case MagicIdentifierLiteralExpr::Column: {
-    SourceLoc Loc = magicLiteral->getStartLoc();
+    auto Loc = getLocInOutermostSourceFile(SGF.getSourceManager(),
+                                           magicLiteral->getStartLoc());
     unsigned Value = 0;
     if (Loc.isValid()) {
       Value = magicLiteral->getKind() == MagicIdentifierLiteralExpr::Line
@@ -2164,7 +2191,8 @@ buildBuiltinLiteralArgs(SILGenFunction &SGF, SGFContext C,
     auto silTy = SILType::getBuiltinIntegerLiteralType(ctx);
     auto ty = silTy.getASTType();
     SILValue integer = SGF.B.createIntegerLiteral(magicLiteral, silTy, Value);
-    ManagedValue integerManaged = ManagedValue::forUnmanaged(integer);
+    ManagedValue integerManaged =
+        ManagedValue::forObjectRValueWithoutOwnership(integer);
     PreparedArguments builtinLiteralArgs;
     builtinLiteralArgs.emplace(AnyFunctionType::Param(ty));
     builtinLiteralArgs.add(magicLiteral, RValue(SGF, {integerManaged}, ty));
@@ -3101,6 +3129,21 @@ Expr *ArgumentSource::findStorageReferenceExprForMoveOnly(
   if (kind == StorageReferenceOperationKind::Consume && !sawLoad)
     return nullptr;
 
+  // If we did not see a load or a subscript expr and our argExpr is a
+  // declref_expr, return nullptr. We have an object not something that will be
+  // in memory. This can happen with classes or with values captured by a
+  // closure.
+  //
+  // NOTE: If we see a member_ref_expr from a decl_ref_expr, we still process it
+  // since the declref_expr could be from a class.
+  if (!sawLoad && !subscriptExpr) {
+    if (auto *declRef = dyn_cast<DeclRefExpr>(argExpr)) {
+      assert(!declRef->getType()->is<LValueType>() &&
+             "Shouldn't ever have an lvalue type here!");
+      return nullptr;
+    }
+  }
+
   auto result = ::findStorageReferenceExprForBorrow(argExpr);
 
   if (!result)
@@ -3120,31 +3163,18 @@ Expr *ArgumentSource::findStorageReferenceExprForMoveOnly(
   }
 
   if (!storage)
-      return nullptr;
+    return nullptr;
   assert(type);
 
   SILType ty =
       SGF.getLoweredType(type->getWithoutSpecifierType()->getCanonicalType());
   bool isMoveOnly = ty.isPureMoveOnly();
   if (auto *pd = dyn_cast<ParamDecl>(storage)) {
-      isMoveOnly |= pd->getSpecifier() == ParamSpecifier::Borrowing;
-      isMoveOnly |= pd->getSpecifier() == ParamSpecifier::Consuming;
+    isMoveOnly |= pd->getSpecifier() == ParamSpecifier::Borrowing;
+    isMoveOnly |= pd->getSpecifier() == ParamSpecifier::Consuming;
   }
   if (!isMoveOnly)
-      return nullptr;
-
-  // It makes sense to borrow any kind of storage we refer to at this stage,
-  // but SILGenLValue does not currently handle some kinds of references well.
-  //
-  // When rejecting to do the LValue-style borrow here, it'll end up going thru
-  // the RValue-style emission, after which the extra copy will get eliminated.
-  //
-  // If we did not see a LoadExpr around the argument expression, then only
-  // do the borrow if the storage is non-local.
-  // FIXME: I don't have a principled reason for why this matters and hope that
-  // we can fix the AST we're working with.
-  if (!sawLoad && storage->getDeclContext()->isLocalContext())
-      return nullptr;
+    return nullptr;
 
   // Claim the value of this argument since we found a storage reference that
   // has a move only base.
@@ -4885,14 +4915,14 @@ SILGenFunction::emitBeginApply(SILLocation loc, ManagedValue fn,
       yields.push_back(ManagedValue::forLValue(value));
     } else if (info.isConsumed()) {
       !useLoweredAddresses && value->getType().isTrivial(getFunction())
-          ? yields.push_back(ManagedValue::forTrivialRValue(value))
+          ? yields.push_back(ManagedValue::forRValueWithoutOwnership(value))
           : yields.push_back(emitManagedRValueWithCleanup(value));
     } else if (info.isGuaranteed()) {
       !useLoweredAddresses && value->getType().isTrivial(getFunction())
-          ? yields.push_back(ManagedValue::forTrivialRValue(value))
+          ? yields.push_back(ManagedValue::forRValueWithoutOwnership(value))
           : yields.push_back(ManagedValue::forBorrowedRValue(value));
     } else {
-      yields.push_back(ManagedValue::forTrivialRValue(value));
+      yields.push_back(ManagedValue::forRValueWithoutOwnership(value));
     }
   }
 
@@ -6002,7 +6032,10 @@ StringRef SILGenFunction::getMagicFunctionString() {
 
 StringRef SILGenFunction::getMagicFilePathString(SourceLoc loc) {
   assert(loc.isValid());
-  return getSourceManager().getDisplayNameForLoc(loc);
+  auto &sourceManager = getSourceManager();
+  auto outermostLoc = getLocInOutermostSourceFile(sourceManager, loc);
+
+  return getSourceManager().getDisplayNameForLoc(outermostLoc);
 }
 
 std::string SILGenFunction::getMagicFileIDString(SourceLoc loc) {
@@ -6062,7 +6095,7 @@ RValue SILGenFunction::emitApplyAllocatingInitializer(SILLocation loc,
     if (selfMetaTy != selfParamMetaTy)
       selfMeta = B.createUpcast(loc, selfMeta, selfParamMetaTy);
 
-    selfMetaVal = ManagedValue::forUnmanaged(selfMeta);
+    selfMetaVal = ManagedValue::forObjectRValueWithoutOwnership(selfMeta);
   }
 
   // Form the callee.
@@ -6193,10 +6226,9 @@ SILGenFunction::emitUninitializedArrayAllocation(Type ArrayTy,
   // Invoke the intrinsic, which returns a tuple.
   auto subMap = ArrayTy->getContextSubstitutionMap(SGM.M.getSwiftModule(),
                                                    Ctx.getArrayDecl());
-  auto result = emitApplyOfLibraryIntrinsic(Loc, allocate,
-                                            subMap,
-                                            ManagedValue::forUnmanaged(Length),
-                                            SGFContext());
+  auto result = emitApplyOfLibraryIntrinsic(
+      Loc, allocate, subMap,
+      ManagedValue::forObjectRValueWithoutOwnership(Length), SGFContext());
 
   // Explode the tuple.
   SmallVector<ManagedValue, 2> resultElts;
@@ -6907,7 +6939,7 @@ ManagedValue SILGenFunction::emitAsyncLetStart(
       getLoweredType(ctx.TheRawPointerType), subs,
       {taskOptions, taskFunction.getValue(), resultBuf});
 
-  return ManagedValue::forUnmanaged(apply);
+  return ManagedValue::forObjectRValueWithoutOwnership(apply);
 }
 
 ManagedValue SILGenFunction::emitCancelAsyncTask(
@@ -6918,7 +6950,7 @@ ManagedValue SILGenFunction::emitCancelAsyncTask(
       ctx.getIdentifier(getBuiltinName(BuiltinValueKind::CancelAsyncTask)),
       getLoweredType(ctx.TheEmptyTupleType), SubstitutionMap(),
       { task });
-  return ManagedValue::forUnmanaged(apply);
+  return ManagedValue::forObjectRValueWithoutOwnership(apply);
 }
 
 ManagedValue SILGenFunction::emitReadAsyncLetBinding(SILLocation loc,
@@ -6939,11 +6971,12 @@ ManagedValue SILGenFunction::emitReadAsyncLetBinding(SILLocation loc,
 
   // The intrinsic returns a pointer to the address of the result value inside
   // the async let task context.
-  emitApplyOfLibraryIntrinsic(loc, asyncLetGet, {},
-                   {ManagedValue::forTrivialObjectRValue(childTask.asyncLet),
-                    ManagedValue::forTrivialObjectRValue(childTask.resultBuf)},
-                   SGFContext());
-  
+  emitApplyOfLibraryIntrinsic(
+      loc, asyncLetGet, {},
+      {ManagedValue::forObjectRValueWithoutOwnership(childTask.asyncLet),
+       ManagedValue::forObjectRValueWithoutOwnership(childTask.resultBuf)},
+      SGFContext());
+
   auto resultAddr = B.createPointerToAddress(loc, childTask.resultBuf,
                 loweredOpaquePatternType.getAddressType(),
                 /*strict*/ true,
@@ -7015,7 +7048,7 @@ ManagedValue SILGenFunction::emitReadAsyncLetBinding(SILLocation loc,
   
   // Load and reabstract the value if needed.
   auto genericSig = F.getLoweredFunctionType()->getInvocationGenericSignature();
-  auto substVarTy = var->getType()->getReducedType(genericSig);
+  auto substVarTy = var->getTypeInContext()->getCanonicalType();
   auto substAbstraction = AbstractionPattern(genericSig, substVarTy);
   return emitLoad(loc, visitor.varAddr, substAbstraction, substVarTy,
                   getTypeLowering(substAbstraction, substVarTy),
@@ -7026,10 +7059,11 @@ void SILGenFunction::emitFinishAsyncLet(
     SILLocation loc, SILValue asyncLet, SILValue resultPtr) {
   // This runtime function cancels the task, awaits its completion, and
   // destroys the value in the result buffer if necessary.
-  emitApplyOfLibraryIntrinsic(loc, SGM.getFinishAsyncLet(), {},
-                             {ManagedValue::forTrivialObjectRValue(asyncLet),
-                              ManagedValue::forTrivialObjectRValue(resultPtr)},
-                             SGFContext());
+  emitApplyOfLibraryIntrinsic(
+      loc, SGM.getFinishAsyncLet(), {},
+      {ManagedValue::forObjectRValueWithoutOwnership(asyncLet),
+       ManagedValue::forObjectRValueWithoutOwnership(resultPtr)},
+      SGFContext());
   // This builtin ends the lifetime of the allocation for the async let.
   auto &ctx = getASTContext();
   B.createBuiltin(loc,

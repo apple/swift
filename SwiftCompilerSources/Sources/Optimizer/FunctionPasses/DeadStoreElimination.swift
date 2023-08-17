@@ -88,7 +88,7 @@ private func tryEliminate(store: StoreInst, _ context: FunctionPassContext) {
         case .dead:
           // The new individual stores are inserted right after the current store and
           // will be optimized in the following loop iterations.
-          store.split(context)
+          store.trySplit(context)
       }
   }
 }
@@ -156,27 +156,6 @@ private extension StoreInst {
       }
       return .dead
     }
-  }
-
-  func split(_ context: FunctionPassContext) {
-    let builder = Builder(after: self, context)
-    let type = source.type
-    if type.isStruct {
-      for idx in 0..<type.getNominalFields(in: parentFunction).count {
-        let srcField = builder.createStructExtract(struct: source, fieldIndex: idx)
-        let destFieldAddr = builder.createStructElementAddr(structAddress: destination, fieldIndex: idx)
-        builder.createStore(source: srcField, destination: destFieldAddr, ownership: storeOwnership)
-      }
-    } else if type.isTuple {
-      for idx in 0..<type.tupleElements.count {
-        let srcField = builder.createTupleExtract(tuple: source, elementIndex: idx)
-        let destFieldAddr = builder.createTupleElementAddr(tupleAddress: destination, elementIndex: idx)
-        builder.createStore(source: srcField, destination: destFieldAddr, ownership: storeOwnership)
-      }
-    } else {
-      fatalError("a materializable projection path should only contain struct and tuple projections")
-    }
-    context.erase(instruction: self)
   }
 
   var hasValidOwnershipForDeadStoreElimination: Bool {

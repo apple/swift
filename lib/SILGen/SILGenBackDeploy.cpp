@@ -190,14 +190,14 @@ void SILGenFunction::emitBackDeploymentThunk(SILDeclRef thunk) {
 
   // Generate the thunk prolog by collecting parameters.
   SmallVector<ManagedValue, 4> params;
-  SmallVector<SILArgument *, 4> indirectParams;
+  SmallVector<ManagedValue, 4> indirectParams;
   collectThunkParams(loc, params, &indirectParams);
 
   // Build up the list of arguments that we're going to invoke the the real
   // function with.
   SmallVector<SILValue, 8> paramsForForwarding;
   for (auto indirectParam : indirectParams) {
-    paramsForForwarding.emplace_back(indirectParam);
+    paramsForForwarding.emplace_back(indirectParam.getLValueAddress());
   }
 
   for (auto param : params) {

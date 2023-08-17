@@ -1209,3 +1209,27 @@ bb3:
   br bb3
 }
 
+// CHECK-LABEL: sil @inner_liferange_jumps_to_outer_in_header_block
+// CHECK:         alloc_ref $XX
+// CHECK-LABEL: } // end sil function 'inner_liferange_jumps_to_outer_in_header_block'
+sil @inner_liferange_jumps_to_outer_in_header_block : $@convention(thin) (@owned XX) -> () {
+bb0(%0 : $XX):
+  %1 = alloc_stack $XX
+  br bb1(%0 : $XX)
+
+bb1(%2 : $XX):
+  strong_release %2 : $XX
+  %4 = alloc_ref $XX
+  store %4 to %1 : $*XX
+  cond_br undef, bb2, bb3
+
+bb2:
+  br bb1(%4 : $XX)
+
+bb3:
+  strong_release %4 : $XX
+  dealloc_stack %1 : $*XX
+  %r = tuple ()
+  return %r : $()
+}
+

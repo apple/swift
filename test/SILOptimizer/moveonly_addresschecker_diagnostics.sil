@@ -1,8 +1,6 @@
 // RUN: %target-sil-opt -sil-move-only-address-checker -enable-experimental-feature MoveOnlyPartialConsumption -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all %s -verify
 // RUN: %target-sil-opt -sil-move-only-address-checker -enable-experimental-feature MoveOnlyPartialConsumption -enable-experimental-feature MoveOnlyClasses -enable-sil-verify-all -move-only-diagnostics-silently-emit-diagnostics %s | %FileCheck %s
 
-// TODO: Add FileCheck
-
 // This file contains specific SIL test cases that we expect to emit
 // diagnostics. These are cases where we want to make it easy to validate
 // independent of potential changes in the frontend's emission that this
@@ -77,6 +75,7 @@ sil @get_aggstruct : $@convention(thin) () -> @owned AggStruct
 sil @nonConsumingUseKlass : $@convention(thin) (@guaranteed Klass) -> ()
 sil @nonConsumingUseNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
 sil @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+sil @inUseNonTrivialStruct : $@convention(thin) (@in NonTrivialStruct) -> ()
 sil @classConsume : $@convention(thin) (@owned Klass) -> () // user: %18
 sil @copyableClassConsume : $@convention(thin) (@owned CopyableKlass) -> () // user: %24
 sil @copyableClassUseMoveOnlyWithoutEscaping : $@convention(thin) (@guaranteed CopyableKlass) -> () // user: %16
@@ -527,5 +526,117 @@ bb0(%0 : @owned $NonTrivialStruct):
   // expected-note @-1 {{consumed again here}}
   dealloc_stack %1 : $*NonTrivialStruct
   %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testSupportStoreBorrow1 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+// CHECK: bb0([[ARG:%.*]] : @guaranteed
+// CHECK:   [[STACK:%.*]] = alloc_stack
+// CHECK:   [[BORROW:%.*]] = store_borrow [[ARG]] to [[STACK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[BORROW]]
+// CHECK:   apply {{%.*}}([[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_borrow [[BORROW]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'testSupportStoreBorrow1'
+sil [ossa] @testSupportStoreBorrow1 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [no_consume_or_assign] %1 : $*NonTrivialStruct
+  %borrow = store_borrow %0 to %1a : $*NonTrivialStruct
+  %f = function_ref @nonConsumingUseNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  %l = load_borrow %borrow : $*NonTrivialStruct
+  apply %f(%l) : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  end_borrow %l : $NonTrivialStruct
+  end_borrow %borrow : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple ()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testSupportStoreBorrow2 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+// CHECK: bb0([[ARG:%.*]] : @guaranteed
+// CHECK:   [[STACK:%.*]] = alloc_stack
+// CHECK:   [[BORROW:%.*]] = store_borrow [[ARG]] to [[STACK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[BORROW]]
+// CHECK:   apply {{%.*}}([[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_borrow [[BORROW]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'testSupportStoreBorrow2'
+sil [ossa] @testSupportStoreBorrow2 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [no_consume_or_assign] %1 : $*NonTrivialStruct
+  %borrow = store_borrow %0 to %1a : $*NonTrivialStruct
+  %f = function_ref @nonConsumingUseNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  %l = load [copy] %borrow : $*NonTrivialStruct
+  apply %f(%l) : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  destroy_value %l : $NonTrivialStruct
+  end_borrow %borrow : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple ()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testSupportStoreBorrow3 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+// CHECK: bb0([[ARG:%.*]] : @guaranteed
+// CHECK:   [[STACK:%.*]] = alloc_stack
+// CHECK:   [[BORROW:%.*]] = store_borrow [[ARG]] to [[STACK]]
+// CHECK:   [[LOAD:%.*]] = load_borrow [[BORROW]]
+// CHECK:   apply {{%.*}}([[LOAD]])
+// CHECK:   end_borrow [[LOAD]]
+// CHECK:   end_borrow [[BORROW]]
+// CHECK:   dealloc_stack [[STACK]]
+// CHECK: } // end sil function 'testSupportStoreBorrow3'
+sil [ossa] @testSupportStoreBorrow3 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [no_consume_or_assign] %1 : $*NonTrivialStruct
+  %borrow = store_borrow %0 to %1a : $*NonTrivialStruct
+  %f = function_ref @nonConsumingUseNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  %l = load_borrow %borrow : $*NonTrivialStruct
+  %l2 = copy_value %l : $NonTrivialStruct
+  apply %f(%l2) : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  destroy_value %l2 : $NonTrivialStruct
+  end_borrow %l : $NonTrivialStruct
+  end_borrow %borrow : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple ()
+  return %9999 : $()
+}
+
+sil [ossa] @testSupportStoreBorrow4 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [no_consume_or_assign] %1 : $*NonTrivialStruct
+  // expected-error @-1 {{noncopyable 'unknown' cannot be consumed when captured by an escaping closure}}
+  %borrow = store_borrow %0 to %1a : $*NonTrivialStruct
+  %f = function_ref @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  %l = load_borrow %borrow : $*NonTrivialStruct
+  %l2 = copy_value %l : $NonTrivialStruct
+  apply %f(%l2) : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  end_borrow %l : $NonTrivialStruct
+  end_borrow %borrow : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple ()
+  return %9999 : $()
+}
+
+sil [ossa] @testSupportStoreBorrow5 : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [no_consume_or_assign] %1 : $*NonTrivialStruct
+  // expected-error @-1 {{'unknown' is borrowed and cannot be consumed}}
+  %borrow = store_borrow %0 to %1a : $*NonTrivialStruct
+  %f = function_ref @consumingUseNonTrivialStruct : $@convention(thin) (@owned NonTrivialStruct) -> ()
+  %a = alloc_stack $NonTrivialStruct
+  copy_addr %borrow to [init] %a : $*NonTrivialStruct
+  // expected-note @-1 {{consumed here}}
+  destroy_addr %a : $*NonTrivialStruct
+  dealloc_stack %a : $*NonTrivialStruct
+  end_borrow %borrow : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
+  %9999 = tuple ()
   return %9999 : $()
 }

@@ -544,11 +544,11 @@ emitDerivativeFunctionReference(
       for (auto resultIndex : desiredResultIndices->getIndices()) {
         SILType resultType;
         if (resultIndex >= originalFnTy->getNumResults()) {
-          auto inoutParamIdx = resultIndex - originalFnTy->getNumResults();
-          auto inoutParam =
-              *std::next(originalFnTy->getIndirectMutatingParameters().begin(),
-                         inoutParamIdx);
-          resultType = inoutParam.getSILStorageInterfaceType();
+          auto semanticResultParamIdx = resultIndex - originalFnTy->getNumResults();
+          auto semanticResultParam =
+              *std::next(originalFnTy->getAutoDiffSemanticResultsParameters().begin(),
+                         semanticResultParamIdx);
+          resultType = semanticResultParam.getSILStorageInterfaceType();
         } else {
           resultType = originalFnTy->getResults()[resultIndex]
                            .getSILStorageInterfaceType();

@@ -499,7 +499,7 @@ static bool accessIsConcurrencySafe(ModuleDecl *module,
 
   // must be accessible from nonisolated and Sendable
   return isLetAccessibleAnywhere(module, var)
-      && isSendableType(module, var->getType());
+      && isSendableType(module, var->getTypeInContext());
 }
 
 /// \returns true iff the ref_element_addr instruction is only used
@@ -520,7 +520,7 @@ static bool onlyDeinitAccess(RefElementAddrInst *inst) {
 static bool diagnoseNonSendableFromDeinit(ModuleDecl *module,
                                           RefElementAddrInst *inst) {
   VarDecl *var = inst->getField();
-  Type ty = var->getType();
+  Type ty = var->getTypeInContext();
   DeclContext* dc = inst->getFunction()->getDeclContext();
 
 // FIXME: we should emit diagnostics in other modes using:

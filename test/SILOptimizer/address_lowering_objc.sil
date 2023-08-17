@@ -1,0 +1,40 @@
+// RUN: %target-sil-opt -address-lowering -enable-sil-opaque-values -emit-sorted-sil -module-name Swift -sil-verify-all %s | %FileCheck %s
+
+// REQUIRES: objc_interop
+
+import Builtin
+
+typealias AnyObject = Builtin.AnyObject
+
+// The module name must be Swift so that declarations like Error are parsed as the correct loadable type.
+
+struct UnownedBox<T : AnyObject> {
+  unowned var value: T
+}
+
+// CHECK-LABEL: sil [ossa] @test_strong_copy_unowned_value : {{.*}} {
+// CHECK:       bb0([[INSTANCE_ADDR:%[^,]+]] :
+// CHECK:         [[FIELD_ADDR:%[^,]+]] = struct_element_addr [[INSTANCE_ADDR]]
+// CHECK:         [[OWNED_VALUE:%[^,]+]] = load_unowned [[FIELD_ADDR]]
+// CHECK:         return [[OWNED_VALUE]]
+// CHECK-LABEL: } // end sil function 'test_strong_copy_unowned_value'
+sil [ossa] @test_strong_copy_unowned_value : $@convention(thin) <T where T : AnyObject> (@in_guaranteed UnownedBox<T>) -> @owned T {
+bb0(%instance : @guaranteed $UnownedBox<T>):
+  %unowned_value = struct_extract %instance : $UnownedBox<T>, #UnownedBox.value
+  %owned_value = strong_copy_unowned_value %unowned_value : $@sil_unowned T
+  return %owned_value : $T
+}
+
+// CHECK-LABEL: sil [ossa] @test_unowned_copy_value : {{.*}} {
+// CHECK:       bb0([[INSTANCE_OUT:%[^,]+]] : {{.*}}, [[OWNED_VALUE:%[^,]+]] :
+// CHECK:         [[FIELD_ADDR:%[^,]+]] = struct_element_addr [[INSTANCE_OUT]]
+// CHECK:         store_unowned [[OWNED_VALUE]] to [init] [[FIELD_ADDR]]
+// CHECK:         destroy_value [[OWNED_VALUE]]
+// CHECK-LABEL: } // end sil function 'test_unowned_copy_value'
+sil [ossa] @test_unowned_copy_value : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T> {
+bb0(%owned_value : @owned $T):
+  %unowned_value = unowned_copy_value %owned_value : $T
+  destroy_value %owned_value : $T
+  %instance = struct $UnownedBox<T> (%unowned_value : $@sil_unowned T)
+  return %instance : $UnownedBox<T>
+}

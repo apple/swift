@@ -35,6 +35,11 @@ module ucrt [system] {
       export *
     }
 
+    module float {
+      header "float.h"
+      export *
+    }
+
     module inttypes {
       header "inttypes.h"
       export *
@@ -102,6 +107,11 @@ module ucrt [system] {
           export *
         }
 
+        module timeb {
+          header "sys/timeb.h"
+          export *
+        }
+
         module types {
           header "sys/types.h"
           export *
@@ -120,13 +130,28 @@ module ucrt [system] {
     export *
   }
 
-  module process {
-    header "process.h"
+  module dos {
+    header "dos.h"
     export *
   }
 
   module malloc {
     header "malloc.h"
+    export *
+  }
+
+  module minmax {
+    header "minmax.h"
+    export *
+  }
+
+  module multibyte {
+    header "mbstring.h"
+    export *
+  }
+
+  module process {
+    header "process.h"
     export *
   }
 
@@ -153,13 +178,28 @@ module corecrt [system] {
     export *
   }
 
+  module malloc {
+    header "corecrt_malloc.h"
+    export *
+  }
+
   module math {
     header "corecrt_math.h"
     export *
   }
 
+  module share {
+    header "corecrt_share.h"
+    export *
+  }
+
   module stdio {
     header "corecrt_wstdio.h"
+    export *
+  }
+
+  module stdlib {
+    header "corecrt_wstdlib.h"
     export *
   }
 

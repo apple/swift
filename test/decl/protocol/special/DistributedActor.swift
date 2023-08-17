@@ -35,32 +35,22 @@ extension DAP where ActorSystem.ActorID == String {
 }
 
 distributed actor D2 {
-  // expected-error@-1{{actor 'D2' has no initializers}}
   let actorSystem: String
   // expected-error@-1{{property 'actorSystem' cannot be defined explicitly, as it conflicts with distributed actor synthesized stored property}}
-  // expected-error@-2{{invalid redeclaration of synthesized implementation for protocol requirement 'actorSystem'}}
-  // expected-note@-3{{stored property 'actorSystem' without initial value prevents synthesized initializers}}
 }
 
 distributed actor D3 {
   var id: Int { 0 }
   // expected-error@-1{{property 'id' cannot be defined explicitly, as it conflicts with distributed actor synthesized stored property}}
-  // expected-error@-2{{invalid redeclaration of synthesized implementation for protocol requirement 'id'}}
 }
 
 struct OtherActorIdentity: Sendable, Hashable, Codable {}
 
 distributed actor D4 {
-  // expected-error@-1{{actor 'D4' has no initializers}}
-
   let actorSystem: String
   // expected-error@-1{{property 'actorSystem' cannot be defined explicitly, as it conflicts with distributed actor synthesized stored property}}
-  // expected-error@-2{{invalid redeclaration of synthesized implementation for protocol requirement 'actorSystem'}}
-  // expected-note@-3{{stored property 'actorSystem' without initial value prevents synthesized initializers}}
   let id: OtherActorIdentity
   // expected-error@-1{{property 'id' cannot be defined explicitly, as it conflicts with distributed actor synthesized stored property}}
-  // expected-error@-2{{invalid redeclaration of synthesized implementation for protocol requirement 'id'}}
-  // expected-note@-3{{stored property 'id' without initial value prevents synthesized initializers}}
 }
 
 protocol P1: DistributedActor {

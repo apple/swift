@@ -745,8 +745,6 @@ SILValue EagerDispatch::emitArgumentConversion(
 }
 
 namespace {
-// FIXME: This should be a function transform that pushes cloned functions on
-// the pass manager worklist.
 class EagerSpecializerTransform : public SILFunctionTransform {
   bool onlyCreatePrespecializations;
 public:

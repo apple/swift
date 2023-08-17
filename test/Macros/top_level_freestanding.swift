@@ -117,8 +117,7 @@ macro Empty<T>(_ closure: () -> T) = #externalMacro(module: "MacroDefinition", t
   S(a: 10, b: 10)
 }
 
-@attached(conformance)
-@attached(member, names: named(init))
+@attached(extension, conformances: Initializable, names: named(init))
 macro Initializable() = #externalMacro(module: "MacroDefinition", type: "InitializableMacro")
 
 protocol Initializable {

@@ -844,13 +844,9 @@ ProtocolConformanceDeserializer::readBuiltinProtocolConformance(
 
   TypeID conformingTypeID;
   DeclID protoID;
-  GenericSignatureID genericSigID;
   unsigned builtinConformanceKind;
-  ArrayRef<uint64_t> data;
   BuiltinProtocolConformanceLayout::readRecord(scratch, conformingTypeID,
-                                               protoID, genericSigID,
-                                               builtinConformanceKind,
-                                               data);
+                                               protoID, builtinConformanceKind);
 
   Type conformingType = MF.getType(conformingTypeID);
 
@@ -859,22 +855,9 @@ ProtocolConformanceDeserializer::readBuiltinProtocolConformance(
     return decl.takeError();
 
   auto proto = cast<ProtocolDecl>(decl.get());
-  auto genericSig = MF.getGenericSignatureChecked(genericSigID);
-  if (!genericSig)
-    return genericSig.takeError();
-
-  // Read the conditional requirements.
-  SmallVector<Requirement, 4> conditionalRequirements;
-  unsigned nextDataIndex = 0;
-  auto error = MF.deserializeGenericRequirementsChecked(
-      data, nextDataIndex, conditionalRequirements);
-  if (error)
-    return std::move(error);
-  if (nextDataIndex != data.size())
-    return MF.diagnoseFatal();
 
   auto conformance = ctx.getBuiltinConformance(
-      conformingType, proto, *genericSig, conditionalRequirements,
+      conformingType, proto,
       static_cast<BuiltinConformanceKind>(builtinConformanceKind));
   return conformance;
 }
@@ -951,9 +934,10 @@ ProtocolConformanceDeserializer::readNormalProtocolConformance(
 
   PrettyStackTraceDecl traceTo("... to", proto);
 
-  auto conformance = ctx.getConformance(conformingType, proto, SourceLoc(), dc,
-                                        ProtocolConformanceState::Incomplete,
-                                        isUnchecked);
+  auto conformance = ctx.getNormalConformance(
+      conformingType, proto, SourceLoc(), dc,
+      ProtocolConformanceState::Incomplete,
+      isUnchecked);
   // Record this conformance.
   if (conformanceEntry.isComplete()) {
     assert(conformanceEntry.get() == conformance);
@@ -5934,6 +5918,38 @@ llvm::Error DeclDeserializer::deserializeDeclCommon() {
         break;
       }
 
+      case decls_block::RawLayout_DECL_ATTR: {
+        bool isImplicit;
+        TypeID typeID;
+        uint32_t rawSize;
+        uint8_t rawAlign;
+        serialization::decls_block::RawLayoutDeclAttrLayout::
+          readRecord(scratch, isImplicit, typeID, rawSize, rawAlign);
+        
+        if (typeID) {
+          auto type = MF.getTypeChecked(typeID);
+          if (!type) {
+            return type.takeError();
+          }
+          auto typeRepr = new (ctx) FixedTypeRepr(type.get(), SourceLoc());
+          if (rawAlign == 0) {
+            Attr = new (ctx) RawLayoutAttr(typeRepr,
+                                           SourceLoc(),
+                                           SourceRange());
+            break;
+          } else {
+            Attr = new (ctx) RawLayoutAttr(typeRepr, rawSize,
+                                           SourceLoc(),
+                                           SourceRange());
+            break;
+          }
+        }
+        
+        Attr = new (ctx) RawLayoutAttr(rawSize, rawAlign,
+                                       SourceLoc(), SourceRange());
+        break;
+      }
+
 #define SIMPLE_DECL_ATTR(NAME, CLASS, ...) \
       case decls_block::CLASS##_DECL_ATTR: { \
         bool isImplicit; \
@@ -6990,6 +7006,7 @@ Expected<Type> DESERIALIZE_TYPE(SIL_FUNCTION_TYPE)(
   uint8_t rawRepresentation;
   uint8_t rawDiffKind;
   bool pseudogeneric = false;
+  bool unimplementable;
   bool concurrent;
   bool noescape;
   bool hasErrorResult;
@@ -7004,7 +7021,8 @@ Expected<Type> DESERIALIZE_TYPE(SIL_FUNCTION_TYPE)(
 
   decls_block::SILFunctionTypeLayout::readRecord(
       scratch, concurrent, async, rawCoroutineKind, rawCalleeConvention,
-      rawRepresentation, pseudogeneric, noescape, rawDiffKind, hasErrorResult,
+      rawRepresentation, pseudogeneric, noescape, unimplementable,
+      rawDiffKind, hasErrorResult,
       numParams, numYields, numResults, rawInvocationGenericSig,
       rawInvocationSubs, rawPatternSubs, clangFunctionTypeID, variableData);
 
@@ -7028,6 +7046,7 @@ Expected<Type> DESERIALIZE_TYPE(SIL_FUNCTION_TYPE)(
 
   auto extInfo = SILFunctionType::ExtInfoBuilder(*representation, pseudogeneric,
                                                  noescape, concurrent, async,
+                                                 unimplementable,
                                                  *diffKind, clangFunctionType)
                      .build();
 

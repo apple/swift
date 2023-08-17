@@ -1,5 +1,4 @@
 // RUN: not %target-swift-frontend -enable-experimental-static-assert -emit-sil %s 2>&1 | %FileCheck %s
-// RUN: not %target-swift-frontend -enable-experimental-static-assert -emit-sil %s 2>&1 | %FileCheck %s
 
 // This is a special FileCheck test for testing that we properly catch that we
 // are recursing here. The reason why this is separate from the other

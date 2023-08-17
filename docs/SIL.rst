@@ -2082,7 +2082,7 @@ derived from the ARC object. As an example, consider the following Swift/SIL::
 
     // Consume '%1'. This means '%1' can no longer be used after this point. We
     // rebind '%1' in the destination blocks (bbYes, bbNo).
-    checked_cast_br %1 : $Klass to $OtherKlass, bbYes, bbNo
+    checked_cast_br Klass in %1 : $Klass to $OtherKlass, bbYes, bbNo
 
   bbYes(%2 : @owned $OtherKlass): // On success, the checked_cast_br forwards
                                   // '%1' into '%2' after casting to OtherKlass.
@@ -5191,7 +5191,30 @@ case, the strong reference count will be incremented before any changes to the
 weak reference count.
 
 This operation must be atomic with respect to the final ``strong_release`` on
-the operand heap object.  It need not be atomic with respect to ``store_weak``
+the operand heap object.  It need not be atomic with respect to
+``store_weak``/``weak_copy_value`` or ``load_weak``/``strong_copy_weak_value``
+operations on the same address.
+
+strong_copy_weak_value
+``````````````````````
+::
+
+  sil-instruction ::= 'strong_copy_weak_value' sil-operand
+
+  %1 = strong_copy_weak_value %0 : $@sil_weak Optional<T>
+  // %1 will be a strong @owned value of type $Optional<T>.
+  // $T must be a reference type
+  // $@sil_weak Optional<T> must be address-only
+
+Only valid in opaque values mode.  Lowered by AddressLowering to load_weak.
+
+If the heap object referenced by ``%0`` has not begun deallocation, increments
+its strong reference count and produces the value ``Optional.some`` holding the
+object.  Otherwise, produces the value ``Optional.none``.
+
+This operation must be atomic with respect to the final ``strong_release`` on
+the operand heap object.  It need not be atomic with respect to
+``store_weak``/``weak_copy_value`` or ``load_weak``/``strong_copy_weak_value``
 operations on the same address.
 
 store_weak
@@ -5218,17 +5241,95 @@ currently be initialized. After the evaluation:
 
 This operation must be atomic with respect to the final ``strong_release`` on
 the operand (source) heap object.  It need not be atomic with respect to
-``store_weak`` or ``load_weak`` operations on the same address.
+``store_weak``/``weak_copy_value`` or ``load_weak``/``strong_copy_weak_value``
+operations on the same address.
+
+weak_copy_value
+```````````````
+::
+
+  sil-instruction ::= 'weak_copy_value' sil-operand
+
+  %1 = weak_copy_value %0 : $Optional<T>
+  // %1 will be an @owned value of type $@sil_weak Optional<T>.
+  // $T must be a reference type
+  // $@sil_weak Optional<T> must be address-only
+
+Only valid in opaque values mode.  Lowered by AddressLowering to store_weak.
+
+If ``%0`` is non-nil, produces the value ``@sil_weak Optional.some`` holding the
+object and increments the weak reference count by 1.  Otherwise, produces the
+value ``Optional.none`` wrapped in a ``@sil_weak`` box.
+
+This operation must be atomic with respect to the final ``strong_release`` on
+the operand (source) heap object.  It need not be atomic with respect to
+``store_weak``/``weak_copy_value`` or ``load_weak``/``strong_copy_weak_value``
+operations on the same address.
 
 load_unowned
 ````````````
+::
 
-TODO: Fill this in
+  sil-instruction ::= 'load_unowned' '[take]'? sil-operand
+
+  %1 = load_unowned [take] %0 : $*@sil_unowned T
+  // T must be a reference type
+
+Increments the strong reference count of the object stored at ``%0``.  
+
+Decrements the unowned reference count of the object stored at ``%0`` if
+``[take]`` is specified.  Additionally, the storage is invalidated.
+
+Requires that the strong reference count of the heap object stored at ``%0`` is
+positive.  Otherwise, traps.
+
+This operation must be atomic with respect to the final ``strong_release`` on
+the operand (source) heap object.  It need not be atomic with respect to
+``store_unowned``/``unowned_copy_value`` or
+``load_unowned``/``strong_copy_unowned_value`` operations on the same address.
 
 store_unowned
 `````````````
+::
 
-TODO: Fill this in
+  sil-instruction ::= 'store_unowned' sil-value 'to' '[init]'? sil-operand
+
+  store_unowned %0 to [init] %1 : $*@sil_unowned T
+  // T must be a reference type
+
+Increments the unowned reference count of the object at ``%0``.
+
+Decrements the unowned reference count of the object previously stored at ``%1``
+if ``[init]`` is not specified.
+
+The storage must be initialized iff ``[init]`` is not specified.
+
+This operation must be atomic with respect to the final ``strong_release`` on
+the operand (source) heap object.  It need not be atomic with respect to
+``store_unowned``/``unowned_copy_value`` or
+``load_unowned``/``strong_copy_unowned_value`` operations on the same address.
+
+unowned_copy_value
+``````````````````
+::
+
+  sil-instruction ::= 'unowned_copy_value' sil-operand
+
+  %1 = unowned_copy_value %0 : $T
+  // %1 will be an @owned value of type $@sil_unowned T.
+  // $T must be a reference type
+  // $@sil_unowned T must be address-only
+
+Only valid in opaque values mode.  Lowered by AddressLowering to store_unowned.
+
+Increments the unowned reference count of the object at ``%0``.
+
+Wraps the operand in an instance of ``@sil_unowned``.
+
+This operation must be atomic with respect to the final ``strong_release`` on
+the operand (source) heap object.  It need not be atomic with respect to
+``store_unowned``/``unowned_copy_value`` or
+``load_unowned``/``strong_copy_unowned_value`` operations on the same address.
 
 fix_lifetime
 ````````````
@@ -8093,13 +8194,14 @@ checked_cast_br
 ::
 
   sil-terminator ::= 'checked_cast_br' sil-checked-cast-exact?
+                      sil-type 'in'
                       sil-operand 'to' sil-type ','
                       sil-identifier ',' sil-identifier
   sil-checked-cast-exact ::= '[' 'exact' ']'
 
-  checked_cast_br %0 : $A to $B, bb1, bb2
-  checked_cast_br %0 : $*A to $*B, bb1, bb2
-  checked_cast_br [exact] %0 : $A to $A, bb1, bb2
+  checked_cast_br A in %0 : $A to $B, bb1, bb2
+  checked_cast_br *A in %0 : $*A to $*B, bb1, bb2
+  checked_cast_br [exact] A in %0 : $A to $A, bb1, bb2
   // $A and $B must be both object types or both address types
   // bb1 must take a single argument of type $B or $*B
   // bb2 must take no arguments

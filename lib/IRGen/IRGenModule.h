@@ -456,7 +456,7 @@ public:
   }
 
   void noteLazyReemissionOfNominalTypeDescriptor(NominalTypeDecl *decl) {
-    assert(!Lowering::shouldSkipLowering(decl));
+    assert(decl->isAvailableDuringLowering());
     LazilyReemittedTypeContextDescriptors.insert(decl);
   }
 
@@ -466,7 +466,7 @@ public:
   }
 
   void noteUseOfMetadataAccessor(NominalTypeDecl *decl) {
-    assert(!Lowering::shouldSkipLowering(decl));
+    assert(decl->isAvailableDuringLowering());
     if (LazyMetadataAccessors.count(decl) == 0) {
       LazyMetadataAccessors.insert(decl);
     }
@@ -779,8 +779,6 @@ public:
   llvm::PointerType *ContinuationAsyncContextPtrTy;
   llvm::StructType *ClassMetadataBaseOffsetTy;
   llvm::StructType *DifferentiabilityWitnessTy; // { i8*, i8* }
-
-  llvm::StructType *RuntimeDiscoverableAttributeTy; // { i32, i32*, i32 }
 
   llvm::GlobalVariable *TheTrivialPropertyDescriptor = nullptr;
 
@@ -1511,10 +1509,6 @@ public:
   void emitProtocolConformance(const ConformanceDescription &record);
   void emitNestedTypeDecls(DeclRange members);
   void emitClangDecl(const clang::Decl *decl);
-  /// Emit runtime discoverable attribute metadata section for the given set
-  /// of source files.
-  void
-  emitRuntimeDiscoverableAttributes(TinyPtrVector<FileUnit *> &filesToEmit);
 
   void finalizeClangCodeGen();
   void finishEmitAfterTopLevel();

@@ -739,7 +739,7 @@ bb2:
 sil @conditional_metatype_cast : $@convention(thin) () -> AnyObject {
 bb0:
   %0 = metatype $@thick Int.Type
-  checked_cast_br %0 : $@thick Int.Type to AnyObject, bb2, bb1
+  checked_cast_br Int.Type in %0 : $@thick Int.Type to AnyObject, bb2, bb1
 
 bb1:
   unreachable
@@ -853,12 +853,12 @@ bb0(%0 : $_ContiguousArrayBuffer<UInt64>, %1 : $Builtin.Word):
 
 // CHECK-LABEL: sil @dontMoveOverExistentialToClassCast : $@convention(thin) (@guaranteed AnyObject) -> Optional<fuzz>
 // CHECK:    strong_retain %0
-// CHECK:    checked_cast_br %0
+// CHECK:    checked_cast_br AnyObject in %0
 // CHECK:  } // end sil function 'dontMoveOverExistentialToClassCast'
 sil @dontMoveOverExistentialToClassCast : $@convention(thin) (@guaranteed AnyObject) -> Optional<fuzz> {
 bb0(%0 : $AnyObject):
   strong_retain %0 : $AnyObject
-  checked_cast_br %0 : $AnyObject to fuzz, bb1, bb2
+  checked_cast_br AnyObject in %0 : $AnyObject to fuzz, bb1, bb2
 
 bb1(%18 : $fuzz):
   %19 = enum $Optional<fuzz>, #Optional.some!enumelt, %18 : $fuzz
@@ -874,7 +874,7 @@ bb3(%24 : $Optional<fuzz>):
 }
 
 // CHECK-LABEL: sil @moveOverClassToExistentialCast : $@convention(thin) (@guaranteed fuzz) -> Optional<any P>
-// CHECK:    checked_cast_br %0
+// CHECK:    checked_cast_br fuzz in %0
 // CHECK:    enum $Optional<any P>, #Optional.some!enumelt
 // CHECK:    strong_retain %0
 // CHECK-NOT: release
@@ -882,7 +882,7 @@ bb3(%24 : $Optional<fuzz>):
 sil @moveOverClassToExistentialCast : $@convention(thin) (@guaranteed fuzz) -> Optional<P> {
 bb0(%0 : $fuzz):
   strong_retain %0 : $fuzz
-  checked_cast_br %0 : $fuzz to P, bb1, bb2
+  checked_cast_br fuzz in %0 : $fuzz to P, bb1, bb2
 
 bb1(%18 : $P):
   %19 = enum $Optional<P>, #Optional.some!enumelt, %18 : $P
@@ -899,12 +899,12 @@ bb3(%24 : $Optional<P>):
 
 // CHECK-LABEL: sil @dontMoveOverExistentialToExistentialCast : $@convention(thin) (@guaranteed AnyObject) -> Optional<any P>
 // CHECK:    strong_retain %0
-// CHECK:    checked_cast_br %0
+// CHECK:    checked_cast_br AnyObject in %0
 // CHECK:  } // end sil function 'dontMoveOverExistentialToExistentialCast'
 sil @dontMoveOverExistentialToExistentialCast : $@convention(thin) (@guaranteed AnyObject) -> Optional<P> {
 bb0(%0 : $AnyObject):
   strong_retain %0 : $AnyObject
-  checked_cast_br %0 : $AnyObject to P, bb1, bb2
+  checked_cast_br AnyObject in %0 : $AnyObject to P, bb1, bb2
 
 bb1(%18 : $P):
   %19 = enum $Optional<P>, #Optional.some!enumelt, %18 : $P

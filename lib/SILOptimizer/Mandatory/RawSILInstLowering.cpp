@@ -337,7 +337,8 @@ lowerAssignOrInitInstruction(SILBuilderWithScope &b,
       b.createApply(loc, initFn, SubstitutionMap(), arguments);
 
       if (isRefSelf) {
-        b.emitEndBorrowOperation(loc, selfRef);
+        if (selfRef != selfValue)
+          b.emitEndBorrowOperation(loc, selfRef);
       } else {
         b.createEndAccess(loc, selfRef, /*aborted=*/false);
       }

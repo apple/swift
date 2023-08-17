@@ -20,7 +20,6 @@ target_sources(swiftSILOptimizer PRIVATE
   KeyPathProjector.cpp
   LexicalDestroyFolding.cpp
   LexicalDestroyHoisting.cpp
-  LoadStoreOptUtils.cpp
   LoopUtils.cpp
   OptimizerStatsUtils.cpp
   PartialApplyCombiner.cpp

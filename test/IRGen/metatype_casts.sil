@@ -12,7 +12,7 @@ import Swift
 sil @archetype_metatype_cast : $@convention(thin) <T, U> () -> () {
 entry:
   %0 = metatype $@thick T.Type
-  checked_cast_br %0 : $@thick T.Type to @thick U.Type, yes, no
+  checked_cast_br T.Type in %0 : $@thick T.Type to @thick U.Type, yes, no
 yes(%1 : $@thick U.Type):
   br end
 
@@ -30,7 +30,7 @@ protocol P {}
 // CHECK:         [[T1:%.*]] = icmp ne ptr [[T0]], null
 sil @existential_archetype_metatype_cast : $@convention(thin) <T> (@thick P.Type) -> () {
 entry(%0 : $@thick P.Type):
-  checked_cast_br %0 : $@thick P.Type to @thick T.Type, yes, no
+  checked_cast_br P.Type in %0 : $@thick P.Type to @thick T.Type, yes, no
 yes(%1 : $@thick T.Type):
   br end
 
@@ -74,7 +74,7 @@ sil_vtable OtherClass {}
 sil @value_metatype_cast : $@convention(thin) (SomeClass) -> () {
 entry(%0 : $SomeClass):
   %1 = value_metatype $@thick SomeClass.Type, %0 : $SomeClass
-  checked_cast_br [exact] %1 : $@thick SomeClass.Type to @thick OtherClass.Type, yes, no
+  checked_cast_br [exact] @thick SomeClass.Type in %1 : $@thick SomeClass.Type to @thick OtherClass.Type, yes, no
 
 yes(%2 : $@thick OtherClass.Type):
   br end

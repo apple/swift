@@ -336,8 +336,8 @@ bb3:
 
 sil @checked_cast_br_test : $() -> () {
 bb0:
-  // CHECK: checked_cast_br undef : $C to C, bb1, bb2
-  checked_cast_br undef : $C to C, bb1, bb2
+  // CHECK: checked_cast_br C in undef : $C to C, bb1, bb2
+  checked_cast_br C in undef : $C to C, bb1, bb2
 bb1(%x : $C):
   br bb3
 bb2:

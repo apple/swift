@@ -52,7 +52,7 @@ public macro AttachedMemberAttributeMacro()
 @attached(peer)
 public macro AttachedPeerMacro()
 
-@attached(conformance)
+@attached(extension)
 public macro AttachedConformanceMacro()
 
 @freestanding(expression)
@@ -61,7 +61,7 @@ public macro AttachedConformanceMacro()
 @attached(member)
 @attached(memberAttribute)
 @attached(peer)
-@attached(conformance)
+@attached(extension)
 public macro EverythingMacro()
 
 //--- MacroUses.swift

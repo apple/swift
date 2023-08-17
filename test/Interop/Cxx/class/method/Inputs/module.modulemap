@@ -7,3 +7,10 @@ module AmbiguousMethods {
   header "ambiguous_methods.h"
   requires cplusplus
 }
+
+module UnsafeProjections {
+  header "unsafe-projections.h"
+  requires cplusplus
+  
+  export *
+}

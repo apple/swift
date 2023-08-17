@@ -57,7 +57,7 @@ class Term;
 /// This transformation allows DependentMemberTypes to be manipulated as
 /// terms, with the actual concrete type structure remaining opaque to
 /// the requirement machine. This transformation is implemented in
-/// RewriteContext::getConcreteSubstitutionSchema().
+/// RewriteContext::getSubstitutionSchemaFromType().
 ///
 /// For example, the superclass requirement
 /// "T : MyClass<U.X, (Int) -> V.A.B>" is denoted with a symbol

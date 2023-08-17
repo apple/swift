@@ -107,17 +107,6 @@ public func get_emptystr() -> String {
   return S.emptystr
 }
 
-// Also check if the generated code is correct.
-
-// CHECK-OUTPUT: abc123a
-// CHECK-OUTPUT: abc123asd3sdj3basfasdf
-// CHECK-OUTPUT: ❄️gastroperiodyni
-// CHECK-OUTPUT: <>
-print(get_smallstr())
-print(get_largestr())
-print(get_unicodestr())
-print("<\(get_emptystr())>")
-
 // Really load the globals from their addresses.
 @_optimize(none)
 func print_strings_from_addressors() {
@@ -127,9 +116,24 @@ func print_strings_from_addressors() {
   print("<\(S.emptystr)>")
 }
 
-// CHECK-OUTPUT: abc123a
-// CHECK-OUTPUT: abc123asd3sdj3basfasdf
-// CHECK-OUTPUT: ❄️gastroperiodyni
-// CHECK-OUTPUT: <>
-print_strings_from_addressors()
+@inline(never)
+func testit() {
+  // Also check if the generated code is correct.
+  
+  // CHECK-OUTPUT: abc123a
+  // CHECK-OUTPUT: abc123asd3sdj3basfasdf
+  // CHECK-OUTPUT: ❄️gastroperiodyni
+  // CHECK-OUTPUT: <>
+  print(get_smallstr())
+  print(get_largestr())
+  print(get_unicodestr())
+  print("<\(get_emptystr())>")
+  
+  // CHECK-OUTPUT: abc123a
+  // CHECK-OUTPUT: abc123asd3sdj3basfasdf
+  // CHECK-OUTPUT: ❄️gastroperiodyni
+  // CHECK-OUTPUT: <>
+  print_strings_from_addressors()
+}
 
+testit()

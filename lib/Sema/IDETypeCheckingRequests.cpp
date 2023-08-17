@@ -212,7 +212,7 @@ RootAndResultTypeOfKeypathDynamicMemberRequest::evaluate(Evaluator &evaluator,
     return TypePair();
 
   const auto *param = subscript->getIndices()->get(0);
-  auto keyPathType = param->getType()->getAs<BoundGenericType>();
+  auto keyPathType = param->getTypeInContext()->getAs<BoundGenericType>();
   if (!keyPathType)
     return TypePair();
   auto genericArgs = keyPathType->getGenericArgs();

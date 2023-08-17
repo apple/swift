@@ -211,8 +211,8 @@ protected:
 class RequirementFailure : public FailureDiagnostic {
 protected:
   using PathEltKind = ConstraintLocator::PathElementKind;
-  using DiagOnDecl = Diag<DescriptiveDeclKind, DeclName, Type, Type>;
-  using DiagInReference = Diag<DescriptiveDeclKind, DeclName, Type, Type, Type>;
+  using DiagOnDecl = Diag<const ValueDecl *, Type, Type>;
+  using DiagInReference = Diag<const ValueDecl *, Type, Type, Type>;
   using DiagAsNote = Diag<Type, Type, Type, Type>;
 
   /// If this failure associated with one of the conditional requirements,
@@ -1700,6 +1700,8 @@ public:
     assert(locator->isInKeyPathComponent() ||
            locator->isForKeyPathDynamicMemberLookup());
   }
+
+  ValueDecl *getMember() const { return Member; }
 
   DescriptiveDeclKind getKind() const { return Member->getDescriptiveKind(); }
 

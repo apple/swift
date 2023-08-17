@@ -91,6 +91,7 @@ LANGUAGE_FEATURE(BuiltinStackAlloc, 0, "Builtin.stackAlloc", true)
 LANGUAGE_FEATURE(BuiltinUnprotectedStackAlloc, 0, "Builtin.unprotectedStackAlloc", true)
 LANGUAGE_FEATURE(BuiltinTaskRunInline, 0, "Builtin.taskRunInline", true)
 LANGUAGE_FEATURE(BuiltinUnprotectedAddressOf, 0, "Builtin.unprotectedAddressOf", true)
+LANGUAGE_FEATURE(NewCxxMethodSafetyHeuristics, 0, "Only import C++ methods that return pointers (projections) on owned types as unsafe", true)
 SUPPRESSIBLE_LANGUAGE_FEATURE(SpecializeAttributeWithAvailability, 0, "@_specialize attribute with availability", true)
 LANGUAGE_FEATURE(BuiltinAssumeAlignment, 0, "Builtin.assumeAlignment", true)
 LANGUAGE_FEATURE(BuiltinCreateTaskGroupWithFlags, 0, "Builtin.createTaskGroupWithFlags", true)
@@ -104,6 +105,7 @@ LANGUAGE_FEATURE(
     FreestandingExpressionMacros, 382, "Expression macros",
         hasSwiftSwiftParser)
 LANGUAGE_FEATURE(AttachedMacros, 389, "Attached macros", hasSwiftSwiftParser)
+LANGUAGE_FEATURE(ExtensionMacros, 402, "Extension macros", hasSwiftSwiftParser)
 LANGUAGE_FEATURE(MoveOnly, 390, "noncopyable types", true)
 LANGUAGE_FEATURE(ParameterPacks, 393, "Value and type parameter packs", true)
 SUPPRESSIBLE_LANGUAGE_FEATURE(LexicalLifetimes, 0, "@_eagerMove/@_noEagerMove/@_lexicalLifetimes annotations", true)
@@ -114,16 +116,14 @@ UPCOMING_FEATURE(ForwardTrailingClosures, 286, 6)
 UPCOMING_FEATURE(BareSlashRegexLiterals, 354, 6)
 UPCOMING_FEATURE(ExistentialAny, 335, 6)
 UPCOMING_FEATURE(ImportObjcForwardDeclarations, 384, 6)
-UPCOMING_FEATURE(DisableActorInferenceFromPropertyWrapperUsage, 401, 6)
+UPCOMING_FEATURE(DisableOutwardActorInference, 401, 6)
 
 EXPERIMENTAL_FEATURE(StaticAssert, false)
 EXPERIMENTAL_FEATURE(NamedOpaqueTypes, false)
 EXPERIMENTAL_FEATURE(FlowSensitiveConcurrencyCaptures, false)
 EXPERIMENTAL_FEATURE(CodeItemMacros, false)
 EXPERIMENTAL_FEATURE(TupleConformances, false)
-EXPERIMENTAL_FEATURE(InitAccessors, false)
 
-EXPERIMENTAL_FEATURE(ExtensionMacros, true)
 SUPPRESSIBLE_LANGUAGE_FEATURE(ExtensionMacroAttr, 0, "@attached(extension)", true)
 
 // Whether to enable @_used and @_section attributes
@@ -196,10 +196,6 @@ EXPERIMENTAL_FEATURE(ASTGenTypes, false)
 /// corresponding syntax tree.
 EXPERIMENTAL_FEATURE(BuiltinMacros, false)
 
-/// Whether to enable experimental @runtimeMetadata feature which allows to
-/// declare an attribute which is discoverable and constructable at runtime.
-EXPERIMENTAL_FEATURE(RuntimeDiscoverableAttrs, false)
-
 /// Import C++ class templates as semantically-meaningless symbolic
 /// Swift types and C++ methods as symbolic functions with blank
 /// signatures.
@@ -218,7 +214,14 @@ EXPERIMENTAL_FEATURE(BuiltinModule, true)
 EXPERIMENTAL_FEATURE(StrictConcurrency, true)
 
 /// Defer Sendable checking to SIL diagnostic phase.
-EXPERIMENTAL_FEATURE(DeferredSendableChecking, false)
+EXPERIMENTAL_FEATURE(SendNonSendable, false)
+
+/// Enable extended callbacks (with additional parameters) to be used when the
+/// "playground transform" is enabled.
+EXPERIMENTAL_FEATURE(PlaygroundExtendedCallbacks, true)
+
+/// Enable the `@_rawLayout` attribute.
+EXPERIMENTAL_FEATURE(RawLayout, true)
 
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE

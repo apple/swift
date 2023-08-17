@@ -99,16 +99,14 @@ private func inlineAndDevirtualize(apply: FullApplySite, alreadyInlinedFunctions
     return
   }
 
-  if shouldInline(apply: apply, callee: callee, alreadyInlinedFunctions: &alreadyInlinedFunctions) {
-    simplifyCtxt.inlineFunction(apply: apply, mandatoryInline: true)
-
-    // In OSSA `partial_apply [on_stack]`s are represented as owned values rather than stack locations.
-    // It is possible for their destroys to violate stack discipline.
-    // When inlining into non-OSSA, those destroys are lowered to dealloc_stacks.
-    // This can result in invalid stack nesting.
-    if callee.hasOwnership && !apply.parentFunction.hasOwnership  {
+  if apply.canInline &&
+     shouldInline(apply: apply, callee: callee, alreadyInlinedFunctions: &alreadyInlinedFunctions)
+  {
+    if apply.inliningCanInvalidateStackNesting  {
       simplifyCtxt.notifyInvalidatedStackNesting()
     }
+
+    simplifyCtxt.inlineFunction(apply: apply, mandatoryInline: true)
   }
 }
 
@@ -134,15 +132,64 @@ private func shouldInline(apply: FullApplySite, callee: Function, alreadyInlined
     // Force inlining them in global initializers so that it's possible to statically initialize the global.
     return true
   }
-  if apply.parentFunction.isGlobalInitOnceFunction,
-      let global = apply.parentFunction.getInitializedGlobal(),
-      global.mustBeInitializedStatically,
-      let applyInst = apply as? ApplyInst,
-      let projectionPath = applyInst.isStored(to: global),
-      alreadyInlinedFunctions.insert(PathFunctionTuple(path: projectionPath, function: callee)).inserted {
+
+  if apply.substitutionMap.isEmpty,
+     let pathIntoGlobal = apply.resultIsUsedInGlobalInitialization(),
+     alreadyInlinedFunctions.insert(PathFunctionTuple(path: pathIntoGlobal, function: callee)).inserted {
     return true
   }
+
   return false
+}
+
+private extension FullApplySite {
+  func resultIsUsedInGlobalInitialization() -> SmallProjectionPath? {
+    guard parentFunction.isGlobalInitOnceFunction,
+          let global = parentFunction.getInitializedGlobal() else {
+      return nil
+    }
+
+    switch numIndirectResultArguments {
+    case 0:
+      return singleDirectResult?.isStored(to: global)
+    case 1:
+      let resultAccessPath = arguments[0].accessPath
+      switch resultAccessPath.base {
+      case .global(let resultGlobal) where resultGlobal == global:
+        return resultAccessPath.materializableProjectionPath
+      case .stack(let allocStack) where resultAccessPath.projectionPath.isEmpty:
+        return allocStack.getStoredValue(by: self)?.isStored(to: global)
+      default:
+        return nil
+      }
+    default:
+      return nil
+    }
+  }
+}
+
+private extension AllocStackInst {
+  func getStoredValue(by storingInstruction: Instruction) -> Value? {
+    // If the only use (beside `storingInstruction`) is a load, it's the value which is
+    // stored by `storingInstruction`.
+    var loadedValue: Value? = nil
+    for use in self.uses {
+      switch use.instruction {
+      case is DeallocStackInst:
+        break
+      case let load as LoadInst:
+        if loadedValue != nil {
+          return nil
+        }
+        loadedValue = load
+      default:
+        if use.instruction != storingInstruction {
+          return nil
+        }
+      }
+    }
+    return loadedValue
+  }
 }
 
 private extension Value {
@@ -178,7 +225,7 @@ private extension Value {
     var singleUseValue: any Value = self
     var path = SmallProjectionPath()
     while true {
-      guard let use = singleUseValue.uses.singleNonDebugUse else {
+      guard let use = singleUseValue.uses.singleRelevantUse else {
         return nil
       }
       
@@ -193,15 +240,15 @@ private extension Value {
         path = path.push(.enumCase, index: ei.caseIndex)
         break
       case let si as StoreInst:
-        guard let storeDestination = si.destination as? GlobalAddrInst else {
+        let accessPath = si.destination.getAccessPath(fromInitialPath: path)
+        switch accessPath.base {
+        case .global(let storedGlobal) where storedGlobal == global:
+          return accessPath.materializableProjectionPath
+        default:
           return nil
         }
-
-        guard storeDestination.global == global else {
-          return nil
-        }
-        
-        return path
+      case is PointerToAddressInst, is AddressToPointerInst, is BeginAccessInst:
+        break
       default:
         return nil
       }
@@ -287,5 +334,29 @@ fileprivate struct FunctionWorklist {
     if pushedFunctions.insert(element).inserted {
       functions.append(element)
     }
+  }
+}
+
+private extension UseList {
+  var singleRelevantUse: Operand? {
+    var singleUse: Operand?
+    for use in self {
+      switch use.instruction {
+      case is DebugValueInst,
+           // The initializer value of a global can contain access instructions if it references another
+           // global variable by address, e.g.
+           //   var p = Point(x: 10, y: 20)
+           //   let o = UnsafePointer(&p)
+           // Therefore ignore the `end_access` use of a `begin_access`.
+           is EndAccessInst:
+        continue
+      default:
+        if singleUse != nil {
+          return nil
+        }
+        singleUse = use
+      }
+    }
+    return singleUse
   }
 }

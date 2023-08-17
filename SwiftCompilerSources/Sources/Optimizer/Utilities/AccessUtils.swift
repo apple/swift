@@ -28,6 +28,7 @@
 // %l = load %s                               the access
 // ```
 //===----------------------------------------------------------------------===//
+
 import SIL
 
 /// AccessBase describes the base address of a memory access (e.g. of a `load` or `store``).
@@ -68,7 +69,7 @@ enum AccessBase : CustomStringConvertible, Hashable {
   case argument(FunctionArgument)
   
   /// An indirect result of a `begin_apply`.
-  case yield(BeginApplyInst)
+  case yield(MultipleValueInstructionResult)
 
   /// An address which is derived from a `Builtin.RawPointer`.
   case pointer(PointerToAddressInst)
@@ -86,8 +87,8 @@ enum AccessBase : CustomStringConvertible, Hashable {
     case let arg as FunctionArgument     : self = .argument(arg)
     case let ga as GlobalAddrInst        : self = .global(ga.global)
     case let mvr as MultipleValueInstructionResult:
-      if let ba = mvr.parentInstruction as? BeginApplyInst, baseAddress.type.isAddress {
-        self = .yield(ba)
+      if mvr.parentInstruction is BeginApplyInst && baseAddress.type.isAddress {
+        self = .yield(mvr)
       } else {
         self = .unidentified
       }
@@ -105,7 +106,7 @@ enum AccessBase : CustomStringConvertible, Hashable {
       case .class(let rea):    return "class  - \(rea)"
       case .tail(let rta):     return "tail - \(rta.instance)"
       case .argument(let arg): return "argument - \(arg)"
-      case .yield(let ba):     return "yield - \(ba)"
+      case .yield(let result): return "yield - \(result)"
       case .pointer(let p):    return "pointer - \(p)"
     }
   }
@@ -130,6 +131,25 @@ enum AccessBase : CustomStringConvertible, Hashable {
         return nil
     }
   }
+
+  /// True if this access base may be derived from a reference that is only valid within a locally
+  /// scoped OSSA lifetime. For example:
+  ///
+  ///   %reference = begin_borrow %1
+  ///   %base = ref_tail_addr %reference     <- %base must not be used outside the borrow scope
+  ///   end_borrow %reference
+  ///
+  /// This is not true for scoped storage such as alloc_stack and @in arguments.
+  ///
+  var hasLocalOwnershipLifetime: Bool {
+    if let reference = reference {
+      // Conservatively assume that everything which is a ref-counted object is within an ownership scope.
+      // TODO: we could e.g. exclude guaranteed function arguments.
+      return reference.ownership != .none
+    }
+    return false
+  }
+
   /// True, if the baseAddress is of an immutable property or global variable
   var isLet: Bool {
     switch self {
@@ -174,14 +194,17 @@ enum AccessBase : CustomStringConvertible, Hashable {
     case (.class(let rea1), .class(let rea2)):
       return rea1.fieldIndex == rea2.fieldIndex &&
              rea1.instance.referenceRoot == rea2.instance.referenceRoot
+    case (.tail(let rta1), .tail(let rta2)):
+      return rta1.instance.referenceRoot == rta2.instance.referenceRoot &&
+             rta1.type == rta2.type
     case (.stack(let as1), .stack(let as2)):
       return as1 == as2
     case (.global(let gl1), .global(let gl2)):
       return gl1 == gl2
     case (.argument(let arg1), .argument(let arg2)):
       return arg1 == arg2
-    case (.yield(let ba1), .yield(let ba2)):
-      return ba1 == ba2
+    case (.yield(let baResult1), .yield(let baResult2)):
+      return baResult1 == baResult2
     case (.pointer(let p1), .pointer(let p2)):
       return p1 == p2
     default:
@@ -287,6 +310,13 @@ struct AccessPath : CustomStringConvertible {
   ///   `%value.s0` contains `%value.s0.s1`
   func isEqualOrContains(_ other: AccessPath) -> Bool {
     return getProjection(to: other) != nil
+  }
+
+  var materializableProjectionPath: SmallProjectionPath? {
+    if projectionPath.isMaterializable {
+      return projectionPath
+    }
+    return nil
   }
 
   /// Returns the projection path to `other` if this access path is equal or contains `other`.

@@ -1011,9 +1011,9 @@ void swift::swift_resolve_resilientAccessors(uint8_t *layoutStr,
                                              const uint8_t *fieldLayoutStr,
                                              const Metadata *fieldType) {
   LayoutStringWriter writer{layoutStr, layoutStrOffset};
-  LayoutStringReader reader{fieldLayoutStr, layoutStringHeaderSize};
+  LayoutStringReader reader{fieldLayoutStr, 0};
   while (true) {
-    size_t currentOffset = reader.offset;
+    size_t currentOffset = reader.offset + layoutStringHeaderSize;
     uint64_t size = reader.readBytes<uint64_t>();
     RefCountingKind tag = (RefCountingKind)(size >> 56);
     size &= ~(0xffULL << 56);
@@ -1034,7 +1034,7 @@ void swift::swift_resolve_resilientAccessors(uint8_t *layoutStr,
       reader.skip(sizeof(uintptr_t));
       break;
     case RefCountingKind::SinglePayloadEnumSimple:
-      reader.skip((3 * sizeof(uint64_t)) + (4 * sizeof(size_t)));
+      reader.skip((2 * sizeof(uint64_t)) + (4 * sizeof(size_t)));
       break;
 
     case RefCountingKind::SinglePayloadEnumFN: {
@@ -1075,11 +1075,14 @@ void swift::swift_resolve_resilientAccessors(uint8_t *layoutStr,
       writer.writeBytes(getEnumTag);
 
       size_t numCases = reader.readBytes<size_t>();
-      // skip ref count bytes
+      auto refCountBytes = reader.readBytes<size_t>();
+
+      // skip enum size
       reader.skip(sizeof(size_t));
 
-      size_t casesBeginOffset =
-          layoutStrOffset + reader.offset + (numCases * sizeof(size_t));
+      size_t casesBeginOffset = layoutStrOffset + reader.offset +
+                                layoutStringHeaderSize +
+                                (numCases * sizeof(size_t));
 
       for (size_t j = 0; j < numCases; j++) {
         size_t caseOffset = reader.readBytes<size_t>();
@@ -1090,6 +1093,7 @@ void swift::swift_resolve_resilientAccessors(uint8_t *layoutStr,
                                          casesBeginOffset + caseOffset,
                                          caseLayoutString, fieldType);
       }
+      reader.skip(refCountBytes);
       break;
     }
 

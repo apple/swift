@@ -157,6 +157,15 @@ public struct Builder {
     return notifyNew(bridged.createCopyValue(operand.bridged).getAs(CopyValueInst.self))
   }
 
+  public func createBeginBorrow(of value: Value) -> BeginBorrowInst {
+    return notifyNew(bridged.createBeginBorrow(value.bridged).getAs(BeginBorrowInst.self))
+  }
+
+  @discardableResult
+  public func createEndBorrow(of beginBorrow: Value) -> EndBorrowInst {
+    return notifyNew(bridged.createEndBorrow(beginBorrow.bridged).getAs(EndBorrowInst.self))
+  }
+
   @discardableResult
   public func createCopyAddr(from fromAddr: Value, to toAddr: Value,
                              takeSource: Bool = false, initializeDest: Bool = false) -> CopyAddrInst {
@@ -167,6 +176,11 @@ public struct Builder {
   @discardableResult
   public func createDestroyValue(operand: Value) -> DestroyValueInst {
     return notifyNew(bridged.createDestroyValue(operand.bridged).getAs(DestroyValueInst.self))
+  }
+
+  @discardableResult
+  public func createDestroyAddr(address: Value) -> DestroyAddrInst {
+    return notifyNew(bridged.createDestroyAddr(address.bridged).getAs(DestroyAddrInst.self))
   }
 
   @discardableResult
@@ -258,6 +272,10 @@ public struct Builder {
     return notifyNew(bridged.createStructElementAddr(structAddress.bridged, fieldIndex).getAs(StructElementAddrInst.self))
   }
 
+  public func createDestructureStruct(struct: Value) -> DestructureStructInst {
+    return notifyNew(bridged.createDestructureStruct(`struct`.bridged).getAs(DestructureStructInst.self))
+  }
+
   public func createTuple(type: Type, elements: [Value]) -> TupleInst {
     let tuple = elements.withBridgedValues { valuesRef in
       return bridged.createTuple(type.bridged, valuesRef)
@@ -271,6 +289,10 @@ public struct Builder {
 
   public func createTupleElementAddr(tupleAddress: Value, elementIndex: Int) -> TupleElementAddrInst {
     return notifyNew(bridged.createTupleElementAddr(tupleAddress.bridged, elementIndex).getAs(TupleElementAddrInst.self))
+  }
+
+  public func createDestructureTuple(tuple: Value) -> DestructureTupleInst {
+    return notifyNew(bridged.createDestructureTuple(tuple.bridged).getAs(DestructureTupleInst.self))
   }
 
   @discardableResult

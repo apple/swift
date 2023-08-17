@@ -79,6 +79,11 @@ var typeDefinitions: String {
       case C
     }
 
+    public enum E24 {
+      case A
+      case B(UInt8, UInt8, UInt8)
+    }
+
     public func fn() {}
 
     public typealias Func = () -> ()
@@ -322,6 +327,42 @@ struct MultiPayloadEnum : Value {
   var containsEnum: Bool { true }
 }
 
+struct Size24Enum : Value {
+  let caseIdx: Int
+  
+  init(generator: inout RandomGenerator, depth: Int) {
+    self.caseIdx = Int.random(in: 0..<2, using: &generator)
+  }
+  
+  func getType() -> String {
+    "E24"
+  }
+
+  func getInitValue() -> String  {
+    switch caseIdx {
+      case 0: return "E24.A"
+      case 1: return "E24.B(250, 128, 114)"
+      default: fatalError()
+    }
+  }
+
+  func getExpectedOutput(topLevel: Bool) -> String  {
+    let prefix = topLevel ? "" : "\(getRuntimeTypeName(topLevel: topLevel))."
+    switch caseIdx {
+      case 0: return "\(prefix)A"
+      case 1: return "\(prefix)B(250, 128, 114)"
+      default: fatalError()
+    }
+  }
+
+  func getRuntimeTypeName(topLevel: Bool) -> String {
+    let prefix = topLevel ? "" : "test."
+    return "\(prefix)E24"
+  }
+
+  var containsEnum: Bool { true }
+}
+
 // Can't use the default random generator becaus we need deterministic results
 struct RandomGenerator : RandomNumberGenerator {
   var state: (UInt64, UInt64, UInt64, UInt64) = (15042304078070129153, 10706435816813474385, 14710304063852993123, 11070704559760783939)
@@ -360,7 +401,8 @@ struct RandomGenerator : RandomNumberGenerator {
     SmallString.self,
     LargeString.self,
     Function.self,
-    Enum.self
+    Enum.self,
+    Size24Enum.self
   ]
   private static let allValueTypes: [any Value.Type] = allTerminalTypes + [
     OptionalValue.self,

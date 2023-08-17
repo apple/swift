@@ -671,19 +671,14 @@ noteTypoCorrection(DeclNameLoc loc, ValueDecl *decl,
   }
 
   if (Decl *parentDecl = findExplicitParentForImplicitDecl(decl)) {
-    StringRef kind = (isa<VarDecl>(decl) ? "property" :
-                      isa<ConstructorDecl>(decl) ? "initializer" :
-                      isa<FuncDecl>(decl) ? "method" :
-                      "member");
-
     return parentDecl->diagnose(
                        wasClaimed ? diag::implicit_member_declared_here
                                   : diag::note_typo_candidate_implicit_member,
-                       decl->getBaseName().userFacingName(), kind);
+                       decl);
   }
 
   if (wasClaimed) {
-    return decl->diagnose(diag::decl_declared_here, decl->getBaseName());
+    return decl->diagnose(diag::decl_declared_here_base, decl);
   } else {
     return decl->diagnose(diag::note_typo_candidate,
                           decl->getBaseName().userFacingName());

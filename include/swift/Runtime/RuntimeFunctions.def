@@ -2255,7 +2255,7 @@ FUNCTION(TaskGroupInitialize,
 // void swift_taskGroup_initializeWithFlags(size_t flags, TaskGroup *group);
 FUNCTION(TaskGroupInitializeWithFlags,
          swift_taskGroup_initializeWithFlags, SwiftCC,
-         ConcurrencyAvailability,
+         ConcurrencyDiscardingTaskGroupAvailability,
          RETURNS(VoidTy),
          ARGS(SizeTy,           // flags
               Int8PtrTy,        // group
@@ -2483,6 +2483,18 @@ FUNCTION(GenericInstantiateLayoutString,
          C_CC, AlwaysAvailable,
          RETURNS(VoidTy),
          ARGS(Int8PtrTy, TypeMetadataPtrTy),
+         ATTRS(NoUnwind),
+         EFFECT(MetaData))
+
+// void swift_initRawStructMetadata(Metadata *structType,
+//                                  StructLayoutFlags flags,
+//                                  const TypeLayout *likeType,
+//                                  int32_t count);
+FUNCTION(InitRawStructMetadata,
+         swift_initRawStructMetadata,
+         C_CC, AlwaysAvailable,
+         RETURNS(VoidTy),
+         ARGS(TypeMetadataPtrTy, SizeTy, Int8PtrPtrTy->getPointerTo(0), Int32Ty),
          ATTRS(NoUnwind),
          EFFECT(MetaData))
 

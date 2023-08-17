@@ -52,7 +52,7 @@ func testGeneric() {
 
 testGeneric()
 
-func testPrespecializedAnyObject() {
+func testPrespecializedStructAnyObject() {
     let ptr = UnsafeMutablePointer<PrespecializedStruct<AnyObject>>.allocate(capacity: 1)
 
     do {
@@ -80,9 +80,9 @@ func testPrespecializedAnyObject() {
     ptr.deallocate()
 }
 
-testPrespecializedAnyObject()
+testPrespecializedStructAnyObject()
 
-func testPrespecializedSimpleClass() {
+func testPrespecializedStructSimpleClass() {
     let ptr = UnsafeMutablePointer<PrespecializedStruct<SimpleClass>>.allocate(capacity: 1)
 
     do {
@@ -110,10 +110,10 @@ func testPrespecializedSimpleClass() {
     ptr.deallocate()
 }
 
-testPrespecializedSimpleClass()
+testPrespecializedStructSimpleClass()
 
 
-func testPrespecializedInt() {
+func testPrespecializedStructInt() {
     let ptr = UnsafeMutablePointer<PrespecializedStruct<Int>>.allocate(capacity: 1)
 
     do {
@@ -129,7 +129,244 @@ func testPrespecializedInt() {
     ptr.deallocate()
 }
 
-testPrespecializedInt()
+testPrespecializedStructInt()
+
+func testPrespecializedSingletonEnumAnyObject() {
+    let ptr = UnsafeMutablePointer<PrespecializedSingletonEnum<AnyObject>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedSingletonEnum<AnyObject>.only(23, SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedSingletonEnum<AnyObject>.only(32, SimpleClass(x: 32))
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testPrespecializedSingletonEnumAnyObject()
+
+func testPrespecializedSingletonEnumSimpleClass() {
+    let ptr = UnsafeMutablePointer<PrespecializedSingletonEnum<SimpleClass>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedSingletonEnum<SimpleClass>.only(23, SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedSingletonEnum<SimpleClass>.only(32, SimpleClass(x: 32))
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testPrespecializedSingletonEnumSimpleClass()
+
+
+func testPrespecializedSingletonEnumInt() {
+    let ptr = UnsafeMutablePointer<PrespecializedSingletonEnum<Int>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedSingletonEnum<Int>.only(23, 23)
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedSingletonEnum<Int>.only(32, 32)
+        testAssign(ptr, from: y)
+    }
+
+    ptr.deallocate()
+}
+
+testPrespecializedSingletonEnumInt()
+
+func testPrespecializedSinglePayloadEnumAnyObject() {
+    let ptr = UnsafeMutablePointer<PrespecializedSinglePayloadEnum<AnyObject>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedSinglePayloadEnum<AnyObject>.nonEmpty(23, SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedSinglePayloadEnum<AnyObject>.nonEmpty(32, SimpleClass(x: 32))
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testPrespecializedSinglePayloadEnumAnyObject()
+
+func testPrespecializedSinglePayloadEnumSimpleClass() {
+    let ptr = UnsafeMutablePointer<PrespecializedSinglePayloadEnum<SimpleClass>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedSinglePayloadEnum<SimpleClass>.nonEmpty(23, SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedSinglePayloadEnum<SimpleClass>.nonEmpty(32, SimpleClass(x: 32))
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testPrespecializedSinglePayloadEnumSimpleClass()
+
+
+func testPrespecializedSinglePayloadEnumInt() {
+    let ptr = UnsafeMutablePointer<PrespecializedSinglePayloadEnum<Int>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedSinglePayloadEnum<Int>.nonEmpty(23, 23)
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedSinglePayloadEnum<Int>.nonEmpty(32, 32)
+        testAssign(ptr, from: y)
+    }
+
+    ptr.deallocate()
+}
+
+testPrespecializedSinglePayloadEnumInt()
+
+func testPrespecializedMultiPayloadEnumAnyObject() {
+    let ptr = UnsafeMutablePointer<PrespecializedMultiPayloadEnum<AnyObject>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedMultiPayloadEnum<AnyObject>.nonEmpty0(23, SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedMultiPayloadEnum<AnyObject>.nonEmpty0(32, SimpleClass(x: 32))
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testPrespecializedMultiPayloadEnumAnyObject()
+
+func testPrespecializedMultiPayloadEnumSimpleClass() {
+    let ptr = UnsafeMutablePointer<PrespecializedMultiPayloadEnum<SimpleClass>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedMultiPayloadEnum<SimpleClass>.nonEmpty0(23, SimpleClass(x: 23))
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedMultiPayloadEnum<SimpleClass>.nonEmpty0(32, SimpleClass(x: 32))
+
+        // CHECK-NEXT: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testPrespecializedMultiPayloadEnumSimpleClass()
+
+
+func testPrespecializedMultiPayloadEnumInt() {
+    let ptr = UnsafeMutablePointer<PrespecializedMultiPayloadEnum<Int>>.allocate(capacity: 1)
+
+    do {
+        let x = PrespecializedMultiPayloadEnum<Int>.nonEmpty0(23, 23)
+        testInit(ptr, to: x)
+    }
+
+    do {
+        let y = PrespecializedMultiPayloadEnum<Int>.nonEmpty0(32, 32)
+        testAssign(ptr, from: y)
+    }
+
+    ptr.deallocate()
+}
+
+testPrespecializedMultiPayloadEnumInt()
 
 func testGenericTuple() {
     let ptr = allocateInternalGenericPtr(of: GenericTupleWrapper<TestClass>.self)
@@ -516,6 +753,41 @@ func testGenericSinglePayloadEnumManyXI() {
 
 testGenericSinglePayloadEnumManyXI()
 
+struct RefPlusEnumResolve {
+    let x: SimpleClass
+    let y: ResilientSinglePayloadEnumComplex
+}
+
+func testRefPlusEnumResolve() {
+    let ptr = allocateInternalGenericPtr(of: RefPlusEnumResolve.self)
+
+    do {
+        let x = RefPlusEnumResolve(x: SimpleClass(x: 23), y: .nonEmpty(.nonEmpty1(SimpleClass(x: 23))))
+        testGenericInit(ptr, to: x)
+    }
+
+    do {
+        let y = RefPlusEnumResolve(x: SimpleClass(x: 23), y: .nonEmpty(.nonEmpty1(SimpleClass(x: 23))))
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testGenericAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testGenericDestroy(ptr, of: RefPlusEnumResolve.self)
+
+    ptr.deallocate()
+}
+
+testRefPlusEnumResolve()
+
 func testResilientSingletonEnumTag() {
     let x = switch getResilientSingletonEnumNonEmpty(SimpleClass(x: 23)) {
     case .nonEmpty: 0
@@ -685,6 +957,57 @@ func testResilientSingletonEnumGenericInjectTag() {
 }
 
 testResilientSingletonEnumGenericInjectTag()
+
+enum ResilientPayloadSinglePayloadEnum {
+    case empty0
+    case empty1
+    case empty2
+    case nonEmpty(ResilientSinglePayloadEnum, Int)
+}
+
+func testResilientPayloadSinglePayloadEnum() {
+    let xxx = ResilientPayloadSinglePayloadEnum.nonEmpty(.empty0, 1)
+
+    // CHECK: nonEmpty(layout_string_witnesses_types_resilient.ResilientSinglePayloadEnum.empty0, 1)
+    print(xxx)
+}
+
+testResilientPayloadSinglePayloadEnum()
+
+struct SinglePayloadSimpleResolve {
+    let x: ResilientSinglePayloadEnumSimple
+    let y: ResilientSinglePayloadEnumComplex
+}
+
+func testSinglePayloadSimpleResolve() {
+    let ptr = allocateInternalGenericPtr(of: SinglePayloadSimpleResolve.self)
+
+    do {
+        let x = SinglePayloadSimpleResolve(x: .nonEmpty(SimpleClass(x: 23)), y: .nonEmpty(.nonEmpty1(SimpleClass(x: 23))))
+        testGenericInit(ptr, to: x)
+    }
+
+    do {
+        let y = SinglePayloadSimpleResolve(x: .nonEmpty(SimpleClass(x: 32)), y: .nonEmpty(.nonEmpty1(SimpleClass(x: 32))))
+        // CHECK: Before deinit
+        print("Before deinit")
+
+        // CHECK-NEXT: SimpleClass deinitialized!
+        // CHECK-NEXT: SimpleClass deinitialized!
+        testGenericAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: Before deinit
+    print("Before deinit")
+
+    // CHECK-NEXT: SimpleClass deinitialized!
+    // CHECK-NEXT: SimpleClass deinitialized!
+    testGenericDestroy(ptr, of: SinglePayloadSimpleResolve.self)
+
+    ptr.deallocate()
+}
+
+testSinglePayloadSimpleResolve()
 
 #if os(macOS)
 

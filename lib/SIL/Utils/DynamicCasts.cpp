@@ -1417,8 +1417,8 @@ void swift::emitIndirectConditionalCastWithScalar(
   })();
 
   auto *ccb = B.createCheckedCastBranch(
-      loc, /*exact*/ false, srcValue, targetLoweredType, targetFormalType,
-      scalarSuccBB, scalarFailBB, TrueCount, FalseCount);
+      loc, /*exact*/ false, srcValue, sourceFormalType, targetLoweredType,
+      targetFormalType, scalarSuccBB, scalarFailBB, TrueCount, FalseCount);
 
   // Emit the success block.
   B.setInsertionPoint(scalarSuccBB); {

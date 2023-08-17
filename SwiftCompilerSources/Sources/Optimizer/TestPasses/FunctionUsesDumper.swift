@@ -12,7 +12,7 @@
 
 import SIL
 
-let functionUsesDumper = ModulePass(name: "dump-function-uses", {
+let functionUsesDumper = ModulePass(name: "dump-function-uses") {
     (context: ModulePassContext) in
 
   var functionUses = FunctionUses()
@@ -25,4 +25,4 @@ let functionUsesDumper = ModulePass(name: "dump-function-uses", {
     print(uses)
     print("End function \(function.name)\n")
   }
-})
+}

@@ -17,7 +17,7 @@ sil [ossa] @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
 sil [ossa] @test_cfg1 : $@convention(thin) (@guaranteed SuperKlass) -> @out FakeOptional<Klass> {
 bb0(%0 : $*FakeOptional<Klass>, %1 : @guaranteed $SuperKlass):
   %2 = init_enum_data_addr %0 : $*FakeOptional<Klass>, #FakeOptional.some!enumelt
-  checked_cast_br %1 : $SuperKlass to Klass, bb1, bb2
+  checked_cast_br SuperKlass in %1 : $SuperKlass to Klass, bb1, bb2
 
 bb1(%6 : @guaranteed $Klass):
   %7 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %6 : $Klass

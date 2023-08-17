@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/Basic/Unicode.h"
+#include "swift/Basic/Compiler.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ConvertUTF.h"
@@ -135,7 +136,7 @@ std::string swift::unicode::sanitizeUTF8(StringRef Text) {
   Builder.reserve(Text.size());
   const llvm::UTF8* Data = reinterpret_cast<const llvm::UTF8*>(Text.begin());
   const llvm::UTF8* End = reinterpret_cast<const llvm::UTF8*>(Text.end());
-  StringRef Replacement = u8"\ufffd";
+  StringRef Replacement = SWIFT_UTF8("\ufffd");
   while (Data < End) {
     auto Step = llvm::getNumBytesForUTF8(*Data);
     if (Data + Step > End) {

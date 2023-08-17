@@ -1,6 +1,10 @@
 // RUN: %target-run-simple-swift
 // REQUIRES: executable_test
 
+// Int128 operations are not supported on 32bit platforms, 128-bit types are not
+// provided by the 32-bit LLVM. See `dividingFullWidth` in IntegerTypes.swift.gyb
+// UNSUPPORTED: PTRSIZE=32
+
 import StdlibUnittest
 
 var suite = TestSuite("StringIndexTests")

@@ -837,6 +837,7 @@ void Serializer::writeBlockInfoBlock() {
   BLOCK_RECORD(options_block, SDK_PATH);
   BLOCK_RECORD(options_block, XCC);
   BLOCK_RECORD(options_block, IS_SIB);
+  BLOCK_RECORD(options_block, IS_STATIC_LIBRARY);
   BLOCK_RECORD(options_block, IS_TESTABLE);
   BLOCK_RECORD(options_block, ARE_PRIVATE_IMPORTS_ENABLED);
   BLOCK_RECORD(options_block, RESILIENCE_STRATEGY);
@@ -1788,7 +1789,7 @@ Serializer::writeASTBlockEntity(ProtocolConformance *conformance) {
         Out, ScratchRecord,
         abbrCode,
         addDeclRef(normal->getProtocol()),
-        addDeclRef(normal->getType()->getAnyNominal()),
+        addDeclRef(normal->getDeclContext()->getSelfNominalTypeDecl()),
         addContainingModuleRef(normal->getDeclContext(),
                                /*ignoreExport=*/true));
     }
@@ -1841,16 +1842,10 @@ Serializer::writeASTBlockEntity(ProtocolConformance *conformance) {
       DeclTypeAbbrCodes[BuiltinProtocolConformanceLayout::Code];
     auto typeID = addTypeRef(builtin->getType());
     auto protocolID = addDeclRef(builtin->getProtocol());
-    auto genericSigID = addGenericSignatureRef(builtin->getGenericSignature());
-
-    SmallVector<uint64_t, 16> requirementData;
-    serializeGenericRequirements(builtin->getConditionalRequirements(),
-                                 requirementData);
 
     BuiltinProtocolConformanceLayout::emitRecord(
-        Out, ScratchRecord, abbrCode, typeID, protocolID, genericSigID,
-        static_cast<unsigned>(builtin->getBuiltinConformanceKind()),
-        requirementData);
+        Out, ScratchRecord, abbrCode, typeID, protocolID,
+        static_cast<unsigned>(builtin->getBuiltinConformanceKind()));
     break;
   }
 }
@@ -2957,7 +2952,7 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
     }
 
     case DAK_StorageRestrictions: {
-      auto abbrCode = S.DeclTypeAbbrCodes[AccessesDeclAttrLayout::Code];
+      auto abbrCode = S.DeclTypeAbbrCodes[StorageRestrictionsDeclAttrLayout::Code];
       auto attr = cast<StorageRestrictionsAttr>(DA);
 
       SmallVector<IdentifierID, 4> properties;
@@ -3188,6 +3183,39 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
           rawMacroRole, numNames, numConformances,
           introducedDeclNames);
       return;
+    }
+    
+    case DAK_RawLayout: {
+      auto *attr = cast<RawLayoutAttr>(DA);
+      auto abbrCode = S.DeclTypeAbbrCodes[RawLayoutDeclAttrLayout::Code];
+      
+      uint32_t rawSize;
+      uint8_t rawAlign;
+      TypeID typeID;
+      
+      auto SD = const_cast<StructDecl*>(cast<StructDecl>(D));
+      
+      if (auto sizeAndAlign = attr->getSizeAndAlignment()) {
+        typeID = 0;
+        rawSize = sizeAndAlign->first;
+        rawAlign = sizeAndAlign->second;
+      } else if (auto likeType
+                   = attr->getResolvedScalarLikeType(SD)) {
+        typeID = S.addTypeRef(*likeType);
+        rawSize = 0;
+        rawAlign = 0;
+      } else if (auto likeArrayTypeAndCount
+                   = attr->getResolvedArrayLikeTypeAndCount(SD)) {
+        typeID = S.addTypeRef(likeArrayTypeAndCount->first);
+        rawSize = likeArrayTypeAndCount->second;
+        rawAlign = static_cast<uint8_t>(~0u);
+      } else {
+        llvm_unreachable("unhandled raw layout attribute, or trying to serialize unresolved attr!");
+      }
+      
+      RawLayoutDeclAttrLayout::emitRecord(
+        S.Out, S.ScratchRecord, abbrCode, attr->isImplicit(),
+        typeID, rawSize, rawAlign);
     }
     }
   }
@@ -5480,6 +5508,7 @@ public:
         S.Out, S.ScratchRecord, abbrCode, fnTy->isSendable(),
         fnTy->isAsync(), stableCoroutineKind, stableCalleeConvention,
         stableRepresentation, fnTy->isPseudogeneric(), fnTy->isNoEscape(),
+        fnTy->isUnimplementable(),
         stableDiffKind, fnTy->hasErrorResult(), fnTy->getParameters().size(),
         fnTy->getNumYields(), fnTy->getNumResults(),
         invocationSigID, invocationSubstMapID, patternSubstMapID,

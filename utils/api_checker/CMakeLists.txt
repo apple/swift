@@ -16,7 +16,7 @@ set(SWIFTLIB_DIR "${CMAKE_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib/swift")
 set(dest "${SWIFTLIB_DIR}/${framework}")
 set(source "${CMAKE_CURRENT_SOURCE_DIR}/${framework}")
 
-if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(CMAKE_SYMLINK_COMMAND copy)
 else()
     set(CMAKE_SYMLINK_COMMAND create_symlink)

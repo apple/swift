@@ -65,8 +65,10 @@ void swift::serializeToBuffers(
     std::unique_ptr<llvm::MemoryBuffer> *moduleDocBuffer,
     std::unique_ptr<llvm::MemoryBuffer> *moduleSourceInfoBuffer,
     const SILModule *M) {
+  // Serialization output is disabled.
+  if (options.OutputPath.empty())
+    return;
 
-  assert(!options.OutputPath.empty());
   {
     FrontendStatsTracer tracer(getContext(DC).Stats,
                                "Serialization, swiftmodule, to buffer");

@@ -266,7 +266,7 @@ deriveBodyDifferentiable_move(AbstractFunctionDecl *funcDecl, void *) {
 
     // Create reference to parameter member: `offset.<member>`.
     VarDecl *paramMember = nullptr;
-    auto *paramNominal = paramDecl->getType()->getAnyNominal();
+    auto *paramNominal = paramDecl->getTypeInContext()->getAnyNominal();
     assert(paramNominal && "Parameter should have a nominal type");
     // Find parameter member corresponding to returned nominal member.
     for (auto *candidate : paramNominal->getStoredProperties()) {
@@ -571,7 +571,7 @@ static void checkAndDiagnoseImplicitNoDerivative(ASTContext &Context,
           .diagnose(
               loc,
               diag::differentiable_nondiff_type_implicit_noderivative_fixit,
-              vd->getName(), vd->getType(), nominal->getName(),
+              vd->getName(), vd->getTypeInContext(), nominal->getName(),
               nominalCanDeriveAdditiveArithmetic)
           .fixItInsert(loc, "@noDerivative ");
       continue;
@@ -641,8 +641,7 @@ ValueDecl *DerivedConformance::deriveDifferentiable(ValueDecl *requirement) {
                             Nominal->getDeclaredType(), getProtocolType());
   requirement->diagnose(diag::no_witnesses,
                         getProtocolRequirementKind(requirement),
-                        requirement->getName(), getProtocolType(),
-                        /*AddFixIt=*/false);
+                        requirement, getProtocolType(), /*AddFixIt=*/false);
 
   // If derivation is possible, cancel the diagnostic and perform derivation.
   if (canDeriveDifferentiable(Nominal, getConformanceContext(), requirement)) {
@@ -669,7 +668,7 @@ DerivedConformance::deriveDifferentiable(AssociatedTypeDecl *requirement) {
   DiagnosticTransaction diagnosticTransaction(Context.Diags);
   ConformanceDecl->diagnose(diag::type_does_not_conform,
                             Nominal->getDeclaredType(), getProtocolType());
-  requirement->diagnose(diag::no_witnesses_type, requirement->getName());
+  requirement->diagnose(diag::no_witnesses_type, requirement);
 
   // If derivation is possible, cancel the diagnostic and perform derivation.
   if (canDeriveDifferentiable(Nominal, getConformanceContext(), requirement)) {

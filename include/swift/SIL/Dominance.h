@@ -48,6 +48,8 @@ class DominanceInfo : public DominatorTreeBase {
 public:
   DominanceInfo(SILFunction *F);
 
+  ~DominanceInfo();
+
   /// Does instruction A properly dominate instruction B?
   bool properlyDominates(SILInstruction *a, SILInstruction *b);
 
@@ -58,6 +60,9 @@ public:
 
   /// Does value A properly dominate instruction B?
   bool properlyDominates(SILValue a, SILInstruction *b);
+
+  /// The nearest block which dominates all the uses of \p value.
+  SILBasicBlock *getLeastCommonAncestorOfUses(SILValue value);
 
   void verify() const;
 

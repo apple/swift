@@ -14,7 +14,7 @@ if(("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "${SWIFT_PRIMARY_VARIANT_SDK}") AND
     swiftCore${SWIFT_PRIMARY_VARIANT_SUFFIX}
     )
 
-  if(SWIFT_HOST_VARIANT STREQUAL windows)
+  if(SWIFT_HOST_VARIANT STREQUAL "windows")
     target_link_libraries(SwiftThreadingTests PRIVATE Synchronization)
   endif()
 endif()

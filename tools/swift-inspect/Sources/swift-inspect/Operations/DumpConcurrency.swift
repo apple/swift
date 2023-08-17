@@ -421,10 +421,17 @@ fileprivate class ConcurrencyDumper {
         print("    no jobs queued")
       } else {
         print("    job queue: \(jobStr(job))")
-        while job != 0 {
+        let limit = 1000
+        for i in 1 ... limit {
           job = swift_reflection_nextJob(context, job);
           if job != 0 {
             print("               \(jobStr(job))")
+          } else {
+            break
+          }
+
+          if i == limit {
+            print("               ...truncated...")
           }
         }
       }

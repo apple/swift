@@ -894,7 +894,7 @@ enum IntEnum : Int32 {
 sil [ossa] @checked_cast_anyobject_metatypeinst_to_class : $@convention(thin)() -> () {
 bb0:
   %0 = metatype $@thick AnyObject.Protocol
-  checked_cast_br %0 : $@thick AnyObject.Protocol to B.Type, bb1, bb2
+  checked_cast_br AnyObject.Protocol in %0 : $@thick AnyObject.Protocol to B.Type, bb1, bb2
 
 bb1(%3 : $@thick B.Type):
   br bb3
@@ -1319,7 +1319,7 @@ bb3(%a3 : $Builtin.Int1):
 sil [ossa] @successful_checked_cast_br_on_alloc_ref : $() -> Builtin.Int32 {
 bb0:
   %1 = alloc_ref $B
-  checked_cast_br [exact] %1 : $B to B, bb1, bb2
+  checked_cast_br [exact] B in %1 : $B to B, bb1, bb2
 
 bb1(%2 : @owned $B):
   destroy_value %2 : $B
@@ -1347,7 +1347,7 @@ sil [ossa] @failing_checked_cast_br_on_alloc_ref : $() -> Builtin.Int32 {
 bb0:
   %1 = alloc_ref $E
   %2 = upcast %1 : $E to $B
-  checked_cast_br [exact] %2 : $B to B, bb1, bb2
+  checked_cast_br [exact] B in %2 : $B to B, bb1, bb2
 
 bb1(%3 : @owned $B):
   destroy_value %3 : $B

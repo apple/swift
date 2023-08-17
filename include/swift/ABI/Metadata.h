@@ -81,6 +81,9 @@ struct HeapObject;
 class WeakReference;
 struct UnownedReference;
 
+using HeapObjectDestroyer =
+  SWIFT_CC(swift) void(SWIFT_CONTEXT HeapObject *);
+
 /// The result of requesting type metadata.  Generally the return value of
 /// a function.
 ///
@@ -514,9 +517,6 @@ struct TargetOpaqueMetadata {
   TargetMetadata<Runtime> base;
 };
 
-using HeapObjectDestroyer =
-  SWIFT_CC(swift) void(SWIFT_CONTEXT HeapObject *);
-
 /// The prefix on a heap metadata.
 template <typename Runtime>
 struct TargetHeapMetadataHeaderPrefix {
@@ -561,6 +561,14 @@ struct TargetHeapMetadata : TargetMetadata<Runtime> {
     : TargetMetadata<Runtime>(kind) {}
   constexpr TargetHeapMetadata(TargetAnyClassMetadataObjCInterop<Runtime> *isa)
     : TargetMetadata<Runtime>(isa) {}
+
+  HeapObjectDestroyer *getHeapObjectDestroyer() const {
+    return asFullMetadata(this)->destroy;
+  }
+
+  void setHeapObjectDestroyer(HeapObjectDestroyer *destroy) {
+    asFullMetadata(this)->destroy = destroy;
+  }
 };
 using HeapMetadata = TargetHeapMetadata<InProcess>;
 
@@ -4898,48 +4906,6 @@ public:
 };
 
 using AccessibleFunctionRecord = TargetAccessibleFunctionRecord<InProcess>;
-
-/// A single entry in an runtine discoverable attribute record
-/// that relates a type attribute is attached to a generator function.
-template <typename Runtime>
-struct TargetRuntimeDiscoverableAttributeEntry {
-  RelativeDirectPointer<const char, /*nullable*/ false> Type;
-  RelativeDirectPointer<TargetAccessibleFunctionRecord<Runtime>> Generator;
-};
-
-/// A record that relates a runtime discoverable attribute to all of the
-/// types (i.e. a nominal type, method, property etc.) it's attached to.
-template <typename Runtime>
-class RuntimeDiscoverableAttributeRecord
-    : private swift::ABI::TrailingObjects<
-          RuntimeDiscoverableAttributeRecord<Runtime>,
-          TargetRuntimeDiscoverableAttributeEntry<Runtime>> {
-  using TrailingObjects = swift::ABI::TrailingObjects<
-      RuntimeDiscoverableAttributeRecord<Runtime>,
-      ConstTargetMetadataPointer<Runtime, TargetMetadata>>;
-  friend TrailingObjects;
-
-  uint32_t flags;
-
-  /// The nominal type that describes the attribute.
-  TargetRelativeIndirectablePointer<Runtime,
-                                    TargetTypeContextDescriptor<Runtime>,
-                                    /*nullable*/ false>
-      Attribute;
-
-  /// The number of types this attribute is associated with.
-  uint32_t numEntries;
-
-public:
-  uint32_t getFlags() { return flags; }
-
-  llvm::ArrayRef<TargetRuntimeDiscoverableAttributeEntry<Runtime>>
-  getEntries() const {
-    return {this->template getTrailingObjects<
-                TargetRuntimeDiscoverableAttributeEntry<Runtime>>(),
-            numEntries};
-  }
-};
 
 enum class PackLifetime : uint8_t {
   OnStack = 0,

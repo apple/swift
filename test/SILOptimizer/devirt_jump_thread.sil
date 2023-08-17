@@ -71,10 +71,10 @@ sil @_TF18devirt_jump_thread26jumpthread_checked_cast_brFCS_8FooClassSi : $@conv
 bb0(%0 : $FooClass):
   %1 = integer_literal $Builtin.Int32, 2           // user: %2
   %2 = struct $Int32 (%1 : $Builtin.Int32)           // users: %37, %43, %48, %54
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb5, bb6 // id: %3
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb5, bb6 // id: %3
 
 bb1(%4 : $Int32):                                   // Preds: bb5 bb6
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb7, bb8 // id: %5
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb7, bb8 // id: %5
 
 bb2(%6 : $Int32):                                   // Preds: bb7 bb8
   %7 = struct_extract %4 : $Int32, #Int32._value       // user: %10
@@ -86,7 +86,7 @@ bb2(%6 : $Int32):                                   // Preds: bb7 bb8
   cond_fail %12 : $Builtin.Int1                   // id: %13
   %14 = integer_literal $Builtin.Int32, 3          // user: %15
   %15 = struct $Int32 (%14 : $Builtin.Int32)         // users: %59, %65
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb9, bb10 // id: %16
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb9, bb10 // id: %16
 
 bb3(%17 : $Int32):                                  // Preds: bb9 bb10
   %18 = struct_extract %17 : $Int32, #Int32._value     // user: %19
@@ -96,7 +96,7 @@ bb3(%17 : $Int32):                                  // Preds: bb9 bb10
   cond_fail %21 : $Builtin.Int1                   // id: %22
   %23 = integer_literal $Builtin.Int32, 4          // user: %24
   %24 = struct $Int32 (%23 : $Builtin.Int32)         // users: %69, %74
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb11, bb12 // id: %25
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb11, bb12 // id: %25
 
 bb4(%26 : $Int32):                                  // Preds: bb11 bb12
   %27 = struct_extract %26 : $Int32, #Int32._value     // user: %28
@@ -180,10 +180,10 @@ bb12:                                             // Preds: bb3
 // devirt_jump_thread.double (devirt_jump_thread.FooClass) -> Swift.Int32
 sil @_TF18devirt_jump_thread6doubleFCS_8FooClassSi : $@convention(thin) (@guaranteed FooClass) -> Int32 {
 bb0(%0 : $FooClass):
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb3, bb4 // id: %1
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb3, bb4 // id: %1
 
 bb1(%2 : $Int32):                                   // Preds: bb3 bb4
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb5, bb6 // id: %3
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb5, bb6 // id: %3
 
 bb2(%4 : $Int32):                                   // Preds: bb5 bb6
   %5 = struct_extract %2 : $Int32, #Int32._value       // user: %8
@@ -233,11 +233,11 @@ bb6:                                              // Preds: bb1
 // CHECK: }
 sil @_TF18devirt_jump_thread6dont_jump_thread_alloc_stackFCS_8FooClassSi : $@convention(thin) (@guaranteed FooClass) -> Int32 {
 bb0(%0 : $FooClass):
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb3, bb4 // id: %1
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb3, bb4 // id: %1
 
 bb1(%2 : $Int32):                                   // Preds: bb3 bb4
   %60 = alloc_stack $Int32
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb5, bb6 // id: %3
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb5, bb6 // id: %3
 
 bb2(%4 : $Int32):                                   // Preds: bb5 bb6
   %5 = struct_extract %2 : $Int32, #Int32._value       // user: %8
@@ -288,11 +288,11 @@ bb6:                                              // Preds: bb1
 sil @_TF18devirt_jump_thread6dont_jump_thread_objc_methodFCS_8FooClassSi : $@convention(thin) (@guaranteed FooClass) -> Int32 {
 bb0(%0 : $FooClass):
   %100 = alloc_ref $Bar
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb3, bb4 // id: %1
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb3, bb4 // id: %1
 
 bb1(%2 : $Int32):                                   // Preds: bb3 bb4
   %101 = objc_method %100 : $Bar, #Bar.foo!foreign : (Bar) -> () -> (), $@convention(objc_method) (Bar) -> ()
-  checked_cast_br [exact] %0 : $FooClass to FooClass, bb5, bb6 // id: %3
+  checked_cast_br [exact] FooClass in %0 : $FooClass to FooClass, bb5, bb6 // id: %3
 
 bb2(%4 : $Int32):                                   // Preds: bb5 bb6
   %5 = struct_extract %2 : $Int32, #Int32._value       // user: %8
@@ -357,13 +357,13 @@ class C {
 // Check that checked_cast_br jump-threading works properly when both
 // conditions are arguments of the function's entry block.
 // CHECK: sil @test_checked_cast_br_jump_threading_with_entry_bb_arguments
-// CHECK: checked_cast_br %0
-// CHECK: checked_cast_br %1
+// CHECK: checked_cast_br AnyObject in %0
+// CHECK: checked_cast_br AnyObject in %1
 // CHECK: return
 sil @test_checked_cast_br_jump_threading_with_entry_bb_arguments : $@convention(thin) (@owned AnyObject, @owned AnyObject) -> Int32 {
 bb0(%0 : $AnyObject, %1 : $AnyObject):
   strong_retain %0 : $AnyObject
-  checked_cast_br %0 : $AnyObject to C, bb1, bb2
+  checked_cast_br AnyObject in %0 : $AnyObject to C, bb1, bb2
 
 bb1(%4 : $C):
   %5 = enum $Optional<C>, #Optional.some!enumelt, %4 : $C
@@ -382,7 +382,7 @@ bb4:
 
 bb5(%13 : $C):
   strong_retain %1 : $AnyObject
-  checked_cast_br %1 : $AnyObject to C, bb6, bb7
+  checked_cast_br AnyObject in %1 : $AnyObject to C, bb6, bb7
 
 bb6(%16 : $C):
   %17 = enum $Optional<C>, #Optional.some!enumelt, %16 : $C

@@ -9,7 +9,7 @@ add_swift_host_library(libSwiftScan SHARED
   c-include-check.c
   HAS_SWIFT_MODULES)
 
-if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
   # Workaround for a linker crash related to autolinking: rdar://77839981
   set_property(TARGET libSwiftScan APPEND_STRING PROPERTY
                LINK_FLAGS " -lobjc ")
@@ -48,7 +48,7 @@ add_link_opts(libSwiftScan)
 add_dependencies(compiler libSwiftScan)
 
 
-if(CMAKE_HOST_SYSTEM_NAME STREQUAL Windows)
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
 swift_install_in_component(TARGETS libSwiftScan
   ARCHIVE DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" COMPONENT compiler
   LIBRARY DESTINATION "lib${LLVM_LIBDIR_SUFFIX}/swift/${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}" COMPONENT compiler

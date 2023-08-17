@@ -310,3 +310,41 @@ bb3(%25 : @owned $any Error):
 bb4(%29 : @owned $any Error):
   unreachable
 }
+
+sil @testTrivialBorrowClosure : $@convention(thin) (Int) -> Int
+sil @testTrivialBorrowTakeClosure : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Int) -> Int
+
+// rdar://112795074 (Crash compiling function that has a macro annotation and uses `consuming`)
+//
+// CHECK-LABEL: sil [ossa] @testTrivialBorrow : $@convention(thin) (Int) -> Int {
+// CHECK: [[ARG:%.*]] = moveonlywrapper_to_copyable [guaranteed]
+// CHECK: [[PA:%.*]] = partial_apply [callee_guaranteed] [on_stack] %{{.*}}([[ARG]]) : $@convention(thin) (Int) -> Int
+// CHECK-NOT: destroy 
+// CHECK: destroy_value [[PA]] : $@noescape @callee_guaranteed () -> Int
+// CHECK-NOT: destroy
+// CHECK: destroy_addr
+// CHECK-NEXT: dealloc_stack
+// CHECK-NEXT: return
+// CHECK-LABEL: } // end sil function 'testTrivialBorrow'
+sil [ossa] @testTrivialBorrow : $@convention(thin) (Int) -> Int {
+bb0(%0 : @noImplicitCopy @_eagerMove $Int):
+  %1 = alloc_stack $@moveOnly Int, var, name "i"
+  %2 = mark_must_check [consumable_and_assignable] %1 : $*@moveOnly Int
+  %3 = moveonlywrapper_to_copyable_addr %2 : $*@moveOnly Int
+  store %0 to [trivial] %3 : $*Int
+  %5 = begin_access [read] [static] %2 : $*@moveOnly Int
+  %6 = load_borrow %5 : $*@moveOnly Int
+  %7 = moveonlywrapper_to_copyable [guaranteed] %6 : $@moveOnly Int
+  end_borrow %6 : $@moveOnly Int
+  end_access %5 : $*@moveOnly Int
+  %10 = function_ref @testTrivialBorrowClosure : $@convention(thin) (Int) -> Int
+  %11 = partial_apply [callee_guaranteed] %10(%7) : $@convention(thin) (Int) -> Int
+  %12 = convert_escape_to_noescape [not_guaranteed] %11 : $@callee_guaranteed () -> Int to $@noescape @callee_guaranteed () -> Int
+  %13 = function_ref @testTrivialBorrowTakeClosure : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Int) -> Int
+  %14 = apply %13(%12) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Int) -> Int
+  destroy_value %12 : $@noescape @callee_guaranteed () -> Int
+  destroy_value %11 : $@callee_guaranteed () -> Int
+  destroy_addr %2 : $*@moveOnly Int
+  dealloc_stack %1 : $*@moveOnly Int
+  return %14 : $Int
+}

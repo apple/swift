@@ -229,7 +229,13 @@ ResolvedCursorInfoPtr CursorInfoResolver::resolve(SourceLoc Loc) {
 }
 
 bool CursorInfoResolver::walkToDeclPre(Decl *D, CharSourceRange Range) {
-  if (!rangeContainsLoc(D->getSourceRangeIncludingAttrs()))
+  // Get char based source range for this declaration.
+  SourceRange SR = D->getSourceRangeIncludingAttrs();
+  auto &Context = D->getASTContext();
+  CharSourceRange CharSR =
+      Lexer::getCharSourceRangeFromSourceRange(Context.SourceMgr, SR);
+
+  if (!rangeContainsLoc(CharSR))
     return false;
 
   if (isa<ExtensionDecl>(D))

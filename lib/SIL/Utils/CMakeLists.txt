@@ -1,5 +1,4 @@
 target_sources(swiftSIL PRIVATE
-  AddressWalker.cpp
   BasicBlockUtils.cpp
   BitDataflow.cpp
   DebugUtils.cpp

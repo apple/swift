@@ -252,18 +252,18 @@ set(swift_core_framework_depends)
 set(swift_core_private_link_libraries)
 set(swift_stdlib_compile_flags "${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}")
 
-if(SWIFT_PRIMARY_VARIANT_SDK STREQUAL CYGWIN)
+if(SWIFT_PRIMARY_VARIANT_SDK STREQUAL "CYGWIN")
   # TODO(compnerd) cache this variable to permit re-configuration
   execute_process(COMMAND "cygpath" "-u" "$ENV{SYSTEMROOT}" OUTPUT_VARIABLE ENV_SYSTEMROOT)
   list(APPEND swift_core_private_link_libraries "${ENV_SYSTEMROOT}/system32/psapi.dll")
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL FREEBSD)
+elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL "FREEBSD")
   find_library(EXECINFO_LIBRARY execinfo)
   list(APPEND swift_core_private_link_libraries ${EXECINFO_LIBRARY})
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL LINUX)
+elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL "LINUX")
   if(SWIFT_BUILD_STATIC_STDLIB)
     list(APPEND swift_core_private_link_libraries)
   endif()
-elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL WINDOWS)
+elseif(SWIFT_PRIMARY_VARIANT_SDK STREQUAL "WINDOWS")
   list(APPEND swift_core_private_link_libraries shell32;DbgHelp;Synchronization)
 endif()
 
@@ -335,7 +335,7 @@ set(swiftCore_common_options
 set(swiftCore_common_dependencies
     copy_shim_headers "${SWIFTLIB_DIR}/shims" ${GROUP_INFO_JSON_FILE})
 
-if(${BOOTSTRAPPING_MODE} STREQUAL "BOOTSTRAPPING")
+if(BOOTSTRAPPING_MODE STREQUAL "BOOTSTRAPPING")
 
   set(b0_deps symlink-headers-bootstrapping0)
   set(b1_deps symlink-headers-bootstrapping1)

@@ -209,7 +209,7 @@ public:
   /// generating.  In the reabstraction code, this means it should only
   /// be used for *inner* types.  If the pack is an input you've
   /// received, you should call projectPackComponent.
-  SILValue createPackComponentTemporary(SILGenFunction &SGF, SILLocation loc);
+  ManagedValue createPackComponentTemporary(SILGenFunction &SGF, SILLocation loc);
 };
 
 /// A generator for visiting the addresses of the elements of

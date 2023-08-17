@@ -206,9 +206,9 @@ bb3(%arg0 : @owned $T, %arg1 : @owned $T):
 //
 // CHECK-LABEL: sil [ossa] @f060_testInoutSwap : $@convention(thin) <T> (@inout T, @inout T) -> () {
 // CHECK: bb0(%0 : $*T, %1 : $*T):
-// CHECK:   [[ALLOC0:%.*]] = alloc_stack $T
 // CHECK:   [[ALLOC1:%.*]] = alloc_stack $T
 // CHECK:   copy_addr [take] %0 to [init] [[ALLOC1]] : $*T
+// CHECK:   [[ALLOC0:%.*]] = alloc_stack $T
 // CHECK:   copy_addr [take] %1 to [init] [[ALLOC0]] : $*T
 // CHECK:   cond_br undef, bb2, bb1
 // CHECK: bb1:
@@ -223,8 +223,8 @@ bb3(%arg0 : @owned $T, %arg1 : @owned $T):
 // CHECK: bb3:
 // CHECK:   copy_addr [take] [[ALLOC0]] to [init] %0 : $*T
 // CHECK:   copy_addr [take] [[ALLOC1]] to [init] %1 : $*T
-// CHECK:   dealloc_stack [[ALLOC1]] : $*T
 // CHECK:   dealloc_stack [[ALLOC0]] : $*T
+// CHECK:   dealloc_stack [[ALLOC1]] : $*T
 // CHECK-LABEL: } // end sil function 'f060_testInoutSwap'
 sil [ossa] @f060_testInoutSwap : $@convention(thin) <T> (@inout T, @inout T) -> () {
 bb0(%0 : $*T, %1 : $*T):
@@ -259,36 +259,36 @@ bb3(%phi0 : @owned $T, %phi1 : @owned $T):
 // CHECK: bb1:
 // CHECK:   [[A1OADR:%.*]] = struct_element_addr [[ALLOCA]] : $*SRef<T>, #SRef.object
 // CHECK:   [[A1O:%.*]] = load [take] [[A1OADR]] : $*AnyObject
-// CHECK:   [[A1EADR:%.*]] = struct_element_addr [[ALLOCA]] : $*SRef<T>, #SRef.element
 // CHECK:   [[B1OADR:%.*]] = struct_element_addr [[ALLOCB]] : $*SRef<T>, #SRef.object
 // CHECK:   [[B1O:%.*]] = load [take] [[B1OADR]] : $*AnyObject
-// CHECK:   [[B1EADR:%.*]] = struct_element_addr [[ALLOCB]] : $*SRef<T>, #SRef.element
 // CHECK:   destroy_value [[B1O]] : $AnyObject
 // CHECK:   [[CP1:%.*]] = copy_value [[A1O]] : $AnyObject
 // CHECK:   [[SA1EADR:%.*]] = struct_element_addr [[ALLOCSA]] : $*SRef<T>, #SRef.element
+// CHECK:   [[A1EADR:%.*]] = struct_element_addr [[ALLOCA]] : $*SRef<T>, #SRef.element
 // CHECK:   copy_addr [take] [[A1EADR]] to [init] [[SA1EADR]] : $*T
 // CHECK:   [[SB1EADR:%.*]] = struct_element_addr [[ALLOCSB]] : $*SRef<T>, #SRef.element
+// CHECK:   [[B1EADR:%.*]] = struct_element_addr [[ALLOCB]] : $*SRef<T>, #SRef.element
 // CHECK:   copy_addr [take] [[B1EADR]] to [init] [[SB1EADR]] : $*T
 // CHECK:   br bb3([[A1O]] : $AnyObject, [[CP1]] : $AnyObject)
 // CHECK: bb2:
 // CHECK:   [[A2OADR:%.*]] = struct_element_addr [[ALLOCA]] : $*SRef<T>, #SRef.object
 // CHECK:   [[A2O:%.*]] = load [take] [[A2OADR]] : $*AnyObject
-// CHECK:   [[A2EADR:%.*]] = struct_element_addr [[ALLOCA]] : $*SRef<T>, #SRef.element
 // CHECK:   [[B2OADR:%.*]] = struct_element_addr [[ALLOCB]] : $*SRef<T>, #SRef.object
 // CHECK:   [[B2O:%.*]] = load [take] [[B2OADR]] : $*AnyObject
-// CHECK:   [[B2EADR:%.*]] = struct_element_addr [[ALLOCB]] : $*SRef<T>, #SRef.element
 // CHECK:   destroy_value [[B2O]] : $AnyObject
 // CHECK:   [[CP2:%.*]] = copy_value [[A2O]] : $AnyObject
 // CHECK:   [[SB2EADR:%.*]] = struct_element_addr [[ALLOCSB]] : $*SRef<T>, #SRef.element
+// CHECK:   [[A2EADR:%.*]] = struct_element_addr [[ALLOCA]] : $*SRef<T>, #SRef.element
 // CHECK:   copy_addr [take] [[A2EADR]] to [init] [[SB2EADR]] : $*T
 // CHECK:   [[SA2EADR:%.*]] = struct_element_addr [[ALLOCSA]] : $*SRef<T>, #SRef.element
+// CHECK:   [[B2EADR:%.*]] = struct_element_addr [[ALLOCB]] : $*SRef<T>, #SRef.element
 // CHECK:   copy_addr [take] [[B2EADR]] to [init] [[SA2EADR]] : $*T
 // CHECK:   br bb3([[A2O]] : $AnyObject, [[CP2]] : $AnyObject)
 // CHECK: bb3([[PHI0:%.*]] : @owned $AnyObject, [[PHI1:%.*]] : @owned $AnyObject):
 // CHECK:   [[SA3EADR:%.*]] = struct_element_addr [[ALLOCSA]] : $*SRef<T>, #SRef.object
 // CHECK:   store [[PHI0]] to [init] [[SA3EADR]] : $*AnyObject
-// CHECK:   [[SA3EADR:%.*]] = struct_element_addr [[ALLOCSB]] : $*SRef<T>, #SRef.object
-// CHECK:   store [[PHI1]] to [init] [[SA3EADR]] : $*AnyObject
+// CHECK:   [[SB3EADR:%.*]] = struct_element_addr [[ALLOCSB]] : $*SRef<T>, #SRef.object
+// CHECK:   store [[PHI1]] to [init] [[SB3EADR]] : $*AnyObject
 // CHECK:   copy_addr [take] [[ALLOCSA]] to [init] %0 : $*SRef<T>
 // CHECK:   copy_addr [take] [[ALLOCSB]] to [init] %1 : $*SRef<T>
 // CHECK-LABEL: } // end sil function 'f070_testInoutFieldSwap'
@@ -505,7 +505,7 @@ merge(%34 : @owned $Value):
 
 // CHECK-LABEL: sil [ossa] @f105_phi_into_tuple : {{.*}} {
 // CHECK:         [[STORAGE:%[^,]+]] = alloc_stack $(Self, Builtin.Int1)          
-// CHECK:         [[SELF_ADDR:%[^,]+]] = tuple_element_addr [[STORAGE]]
+// CHECK:         [[SELF_ADDR:%[^,]+]] = tuple_element_addr [[STORAGE]] : {{.*}}, 0
 // CHECK:         apply {{%[^,]+}}<Self>([[SELF_ADDR]])
 // CHECK-LABEL: } // end sil function 'f105_phi_into_tuple'
 sil [ossa] @f105_phi_into_tuple : $@convention(thin) <Self> () -> () {

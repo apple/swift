@@ -12,7 +12,7 @@
 
 import SIL
 
-let rangeDumper = FunctionPass(name: "dump-ranges", {
+let rangeDumper = FunctionPass(name: "dump-ranges") {
   (function: Function, context: FunctionPassContext) in
 
   var begin: Instruction?
@@ -73,7 +73,7 @@ let rangeDumper = FunctionPass(name: "dump-ranges", {
     assert(!instRange.contains(o))
     assert(!instRange.inclusiveRangeContains(o))
   }
-})
+}
 
 private func verify(_ blockRange: BasicBlockRange, _ context: FunctionPassContext) {
   var inRange = BasicBlockSet(context)

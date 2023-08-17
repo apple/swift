@@ -74,7 +74,6 @@ StdSetTestSuite.test("SetOfCInt.insert") {
     expectTrue(s.contains(123))
 }
 
-#if !os(Linux) // FIXME: https://github.com/apple/swift/issues/66767 / rdar://105220600
 StdSetTestSuite.test("UnorderedSetOfCInt.insert") {
     var s = UnorderedSetOfCInt()
     expectFalse(s.contains(123))
@@ -87,6 +86,23 @@ StdSetTestSuite.test("UnorderedSetOfCInt.insert") {
     expectFalse(res2.inserted)
     expectTrue(s.contains(123))
 }
-#endif
+
+StdSetTestSuite.test("SetOfCInt.erase") {
+    var s = initSetOfCInt()
+    expectTrue(s.contains(1))
+    s.erase(1)
+    expectFalse(s.contains(1))
+    s.erase(1)
+    expectFalse(s.contains(1))
+}
+
+StdSetTestSuite.test("UnorderedSetOfCInt.erase") {
+    var s = initUnorderedSetOfCInt()
+    expectTrue(s.contains(2))
+    s.erase(2)
+    expectFalse(s.contains(2))
+    s.erase(2)
+    expectFalse(s.contains(2))
+}
 
 runAllTests()

@@ -125,7 +125,7 @@ FailableCastResult irgen::emitClassIdenticalCast(IRGenFunction &IGF,
   // of the metatype value to the subclass's static metatype instance.
   //
   // %1 = value_metatype $Super.Type, %0 : $A
-  // checked_cast_br [exact] %1 : $Super.Type to $Sub.Type
+  // checked_cast_br [exact] Super.Type in %1 : $Super.Type to $Sub.Type
   // =>
   // icmp eq %1, @metadata.Sub
   llvm::Value *objectMetadata = isMetatype ? from :
@@ -883,6 +883,7 @@ void irgen::emitScalarCheckedCast(IRGenFunction &IGF,
 
   bool sourceWrappedInOptional = false;
 
+  llvm::Optional<ConditionalDominanceScope> domScope;
   if (auto sourceOptObjectType = sourceLoweredType.getOptionalObjectType()) {
     // Translate the value from an enum representation to a possibly-null
     // representation.  Note that we assume that this projection is safe
@@ -912,6 +913,7 @@ void irgen::emitScalarCheckedCast(IRGenFunction &IGF,
       Builder.CreateCondBr(isNotNil, isNotNilContBB, nilMergeBB);
 
       Builder.emitBlock(isNotNilContBB);
+      domScope.emplace(IGF);
     }
   }
 

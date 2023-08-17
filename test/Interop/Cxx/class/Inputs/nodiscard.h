@@ -6,6 +6,7 @@
 class NoDiscardMultiply {
  public:
   NoDiscardMultiply() {}
+  NoDiscardMultiply(const NoDiscardMultiply &) { }
   ~NoDiscardMultiply() {}
 
   [[nodiscard]] int Multiply(int x, int y) { return x * y; }

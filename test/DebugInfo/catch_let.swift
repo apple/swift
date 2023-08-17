@@ -42,6 +42,7 @@ public func multiBinding() {
   catch let error as MyError, let error as MyError {
     // CHECK: call void @llvm.dbg.declare(metadata ptr %{{.*}}, metadata ![[MULTI_BINDING_ERROR:[0-9]+]],
     // CHECK-NOT: call void @llvm.dbg.declare(metadata ptr %{{.*}}
+    // CHECK: define {{.*}}MyError{{.*}}
     use(error)
   } catch {
     use(error)

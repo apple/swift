@@ -618,9 +618,11 @@ ModuleDependenciesCache::getDependencyReferencesMap(
 
 ModuleDependenciesCache::ModuleDependenciesCache(
     SwiftDependencyScanningService &globalScanningService,
-    std::string mainScanModuleName, std::string scannerContextHash)
+    std::string mainScanModuleName, std::string moduleOutputPath,
+    std::string scannerContextHash)
     : globalScanningService(globalScanningService),
       mainScanModuleName(mainScanModuleName),
+      moduleOutputPath(moduleOutputPath),
       scannerContextHash(scannerContextHash),
       clangScanningTool(*globalScanningService.ClangScanningService,
                         globalScanningService.getClangScanningFS()) {

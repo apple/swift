@@ -27,7 +27,7 @@ public func ArchetypeToArchetypeCast<T1, T2>(t1 : T1, t2 : T2) -> T2 {
 
 // CHECK-LABEL: sil shared {{.*}}@$s30specialize_checked_cast_branch011ArchetypeToE4Cast2t12t2q_x_q_tr0_lFAA1CC_AA1DCTg5 : $@convention(thin) (@guaranteed C, @guaranteed D) -> @owned D
 // CHECK: bb0([[ARG:%.*]] : $C, [[ARG2:%.*]] : $D):
-// CHECK:  checked_cast_br [[ARG]] : $C to D, bb1, bb2
+// CHECK:  checked_cast_br C in [[ARG]] : $C to D, bb1, bb2
 //
 // CHECK: bb1([[T0:%.*]] : $D):
 // CHECK:   strong_retain [[ARG]]
@@ -175,7 +175,7 @@ _ = ArchetypeToConcreteCastC(t: e)
 // x -> y where x is a super class of y.
 // CHECK-LABEL: sil shared @$s30specialize_checked_cast_branch24ArchetypeToConcreteCastD1tAA1DCx_tlFAA1CC_Tg5 : $@convention(thin) (@guaranteed C) -> @owned D {
 // CHECK: bb0([[ARG:%.*]] : $C):
-// CHECK:   checked_cast_br [[ARG]] : $C to D, [[SUCC_BB:bb[0-9]+]], [[FAIL_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br C in [[ARG]] : $C to D, [[SUCC_BB:bb[0-9]+]], [[FAIL_BB:bb[0-9]+]]
 //
 // CHECK: [[SUCC_BB]]([[T0:%.*]] : $D):
 // CHECK:   strong_retain [[ARG]]
@@ -250,7 +250,7 @@ _ = ConcreteToArchetypeCastC(t: c, t2: b)
 
 // CHECK-LABEL: sil shared {{.*}}@$s30specialize_checked_cast_branch24ConcreteToArchetypeCastC1t2t2xAA1CC_xtlFAA1DC_Tg5 : $@convention(thin) (@guaranteed C, @guaranteed D) -> @owned D
 // CHECK: bb0
-// CHECK:  checked_cast_br %0 : $C to D
+// CHECK:  checked_cast_br C in %0 : $C to D
 // CHECK: bb1
 _ = ConcreteToArchetypeCastC(t: c, t2: d)
 
@@ -290,7 +290,7 @@ _ = SuperToArchetypeCastC(c: c, t: c)
 
 // CHECK-LABEL: sil shared {{.*}}@$s30specialize_checked_cast_branch21SuperToArchetypeCastC1c1txAA1CC_xtlFAA1DC_Tg5 : $@convention(thin) (@guaranteed C, @guaranteed D) -> @owned D
 // CHECK: bb0
-// CHECK:  checked_cast_br %0 : $C to D
+// CHECK:  checked_cast_br C in %0 : $C to D
 // CHECK: bb1
 _ = SuperToArchetypeCastC(c: c, t: d)
 
@@ -323,7 +323,7 @@ func ExistentialToArchetypeCast<T>(o : AnyObject, t : T) -> T {
 
 // CHECK-LABEL: sil shared {{.*}}@$s30specialize_checked_cast_branch26ExistentialToArchetypeCast1o1txyXl_xtlFAA1CC_Tg5 : $@convention(thin) (@guaranteed AnyObject, @guaranteed C) -> @owned C
 // CHECK: bb0
-// CHECK:  checked_cast_br %0 : $AnyObject to C
+// CHECK:  checked_cast_br AnyObject in %0 : $AnyObject to C
 // CHECK: bb1
 _ = ExistentialToArchetypeCast(o: o, t: c)
 

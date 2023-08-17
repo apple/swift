@@ -41,7 +41,7 @@ namespace swift {
       InterfaceSubContextDelegate &astDelegate;
 
       /// Location where pre-built moduels are to be built into.
-      std::string moduleCachePath;
+      std::string moduleOutputPath;
 
       llvm::Optional<SwiftDependencyTracker> dependencyTracker;
 
@@ -51,13 +51,13 @@ namespace swift {
       ModuleDependencyScanner(
           ASTContext &ctx, ModuleLoadingMode LoadMode, Identifier moduleName,
           InterfaceSubContextDelegate &astDelegate,
+          StringRef moduleOutputPath,
           ScannerKind kind = MDS_plain,
           llvm::Optional<SwiftDependencyTracker> tracker = llvm::None)
           : SerializedModuleLoaderBase(ctx, nullptr, LoadMode,
                                        /*IgnoreSwiftSourceInfoFile=*/true),
             kind(kind), moduleName(moduleName), astDelegate(astDelegate),
-            moduleCachePath(getModuleCachePathFromClang(
-                ctx.getClangModuleLoader()->getClangInstance())),
+            moduleOutputPath(moduleOutputPath),
             dependencyTracker(tracker) {}
 
       std::error_code findModuleFilesInDirectory(
@@ -123,9 +123,10 @@ namespace swift {
           ASTContext &ctx, ModuleLoadingMode LoadMode, Identifier moduleName,
           StringRef PlaceholderDependencyModuleMap,
           InterfaceSubContextDelegate &astDelegate,
+          StringRef moduleOutputPath,
           llvm::Optional<SwiftDependencyTracker> tracker = llvm::None)
           : ModuleDependencyScanner(ctx, LoadMode, moduleName, astDelegate,
-                                    MDS_placeholder, tracker) {
+                                    moduleOutputPath, MDS_placeholder, tracker) {
 
         // FIXME: Find a better place for this map to live, to avoid
         // doing the parsing on every module.

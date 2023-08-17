@@ -11,5 +11,6 @@ swift_compiler_sources(Optimizer
   OptUtils.swift
   WalkUtils.swift
   AccessUtils.swift
+  SSAUpdater.swift
   StaticInitCloner.swift
 )

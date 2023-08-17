@@ -884,7 +884,7 @@ public:
                 : Diagnostic(
                       vd->isStdlibDecl() ? diag::unexposed_other_decl_in_cxx
                                          : diag::unsupported_other_decl_in_cxx,
-                      vd->getDescriptiveKind(), const_cast<ValueDecl *>(vd));
+                      const_cast<ValueDecl *>(vd));
         // Emit a specific unavailable message when we know why a decl can't be
         // exposed, or a generic message otherwise.
         auto diagString = M.getASTContext().Diags.diagnosticStringFor(

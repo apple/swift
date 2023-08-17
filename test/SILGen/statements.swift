@@ -631,7 +631,7 @@ func testCleanupEmission<T>(_ x: T) {
 
 // CHECK-LABEL: sil hidden [ossa] @$s10statements15test_is_patternyyAA9BaseClassCF
 func test_is_pattern(_ y : BaseClass) {
-  // checked_cast_br %0 : $BaseClass to DerivedClass
+  // checked_cast_br BaseClass in %0 : $BaseClass to DerivedClass
   guard case is DerivedClass = y else { marker_1(); return }
 
   marker_2()
@@ -641,7 +641,7 @@ func test_is_pattern(_ y : BaseClass) {
 func test_as_pattern(_ y : BaseClass) -> DerivedClass {
   // CHECK: bb0([[ARG:%.*]] : @guaranteed $BaseClass):
   // CHECK:   [[ARG_COPY:%.*]] = copy_value [[ARG]]
-  // CHECK:   checked_cast_br [[ARG_COPY]] : $BaseClass to DerivedClass
+  // CHECK:   checked_cast_br BaseClass in [[ARG_COPY]] : $BaseClass to DerivedClass
   guard case let result as DerivedClass = y else {  }
   // CHECK: bb{{.*}}({{.*}} : @owned $DerivedClass):
 

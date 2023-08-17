@@ -162,7 +162,7 @@ bb1:
 
 // CHECK-LABEL: sil @checked_cast_br_lowered : $@convention(thin) (@owned Builtin.NativeObject) -> () {
 // CHECK: bb0([[ARG:%.*]] : $Builtin.NativeObject):
-// CHECK:   checked_cast_br [[ARG]] : $Builtin.NativeObject to C, [[SUCCBB:bb[0-9]+]], [[FAILBB:bb[0-9]+]]
+// CHECK:   checked_cast_br Builtin.NativeObject in [[ARG]] : $Builtin.NativeObject to C, [[SUCCBB:bb[0-9]+]], [[FAILBB:bb[0-9]+]]
 //
 // CHECK: [[SUCCBB]]([[CASTED_VALUE:%.*]] : $C):
 // CHECK-NEXT:   strong_release [[CASTED_VALUE]]
@@ -173,7 +173,7 @@ bb1:
 // CHECK-NEXT:   br bb3
 sil [ossa] @checked_cast_br_lowered : $@convention(thin) (@owned Builtin.NativeObject) -> () {
 bb0(%0 : @owned $Builtin.NativeObject):
-  checked_cast_br %0 : $Builtin.NativeObject to C, bb1, bb2
+  checked_cast_br Builtin.NativeObject in %0 : $Builtin.NativeObject to C, bb1, bb2
 
 bb1(%1 : @owned $C):
   destroy_value %1 : $C

@@ -1,0 +1,22 @@
+// RUN: %target-sil-opt -enable-sil-opaque-values -enable-sil-verify-all -emit-sorted-sil %s | %FileCheck %s
+
+// REQUIRES: objc_interop
+
+import Builtin
+import Swift
+
+struct UnownedBox<T : AnyObject> {
+  unowned var value: T
+}
+
+// CHECK-LABEL: sil [ossa] @test_unowned_copy_value : {{.*}} {
+// CHECK:       bb0([[VALUE:%[^,]+]] :
+// CHECK:         unowned_copy_value [[VALUE]]
+// CHECK-LABEL: } // end sil function 'test_unowned_copy_value'
+sil [ossa] @test_unowned_copy_value : $@convention(thin) <T where T : AnyObject> (@owned T) -> @out UnownedBox<T> {
+bb0(%owned_value : @owned $T):
+  %unowned_value = unowned_copy_value %owned_value : $T
+  destroy_value %owned_value : $T
+  %instance = struct $UnownedBox<T> (%unowned_value : $@sil_unowned T)
+  return %instance : $UnownedBox<T>
+}

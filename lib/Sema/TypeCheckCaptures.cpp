@@ -206,7 +206,7 @@ public:
     if (VD->hasInterfaceType()
         && (!ObjC
             || !isa<VarDecl>(VD)
-            || !cast<VarDecl>(VD)->getType()->hasRetainablePointerRepresentation()))
+            || !cast<VarDecl>(VD)->getTypeInContext()->hasRetainablePointerRepresentation()))
       checkType(VD->getInterfaceType(), VD->getLoc());
   }
 
@@ -308,7 +308,7 @@ public:
             NTD->diagnose(diag::kind_declared_here,
                           DescriptiveDeclKind::Type);
 
-            D->diagnose(diag::decl_declared_here, D->getName());
+            D->diagnose(diag::decl_declared_here, D);
             return Action::SkipChildren(DRE);
           }
         }

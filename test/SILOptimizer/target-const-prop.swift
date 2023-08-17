@@ -5,7 +5,7 @@
 // RUN: %target-build-swift -O -module-name=test %s -o %t/a.out
 // RUN: %target-run %t/a.out | %FileCheck %s -check-prefix=CHECK-OUTPUT
 
-// REQUIRES: executable_test,swift_stdlib_no_asserts,optimized_stdlib
+// REQUIRES: executable_test,optimized_stdlib
 // REQUIRES: swift_in_compiler
 
 

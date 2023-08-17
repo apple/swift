@@ -667,6 +667,15 @@ class ExpressionTypeCollector: public SourceEntityWalker {
     if (E->getType().isNull())
       return false;
 
+    // We should not report a type for implicit expressions, except for
+    // - `OptionalEvaluationExpr` to show the correct type when there is optional chaining
+    // - `DotSyntaxCallExpr` to report the method type without the metatype
+    if (E->isImplicit() &&
+        !isa<OptionalEvaluationExpr>(E) &&
+        !isa<DotSyntaxCallExpr>(E)) {
+      return false;
+    }
+
     // If we have already reported types for this source range, we shouldn't
     // report again. This makes sure we always report the outtermost type of
     // several overlapping expressions.
@@ -846,7 +855,7 @@ public:
         PrintOptions Options;
         Options.SynthesizeSugarOnTypes = true;
         Options.FullyQualifiedTypes = FullyQualified;
-        auto Ty = VD->getType();
+        auto Ty = VD->getInterfaceType();
         // Skip this declaration and its children if the type is an error type.
         if (Ty->is<ErrorType>()) {
           return false;

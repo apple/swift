@@ -18,10 +18,10 @@ enum InternalEnum {
 }
 
 public struct HasInternalSetProperty {
-  public internal(set) var x: Int // expected-note {{setter for 'x' is not '@usableFromInline' or public}}
+  public internal(set) var x: Int // expected-note {{setter for property 'x' is not '@usableFromInline' or public}}
 
   @inlinable public mutating func setsX() {
-    x = 10 // expected-warning {{setter for 'x' is internal and should not be referenced from an '@inlinable' function}}
+    x = 10 // expected-warning {{setter for property 'x' is internal and should not be referenced from an '@inlinable' function}}
   }
 }
 

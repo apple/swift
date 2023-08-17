@@ -1065,7 +1065,7 @@ class BClass : AClass {}
 sil @test_checked_cast_br_thick_class_type : $@convention(thin) (@thin P.Protocol) -> Builtin.Int1 {
 bb0(%0 : $@thin P.Protocol):
   %2 = metatype $@thick BClass.Type
-  checked_cast_br %2 : $@thick BClass.Type to AClass.Type, bb1, bb2
+  checked_cast_br BClass.Type in %2 : $@thick BClass.Type to AClass.Type, bb1, bb2
 
 bb1(%5 : $@thick AClass.Type):
   debug_value %5 : $@thick AClass.Type, let, name "type"

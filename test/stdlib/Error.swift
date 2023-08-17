@@ -207,6 +207,7 @@ ErrorTests.test("test dealloc empty error box") {
   }
 }
 
+#if !os(WASI)
 var errors: [Error] = []
 
 @inline(never)
@@ -249,6 +250,7 @@ ErrorTests.test("willThrow") {
   expectEqual(2, errors.count)
   expectEqual(SillyError.self, type(of: errors.last!))
 }
+#endif
 
 runAllTests()
 

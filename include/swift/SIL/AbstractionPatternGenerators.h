@@ -136,6 +136,18 @@ public:
     return origParamIsExpansion;
   }
 
+  /// Return whether the current substituted parameter is a pack
+  /// expansion but the orig function type is opaque.  This is
+  /// unimplementable in our ABI because the calling convention for
+  /// function types in the most-general abstraction pattern still
+  /// assumes a fixed arity.
+  bool isUnimplementablePackExpansion() const {
+    assert(!isFinished());
+    return (origFunctionTypeIsOpaque &&
+            isa<PackExpansionType>(
+              allSubstParams[substParamIndex].getParameterType()));
+  }
+
   /// Return the substituted parameters corresponding to the current
   /// orig parameter type.  If the current orig parameter is not a
   /// pack expansion, this will have exactly one element.
@@ -320,6 +332,122 @@ public:
                cast<TupleType>(substType)->getNumElements()) &&
            "didn't exhaust subst elements; possible missing subs on "
            "orig tuple type");
+  }
+};
+
+/// A generator for traversing the formal elements of a pack type
+/// while properly respecting variadic generics.
+class PackElementGenerator {
+  // The steady state of the generator.
+
+  /// The abstraction pattern of the entire pack type.  Set once
+  /// during construction.
+  AbstractionPattern origPackType;
+
+  /// The substituted pack type.  Set once during construction.
+  CanPackType substPackType;
+
+  /// The number of orig elements to traverse.  Set once during
+  /// construction.
+  unsigned numOrigElts;
+
+  /// The index of the current orig element.
+  /// Incremented during advance().
+  unsigned origEltIndex = 0;
+
+  /// The (start) index of the current subst elements.
+  /// Incremented during advance().
+  unsigned substEltIndex = 0;
+
+  /// The number of subst elements corresponding to the current
+  /// orig element.
+  unsigned numSubstEltsForOrigElt;
+
+  /// Whether the current orig element is a pack expansion.
+  bool origEltIsExpansion;
+
+  /// The abstraction pattern of the current orig element.
+  /// If it is a pack expansion, this is the expansion type, not the
+  /// pattern type.
+  AbstractionPattern origEltType = AbstractionPattern::getInvalid();
+
+  /// Load the informaton for the current orig element into the
+  /// fields above for it.
+  void loadElement() {
+    origEltType = origPackType.getPackElementType(origEltIndex);
+    origEltIsExpansion = origEltType.isPackExpansion();
+    numSubstEltsForOrigElt =
+      (origEltIsExpansion
+         ? origEltType.getNumPackExpandedComponents()
+         : 1);
+  }
+
+public:
+  PackElementGenerator(AbstractionPattern origTupleType,
+                       CanPackType substPackType);
+
+  /// Is the traversal finished?  If so, none of the getters below
+  /// are allowed to be called.
+  bool isFinished() const {
+    return origEltIndex == numOrigElts;
+  }
+
+  /// Advance to the next orig element.
+  void advance() {
+    assert(!isFinished());
+    origEltIndex++;
+    substEltIndex += numSubstEltsForOrigElt;
+    if (!isFinished()) loadElement();
+  }
+
+  /// Return the index of the current orig element.
+  unsigned getOrigIndex() const {
+    assert(!isFinished());
+    return origEltIndex;
+  }
+
+  /// Return the index of the (first) subst element corresponding
+  /// to the current orig element.
+  unsigned getSubstIndex() const {
+    assert(!isFinished());
+    return substEltIndex;
+  }
+
+  IntRange<unsigned> getSubstIndexRange() const {
+    assert(!isFinished());
+    return IntRange<unsigned>(substEltIndex,
+                              substEltIndex + numSubstEltsForOrigElt);
+  }
+
+  /// Return the type of the current orig element.
+  const AbstractionPattern &getOrigType() const {
+    assert(!isFinished());
+    return origEltType;
+  }
+
+  /// Return whether the current orig element type is a pack expansion.
+  bool isOrigPackExpansion() const {
+    assert(!isFinished());
+    return origEltIsExpansion;
+  }
+
+  /// Return the substituted elements corresponding to the current
+  /// orig element type.  If the current orig element is not a
+  /// pack expansion, this will have exactly one element.
+  CanTypeArrayRef getSubstTypes() const {
+    assert(!isFinished());
+    return substPackType
+             .getElementTypes().slice(substEltIndex,
+                                      numSubstEltsForOrigElt);
+  }
+
+  /// Call this to finalize the traversal and assert that it was done
+  /// properly.
+  void finish() {
+    assert(isFinished() && "didn't finish the traversal");
+    assert(substEltIndex == substPackType->getNumElements() &&
+           "didn't exhaust subst elements; possible missing subs on "
+           "orig pack type");
   }
 };
 

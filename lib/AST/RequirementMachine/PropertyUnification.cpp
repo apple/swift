@@ -24,7 +24,6 @@
 
 #include "swift/AST/Decl.h"
 #include "swift/AST/LayoutConstraint.h"
-#include "swift/AST/TypeMatcher.h"
 #include "swift/AST/Types.h"
 #include <algorithm>
 #include <vector>

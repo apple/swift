@@ -92,6 +92,24 @@ public:
     return ManagedValue(value, false, CleanupHandle::invalid());
   }
 
+  enum class ScopeKind {
+    Lexical,
+    FormalAccess,
+  };
+
+  /// Given a value \p value, create a copy of it and return the relevant
+  /// ManagedValue.
+  static ManagedValue forCopyOwnedObjectRValue(SILGenFunction &SGF,
+                                               SILLocation loc, SILValue value,
+                                               ScopeKind kind) {
+    assert(value && "No value specified");
+    assert(value->getType().isObject());
+    auto mv = ManagedValue::forUnmanaged(value);
+    if (kind == ScopeKind::Lexical)
+      return mv.copy(SGF, loc);
+    return mv.formalAccessCopy(SGF, loc);
+  }
+
   /// Create a managed value for a SILValue whose ownership is
   /// forwarded. Creates a new cleanup for +1 values. Forwarded +0 values
   /// require no cleanup.
@@ -165,7 +183,7 @@ public:
   }
 
   /// Create a managed value for a +0 trivial object rvalue.
-  static ManagedValue forTrivialObjectRValue(SILValue value) {
+  static ManagedValue forObjectRValueWithoutOwnership(SILValue value) {
     assert(value->getType().isObject() && "Expected an object");
     assert(value->getOwnershipKind() == OwnershipKind::None);
     return ManagedValue(value, false, CleanupHandle::invalid());
@@ -178,10 +196,11 @@ public:
     return ManagedValue(value, false, CleanupHandle::invalid());
   }
 
-  /// Create a managed value for a +0 trivial rvalue.
-  static ManagedValue forTrivialRValue(SILValue value) {
+  /// Create a managed value for a trivial address rvalue or an object rvalue
+  /// that has .none ownership.
+  static ManagedValue forRValueWithoutOwnership(SILValue value) {
     if (value->getType().isObject())
-      return ManagedValue::forTrivialObjectRValue(value);
+      return ManagedValue::forObjectRValueWithoutOwnership(value);
     return ManagedValue::forTrivialAddressRValue(value);
   }
 
@@ -423,8 +442,8 @@ public:
 
   /// Create a CMV for a value of trivial type.
   static ConsumableManagedValue forUnmanaged(SILValue value) {
-    return { ManagedValue::forUnmanaged(value),
-             CastConsumptionKind::TakeAlways };
+    return {ManagedValue::forObjectRValueWithoutOwnership(value),
+            CastConsumptionKind::TakeAlways};
   }
 
   /// Create a CMV for an owned value.

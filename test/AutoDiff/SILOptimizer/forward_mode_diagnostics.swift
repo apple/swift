@@ -89,7 +89,7 @@ func activeInoutParamControlFlow(_ array: [Float]) -> Float {
 struct X: Differentiable {
   var x: Float
 
-  @differentiable(reverse, wrt: y)
+  @differentiable(reverse, wrt: (self, y))
   mutating func mutate(_ y: X) { self.x = y.x }
 }
 
@@ -104,7 +104,7 @@ func activeMutatingMethod(_ x: Float) -> Float {
 
 struct Mut: Differentiable {}
 extension Mut {
-  @differentiable(reverse, wrt: x)
+  @differentiable(reverse, wrt: (self, x))
   mutating func mutatingMethod(_ x: Mut) {}
 }
 

@@ -12,7 +12,7 @@ sil @$dynamic_self_cast_1 : $@convention(method) (@guaranteed SelfCasts, @thick 
 bb0(%0 : $SelfCasts, %1 : $@thick SelfCasts.Type):
   strong_retain %0 : $SelfCasts
   // CHECK: checked_cast_br
-  checked_cast_br %0 : $SelfCasts to @dynamic_self SelfCasts, bb1, bb2
+  checked_cast_br SelfCasts in %0 : $SelfCasts to @dynamic_self SelfCasts, bb1, bb2
 bb1(%7 : $SelfCasts):
   %8 = enum $Optional<SelfCasts>, #Optional.some!enumelt, %7 : $SelfCasts
   br bb3(%8 : $Optional<SelfCasts>)
@@ -31,7 +31,7 @@ sil @$dynamic_self_cast_2 : $@convention(method) (@guaranteed SelfCasts, @thick 
 bb0(%0 : $SelfCasts, %1 : $@thick SelfCasts.Type):
   strong_retain %0 : $SelfCasts
   // CHECK-NOT: checked_cast_br
-  checked_cast_br %0 : $SelfCasts to SelfCasts, bb1, bb2
+  checked_cast_br SelfCasts in %0 : $SelfCasts to SelfCasts, bb1, bb2
 bb1(%7 : $SelfCasts):
   %8 = enum $Optional<SelfCasts>, #Optional.some!enumelt, %7 : $SelfCasts
   br bb3(%8 : $Optional<SelfCasts>)

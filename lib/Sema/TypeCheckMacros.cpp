@@ -543,8 +543,8 @@ static Identifier makeIdentifier(ASTContext &ctx, std::nullptr_t) {
   return Identifier();
 }
 
-bool swift::diagnoseInvalidAttachedMacro(MacroRole role,
-                                         Decl *attachedTo) {
+bool swift::isInvalidAttachedMacro(MacroRole role,
+                                   Decl *attachedTo) {
   switch (role) {
   case MacroRole::Expression:
   case MacroRole::Declaration:
@@ -582,9 +582,6 @@ bool swift::diagnoseInvalidAttachedMacro(MacroRole role,
     break;
   }
 
-  attachedTo->diagnose(diag::macro_attached_to_invalid_decl,
-                       getMacroRoleString(role),
-                       attachedTo->getDescriptiveKind());
   return true;
 }
 
@@ -1022,7 +1019,7 @@ evaluateFreestandingMacro(FreestandingMacroExpansion *expansion,
       ctx.Diags.diagnose(loc, diag::external_macro_not_found,
                          external.moduleName.str(),
                          external.macroTypeName.str(), macro->getName());
-      macro->diagnose(diag::decl_declared_here, macro->getName());
+      macro->diagnose(diag::decl_declared_here, macro);
       return nullptr;
     }
 
@@ -1238,9 +1235,13 @@ static SourceFile *evaluateAttachedMacro(MacroDecl *macro, Decl *attachedTo,
   {
     llvm::raw_string_ostream OS(conformanceList);
     if (role == MacroRole::Extension) {
-      for (auto *protocol : conformances) {
-        protocol->getDeclaredType()->print(OS);
-      }
+      llvm::interleave(
+          conformances,
+          [&](const ProtocolDecl *protocol) {
+            protocol->getDeclaredType()->print(OS);
+          },
+          [&] { OS << ", "; }
+      );
     } else {
       OS << "";
     }
@@ -1283,7 +1284,7 @@ static SourceFile *evaluateAttachedMacro(MacroDecl *macro, Decl *attachedTo,
                         external.macroTypeName.str(),
                         macro->getName()
       );
-      macro->diagnose(diag::decl_declared_here, macro->getName());
+      macro->diagnose(diag::decl_declared_here, macro);
       return nullptr;
     }
 
@@ -1591,15 +1592,7 @@ swift::expandExtensions(CustomAttr *attr, MacroDecl *macro,
   for (auto protocol : potentialConformances) {
     SmallVector<ProtocolConformance *, 2> existingConformances;
     nominal->lookupConformance(protocol, existingConformances);
-
-    bool hasExistingConformance = llvm::any_of(
-        existingConformances,
-        [&](ProtocolConformance *conformance) {
-          return conformance->getSourceKind() !=
-              ConformanceEntryKind::PreMacroExpansion;
-        });
-
-    if (!hasExistingConformance) {
+    if (existingConformances.empty()) {
       introducedConformances.push_back(protocol);
     }
   }
@@ -1634,6 +1627,50 @@ swift::expandExtensions(CustomAttr *attr, MacroDecl *macro,
     if (auto file = dyn_cast<FileUnit>(
             decl->getDeclContext()->getModuleScopeContext()))
       file->getOrCreateSynthesizedFile().addTopLevelDecl(extension);
+
+    // Don't validate documented conformances for the 'conformance' role.
+    if (role == MacroRole::Conformance)
+      continue;
+
+    // Extension macros can only add conformances that are documented by
+    // the `@attached(extension)` attribute.
+    for (auto inherited : extension->getInherited()) {
+      auto constraint =
+          TypeResolution::forInterface(
+              extension->getDeclContext(),
+              TypeResolverContext::GenericRequirement,
+              /*unboundTyOpener*/ nullptr,
+              /*placeholderHandler*/ nullptr,
+              /*packElementOpener*/ nullptr)
+          .resolveType(inherited.getTypeRepr());
+
+      // Already diagnosed or will be diagnosed later.
+      if (constraint->is<ErrorType>() || !constraint->isConstraintType())
+        continue;
+
+      std::function<bool(Type)> isUndocumentedConformance =
+          [&](Type constraint) -> bool {
+            if (auto *proto = constraint->getAs<ParameterizedProtocolType>())
+              return !llvm::is_contained(potentialConformances,
+                                         proto->getProtocol());
+
+            if (auto *proto = constraint->getAs<ProtocolType>())
+              return !llvm::is_contained(potentialConformances,
+                                         proto->getDecl());
+
+            return llvm::any_of(
+                constraint->castTo<ProtocolCompositionType>()->getMembers(),
+                isUndocumentedConformance);
+          };
+
+      if (isUndocumentedConformance(constraint)) {
+        extension->diagnose(
+            diag::undocumented_conformance_in_expansion,
+            constraint, macro->getBaseName());
+
+        extension->setInvalid();
+      }
+    }
   }
 
   return macroSourceFile->getBufferID();

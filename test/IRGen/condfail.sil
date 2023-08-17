@@ -11,7 +11,7 @@ import Swift
 // CHECK-x86_64:      {{.cfi_startproc|Lfunc_begin}}
 // CHECK-i386:        .cfi_startproc
 // CHECK-arm64:       .cfi_startproc
-// CHECK-aarch64:     .cfi_startproc
+// CHECK-aarch64:     {{.cfi_startproc|Lfunc_begin}}
 // CHECK-armv7:       Lfunc_begin
 // CHECK-armv7s:      Lfunc_begin
 // CHECK-powerpc64:   .cfi_startproc
@@ -79,7 +79,7 @@ import Swift
 // CHECK-x86_64:      {{.cfi_endproc|Lfunc_end}}
 // CHECK-i386:        .cfi_endproc
 // CHECK-arm64:       .cfi_endproc
-// CHECK-aarch64:     .cfi_endproc
+// CHECK-aarch64:     {{.cfi_endproc|Lfunc_end}}
 // CHECK-armv7:       Lfunc_end
 // CHECK-armv7s:      Lfunc_end
 // CHECK-powerpc64:   .cfi_endproc

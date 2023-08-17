@@ -412,6 +412,22 @@ do {
   enum E {
    case baz
    case bar
+
+      static var member: Self {
+          .baz
+      }
+
+      static func method() -> Self {
+          .bar
+      }
+
+      static func methodArg(_: Void) -> Self {
+          .baz
+      }
+
+      static var none: Self {
+          .baz
+      }
   }
 
   let oe: E? = .bar
@@ -419,6 +435,11 @@ do {
   switch oe {
    case .bar?: break // Ok
    case .baz: break // Ok
+   case .member: break // Ok
+   case .missingMember: break // expected-error {{type 'E?' has no member 'missingMember'}}
+   case .method(): break // Ok
+   case .methodArg(()): break // Ok
+   case .none: break // expected-warning {{assuming you mean 'Optional<E>.none'; did you mean 'E.none' instead?}} expected-note {{use 'nil' to silence this warning}} expected-note {{use 'none?' instead}}
    default: break
   }
 
@@ -427,11 +448,31 @@ do {
   switch ooe {
    case .bar?: break // Ok
    case .baz: break // Ok
+   case .member: break // Ok
+   case .missingMember: break // expected-error {{type 'E??' has no member 'missingMember'}}
+   case .method(): break // Ok
+   case .methodArg(()): break // Ok
    default: break
   }
 
   if case .baz = ooe {} // Ok
   if case .bar? = ooe {} // Ok
+  if case .member = ooe {} // Ok
+  if case .missingMember = ooe {} // expected-error {{type 'E??' has no member 'missingMember'}}
+  if case .method() = ooe {} // Ok
+  if case .methodArg(()) = ooe {} // Ok
+
+  enum M {
+    case m
+    static func `none`(_: Void) -> Self { .m }
+  }
+
+  let om: M? = .m
+
+  switch om {
+  case .none: break // Ok
+  default: break
+  }
 }
 
 // rdar://problem/60048356 - `if case` fails when `_` pattern doesn't have a label

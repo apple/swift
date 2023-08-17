@@ -370,6 +370,7 @@ public:
     // Create a new `checked_cast_branch` instruction.
     getBuilder().createCheckedCastBranch(
         ccbi->getLoc(), ccbi->isExact(), getOpValue(ccbi->getOperand()),
+        getOpASTType(ccbi->getSourceFormalType()),
         getOpType(ccbi->getTargetLoweredType()),
         getOpASTType(ccbi->getTargetFormalType()),
         createTrampolineBasicBlock(ccbi, pbTupleVal, ccbi->getSuccessBB()),
@@ -448,24 +449,22 @@ public:
                                          activeResultIndices);
     assert(!activeParamIndices.empty() && "Parameter indices cannot be empty");
     assert(!activeResultIndices.empty() && "Result indices cannot be empty");
-    LLVM_DEBUG(auto &s = getADDebugStream() << "Active indices: params={";
+    LLVM_DEBUG(auto &s = getADDebugStream() << "Active indices: params=(";
                llvm::interleave(
                    activeParamIndices.begin(), activeParamIndices.end(),
                    [&s](unsigned i) { s << i; }, [&s] { s << ", "; });
-               s << "}, results={"; llvm::interleave(
+               s << "), results=("; llvm::interleave(
                    activeResultIndices.begin(), activeResultIndices.end(),
                    [&s](unsigned i) { s << i; }, [&s] { s << ", "; });
-               s << "}\n";);
+               s << ")\n";);
 
     // Form expected indices.
-    auto numSemanticResults =
-        ai->getSubstCalleeType()->getNumResults() +
-        ai->getSubstCalleeType()->getNumIndirectMutatingParameters();
     AutoDiffConfig config(
         IndexSubset::get(getASTContext(),
                          ai->getArgumentsWithoutIndirectResults().size(),
                          activeParamIndices),
-        IndexSubset::get(getASTContext(), numSemanticResults,
+        IndexSubset::get(getASTContext(),
+                         ai->getSubstCalleeType()->getNumAutoDiffSemanticResults(),
                          activeResultIndices));
 
     // Emit the VJP.
@@ -536,10 +535,11 @@ public:
           for (auto resultIndex : config.resultIndices->getIndices()) {
             SILType remappedResultType;
             if (resultIndex >= originalFnTy->getNumResults()) {
-              auto inoutArgIdx = resultIndex - originalFnTy->getNumResults();
-              auto inoutArg =
-                  *std::next(ai->getInoutArguments().begin(), inoutArgIdx);
-              remappedResultType = inoutArg->getType();
+              auto semanticResultArgIdx = resultIndex - originalFnTy->getNumResults();
+              auto semanticResultArg =
+                  *std::next(ai->getAutoDiffSemanticResultArguments().begin(),
+                             semanticResultArgIdx);
+              remappedResultType = semanticResultArg->getType();
             } else {
               remappedResultType = originalFnTy->getResults()[resultIndex]
                                        .getSILStorageInterfaceType();
@@ -890,55 +890,57 @@ SILFunction *VJPCloner::Implementation::createEmptyPullback() {
   auto config = witness->getConfig();
 
   // Add pullback parameters based on original result indices.
-  SmallVector<unsigned, 4> inoutParamIndices;
+  SmallVector<unsigned, 4> semanticResultParamIndices;
   for (auto i : range(origTy->getNumParameters())) {
     auto origParam = origParams[i];
-    if (!origParam.isIndirectInOut())
+    if (!origParam.isAutoDiffSemanticResult())
       continue;
-    inoutParamIndices.push_back(i);
+    semanticResultParamIndices.push_back(i);
   }
+
   for (auto resultIndex : config.resultIndices->getIndices()) {
     // Handle formal result.
     if (resultIndex < origTy->getNumResults()) {
       auto origResult = origTy->getResults()[resultIndex];
       origResult = origResult.getWithInterfaceType(
           origResult.getInterfaceType()->getReducedType(witnessCanGenSig));
-      pbParams.push_back(getTangentParameterInfoForOriginalResult(
+      auto paramInfo = getTangentParameterInfoForOriginalResult(
           origResult.getInterfaceType()
               ->getAutoDiffTangentSpace(lookupConformance)
               ->getType()
               ->getReducedType(witnessCanGenSig),
-          origResult.getConvention()));
+          origResult.getConvention());
+      pbParams.push_back(paramInfo);
       continue;
     }
-    // Handle `inout` parameter.
+
+    // Handle semantic result parameter.
     unsigned paramIndex = 0;
-    unsigned inoutParamIndex = 0;
+    unsigned resultParamIndex = 0;
     for (auto i : range(origTy->getNumParameters())) {
       auto origParam = origTy->getParameters()[i];
-      if (!origParam.isIndirectMutating()) {
+      if (!origParam.isAutoDiffSemanticResult()) {
         ++paramIndex;
         continue;
       }
-      if (inoutParamIndex == resultIndex - origTy->getNumResults())
+      if (resultParamIndex == resultIndex - origTy->getNumResults())
         break;
       ++paramIndex;
-      ++inoutParamIndex;
+      ++resultParamIndex;
     }
-    auto inoutParam = origParams[paramIndex];
-    auto origResult = inoutParam.getWithInterfaceType(
-        inoutParam.getInterfaceType()->getReducedType(witnessCanGenSig));
-    auto inoutParamTanConvention =
-        config.isWrtParameter(paramIndex)
-            ? inoutParam.getConvention()
-            : ParameterConvention::Indirect_In_Guaranteed;
-    SILParameterInfo inoutParamTanParam(
-        origResult.getInterfaceType()
-            ->getAutoDiffTangentSpace(lookupConformance)
-            ->getType()
-            ->getReducedType(witnessCanGenSig),
-        inoutParamTanConvention);
-    pbParams.push_back(inoutParamTanParam);
+    auto resultParam = origParams[paramIndex];
+    auto origResult = resultParam.getWithInterfaceType(
+      resultParam.getInterfaceType()->getReducedType(witnessCanGenSig));
+
+    auto resultParamTanConvention = resultParam.getConvention();
+    if (!config.isWrtParameter(paramIndex))
+      resultParamTanConvention = ParameterConvention::Indirect_In_Guaranteed;
+
+    pbParams.emplace_back(origResult.getInterfaceType()
+                          ->getAutoDiffTangentSpace(lookupConformance)
+                          ->getType()
+                          ->getReducedType(witnessCanGenSig),
+                          resultParamTanConvention);
   }
 
   if (pullbackInfo.hasHeapAllocatedContext()) {
@@ -960,7 +962,7 @@ SILFunction *VJPCloner::Implementation::createEmptyPullback() {
   // Add pullback results for the requested wrt parameters.
   for (auto i : config.parameterIndices->getIndices()) {
     auto origParam = origParams[i];
-    if (origParam.isIndirectMutating())
+    if (origParam.isAutoDiffSemanticResult())
       continue;
     origParam = origParam.getWithInterfaceType(
         origParam.getInterfaceType()->getReducedType(witnessCanGenSig));
@@ -996,6 +998,7 @@ SILFunction *VJPCloner::Implementation::createEmptyPullback() {
       original->isRuntimeAccessible());
   pullback->setDebugScope(new (module)
                               SILDebugScope(original->getLocation(), pullback));
+
   return pullback;
 }
 

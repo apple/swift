@@ -1,5 +1,4 @@
 // RUN: %target-swift-frontend -emit-sil %s -verify
-// RUN: %target-swift-frontend -emit-sil %s -verify
 
 func takesEscaping(_: @escaping () -> ()) {}
 

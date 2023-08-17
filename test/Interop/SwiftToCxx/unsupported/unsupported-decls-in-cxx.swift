@@ -64,4 +64,7 @@ public distributed actor DistributedActorClass {
 
     @_expose(Cxx) // ok
     nonisolated public var prop2: Int { 42 }
+
+    @_expose(Cxx) // expected-error {{nested struct 'NestedStruct' can not yet be represented in C++}}
+    public struct NestedStruct {}
 }

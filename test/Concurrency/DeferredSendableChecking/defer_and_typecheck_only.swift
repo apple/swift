@@ -1,10 +1,10 @@
 // REQUIRES: concurrency
 // REQUIRES: asserts
 
-// RUN: %target-typecheck-verify-swift -strict-concurrency=complete -enable-experimental-feature DeferredSendableChecking
+// RUN: %target-typecheck-verify-swift -strict-concurrency=complete -enable-experimental-feature SendNonSendable
 
 /*
- This file tests the experimental DeferredSendableChecking feature. This feature causes the passing
+ This file tests the experimental SendNonSendable feature. This feature causes the passing
  of non-sendable values to isolation-crossing calls to not yield diagnostics during AST passes,
  but to instead emit them later during a mandatory SIL pass. This file in particular checks that
  isolation crossing via argument passing is deferred, but that isolation crossing via returned

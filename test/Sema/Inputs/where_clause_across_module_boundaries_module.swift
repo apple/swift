@@ -23,3 +23,11 @@ public extension DefaultsSerializable where Self: RawRepresentable {
 
 public struct ModuleAFoo: Codable, DefaultsSerializable {
 }
+
+public struct AliasTest<T> {
+  public typealias A = T.Element where T: Collection
+}
+
+extension AliasTest where T: Collection {
+  public typealias B = T.Element
+}

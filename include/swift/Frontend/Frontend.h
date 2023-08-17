@@ -168,8 +168,16 @@ public:
     ClangImporterOpts.ModuleCachePath = Path.str();
   }
 
+  void setClangScannerModuleCachePath(StringRef Path) {
+    ClangImporterOpts.ClangScannerModuleCachePath = Path.str();
+  }
+
   StringRef getClangModuleCachePath() const {
     return ClangImporterOpts.ModuleCachePath;
+  }
+
+  StringRef getClangScannerModuleCachePath() const {
+    return ClangImporterOpts.ClangScannerModuleCachePath;
   }
 
   void setImportSearchPaths(const std::vector<std::string> &Paths) {

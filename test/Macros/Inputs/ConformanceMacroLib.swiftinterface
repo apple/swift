@@ -1,0 +1,12 @@
+// swift-interface-format-version: 1.0
+// swift-module-flags: -module-name ConformanceMacroLib
+
+@attached(conformance)
+public macro Equatable() = #externalMacro(module: "MacroDefinition", type: "EquatableMacro")
+
+#if compiler(>=5.3) && $Macros && $AttachedMacros && $ExtensionMacros
+#if $ExtensionMacroAttr
+@attached(extension, conformances: Swift.Hashable)
+public macro Hashable() = #externalMacro(module: "MacroDefinition", type: "HashableMacro")
+#endif
+#endif

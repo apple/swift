@@ -276,6 +276,16 @@ public struct Wrapper<T> {
     }
 }
 
+public struct NestedWrapper<T> {
+    public let x: Wrapper<T>
+    public let y: Wrapper<T>
+
+    public init(x: Wrapper<T>, y: Wrapper<T>) {
+        self.x = x
+        self.y = y
+    }
+}
+
 struct InternalGeneric<T> {
     let x: T
     let y: Int
@@ -432,6 +442,14 @@ public struct ComplexNesting<A, B, C, D> {
     }
 }
 
+public enum SinglePayloadAnyHashableEnum {
+    case empty0
+    case empty1
+    case empty2
+    case empty3
+    case nonEmpty(AnyHashable)
+}
+
 internal enum InternalEnum {
   case a(Int, AnyObject)
   case b(Int)
@@ -473,6 +491,23 @@ public struct PrespecializedStruct<T> {
     }
 }
 
+public enum PrespecializedSingletonEnum<T> {
+    case only(Int, T)
+}
+
+public enum PrespecializedSinglePayloadEnum<T> {
+    case empty0
+    case empty1
+    case nonEmpty(Int, T)
+}
+
+public enum PrespecializedMultiPayloadEnum<T> {
+    case empty0
+    case empty1
+    case nonEmpty0(Int, T)
+    case nonEmpty1(T, Int)
+}
+
 @inline(never)
 public func consume<T>(_ x: T.Type) {
     withExtendedLifetime(x) {}
@@ -481,6 +516,18 @@ public func preSpec() {
     consume(PrespecializedStruct<AnyObject>.self)
     consume(PrespecializedStruct<SimpleClass>.self)
     consume(PrespecializedStruct<Int>.self)
+
+    consume(PrespecializedSingletonEnum<AnyObject>.self)
+    consume(PrespecializedSingletonEnum<SimpleClass>.self)
+    consume(PrespecializedSingletonEnum<Int>.self)
+
+    consume(PrespecializedSinglePayloadEnum<AnyObject>.self)
+    consume(PrespecializedSinglePayloadEnum<SimpleClass>.self)
+    consume(PrespecializedSinglePayloadEnum<Int>.self)
+
+    consume(PrespecializedMultiPayloadEnum<AnyObject>.self)
+    consume(PrespecializedMultiPayloadEnum<SimpleClass>.self)
+    consume(PrespecializedMultiPayloadEnum<Int>.self)
 }
 
 @inline(never)

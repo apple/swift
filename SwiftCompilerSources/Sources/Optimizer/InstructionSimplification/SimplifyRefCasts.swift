@@ -36,13 +36,13 @@ private extension UnaryInstruction {
   /// ```
   ///   %2 = upcast %1 : $Derived to $Base
   ///   %3 = init_existential_ref %2 : $Base : $Base, $AnyObject
-  ///   checked_cast_br %3 : $AnyObject to Derived, bb1, bb2
+  ///   checked_cast_br AnyObject in %3 : $AnyObject to Derived, bb1, bb2
   /// ```
   ///
   /// This makes it more likely that the cast can be constant folded because the source
   /// operand's type is more accurate. In the example above, the cast reduces to
   /// ```
-  ///   checked_cast_br %1 : $Derived to Derived, bb1, bb2
+  ///   checked_cast_br Derived in %1 : $Derived to Derived, bb1, bb2
   /// ```
   /// which can be trivially folded to always-succeeds.
   ///
@@ -97,13 +97,13 @@ private extension UnaryInstruction {
 /// For example:
 /// ```
 ///   %inst = upcast %sourceValue : $Derived to $Base
-///   checked_cast_br %inst : $Base to Derived, success_block, failure_block
+///   checked_cast_br Base in %inst : $Base to Derived, success_block, failure_block
 ///   ...
 /// failure_block(%oldArg : $Base):
 /// ```
 /// is converted to:
 /// ```
-///   checked_cast_br %sourceValue : $Derived to Derived, success_block, failure_block
+///   checked_cast_br Derived in %sourceValue : $Derived to Derived, success_block, failure_block
 ///   ...
 /// failure_block(%newArg : $Derived):
 ///   %3 = upcast %newArg : $Derived to $Base

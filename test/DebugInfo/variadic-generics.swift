@@ -1,5 +1,5 @@
 // RUN: %target-swift-frontend -emit-ir %s -g -o - \
-// RUN:    -parse-as-library -module-name a | %IRGenFileCheck %s
+// RUN:    -parse-as-library -module-name a -disable-availability-checking | %IRGenFileCheck %s
 
 public func foo<each T>(args: repeat each T) {
   // CHECK: define {{.*}} @"$s1a3foo4argsyxxQp_tRvzlF"
@@ -22,3 +22,35 @@ public func foo<each T>(args: repeat each T) {
   // CHECK-DAG: ![[TYPE_PACK_TY]] = !DIDerivedType(tag: DW_TAG_pointer_type, name: "$sBpD"
 }
 
+// Test ASTDemangler round-tripping of various pack expansion types
+
+public func paramExpansionWithPattern<each T>(args: repeat Array<each T>) {}
+
+public func paramExpansionWithMemberType<each T: Sequence>(args: repeat each T, elements: repeat (each T).Element) {}
+
+public func tupleExpansion<each T>(args: (repeat each T)) {}
+
+public func tupleExpansionWithPattern<each T>(args: (repeat Array<each T>)) {}
+
+// FIXME: Crashes due to unrelated bug
+// public func tupleExpansionWithMemberType<each T: Sequence>(args: repeat each T, elements: (repeat (each T).Element)) {}
+
+public func functionExpansion<each T>(args: (repeat each T) -> ()) {}
+
+public func functionExpansionWithPattern<each T>(args: (repeat Array<each T>) -> ()) {}
+
+public func functionExpansionWithMemberType<each T: Sequence>(args: repeat each T, elements: (repeat (each T).Element) -> ()) {}
+
+public struct G<each T> {}
+
+public func nominalExpansion<each T>(args: G<repeat each T>) {}
+
+public func nominalExpansionWithPattern<each T>(args: G<repeat Array<each T>>) {}
+
+public func nominalExpansionWithMemberType<each T: Sequence>(args: repeat each T, elements: G<repeat (each T).Element>) {}
+
+//
+
+public typealias First<T, U> = T
+
+public func concreteExpansion<each T>(args: repeat each T, concrete: repeat First<Int, each T>) {}

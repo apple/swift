@@ -31,7 +31,7 @@ import SIL
 ///   br continue_bb(%5)
 /// continue_bb(%bridgedOptionalSwiftValue):
 /// ```
-let objCBridgingOptimization = FunctionPass(name: "objc-bridging-opt", {
+let objCBridgingOptimization = FunctionPass(name: "objc-bridging-opt") {
   (function: Function, context: FunctionPassContext) in
 
   if !function.hasOwnership { return }
@@ -54,7 +54,7 @@ let objCBridgingOptimization = FunctionPass(name: "objc-bridging-opt", {
       }
     }
   }
-})
+}
 
 //===----------------------------------------------------------------------===//
 //                      Top-level optimization functions

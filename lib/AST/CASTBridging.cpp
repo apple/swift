@@ -20,6 +20,10 @@ struct BridgedDiagnosticImpl {
   InFlightDiagnostic inFlight;
   std::vector<StringRef> textBlobs;
 
+  BridgedDiagnosticImpl(InFlightDiagnostic inFlight,
+                        std::vector<StringRef> textBlobs)
+      : inFlight(std::move(inFlight)), textBlobs(std::move(textBlobs)) {}
+
   BridgedDiagnosticImpl(const BridgedDiagnosticImpl &) = delete;
   BridgedDiagnosticImpl(BridgedDiagnosticImpl &&) = delete;
   BridgedDiagnosticImpl &operator=(const BridgedDiagnosticImpl &) = delete;
@@ -170,6 +174,11 @@ BridgedIdentifier ASTContext_getIdentifier(BridgedASTContext cContext,
   }
 
   return {convertASTContext(cContext).getIdentifier(str).getAsOpaquePointer()};
+}
+
+bool ASTContext_langOptsHasFeature(BridgedASTContext cContext,
+                                   BridgedFeature feature) {
+  return convertASTContext(cContext).LangOpts.hasFeature((Feature)feature);
 }
 
 void *ImportDecl_create(BridgedASTContext cContext,

@@ -543,7 +543,7 @@ internal func _resumeUnsafeThrowingContinuationWithError<T>(
 ///
 /// The body of the closure executes synchronously on the calling task, and once it returns
 /// the calling task is suspended. It is possible to immediately resume the task, or escape the
-/// continuation in order to complete it afterwards, which will them resume suspended task.
+/// continuation in order to complete it afterwards, which will then resume the suspended task.
 ///
 /// You must invoke the continuation's `resume` method exactly once.
 ///
@@ -577,7 +577,7 @@ public func withUnsafeContinuation<T>(
 ///
 /// The body of the closure executes synchronously on the calling task, and once it returns
 /// the calling task is suspended. It is possible to immediately resume the task, or escape the
-/// continuation in order to complete it afterwards, which will them resume suspended task.
+/// continuation in order to complete it afterwards, which will then resume the suspended task.
 ///
 /// If `resume(throwing:)` is called on the continuation, this function throws that error.
 ///

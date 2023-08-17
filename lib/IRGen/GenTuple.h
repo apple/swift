@@ -67,6 +67,11 @@ namespace irgen {
   llvm::Optional<unsigned> getPhysicalTupleElementStructIndex(IRGenModule &IGM,
                                                               SILType tupleType,
                                                               unsigned fieldNo);
+
+  /// Emit a string encoding the labels in the given tuple type.
+  llvm::Constant *getTupleLabelsString(IRGenModule &IGM,
+                                       CanTupleType type);
+
 } // end namespace irgen
 } // end namespace swift
 

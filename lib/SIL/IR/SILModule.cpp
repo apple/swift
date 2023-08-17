@@ -953,30 +953,3 @@ bool Lowering::usesObjCAllocator(ClassDecl *theClass) {
   // allocation methods because they may have been overridden.
   return theClass->getObjectModel() == ReferenceCounting::ObjC;
 }
-
-static bool isUnconditionallyUnavailable(const Decl *D) {
-  if (auto unavailableAttrAndDecl = D->getSemanticUnavailableAttr())
-    return unavailableAttrAndDecl->first->isUnconditionallyUnavailable();
-
-  return false;
-}
-
-bool Lowering::shouldSkipLowering(const Decl *D) {
-  if (D->getASTContext().LangOpts.UnavailableDeclOptimizationMode !=
-      UnavailableDeclOptimization::Complete)
-    return false;
-
-  // Unavailable declarations should be skipped if
-  // -unavailable-decl-optimization=complete is specified.
-  return isUnconditionallyUnavailable(D);
-}
-
-bool Lowering::shouldLowerToUnavailableCodeStub(const Decl *D) {
-  if (D->getASTContext().LangOpts.UnavailableDeclOptimizationMode !=
-      UnavailableDeclOptimization::Stub)
-    return false;
-
-  // Unavailable declarations should trap at runtime if
-  // -unavailable-decl-optimization=stub is specified.
-  return isUnconditionallyUnavailable(D);
-}

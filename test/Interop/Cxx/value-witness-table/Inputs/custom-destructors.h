@@ -3,6 +3,12 @@
 
 struct __attribute__((swift_attr("import_unsafe"))) HasUserProvidedDestructor {
   int *value;
+  HasUserProvidedDestructor() {}
+  HasUserProvidedDestructor(int *value) : value(value) {}
+#if __is_target_os(windows) && !defined(WIN_TRIVIAL)
+  // On windows, force this type to be address-only.
+  HasUserProvidedDestructor(const HasUserProvidedDestructor &other) : value(other.value) {}
+#endif
   ~HasUserProvidedDestructor() { *value = 42; }
 };
 
@@ -71,6 +77,11 @@ struct DummyStruct {};
 struct __attribute__((swift_attr("import_unsafe")))
 HasUserProvidedDestructorAndDummy {
   DummyStruct dummy;
+  HasUserProvidedDestructorAndDummy(DummyStruct dummy) : dummy(dummy) {}
+#if __is_target_os(windows) && !defined(WIN_TRIVIAL)
+  // On windows, force this type to be address-only.
+  HasUserProvidedDestructorAndDummy(const HasUserProvidedDestructorAndDummy &other) : dummy(other.dummy) {}
+#endif
   ~HasUserProvidedDestructorAndDummy() {}
 };
 

@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elim | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -redundant-load-elimination | %FileCheck %s
 // TODO : Add a version with semantic-arc-opts when #34971 is landed or DCE is enabled on OSSA
 
 // REQUIRES: swift_in_compiler
@@ -220,43 +220,6 @@ bb0(%0 : @owned $AB):
   return %5 : $Int
 }
 
-// Check that we don't crash if the address is an unchecked_addr_cast.
-// CHECK-LABEL: sil [ossa] @test_unchecked_addr_cast :
-// CHECK-NOT: = load
-// CHECK-LABEL: } // end sil function 'test_unchecked_addr_cast'
-sil [ossa] @test_unchecked_addr_cast : $@convention(thin) (@inout A, A) -> A {
-bb0(%0 : $*A, %1 : $A):
-  %2 = unchecked_addr_cast %0 : $*A to $*A
-  store %1 to [trivial] %2 : $*A
-  %l1 = load [trivial] %2 : $*A
-  return %l1 : $A
-}
-
-// Multi-BB version of the previous test.
-// CHECK-LABEL: sil [ossa] @test_forwarding_ignoring_unchecked_addr_cast2 : $@convention(thin) (@inout A, A, A) -> A {
-// CHECK: bb1
-// CHECK-NOT: = load
-// CHECK: cond_br
-// CHECK-LABEL: } // end sil function 'test_forwarding_ignoring_unchecked_addr_cast2'
-sil [ossa] @test_forwarding_ignoring_unchecked_addr_cast2 : $@convention(thin) (@inout A, A, A) -> A {
-bb0(%0 : $*A, %1 : $A, %2: $A):
-  %3 = unchecked_addr_cast %0 : $*A to $*A
-  store %1 to [trivial] %3 : $*A
-  br bb1
-
-bb1:
-  %5 = load [trivial] %3 : $*A
-  %6 = load [trivial] %3 : $*A
-  store %2 to [trivial] %3 : $*A
-  cond_br undef, bb1a, bb2
-
-bb1a:
-  br bb1
-
-bb2:
-  return %5 : $A
-}
-
 // CHECK-LABEL: sil [ossa] @test_read_dependence_allows_forwarding_multi_bb_1 : $@convention(thin) (@inout A, A) -> A {
 // CHECK: bb0
 // CHECK: store
@@ -352,10 +315,13 @@ bb0(%0 : $Agg1):
 }
 
 // CHECK-LABEL: sil [ossa] @store_promotion :
-// CHECK: store
-// CHECK-NEXT: destroy_addr
-// CHECK-NEXT: destroy_value
-// CHECK-NEXT: destroy_value
+// CHECK:         %1 = alloc_box
+// CHECK-NEXT:    project_box
+// CHECK-NEXT:    [[C:%.*]] = copy_value %0
+// CHECK-NEXT:    destroy_value [[C]]
+// CHECK-NEXT:    destroy_value %0
+// CHECK-NEXT:    destroy_value %1
+// CHECK-NEXT:    tuple
 // CHECK-LABEL: } // end sil function 'store_promotion'
 sil [ossa] @store_promotion : $@convention(thin) (@owned B) -> () {
 bb0(%0 : @owned $B):
@@ -880,11 +846,11 @@ bb2:
 
 // Make sure we form a single SILArgument.
 //
-// CHECK-LABEL: single_silargument_agg_in_one_block :
-// CHECK: bb3([[ARG:%.*]] : $TwoField):
+// CHECK-LABEL: silargument_agg_in_one_block :
+// CHECK: bb3([[ARG1:%.*]] : $Int, [[ARG2:%.*]] : $Int):
 // CHECK-NOT: = load
-// CHECK-LABEL: } // end sil function 'single_silargument_agg_in_one_block'
-sil hidden [ossa] @single_silargument_agg_in_one_block : $@convention(thin) (Bool) -> () {
+// CHECK-LABEL: } // end sil function 'silargument_agg_in_one_block'
+sil hidden [ossa] @silargument_agg_in_one_block : $@convention(thin) (Bool) -> () {
 bb0(%0 : $Bool):
   %1 = alloc_stack $TwoField, var, name "x"
   cond_br undef, bb1, bb2
@@ -1418,11 +1384,12 @@ bb0(%0 : $B, %1 : $*Agg1):
 
 // TODO: When RLE uses TBAA it should remove the second load.
 //
-// CHECK: sil @tbaa_struct
-// CHECK: load
-// CHECK: store
-// CHECK: load
-// CHECK: return
+// CHECK-LABEL: sil @tbaa_struct
+// CHECK:         [[L:%.*]] = load
+// CHECK:         store
+// CHECK-NOT:     load
+// CHECK:         tuple ([[L]] : $A, [[L]] : $A)
+// CHECK:       } // end sil function 'tbaa_struct'
 sil @tbaa_struct : $@convention(thin) (Builtin.RawPointer, A2) -> (A, A) {
 bb0(%0 : $Builtin.RawPointer, %1 : $A2):
   %2 = pointer_to_address %0 : $Builtin.RawPointer to [strict] $*A
@@ -1436,7 +1403,7 @@ bb0(%0 : $Builtin.RawPointer, %1 : $A2):
 
 // TODO: Even with TBAA, RLE should not remove the second load.
 //
-// CHECK: sil @tbaa_bind_memory
+// CHECK-LABEL: sil @tbaa_bind_memory
 // CHECK: load
 // CHECK: bind_memory
 // CHECK: store

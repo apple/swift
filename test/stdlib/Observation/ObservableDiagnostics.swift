@@ -1,15 +1,13 @@
 // REQUIRES: swift_swift_parser
 
-// RUN: %target-typecheck-verify-swift -disable-availability-checking -parse-as-library -enable-experimental-feature InitAccessors -enable-experimental-feature Macros -enable-experimental-feature ExtensionMacros -plugin-path %swift-host-lib-dir/plugins
-
-// Asserts is required for '-enable-experimental-feature InitAccessors'.
-// REQUIRES: asserts
+// RUN: %target-typecheck-verify-swift -disable-availability-checking -parse-as-library -enable-experimental-feature Macros -enable-experimental-feature ExtensionMacros -plugin-path %swift-host-lib-dir/plugins
 
 // REQUIRES: observation
 // REQUIRES: concurrency
 // REQUIRES: objc_interop
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: back_deployment_runtime
+// REQUIRES: rdar112623492
 
 import Observation
 

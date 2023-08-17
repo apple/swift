@@ -4,10 +4,7 @@
 // REQUIRES: concurrency
 // REQUIRES: libdispatch
 
-// rdar://76038845
 // REQUIRES: concurrency_runtime
-
-// REQUIRES: rdar75096485
 
 import Dispatch
 

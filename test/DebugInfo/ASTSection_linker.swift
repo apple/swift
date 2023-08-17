@@ -2,7 +2,7 @@
 
 // RUN: %empty-directory(%t)
 
-// RUN: %target-swift-frontend -runtime-compatibility-version none -c -Xcc -DA -Xcc -DB -emit-module -o %t %S/ASTSection.swift -swift-version 4
+// RUN: %target-swift-frontend -c -Xcc -DA -Xcc -DB -emit-module -o %t %S/ASTSection.swift -swift-version 4
 // RUN: %swift-ide-test -test-CompilerInvocation-from-module -source-filename=%t/ASTSection.swiftmodule
 
 // Test the inline section mechanism.

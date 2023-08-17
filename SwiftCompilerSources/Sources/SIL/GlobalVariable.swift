@@ -43,8 +43,18 @@ final public class GlobalVariable : CustomStringConvertible, HasShortDescription
     return bridged.isAvailableExternally()
   }
 
+  public var staticInitializerInstructions: InstructionList? {
+    if let firstStaticInitInst = bridged.getFirstStaticInitInst().instruction {
+      return InstructionList(first: firstStaticInitInst)
+    }
+    return nil
+  }
+
   public var staticInitValue: SingleValueInstruction? {
-    bridged.getStaticInitializerValue().instruction as? SingleValueInstruction
+    if let staticInitInsts = staticInitializerInstructions {
+      return staticInitInsts.reversed().first! as? SingleValueInstruction
+    }
+    return nil
   }
 
   /// True if the global's linkage and resilience expansion allow the global
@@ -135,7 +145,9 @@ extension Instruction {
          is ObjectInst,
          is ValueToBridgeObjectInst,
          is ConvertFunctionInst,
-         is ThinToThickFunctionInst:
+         is ThinToThickFunctionInst,
+         is AddressToPointerInst,
+         is GlobalAddrInst:
       return true
     default:
       return false

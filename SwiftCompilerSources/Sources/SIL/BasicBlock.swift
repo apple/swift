@@ -97,7 +97,7 @@ public struct InstructionList : CollectionLikeSequence, IteratorProtocol {
 
   public func reversed() -> ReverseInstructionList {
     if let inst = currentInstruction {
-      let lastInst = inst.parentBlock.bridged.getLastInst().instruction
+      let lastInst = inst.bridged.getLastInstOfParent().instruction
       return ReverseInstructionList(first: lastInst)
     }
     return ReverseInstructionList(first: nil)

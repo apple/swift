@@ -24,6 +24,7 @@ public:
 class Container {
 public:
     Container() : pointer(new BaseClass) {}
+    Container(const Container &other) : pointer(new BaseClass) {}
     ~Container() { delete pointer; }
 
     inline int method() const {

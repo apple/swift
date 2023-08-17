@@ -13,6 +13,6 @@ public func foo1<each T: Q, each U>(t: repeat each T, u: repeat each U)
   repeat f(each u)
 }
 
-public func foo2<each T: Q>(t: repeat each T, u: repeat each T.A) {
+public func foo2<each T: Q>(t: repeat each T, u: repeat (each T).A) {
   repeat f(each u)
 }

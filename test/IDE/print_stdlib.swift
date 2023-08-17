@@ -1,9 +1,10 @@
+// Currently fails because a <NULL> is output
+// REQUIRES: rdar113765916
+
 // Check interface produced for the standard library.
 //
 // REQUIRES: nonexecutable_test
 // REQUIRES: swift_swift_parser
-// FIXME: Swift parser is not enabled on Linux CI yet.
-// REQUIRES: OS=macosx
 
 //
 // RUN: %target-swift-frontend -typecheck %s

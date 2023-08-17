@@ -34,3 +34,11 @@ public protocol TestProtocol {}
 public typealias unsupportedTypeAlias = () -> (Float, Float)
 
 // CHECK: // Unavailable in C++: Swift type alias 'unsupportedTypeAlias'
+
+public struct Container {
+    public struct NestedStruct {}
+}
+
+public typealias unsupportedTypeAliasNested = Container.NestedStruct
+
+// CHECK: // Unavailable in C++: Swift type alias 'unsupportedTypeAliasNested'

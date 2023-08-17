@@ -78,3 +78,9 @@ public func getResilientSinglePayloadEnumSimpleEmpty0() -> ResilientSinglePayloa
 public func getResilientSingletonEnumNonEmpty(_ x: AnyObject) -> ResilientSingletonEnum {
     return .nonEmpty(x)
 }
+
+public enum ResilientSinglePayloadEnum {
+    case empty0
+    case empty1
+    case nonEmpty(AnyObject, Int)
+}

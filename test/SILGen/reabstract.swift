@@ -2,6 +2,15 @@
 // RUN: %target-swift-emit-silgen -module-name reabstract -Xllvm -sil-full-demangle %s | %FileCheck %s
 // RUN: %target-swift-emit-sil -module-name reabstract -Xllvm -sil-full-demangle %s | %FileCheck %s --check-prefix=MANDATORY
 
+func closureTakingOptional(_ fn: (Int?) -> ()) {}
+closureTakingOptional({ (_: Any) -> () in })
+
+// CHECK-LABEL: sil shared [transparent] [serialized] [reabstraction_thunk] [ossa] @$sypIgn_SiSgIegy_TR :
+// CHECK:   [[ANYADDR:%.*]] = alloc_stack $Any
+// CHECK:   [[OPTADDR:%.*]] = init_existential_addr [[ANYADDR]] : $*Any, $Optional<Int>
+// CHECK:   store %0 to [trivial] [[OPTADDR]] : $*Optional<Int>
+// CHECK:   apply %1([[ANYADDR]]) : $@noescape @callee_guaranteed (@in_guaranteed Any) -> ()
+
 func takeFn<T>(_ f : (T) -> T?) {}
 func liftOptional(_ x : Int) -> Int? { return x }
 
@@ -94,15 +103,6 @@ func testInoutOpaque(_ c: C, i: Int) {
 // CHECK: } // end sil function '$s10reabstract15testInoutOpaque_1iyAA1CC_SitF'
 
 // CHECK-LABEL: sil shared [transparent] [serialized] [reabstraction_thunk] [ossa] @$s10reabstract1CCSiIegly_ACSiytIeglnr_TR : $@convention(thin) (@inout C, @in_guaranteed Int, @guaranteed @callee_guaranteed (@inout C, Int) -> ()) -> @out () {
-
-func closureTakingOptional(_ fn: (Int?) -> ()) {}
-closureTakingOptional({ (_: Any) -> () in })
-
-// CHECK-LABEL: sil shared [transparent] [serialized] [reabstraction_thunk] [ossa] @$sypIgn_SiSgIegy_TR :
-// CHECK:   [[ANYADDR:%.*]] = alloc_stack $Any
-// CHECK:   [[OPTADDR:%.*]] = init_existential_addr [[ANYADDR]] : $*Any, $Optional<Int>
-// CHECK:   store %0 to [trivial] [[OPTADDR]] : $*Optional<Int>
-// CHECK:   apply %1([[ANYADDR]]) : $@noescape @callee_guaranteed (@in_guaranteed Any) -> ()
 
 // Same behavior as above with other ownership qualifiers.
 func evenLessFun(_ s: __shared C, _ o: __owned C) {}

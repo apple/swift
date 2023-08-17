@@ -147,11 +147,11 @@ void collectAllFormalResultsInTypeOrder(SILFunction &function,
   for (auto &resInfo : convs.getResults())
     results.push_back(resInfo.isFormalDirect() ? dirResults[dirResIdx++]
                                                : indResults[indResIdx++]);
-  // Treat `inout` parameters as semantic results.
-  // Append `inout` parameters after formal results.
+  // Treat semantic result parameters as semantic results.
+  // Append them` parameters after formal results.
   for (auto i : range(convs.getNumParameters())) {
     auto paramInfo = convs.getParameters()[i];
-    if (!paramInfo.isIndirectMutating())
+    if (!paramInfo.isAutoDiffSemanticResult())
       continue;
     auto *argument = function.getArgumentsWithoutIndirectResults()[i];
     results.push_back(argument);
@@ -190,6 +190,7 @@ void collectMinimalIndicesForFunctionCall(
     SmallVectorImpl<unsigned> &resultIndices) {
   auto calleeFnTy = ai->getSubstCalleeType();
   auto calleeConvs = ai->getSubstCalleeConv();
+
   // Parameter indices are indices (in the callee type signature) of parameter
   // arguments that are varied or are arguments.
   // Record all parameter indices in type order.
@@ -199,6 +200,7 @@ void collectMinimalIndicesForFunctionCall(
       paramIndices.push_back(currentParamIdx);
     ++currentParamIdx;
   }
+
   // Result indices are indices (in the callee type signature) of results that
   // are useful.
   SmallVector<SILValue, 8> directResults;
@@ -226,22 +228,21 @@ void collectMinimalIndicesForFunctionCall(
       ++indResIdx;
     }
   }
-  // Record all `inout` parameters as results.
-  auto inoutParamResultIndex = calleeFnTy->getNumResults();
+  
+  // Record all semantic result parameters as results.
+  auto semanticResultParamResultIndex = calleeFnTy->getNumResults();
   for (auto &paramAndIdx : enumerate(calleeConvs.getParameters())) {
     auto &param = paramAndIdx.value();
-    if (!param.isIndirectMutating())
+    if (!param.isAutoDiffSemanticResult())
       continue;
     unsigned idx = paramAndIdx.index() + calleeFnTy->getNumIndirectFormalResults();
-    auto inoutArg = ai->getArgument(idx);
-    results.push_back(inoutArg);
-    resultIndices.push_back(inoutParamResultIndex++);
+    results.push_back(ai->getArgument(idx));
+    resultIndices.push_back(semanticResultParamResultIndex++);
   }
+
   // Make sure the function call has active results.
 #ifndef NDEBUG
-  auto numResults = calleeFnTy->getNumResults() +
-                    calleeFnTy->getNumIndirectMutatingParameters();
-  assert(results.size() == numResults);
+  assert(results.size() == calleeFnTy->getNumAutoDiffSemanticResults());
   assert(llvm::any_of(results, [&](SILValue result) {
     return activityInfo.isActive(result, parentConfig);
   }));

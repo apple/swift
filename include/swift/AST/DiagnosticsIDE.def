@@ -38,17 +38,17 @@ NOTE(ide_redundant_import_indirect, none,
      "module %0 is already imported via another module import", (StringRef))
 
 WARNING(ide_availability_softdeprecated, Deprecation,
-        "%select{getter for |setter for |}0%1 will be deprecated"
-        " in %select{a future version|%select{a future version of %3|%3 %5}4}2"
-        "%select{|: %6}6",
-        (unsigned, DeclName, bool, StringRef, bool, llvm::VersionTuple,
+        "%0 will be deprecated"
+        " in %select{a future version|%select{a future version of %2|%2 %4}3}1"
+        "%select{|: %5}5",
+        (const ValueDecl *, bool, StringRef, bool, llvm::VersionTuple,
          StringRef))
 
 WARNING(ide_availability_softdeprecated_rename, Deprecation,
-        "%select{getter for |setter for |}0%1 will be deprecated"
-        " in %select{a future version|%select{a future version of %3|%3 %5}4}2"
-        ": renamed to '%6'",
-        (unsigned, DeclName, bool, StringRef, bool, llvm::VersionTuple, StringRef))
+        "%0 will be deprecated"
+        " in %select{a future version|%select{a future version of %2|%2 %4}3}1"
+        ": renamed to '%5'",
+        (const ValueDecl *, bool, StringRef, bool, llvm::VersionTuple, StringRef))
 
 WARNING(ide_recursive_accessor_reference,none,
         "attempting to %select{access|modify}1 %0 within its own "

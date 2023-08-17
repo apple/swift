@@ -1,6 +1,6 @@
 set(libstdcxx_modulemap_target_list)
 foreach(sdk ${SWIFT_SDKS})
-  if(NOT ${sdk} IN_LIST SWIFT_LIBSTDCXX_PLATFORMS)
+  if(NOT sdk IN_LIST SWIFT_LIBSTDCXX_PLATFORMS)
     continue()
   endif()
 
@@ -82,7 +82,7 @@ foreach(sdk ${SWIFT_SDKS})
         COMPONENT sdk-overlay)
   endif()
 
-  if(${BOOTSTRAPPING_MODE} MATCHES "BOOTSTRAPPING.*")
+  if(BOOTSTRAPPING_MODE MATCHES "BOOTSTRAPPING.*")
     foreach(bootstrapping "0" "1")
       get_bootstrapping_path(bootstrapping_dir ${module_dir} ${bootstrapping})
       set(libstdcxx_modulemap_out_bootstrapping "${bootstrapping_dir}/libstdcxx.modulemap")

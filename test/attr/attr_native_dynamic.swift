@@ -2,19 +2,19 @@
 
 struct Strukt {
   // CHECK: (struct_decl {{.*}} "Strukt"
-  // CHECK: (var_decl {{.*}} "dynamicStorageOnlyVar" type='Int' interface type='Int' access=internal dynamic readImpl=stored writeImpl=stored readWriteImpl=stored
+  // CHECK: (var_decl {{.*}} "dynamicStorageOnlyVar" interface type='Int' access=internal dynamic readImpl=stored writeImpl=stored readWriteImpl=stored
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=dynamicStorageOnlyVar
   // CHECK: (accessor_decl {{.*}} access=internal dynamic set_for=dynamicStorageOnlyVar
   // CHECK: (accessor_decl {{.*}} access=internal _modify_for=dynamicStorageOnlyVar
   dynamic var dynamicStorageOnlyVar : Int = 0
 
-  // CHECK: (var_decl {{.*}} "computedVar" type='Int' interface type='Int' access=internal dynamic readImpl=getter immutable
+  // CHECK: (var_decl {{.*}} "computedVar" interface type='Int' access=internal dynamic readImpl=getter immutable
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVar
   dynamic var computedVar : Int {
     return 0
   }
 
-  // CHECK: (var_decl {{.*}} "computedVar2" type='Int' interface type='Int' access=internal dynamic readImpl=getter immutable
+  // CHECK: (var_decl {{.*}} "computedVar2" interface type='Int' access=internal dynamic readImpl=getter immutable
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVar2
   dynamic var computedVar2 : Int {
     get {
@@ -22,7 +22,7 @@ struct Strukt {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarGetterSetter" type='Int' interface type='Int' access=internal dynamic readImpl=getter writeImpl=setter readWriteImpl=materialize_to_temporary
+  // CHECK: (var_decl {{.*}} "computedVarGetterSetter" interface type='Int' access=internal dynamic readImpl=getter writeImpl=setter readWriteImpl=materialize_to_temporary
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVarGetterSetter
   // CHECK: (accessor_decl {{.*}} access=internal dynamic set_for=computedVarGetterSetter
   // CHECK: (accessor_decl {{.*}} access=internal _modify_for=computedVarGetterSetter
@@ -34,7 +34,7 @@ struct Strukt {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarGetterModify" type='Int' interface type='Int' access=internal dynamic readImpl=getter writeImpl=modify_coroutine readWriteImpl=modify_coroutine
+  // CHECK: (var_decl {{.*}} "computedVarGetterModify" interface type='Int' access=internal dynamic readImpl=getter writeImpl=modify_coroutine readWriteImpl=modify_coroutine
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVarGetterModify
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _modify_for=computedVarGetterModify
   // CHECK: (accessor_decl {{.*}} access=internal set_for=computedVarGetterModify
@@ -46,7 +46,7 @@ struct Strukt {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarReadSet" type='Int' interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=setter readWriteImpl=materialize_to_temporary
+  // CHECK: (var_decl {{.*}} "computedVarReadSet" interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=setter readWriteImpl=materialize_to_temporary
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _read_for=computedVarReadSet
   // CHECK: (accessor_decl {{.*}} access=internal dynamic set_for=computedVarReadSet
   // CHECK: (accessor_decl {{.*}} access=internal get_for=computedVarReadSet
@@ -58,7 +58,7 @@ struct Strukt {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarReadModify" type='Int' interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=modify_coroutine readWriteImpl=modify_coroutine
+  // CHECK: (var_decl {{.*}} "computedVarReadModify" interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=modify_coroutine readWriteImpl=modify_coroutine
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _read_for=computedVarReadModify
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _modify_for=computedVarReadModify
   // CHECK: (accessor_decl {{.*}} access=internal get_for=computedVarReadModify
@@ -70,7 +70,7 @@ struct Strukt {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "storedWithObserver" type='Int' interface type='Int' access=internal dynamic readImpl=stored writeImpl=stored_with_observers readWriteImpl=stored_with_didset
+  // CHECK: (var_decl {{.*}} "storedWithObserver" interface type='Int' access=internal dynamic readImpl=stored writeImpl=stored_with_observers readWriteImpl=stored_with_didset
   // CHECK: (accessor_decl {{.*}}access=private dynamic didSet_for=storedWithObserver
   // CHECK: (accessor_decl {{.*}}access=internal dynamic get_for=storedWithObserver
   // CHECK: (accessor_decl {{.*}}access=internal set_for=storedWithObserver
@@ -136,19 +136,19 @@ struct Strukt {
 
 class Klass {
   // CHECK: (class_decl {{.*}} "Klass"
-  // CHECK: (var_decl {{.*}} "dynamicStorageOnlyVar" type='Int' interface type='Int' access=internal dynamic readImpl=stored writeImpl=stored readWriteImpl=stored
+  // CHECK: (var_decl {{.*}} "dynamicStorageOnlyVar" interface type='Int' access=internal dynamic readImpl=stored writeImpl=stored readWriteImpl=stored
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=dynamicStorageOnlyVar
   // CHECK: (accessor_decl {{.*}} access=internal dynamic set_for=dynamicStorageOnlyVar
   // CHECK: (accessor_decl {{.*}} access=internal _modify_for=dynamicStorageOnlyVar
   dynamic var dynamicStorageOnlyVar : Int = 0
 
-  // CHECK: (var_decl {{.*}} "computedVar" type='Int' interface type='Int' access=internal dynamic readImpl=getter immutable
+  // CHECK: (var_decl {{.*}} "computedVar" interface type='Int' access=internal dynamic readImpl=getter immutable
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVar
   dynamic var computedVar : Int {
     return 0
   }
 
-  // CHECK: (var_decl {{.*}} "computedVar2" type='Int' interface type='Int' access=internal dynamic readImpl=getter immutable
+  // CHECK: (var_decl {{.*}} "computedVar2" interface type='Int' access=internal dynamic readImpl=getter immutable
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVar2
   dynamic var computedVar2 : Int {
     get {
@@ -156,7 +156,7 @@ class Klass {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarGetterSetter" type='Int' interface type='Int' access=internal dynamic readImpl=getter writeImpl=setter readWriteImpl=materialize_to_temporary
+  // CHECK: (var_decl {{.*}} "computedVarGetterSetter" interface type='Int' access=internal dynamic readImpl=getter writeImpl=setter readWriteImpl=materialize_to_temporary
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVarGetterSetter
   // CHECK: (accessor_decl {{.*}} access=internal dynamic set_for=computedVarGetterSetter
   // CHECK: (accessor_decl {{.*}} access=internal _modify_for=computedVarGetterSetter
@@ -168,7 +168,7 @@ class Klass {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarGetterModify" type='Int' interface type='Int' access=internal dynamic readImpl=getter writeImpl=modify_coroutine readWriteImpl=modify_coroutine
+  // CHECK: (var_decl {{.*}} "computedVarGetterModify" interface type='Int' access=internal dynamic readImpl=getter writeImpl=modify_coroutine readWriteImpl=modify_coroutine
   // CHECK: (accessor_decl {{.*}} access=internal dynamic get_for=computedVarGetterModify
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _modify_for=computedVarGetterModify
   // CHECK: (accessor_decl {{.*}} access=internal set_for=computedVarGetterModify
@@ -180,7 +180,7 @@ class Klass {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarReadSet" type='Int' interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=setter readWriteImpl=materialize_to_temporary
+  // CHECK: (var_decl {{.*}} "computedVarReadSet" interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=setter readWriteImpl=materialize_to_temporary
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _read_for=computedVarReadSet
   // CHECK: (accessor_decl {{.*}} access=internal dynamic set_for=computedVarReadSet
   // CHECK: (accessor_decl {{.*}} access=internal get_for=computedVarReadSet
@@ -192,7 +192,7 @@ class Klass {
     }
   }
 
-  // CHECK: (var_decl {{.*}} "computedVarReadModify" type='Int' interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=modify_coroutine readWriteImpl=modify_coroutine
+  // CHECK: (var_decl {{.*}} "computedVarReadModify" interface type='Int' access=internal dynamic readImpl=read_coroutine writeImpl=modify_coroutine readWriteImpl=modify_coroutine
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _read_for=computedVarReadModify
   // CHECK: (accessor_decl {{.*}} access=internal dynamic _modify_for=computedVarReadModify
   // CHECK: (accessor_decl {{.*}} access=internal get_for=computedVarReadModify

@@ -80,6 +80,12 @@ struct StructWithSubobjectMoveAssignment {
 };
 
 struct __attribute__((swift_attr("import_unsafe"))) StructWithDestructor {
+#if __is_target_os(windows)
+  // On windows, force this type to be address-only.
+  StructWithDestructor() {}
+  StructWithDestructor(const StructWithDestructor &other) {}
+#endif
+
   ~StructWithDestructor() {}
 };
 
@@ -232,6 +238,7 @@ struct __attribute__((swift_attr("import_iterator"))) Iterator {
 };
 
 struct HasMethodThatReturnsIterator {
+  HasMethodThatReturnsIterator(const HasMethodThatReturnsIterator&);
   Iterator getIterator() const;
 };
 
@@ -240,6 +247,7 @@ struct IteratorBox {
 };
 
 struct HasMethodThatReturnsIteratorBox {
+  HasMethodThatReturnsIteratorBox(const HasMethodThatReturnsIteratorBox&);
   IteratorBox getIteratorBox() const;
 };
 

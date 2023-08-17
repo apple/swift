@@ -38,6 +38,8 @@ enum class ImportedAccessorKind : unsigned {
   PropertySetter,
   SubscriptGetter,
   SubscriptSetter,
+  DereferenceGetter,
+  DereferenceSetter,
 };
 enum { NumImportedAccessorKindBits = 3 };
 
@@ -324,6 +326,8 @@ public:
     case ImportedAccessorKind::None:
     case ImportedAccessorKind::SubscriptGetter:
     case ImportedAccessorKind::SubscriptSetter:
+    case ImportedAccessorKind::DereferenceGetter:
+    case ImportedAccessorKind::DereferenceSetter:
       return false;
 
     case ImportedAccessorKind::PropertyGetter:
@@ -338,10 +342,29 @@ public:
     case ImportedAccessorKind::None:
     case ImportedAccessorKind::PropertyGetter:
     case ImportedAccessorKind::PropertySetter:
+    case ImportedAccessorKind::DereferenceGetter:
+    case ImportedAccessorKind::DereferenceSetter:
       return false;
 
     case ImportedAccessorKind::SubscriptGetter:
     case ImportedAccessorKind::SubscriptSetter:
+      return true;
+    }
+
+    llvm_unreachable("Invalid ImportedAccessorKind.");
+  }
+
+  bool isDereferenceAccessor() const {
+    switch (getAccessorKind()) {
+    case ImportedAccessorKind::None:
+    case ImportedAccessorKind::PropertyGetter:
+    case ImportedAccessorKind::PropertySetter:
+    case ImportedAccessorKind::SubscriptGetter:
+    case ImportedAccessorKind::SubscriptSetter:
+      return false;
+
+    case ImportedAccessorKind::DereferenceGetter:
+    case ImportedAccessorKind::DereferenceSetter:
       return true;
     }
 

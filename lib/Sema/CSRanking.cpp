@@ -633,75 +633,126 @@ bool CompareDeclSpecializationRequest::evaluate(
     auto params1 = funcTy1->getParams();
     auto params2 = funcTy2->getParams();
 
-    unsigned numParams1 = params1.size();
-    unsigned numParams2 = params2.size();
-    if (numParams1 > numParams2)
-      return completeResult(false);
+    // TODO: We should consider merging these two branches together in
+    //       the future instead of re-implementing `matchCallArguments`.
+    if (containsPackExpansionType(params1) ||
+        containsPackExpansionType(params2)) {
+      ParameterListInfo paramListInfo(params2, decl2, decl2->hasCurriedSelf());
 
-    // If they both have trailing closures, compare those separately.
-    bool compareTrailingClosureParamsSeparately = false;
-    if (numParams1 > 0 && numParams2 > 0 &&
-        params1.back().getParameterType()->is<AnyFunctionType>() &&
-        params2.back().getParameterType()->is<AnyFunctionType>()) {
-      compareTrailingClosureParamsSeparately = true;
-    }
+      MatchCallArgumentListener listener;
+      SmallVector<AnyFunctionType::Param> args(params1);
+      auto matching = matchCallArguments(
+          args, params2, paramListInfo, llvm::None,
+          /*allowFixes=*/false, listener, TrailingClosureMatching::Forward);
 
-    auto maybeAddSubtypeConstraint =
-        [&](const AnyFunctionType::Param &param1,
-            const AnyFunctionType::Param &param2) -> bool {
-      // If one parameter is variadic and the other is not...
-      if (param1.isVariadic() != param2.isVariadic()) {
-        // If the first parameter is the variadic one, it's not
-        // more specialized.
-        if (param1.isVariadic())
-          return false;
+      if (!matching)
+        return completeResult(false);
 
-        fewerEffectiveParameters = true;
+      for (unsigned paramIdx = 0,
+                    numParams = matching->parameterBindings.size();
+           paramIdx != numParams; ++paramIdx) {
+        const auto &param = params2[paramIdx];
+        auto paramTy = param.getOldType();
+
+        if (paramListInfo.isVariadicGenericParameter(paramIdx) &&
+            isPackExpansionType(paramTy)) {
+          SmallVector<Type, 2> argTypes;
+          for (auto argIdx : matching->parameterBindings[paramIdx]) {
+            // Don't prefer `T...` over `repeat each T`.
+            if (args[argIdx].isVariadic())
+              return completeResult(false);
+            argTypes.push_back(args[argIdx].getPlainType());
+          }
+
+          auto *argPack = PackType::get(cs.getASTContext(), argTypes);
+          cs.addConstraint(ConstraintKind::Subtype,
+                           PackExpansionType::get(argPack, argPack), paramTy,
+                           locator);
+          continue;
+        }
+
+        for (auto argIdx : matching->parameterBindings[paramIdx]) {
+          const auto &arg = args[argIdx];
+          // Always prefer non-variadic version when possible.
+          if (arg.isVariadic())
+            return completeResult(false);
+
+          cs.addConstraint(ConstraintKind::Subtype, arg.getOldType(),
+                           paramTy, locator);
+        }
+      }
+    } else {
+      unsigned numParams1 = params1.size();
+      unsigned numParams2 = params2.size();
+
+      if (numParams1 > numParams2)
+        return completeResult(false);
+
+      // If they both have trailing closures, compare those separately.
+      bool compareTrailingClosureParamsSeparately = false;
+      if (numParams1 > 0 && numParams2 > 0 &&
+          params1.back().getParameterType()->is<AnyFunctionType>() &&
+          params2.back().getParameterType()->is<AnyFunctionType>()) {
+        compareTrailingClosureParamsSeparately = true;
       }
 
-      Type paramType1 = getAdjustedParamType(param1);
-      Type paramType2 = getAdjustedParamType(param2);
+      auto maybeAddSubtypeConstraint =
+          [&](const AnyFunctionType::Param &param1,
+              const AnyFunctionType::Param &param2) -> bool {
+        // If one parameter is variadic and the other is not...
+        if (param1.isVariadic() != param2.isVariadic()) {
+          // If the first parameter is the variadic one, it's not
+          // more specialized.
+          if (param1.isVariadic())
+            return false;
 
-      // Check whether the first parameter is a subtype of the second.
-      cs.addConstraint(ConstraintKind::Subtype, paramType1, paramType2,
-                       locator);
-      return true;
-    };
+          fewerEffectiveParameters = true;
+        }
 
-    auto pairMatcher = [&](unsigned idx1, unsigned idx2) -> bool {
-      // Emulate behavior from when IUO was a type, where IUOs
-      // were considered subtypes of plain optionals, but not
-      // vice-versa.  This wouldn't normally happen, but there are
-      // cases where we can rename imported APIs so that we have a
-      // name collision, and where the parameter type(s) are the
-      // same except for details of the kind of optional declared.
-      auto param1IsIUO = paramIsIUO(decl1, idx1);
-      auto param2IsIUO = paramIsIUO(decl2, idx2);
-      if (param2IsIUO && !param1IsIUO)
-        return false;
+        Type paramType1 = getAdjustedParamType(param1);
+        Type paramType2 = getAdjustedParamType(param2);
 
-      if (!maybeAddSubtypeConstraint(params1[idx1], params2[idx2]))
-        return false;
+        // Check whether the first parameter is a subtype of the second.
+        cs.addConstraint(ConstraintKind::Subtype, paramType1, paramType2,
+                         locator);
+        return true;
+      };
 
-      return true;
-    };
+      auto pairMatcher = [&](unsigned idx1, unsigned idx2) -> bool {
+        // Emulate behavior from when IUO was a type, where IUOs
+        // were considered subtypes of plain optionals, but not
+        // vice-versa.  This wouldn't normally happen, but there are
+        // cases where we can rename imported APIs so that we have a
+        // name collision, and where the parameter type(s) are the
+        // same except for details of the kind of optional declared.
+        auto param1IsIUO = paramIsIUO(decl1, idx1);
+        auto param2IsIUO = paramIsIUO(decl2, idx2);
+        if (param2IsIUO && !param1IsIUO)
+          return false;
 
-    ParameterListInfo paramInfo(params2, decl2, decl2->hasCurriedSelf());
-    auto params2ForMatching = params2;
-    if (compareTrailingClosureParamsSeparately) {
-      --numParams1;
-      params2ForMatching = params2.drop_back();
+        if (!maybeAddSubtypeConstraint(params1[idx1], params2[idx2]))
+          return false;
+
+        return true;
+      };
+
+      ParameterListInfo paramInfo(params2, decl2, decl2->hasCurriedSelf());
+      auto params2ForMatching = params2;
+      if (compareTrailingClosureParamsSeparately) {
+        --numParams1;
+        params2ForMatching = params2.drop_back();
+      }
+
+      InputMatcher IM(params2ForMatching, paramInfo);
+      if (IM.match(numParams1, pairMatcher) != InputMatcher::IM_Succeeded)
+        return completeResult(false);
+
+      fewerEffectiveParameters |= (IM.getNumSkippedParameters() != 0);
+
+      if (compareTrailingClosureParamsSeparately)
+        if (!maybeAddSubtypeConstraint(params1.back(), params2.back()))
+          knownNonSubtype = true;
     }
-
-    InputMatcher IM(params2ForMatching, paramInfo);
-    if (IM.match(numParams1, pairMatcher) != InputMatcher::IM_Succeeded)
-      return completeResult(false);
-
-    fewerEffectiveParameters |= (IM.getNumSkippedParameters() != 0);
-
-    if (compareTrailingClosureParamsSeparately)
-      if (!maybeAddSubtypeConstraint(params1.back(), params2.back()))
-        knownNonSubtype = true;
   }
 
   if (!knownNonSubtype) {

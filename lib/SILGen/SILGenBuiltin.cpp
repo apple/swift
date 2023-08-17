@@ -65,7 +65,7 @@ static ManagedValue emitBuiltinRetain(SILGenFunction &SGF,
   // we must allow for the cleanup and emit a new unmanaged retain value.
   SGF.B.createUnmanagedRetainValue(loc, args[0].getValue(),
                                    SGF.B.getDefaultAtomicity());
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));    
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 static ManagedValue emitBuiltinRelease(SILGenFunction &SGF,
@@ -78,7 +78,7 @@ static ManagedValue emitBuiltinRelease(SILGenFunction &SGF,
   // release.
   SGF.B.createUnmanagedReleaseValue(loc, args[0].getValue(),
                                     SGF.B.getDefaultAtomicity());
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));    
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 static ManagedValue emitBuiltinAutorelease(SILGenFunction &SGF,
@@ -88,7 +88,7 @@ static ManagedValue emitBuiltinAutorelease(SILGenFunction &SGF,
                                            SGFContext C) {
   SGF.B.createUnmanagedAutoreleaseValue(loc, args[0].getValue(),
                                         SGF.B.getDefaultAtomicity());
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));    
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Specialized emitter for Builtin.load and Builtin.take.
@@ -184,8 +184,9 @@ static ManagedValue emitBuiltinDestroy(SILGenFunction &SGF,
   
   // Destroy is a no-op for trivial types.
   if (ti.isTrivial())
-    return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
-  
+    return ManagedValue::forObjectRValueWithoutOwnership(
+        SGF.emitEmptyTuple(loc));
+
   SILType destroyType = ti.getLoweredType();
 
   // Convert the pointer argument to a SIL address.
@@ -198,8 +199,8 @@ static ManagedValue emitBuiltinDestroy(SILGenFunction &SGF,
   // Destroy the value indirectly. Canonicalization will promote to loads
   // and releases if appropriate.
   SGF.B.createDestroyAddr(loc, addr);
-  
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 static ManagedValue emitBuiltinAssign(SILGenFunction &SGF,
@@ -228,7 +229,7 @@ static ManagedValue emitBuiltinAssign(SILGenFunction &SGF,
   
   std::move(src).ensurePlusOne(SGF, loc).assignInto(SGF, loc, addr);
 
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Emit Builtin.initialize by evaluating the operand directly into
@@ -240,7 +241,8 @@ static ManagedValue emitBuiltinInit(SILGenFunction &SGF,
                                     SGFContext C) {
   auto argsOrError = decomposeArguments(SGF, loc, std::move(preparedArgs), 2);
   if (!argsOrError)
-    return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+    return ManagedValue::forObjectRValueWithoutOwnership(
+        SGF.emitEmptyTuple(loc));
 
   auto args = *argsOrError;
 
@@ -257,7 +259,7 @@ static ManagedValue emitBuiltinInit(SILGenFunction &SGF,
   TemporaryInitialization init(addr, CleanupHandle::invalid());
   SGF.emitExprInto(args[0], &init);
 
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Specialized emitter for Builtin.fixLifetime.
@@ -269,7 +271,7 @@ static ManagedValue emitBuiltinFixLifetime(SILGenFunction &SGF,
   for (auto arg : args) {
     SGF.B.createFixLifetime(loc, arg.getValue());
   }
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 static ManagedValue emitCastToReferenceType(SILGenFunction &SGF,
@@ -380,7 +382,7 @@ static ManagedValue emitBuiltinBridgeToRawPointer(SILGenFunction &SGF,
   SILType rawPointerType = SILType::getRawPointerType(SGF.F.getASTContext());
   SILValue result = SGF.B.createRefToRawPointer(loc, args[0].getValue(),
                                                 rawPointerType);
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 /// Specialized emitter for Builtin.bridgeFromRawPointer.
@@ -435,7 +437,7 @@ static ManagedValue emitBuiltinAddressOfBuiltins(SILGenFunction &SGF,
   // Take the address argument and cast it to RawPointer.
   SILValue result = SGF.B.createAddressToPointer(loc, addr, rawPointerType,
                                                  stackProtected);
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 /// Specialized emitter for Builtin.addressof.
@@ -497,7 +499,7 @@ static ManagedValue emitBuiltinAddressOfBorrowBuiltins(SILGenFunction &SGF,
   // Take the address argument and cast it to RawPointer.
   SILValue result = SGF.B.createAddressToPointer(loc, addr, rawPointerType,
                                                  stackProtected);
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 /// Specialized emitter for Builtin.addressOfBorrow.
@@ -531,7 +533,7 @@ static ManagedValue emitBuiltinGepRaw(SILGenFunction &SGF,
   SILValue offsetPtr = SGF.B.createIndexRawPointer(loc,
                                                  args[0].getUnmanagedValue(),
                                                  args[1].getUnmanagedValue());
-  return ManagedValue::forUnmanaged(offsetPtr);
+  return ManagedValue::forObjectRValueWithoutOwnership(offsetPtr);
 }
 
 /// Specialized emitter for Builtin.gep.
@@ -556,7 +558,7 @@ static ManagedValue emitBuiltinGep(SILGenFunction &SGF,
   addr = SGF.B.createAddressToPointer(loc, addr, RawPtrType,
                                       /*needsStackProtection=*/ true);
 
-  return ManagedValue::forUnmanaged(addr);
+  return ManagedValue::forObjectRValueWithoutOwnership(addr);
 }
 
 /// Specialized emitter for Builtin.getTailAddr.
@@ -582,7 +584,7 @@ static ManagedValue emitBuiltinGetTailAddr(SILGenFunction &SGF,
   addr = SGF.B.createAddressToPointer(loc, addr, RawPtrType,
                                       /*needsStackProtection=*/ false);
 
-  return ManagedValue::forUnmanaged(addr);
+  return ManagedValue::forObjectRValueWithoutOwnership(addr);
 }
 
 /// Specialized emitter for Builtin.beginUnpairedModifyAccess.
@@ -616,7 +618,7 @@ static ManagedValue emitBuiltinBeginUnpairedModifyAccess(SILGenFunction &SGF,
                                   /*noNestedConflict*/ false,
                                   /*fromBuiltin*/ true);
 
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Specialized emitter for Builtin.performInstantaneousReadAccess
@@ -654,7 +656,7 @@ static ManagedValue emitBuiltinPerformInstantaneousReadAccess(
                                   /*noNestedConflict*/ true,
                                   /*fromBuiltin*/ true);
 
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Specialized emitter for Builtin.endUnpairedAccessModifyAccess.
@@ -680,7 +682,7 @@ static ManagedValue emitBuiltinEndUnpairedAccess(SILGenFunction &SGF,
                                 /*aborted*/ false,
                                 /*fromBuiltin*/ true);
 
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Specialized emitter for the legacy Builtin.condfail.
@@ -693,7 +695,7 @@ static ManagedValue emitBuiltinLegacyCondFail(SILGenFunction &SGF,
 
   SGF.B.createCondFail(loc, args[0].getUnmanagedValue(),
     "unknown runtime failure");
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Specialized emitter for Builtin.castReference.
@@ -889,7 +891,7 @@ static ManagedValue emitBuiltinCastBitPatternFromBridgeObject(
   SILType wordType = SILType::getBuiltinWordType(SGF.getASTContext());
   SILValue result = SGF.B.createBridgeObjectToWord(loc, args[0].getValue(),
                                                    wordType);
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 static ManagedValue emitBuiltinClassifyBridgeObject(SILGenFunction &SGF,
@@ -901,7 +903,7 @@ static ManagedValue emitBuiltinClassifyBridgeObject(SILGenFunction &SGF,
   assert(subs.empty() && "classify should not have subs");
 
   SILValue result = SGF.B.createClassifyBridgeObject(loc, args[0].getValue());
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 static ManagedValue emitBuiltinValueToBridgeObject(SILGenFunction &SGF,
@@ -941,8 +943,8 @@ static ManagedValue emitBuiltinIsUnique(SILGenFunction &SGF,
   assert((args[0].getType().isAddress() && !args[0].hasCleanup()) &&
          "Builtin.isUnique takes an address.");
 
-  return ManagedValue::forUnmanaged(
-    SGF.B.createIsUnique(loc, args[0].getValue()));
+  return ManagedValue::forObjectRValueWithoutOwnership(
+      SGF.B.createIsUnique(loc, args[0].getValue()));
 }
 
 // This force-casts the incoming address to NativeObject assuming the caller has
@@ -963,7 +965,7 @@ emitBuiltinIsUnique_native(SILGenFunction &SGF,
     SILType::getNativeObjectType(SGF.getASTContext()).getAddressType();
   auto toAddr = SGF.B.createUncheckedAddrCast(loc, args[0].getValue(), ToType);
   SILValue result = SGF.B.createIsUnique(loc, toAddr);
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 static ManagedValue
@@ -981,7 +983,8 @@ emitBuiltinBeginCOWMutation(SILGenFunction &SGF,
   auto *ref = SGF.B.createLoad(loc, refAddr, LoadOwnershipQualifier::Take);
   BeginCOWMutationInst *beginCOW = SGF.B.createBeginCOWMutation(loc, ref, /*isNative*/ false);
   SGF.B.createStore(loc, beginCOW->getBufferResult(), refAddr, StoreOwnershipQualifier::Init);
-  return ManagedValue::forUnmanaged(beginCOW->getUniquenessResult());
+  return ManagedValue::forObjectRValueWithoutOwnership(
+      beginCOW->getUniquenessResult());
 }
 
 static ManagedValue
@@ -999,7 +1002,8 @@ emitBuiltinBeginCOWMutation_native(SILGenFunction &SGF,
   auto *ref = SGF.B.createLoad(loc, refAddr, LoadOwnershipQualifier::Take);
   BeginCOWMutationInst *beginCOW = SGF.B.createBeginCOWMutation(loc, ref, /*isNative*/ true);
   SGF.B.createStore(loc, beginCOW->getBufferResult(), refAddr, StoreOwnershipQualifier::Init);
-  return ManagedValue::forUnmanaged(beginCOW->getUniquenessResult());
+  return ManagedValue::forObjectRValueWithoutOwnership(
+      beginCOW->getUniquenessResult());
 }
 
 static ManagedValue
@@ -1017,7 +1021,7 @@ emitBuiltinEndCOWMutation(SILGenFunction &SGF,
   auto ref = SGF.B.createLoad(loc, refAddr, LoadOwnershipQualifier::Take);
   auto endRef = SGF.B.createEndCOWMutation(loc, ref);
   SGF.B.createStore(loc, endRef, refAddr, StoreOwnershipQualifier::Init);
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 static ManagedValue emitBuiltinBindMemory(SILGenFunction &SGF,
@@ -1035,7 +1039,7 @@ static ManagedValue emitBuiltinBindMemory(SILGenFunction &SGF,
   auto *bindMemory = SGF.B.createBindMemory(loc, args[0].getValue(),
                                             args[1].getValue(), boundType);
 
-  return ManagedValue::forUnmanaged(bindMemory);
+  return ManagedValue::forObjectRValueWithoutOwnership(bindMemory);
 }
 
 static ManagedValue emitBuiltinRebindMemory(SILGenFunction &SGF,
@@ -1049,7 +1053,7 @@ static ManagedValue emitBuiltinRebindMemory(SILGenFunction &SGF,
   auto *rebindMemory = SGF.B.createRebindMemory(loc, args[0].getValue(),
                                                 args[1].getValue());
 
-  return ManagedValue::forUnmanaged(rebindMemory);
+  return ManagedValue::forObjectRValueWithoutOwnership(rebindMemory);
 }
 
 static ManagedValue emitBuiltinAllocWithTailElems(SILGenFunction &SGF,
@@ -1107,7 +1111,7 @@ static ManagedValue emitBuiltinProjectTailElems(SILGenFunction &SGF,
   SILType rawPointerType = SILType::getRawPointerType(SGF.F.getASTContext());
   result = SGF.B.createAddressToPointer(loc, result, rawPointerType,
                                         /*needsStackProtection=*/ false);
-  return ManagedValue::forUnmanaged(result);
+  return ManagedValue::forObjectRValueWithoutOwnership(result);
 }
 
 /// Specialized emitter for type traits.
@@ -1145,8 +1149,8 @@ static ManagedValue emitBuiltinTypeTrait(SILGenFunction &SGF,
                                      C.getIdentifier(getBuiltinName(Kind)),
                                      SILType::getPrimitiveObjectType(int8Ty),
                                      substitutions, args[0].getValue());
-    
-    return ManagedValue::forUnmanaged(apply);
+
+    return ManagedValue::forObjectRValueWithoutOwnership(apply);
   }
   }
   
@@ -1154,7 +1158,7 @@ static ManagedValue emitBuiltinTypeTrait(SILGenFunction &SGF,
   auto val = SGF.B.createIntegerLiteral(
       loc, SILType::getBuiltinIntegerType(8, SGF.getASTContext()),
       (uintmax_t)result);
-  return ManagedValue::forUnmanaged(val);
+  return ManagedValue::forObjectRValueWithoutOwnership(val);
 }
 
 static ManagedValue emitBuiltinAutoDiffApplyDerivativeFunction(
@@ -1200,7 +1204,8 @@ static ManagedValue emitBuiltinAutoDiffApplyDerivativeFunction(
   assert(derivativeFnType->isTrivialNoEscape());
 
   // Do the apply for the indirect result case.
-  if (derivativeFnType->hasIndirectFormalResults()) {
+  if (derivativeFnType->hasIndirectFormalResults() &&
+      SGF.SGM.M.useLoweredAddresses()) {
     auto indResBuffer = SGF.getBufferForExprResult(
         loc, derivativeFnType->getAllResultsInterfaceType(), C);
     SmallVector<SILValue, 3> applyArgs;
@@ -1346,7 +1351,8 @@ static ManagedValue emitBuiltinConvertStrongToUnownedUnsafe(
     PreparedArguments &&preparedArgs, SGFContext C) {
   auto argsOrError = decomposeArguments(SGF, loc, std::move(preparedArgs), 2);
   if (!argsOrError)
-    return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+    return ManagedValue::forObjectRValueWithoutOwnership(
+        SGF.emitEmptyTuple(loc));
 
   auto args = *argsOrError;
 
@@ -1388,7 +1394,7 @@ static ManagedValue emitBuiltinConvertStrongToUnownedUnsafe(
       loc, objectSrcValue, unmanagedOptType.getObjectType());
   SGF.B.emitStoreValueOperation(loc, unownedObjectSrcValue, inoutDest,
                                 StoreOwnershipQualifier::Trivial);
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 /// Emit SIL for the named builtin: convertUnownedUnsafeToGuaranteed.
@@ -1402,7 +1408,8 @@ static ManagedValue emitBuiltinConvertUnownedUnsafeToGuaranteed(
     PreparedArguments &&preparedArgs, SGFContext C) {
   auto argsOrError = decomposeArguments(SGF, loc, std::move(preparedArgs), 2);
   if (!argsOrError)
-    return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+    return ManagedValue::forObjectRValueWithoutOwnership(
+        SGF.emitEmptyTuple(loc));
 
   auto args = *argsOrError;
 
@@ -1468,7 +1475,8 @@ static ManagedValue emitBuiltinEndAsyncLet(
 static ManagedValue emitBuiltinGetCurrentExecutor(
     SILGenFunction &SGF, SILLocation loc, SubstitutionMap subs,
     PreparedArguments &&preparedArgs, SGFContext C) {
-  return ManagedValue::forUnmanaged(SGF.emitGetCurrentExecutor(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(
+      SGF.emitGetCurrentExecutor(loc));
 }
 
 // Emit SIL for sizeof/strideof/alignof.
@@ -1478,34 +1486,25 @@ static ManagedValue emitBuiltinSizeof(
     SILGenFunction &SGF, SILLocation loc, SubstitutionMap subs,
     PreparedArguments &&preparedArgs, SGFContext C) {
   auto &ctx = SGF.getASTContext();
-  return ManagedValue::forUnmanaged(
-    SGF.B.createBuiltin(loc,
-      ctx.getIdentifier(getBuiltinName(BuiltinValueKind::Sizeof)),
-      SILType::getBuiltinWordType(ctx),
-      subs,
-      {}));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.B.createBuiltin(
+      loc, ctx.getIdentifier(getBuiltinName(BuiltinValueKind::Sizeof)),
+      SILType::getBuiltinWordType(ctx), subs, {}));
 }
 static ManagedValue emitBuiltinStrideof(
     SILGenFunction &SGF, SILLocation loc, SubstitutionMap subs,
     PreparedArguments &&preparedArgs, SGFContext C) {
   auto &ctx = SGF.getASTContext();
-  return ManagedValue::forUnmanaged(
-    SGF.B.createBuiltin(loc,
-      ctx.getIdentifier(getBuiltinName(BuiltinValueKind::Strideof)),
-      SILType::getBuiltinWordType(ctx),
-      subs,
-      {}));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.B.createBuiltin(
+      loc, ctx.getIdentifier(getBuiltinName(BuiltinValueKind::Strideof)),
+      SILType::getBuiltinWordType(ctx), subs, {}));
 }
 static ManagedValue emitBuiltinAlignof(
     SILGenFunction &SGF, SILLocation loc, SubstitutionMap subs,
     PreparedArguments &&preparedArgs, SGFContext C) {
   auto &ctx = SGF.getASTContext();
-  return ManagedValue::forUnmanaged(
-    SGF.B.createBuiltin(loc,
-      ctx.getIdentifier(getBuiltinName(BuiltinValueKind::Alignof)),
-      SILType::getBuiltinWordType(ctx),
-      subs,
-      {}));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.B.createBuiltin(
+      loc, ctx.getIdentifier(getBuiltinName(BuiltinValueKind::Alignof)),
+      SILType::getBuiltinWordType(ctx), subs, {}));
 }
 
 // Helper to lower a function argument to be usable as the entry point of a
@@ -1539,12 +1538,16 @@ ManagedValue emitBuiltinCreateAsyncTask(SILGenFunction &SGF, SILLocation loc,
       ProtocolCompositionType::get(ctx, { }, false))->getCanonicalType();
   auto &anyTypeTL = SGF.getTypeLowering(anyTypeType);
   auto &futureResultTL = SGF.getTypeLowering(futureResultType);
-  auto futureResultMetadata = SGF.emitExistentialErasure(
-      loc, futureResultType, futureResultTL, anyTypeTL, { }, C,
-      [&](SGFContext C) -> ManagedValue {
-    return ManagedValue::forTrivialObjectRValue(
-      SGF.B.createMetatype(loc, SGF.getLoweredType(futureResultType)));
-  }).borrow(SGF, loc).forward(SGF);
+  auto futureResultMetadata =
+      SGF.emitExistentialErasure(
+             loc, futureResultType, futureResultTL, anyTypeTL, {}, C,
+             [&](SGFContext C) -> ManagedValue {
+               return ManagedValue::forObjectRValueWithoutOwnership(
+                   SGF.B.createMetatype(loc,
+                                        SGF.getLoweredType(futureResultType)));
+             })
+          .borrow(SGF, loc)
+          .forward(SGF);
 
   // Ensure that the closure has the appropriate type.
   auto extInfo =
@@ -1597,12 +1600,16 @@ static ManagedValue emitBuiltinCreateAsyncTaskInGroup(
       ProtocolCompositionType::get(ctx, { }, false))->getCanonicalType();
   auto &anyTypeTL = SGF.getTypeLowering(anyTypeType);
   auto &futureResultTL = SGF.getTypeLowering(futureResultType);
-  auto futureResultMetadata = SGF.emitExistentialErasure(
-      loc, futureResultType, futureResultTL, anyTypeTL, { }, C,
-      [&](SGFContext C) -> ManagedValue {
-    return ManagedValue::forTrivialObjectRValue(
-      SGF.B.createMetatype(loc, SGF.getLoweredType(futureResultType)));
-  }).borrow(SGF, loc).forward(SGF);
+  auto futureResultMetadata =
+      SGF.emitExistentialErasure(
+             loc, futureResultType, futureResultTL, anyTypeTL, {}, C,
+             [&](SGFContext C) -> ManagedValue {
+               return ManagedValue::forObjectRValueWithoutOwnership(
+                   SGF.B.createMetatype(loc,
+                                        SGF.getLoweredType(futureResultType)));
+             })
+          .borrow(SGF, loc)
+          .forward(SGF);
 
   auto function = emitFunctionArgumentForAsyncTaskEntryPoint(SGF, loc, args[2],
                                                              futureResultType);
@@ -1698,7 +1705,7 @@ static ManagedValue emitBuiltinHopToActor(SILGenFunction &SGF, SILLocation loc,
                                           ArrayRef<ManagedValue> args,
                                           SGFContext C) {
   SGF.emitHopToActorValue(loc, args[0]);
-  return ManagedValue::forUnmanaged(SGF.emitEmptyTuple(loc));
+  return ManagedValue::forObjectRValueWithoutOwnership(SGF.emitEmptyTuple(loc));
 }
 
 static ManagedValue emitBuiltinAutoDiffCreateLinearMapContext(
@@ -1726,7 +1733,7 @@ static ManagedValue emitBuiltinAutoDiffProjectTopLevelSubcontext(
       SILType::getRawPointerType(ctx),
       subs,
       /*args*/ {args[0].borrow(SGF, loc).getValue()});
-  return ManagedValue::forUnmanaged(builtinApply);
+  return ManagedValue::forObjectRValueWithoutOwnership(builtinApply);
 }
 
 static ManagedValue emitBuiltinAutoDiffAllocateSubcontext(
@@ -1740,7 +1747,7 @@ static ManagedValue emitBuiltinAutoDiffAllocateSubcontext(
       SILType::getRawPointerType(ctx),
       subs,
       /*args*/ {args[0].borrow(SGF, loc).getValue(), args[1].getValue()});
-  return ManagedValue::forUnmanaged(builtinApply);
+  return ManagedValue::forObjectRValueWithoutOwnership(builtinApply);
 }
 
 // The only reason these need special attention is that we want these to
@@ -1760,7 +1767,7 @@ static ManagedValue emitBuildExecutorRef(SILGenFunction &SGF, SILLocation loc,
   auto builtinApply = SGF.B.createBuiltin(loc, builtinID,
       SILType::getPrimitiveObjectType(ctx.TheExecutorType),
       subs, argValues);
-  return ManagedValue::forUnmanaged(builtinApply);
+  return ManagedValue::forObjectRValueWithoutOwnership(builtinApply);
 }
 static ManagedValue emitBuiltinBuildOrdinarySerialExecutorRef(
     SILGenFunction &SGF, SILLocation loc, SubstitutionMap subs,

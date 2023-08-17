@@ -276,6 +276,11 @@ deriveBodyCodingKey_init_stringValue(AbstractFunctionDecl *initDecl, void *) {
   auto *selfRef = DerivedConformance::createSelfDeclRef(initDecl);
   SmallVector<ASTNode, 4> cases;
   for (auto *elt : elements) {
+    // Skip the cases that would return unavailable elements since those can't
+    // be instantiated at runtime.
+    if (elt->getAttrs().isUnavailable(C))
+      continue;
+
     auto *litExpr = new (C) StringLiteralExpr(elt->getNameStr(), SourceRange(),
                                               /*Implicit=*/true);
     auto *litPat = ExprPattern::createImplicit(C, litExpr, /*DC*/ initDecl);

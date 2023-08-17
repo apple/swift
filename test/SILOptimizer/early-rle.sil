@@ -1,4 +1,6 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -early-redundant-load-elim | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -early-redundant-load-elimination | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
 
 sil_stage canonical
 

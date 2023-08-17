@@ -191,10 +191,19 @@ toolchain as a one-off, there are a couple of differences:
 ### Spot check dependencies
 
 * Run `cmake --version`; this should be at least 3.19.6 (3.24.2 if you want to use Xcode for editing on macOS).
-* Run `python3 --version`; check that this succeeds.
+* Run `python3 --version`; this should be at least 3.6.
 * Run `ninja --version`; check that this succeeds.
 * If you installed and want to use Sccache: Run `sccache --version`; check
   that this succeeds.
+
+> **Note**  
+> If you are running on Apple Silicon hardware (M1, M2, etc), ensure you have
+> the native arm64 build of these dependencies installed and configured in your PATH.
+>
+> e.g. running `file $(which python3)` should print "arm64".
+>
+> If it prints "x86_64", you are running Python in compatibility mode (Rosetta), and building Swift will fail.
+> Running `uname -m` should also print "arm64", otherwise your terminal is running in Rosetta mode.
 
 ### The roles of different tools
 

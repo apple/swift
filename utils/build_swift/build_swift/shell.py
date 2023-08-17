@@ -23,7 +23,7 @@ import subprocess
 import sys
 from copy import copy as _copy
 from pathlib import Path
-from pipes import quote as _quote
+from shlex import quote as _quote
 from shlex import split
 from subprocess import CalledProcessError
 

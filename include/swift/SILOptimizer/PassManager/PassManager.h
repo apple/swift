@@ -17,6 +17,7 @@
 #include "swift/SILOptimizer/Analysis/Analysis.h"
 #include "swift/SILOptimizer/PassManager/PassPipeline.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
+#include "swift/SILOptimizer/Utils/SILSSAUpdater.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
@@ -40,6 +41,7 @@ class SILCombiner;
 
 namespace irgen {
 class IRGenModule;
+class IRGenerator;
 }
 
 /// The main entrypoint for executing a pipeline pass on a SIL module.
@@ -68,6 +70,14 @@ class SwiftPassInvocation {
   /// All slabs, allocated by the pass.
   SILModule::SlabList allocatedSlabs;
 
+  SILSSAUpdater *ssaUpdater = nullptr;
+
+  /// IRGen module for passes that request it (e.g. simplification pass)
+  irgen::IRGenModule *irgenModule = nullptr;
+
+  /// IRGenerator used by IRGenModule above
+  irgen::IRGenerator *irgen = nullptr;
+
   static constexpr int BlockSetCapacity = 8;
   char blockSetStorage[sizeof(BasicBlockSet) * BlockSetCapacity];
   bool aliveBlockSets[BlockSetCapacity];
@@ -82,7 +92,7 @@ class SwiftPassInvocation {
 
   bool needFixStackNesting = false;
 
-  void endPassRunChecks();
+  void endPass();
 
 public:
   SwiftPassInvocation(SILPassManager *passManager, SILFunction *function,
@@ -92,11 +102,15 @@ public:
   SwiftPassInvocation(SILPassManager *passManager) :
     passManager(passManager) {}
 
+  ~SwiftPassInvocation();
+
   SILPassManager *getPassManager() const { return passManager; }
   
   SILTransform *getTransform() const { return transform; }
 
   SILFunction *getFunction() const { return function; }
+
+  irgen::IRGenModule *getIRGenModule();
 
   FixedSizeSlab *allocSlab(FixedSizeSlab *afterSlab);
 
@@ -143,6 +157,17 @@ public:
 
   void setNeedFixStackNesting(bool newValue) { needFixStackNesting = newValue; }
   bool getNeedFixStackNesting() const { return needFixStackNesting; }
+
+  void initializeSSAUpdater(SILType type, ValueOwnershipKind ownership) {
+    if (!ssaUpdater)
+      ssaUpdater = new SILSSAUpdater;
+    ssaUpdater->initialize(type, ownership);
+  }
+
+  SILSSAUpdater *getSSAUpdater() const {
+    assert(ssaUpdater && "SSAUpdater not initialized");
+    return ssaUpdater;
+  }
 };
 
 /// The SIL pass manager.

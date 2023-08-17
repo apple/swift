@@ -169,16 +169,16 @@
       key.description: "macro expansion cannot introduce import",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -193,16 +193,16 @@
       key.description: "variable 'x' was never mutated; consider changing to 'let' constant",
       key.diagnostics: [
         {
-          key.line: 24,
+          key.line: 23,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'addMemberWithFixIt' here",
+          key.description: "in expansion of macro 'addMemberWithFixIt' on struct 'S' here",
           key.ranges: [
             {
-              key.offset: 738,
-              key.length: 11
+              key.offset: 718,
+              key.length: 31
             }
           ]
         }
@@ -217,16 +217,16 @@
       key.description: "macro expansion cannot introduce precedence group",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -241,16 +241,16 @@
       key.description: "macro 'myMacro()' requires a definition",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -265,16 +265,16 @@
       key.description: "macro expansion cannot introduce macro",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -289,16 +289,16 @@
       key.description: "macro expansion cannot introduce extension",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -313,16 +313,16 @@
       key.description: "macro expansion cannot introduce '@main' type",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -337,16 +337,16 @@
       key.description: "declaration name 'MyMain' is not covered by macro 'Invalid'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -361,16 +361,16 @@
       key.description: "declaration name 'Array' is not covered by macro 'Invalid'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -385,16 +385,16 @@
       key.description: "declaration name 'Dictionary' is not covered by macro 'Invalid'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -409,16 +409,16 @@
       key.description: "macro expansion cannot introduce default literal type 'BooleanLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -433,16 +433,16 @@
       key.description: "macro expansion cannot introduce default literal type 'ExtendedGraphemeClusterType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -457,16 +457,16 @@
       key.description: "macro expansion cannot introduce default literal type 'FloatLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -481,16 +481,16 @@
       key.description: "macro expansion cannot introduce default literal type 'IntegerLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -505,16 +505,16 @@
       key.description: "macro expansion cannot introduce default literal type 'StringLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -529,16 +529,16 @@
       key.description: "macro expansion cannot introduce default literal type 'UnicodeScalarType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -553,16 +553,16 @@
       key.description: "macro expansion cannot introduce default literal type '_ColorLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -577,16 +577,16 @@
       key.description: "macro expansion cannot introduce default literal type '_ImageLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }
@@ -601,16 +601,16 @@
       key.description: "macro expansion cannot introduce default literal type '_FileReferenceLiteralType'",
       key.diagnostics: [
         {
-          key.line: 17,
+          key.line: 16,
           key.column: 1,
           key.filepath: diags.swift,
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
-          key.description: "in expansion of macro 'Invalid' here",
+          key.description: "in expansion of macro 'Invalid' on struct 'Bad' here",
           key.ranges: [
             {
-              key.offset: 486,
-              key.length: 13
+              key.offset: 477,
+              key.length: 22
             }
           ]
         }

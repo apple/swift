@@ -651,12 +651,6 @@ public:
   std::string mangleSymbolNameForGenericEnvironment(
                                                 CanGenericSignature genericSig);
 
-  std::string
-  mangleRuntimeAccessibleAttributeRecord(const NominalTypeDecl *attr) {
-    assert(attr->getAttrs().hasAttribute<RuntimeMetadataAttr>());
-    return mangleNominalTypeSymbol(attr, "Ha");
-  }
-
 protected:
   SymbolicMangling
   withSymbolicReferences(IRGenModule &IGM,

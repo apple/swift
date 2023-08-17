@@ -599,7 +599,6 @@ func testGenericResult(_ s: inout GenStruct<SimpleStruct>) {
     s[keyPath: kp].i += 1
 }
 
-// CHECK-LABEL: sil {{.*}}testit
 func testit() {
   // CHECK-OUTPUT: GenStructRead: 27
   print("GenStructRead: \(testGenStructRead(GenStruct(SimpleClass(27))).i)")

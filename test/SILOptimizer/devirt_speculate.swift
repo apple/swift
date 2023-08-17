@@ -37,13 +37,13 @@ class Sub7 : Base {
 }
 // CHECK: @$s16devirt_speculate28testMaxNumSpeculativeTargetsyyAA4BaseCF
 // CHECK: bb0(%0 : $Base):
-// CHECK:   checked_cast_br [exact] %0 : $Base to Base, bb2, bb3
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Base, bb2, bb3
 
 // CHECK: bb2([[CASTED:%.*]]):
 // CHECK:   br bb1
 
 // CHECK: bb3:
-// CHECK:   checked_cast_br [exact] %0 : $Base to Sub1, bb4, bb5
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Sub1, bb4, bb5
 
 // CHECK: bb4([[CASTED:%.*]] : $Sub1):
 // CHECK:   [[FN:%.*]] = function_ref @$s16devirt_speculate9blackHoleyyxRlzClF : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@guaranteed τ_0_0) -> ()
@@ -51,7 +51,7 @@ class Sub7 : Base {
 // CHECK:   br bb1
 
 // CHECK: bb5:
-// CHECK:   checked_cast_br [exact] %0 : $Base to Sub2, bb6, bb7
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Sub2, bb6, bb7
 
 // CHECK: bb6([[CASTED:%.*]] : $Sub2):
 // CHECK:   [[FN:%.*]] = function_ref @$s16devirt_speculate9blackHoleyyxRlzClF : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@guaranteed τ_0_0) -> ()
@@ -59,7 +59,7 @@ class Sub7 : Base {
 // CHECK:   br bb1
 
 // CHECK: bb7:
-// CHECK:   checked_cast_br [exact] %0 : $Base to Sub3, bb8, bb9
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Sub3, bb8, bb9
 
 // CHECK: bb8([[CASTED:%.*]] : $Sub3):
 // CHECK:   [[FN:%.*]] = function_ref @$s16devirt_speculate9blackHoleyyxRlzClF : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@guaranteed τ_0_0) -> ()
@@ -67,7 +67,7 @@ class Sub7 : Base {
 // CHECK:   br bb1
 
 // CHECK: bb9:
-// CHECK:   checked_cast_br [exact] %0 : $Base to Sub4, bb10, bb11
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Sub4, bb10, bb11
 
 // CHECK: bb10([[CASTED:%.*]] : $Sub4):
 // CHECK:   [[FN:%.*]] = function_ref @$s16devirt_speculate9blackHoleyyxRlzClF : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@guaranteed τ_0_0) -> ()
@@ -75,7 +75,7 @@ class Sub7 : Base {
 // CHECK:   br bb1
 
 // CHECK: bb11:
-// CHECK:   checked_cast_br [exact] %0 : $Base to Sub5, bb12, bb13
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Sub5, bb12, bb13
 
 // CHECK: bb12([[CASTED:%.*]] : $Sub5):
 // CHECK:   [[FN:%.*]] = function_ref @$s16devirt_speculate9blackHoleyyxRlzClF : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@guaranteed τ_0_0) -> ()
@@ -83,7 +83,7 @@ class Sub7 : Base {
 // CHECK:   br bb1
 
 // CHECK: bb13:
-// CHECK:   checked_cast_br [exact] %0 : $Base to Sub6, bb14, bb15
+// CHECK:   checked_cast_br [exact] Base in %0 : $Base to Sub6, bb14, bb15
 
 // CHECK: bb14([[CASTED:%.*]] : $Sub6):
 // CHECK:   [[FN:%.*]] = function_ref @$s16devirt_speculate9blackHoleyyxRlzClF : $@convention(thin) <τ_0_0 where τ_0_0 : AnyObject> (@guaranteed τ_0_0) -> ()
@@ -112,8 +112,8 @@ class Sub7 : Base {
 // YAML-NEXT: ...
 
 // OSIZE: @$s16devirt_speculate28testMaxNumSpeculativeTargetsyyAA4BaseCF
-// OSIZE-NOT: checked_cast_br [exact] %0 : $Base to Base
-// OSIZE-NOT: checked_cast_br [exact] %0 : $Base to Sub
+// OSIZE-NOT: checked_cast_br [exact] Base in %0 : $Base to Base
+// OSIZE-NOT: checked_cast_br [exact] Base in %0 : $Base to Sub
 public func testMaxNumSpeculativeTargets(_ b: Base) {
   b.foo()
 }

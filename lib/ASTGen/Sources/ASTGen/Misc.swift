@@ -1,13 +1,16 @@
 import CASTBridging
 import SwiftParser
+
+// Needed to use SyntaxTransformVisitor's visit method.
+@_spi(SyntaxTransformVisitor)
 import SwiftSyntax
 
 extension ASTGenVisitor {
-  public func visit(_ node: MemberDeclListItemSyntax) -> ASTNode {
+  public func visit(_ node: MemberBlockItemSyntax) -> ASTNode {
     visit(Syntax(node.decl))
   }
 
-  public func visit(_ node: TupleExprElementSyntax) -> ASTNode {
+  public func visit(_ node: LabeledExprSyntax) -> ASTNode {
     visit(node.expression)
   }
 

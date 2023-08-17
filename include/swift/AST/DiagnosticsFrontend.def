@@ -105,7 +105,7 @@ WARNING(warning_cannot_find_locale_file,none,
 WARNING(warning_cannot_multithread_batch_mode,none,
       "ignoring -num-threads argument; cannot multithread batch mode", ())
 ERROR(error_cannot_explicit_interface_build_in_mode,none,
-      "'-explicit-interface-module-build' only supported when building a module from interface ('-compile-module-from-interface')'", ())
+      "'-explicit-interface-module-build' only supported when building a module from interface ('-compile-module-from-interface' or '-typecheck-module-from-interface')'", ())
 ERROR(error_cannot_direct_cc1_pcm_build_in_mode,none,
       "'-direct-clang-cc1-module-build' only supported when building a PCM ('-emit-pcm')'", ())
 ERROR(error_unsupported_option_argument,none,

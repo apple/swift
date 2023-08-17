@@ -792,7 +792,7 @@ void StmtEmitter::visitDiscardStmt(DiscardStmt *S) {
   // restriction until we get discard implemented the way we want.
   for (auto *varDecl : nominal->getStoredProperties()) {
     assert(varDecl->hasStorage());
-    auto varType = varDecl->getType();
+    auto varType = varDecl->getTypeInContext();
     auto &varTypeLowering = SGF.getTypeLowering(varType);
     if (!varTypeLowering.isTrivial()) {
       diagnose(getASTContext(),
@@ -907,12 +907,10 @@ void StmtEmitter::visitDeferStmt(DeferStmt *S) {
   // If the defer is at the top-level code, insert 'mark_escape_inst'
   // to the top-level code to check initialization of any captured globals.
   FuncDecl *deferDecl = S->getTempDecl();
-  auto declCtxKind = deferDecl->getDeclContext()->getContextKind();
-  auto &sgm = SGF.SGM;
-  if (declCtxKind == DeclContextKind::TopLevelCodeDecl && sgm.TopLevelSGF &&
-      sgm.TopLevelSGF->B.hasValidInsertionPoint()) {
-    sgm.emitMarkFunctionEscapeForTopLevelCodeGlobals(
-        S, deferDecl->getCaptureInfo());
+  auto *Ctx = deferDecl->getDeclContext();
+  if (isa<TopLevelCodeDecl>(Ctx) && SGF.isEmittingTopLevelCode()) {
+      auto Captures = deferDecl->getCaptureInfo();
+      SGF.emitMarkFunctionEscapeForTopLevelCodeGlobals(S, std::move(Captures));
   }
   SGF.visitFuncDecl(deferDecl);
 

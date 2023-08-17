@@ -148,6 +148,9 @@ struct Obligation {
   public:
     Key() = delete;
 
+  private:
+    Key(StringRef Name, Expectation::Kind Kind) : Name(Name), Kind(Kind) {}
+
   public:
     static Key forNegative(StringRef name) {
       return Key{name, Expectation::Kind::Negative};

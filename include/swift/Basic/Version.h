@@ -175,6 +175,11 @@ StringRef getCurrentCompilerTag();
 /// depending on the vendor.
 StringRef getCurrentCompilerSerializationTag();
 
+/// Retrieves the value of the upcoming C++ interoperability compatibility
+/// version that's going to be presented as some new concrete version to the
+/// users.
+unsigned getUpcomingCxxInteropCompatVersion();
+
 } // end namespace version
 } // end namespace swift
 

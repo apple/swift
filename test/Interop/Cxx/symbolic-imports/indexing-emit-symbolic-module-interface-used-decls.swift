@@ -35,6 +35,9 @@ public func useConcreteTemplate() {
 // CHECK-EMPTY:
 // CHECK-NEXT: public struct TemplateRecord {
 // CHECK-EMPTY:
+// CHECK-NEXT:    @available(*, deprecated, message:
+// CHECK-NEXT:    public init()
+// CHECK-EMPTY:
 // CHECK-NEXT:    public func methodFunc(_ x: Any)
 // CHECK-NEXT:}
 // CHECK-NEXT:}

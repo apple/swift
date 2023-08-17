@@ -165,7 +165,7 @@ public class SingleValueInstruction : Instruction, Value {
   }
 }
 
-public final class MultipleValueInstructionResult : Value {
+public final class MultipleValueInstructionResult : Value, Hashable {
   public var parentInstruction: MultipleValueInstruction {
     bridged.getParent().getAs(MultipleValueInstruction.self)
   }
@@ -178,6 +178,14 @@ public final class MultipleValueInstructionResult : Value {
 
   var bridged: BridgedMultiValueResult {
     BridgedMultiValueResult(obj: SwiftObject(self))
+  }
+
+  public static func ==(lhs: MultipleValueInstructionResult, rhs: MultipleValueInstructionResult) -> Bool {
+    lhs === rhs
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(ObjectIdentifier(self))
   }
 }
 
@@ -449,6 +457,7 @@ class AddressToPointerInst : SingleValueInstruction, UnaryInstruction {
 final public
 class PointerToAddressInst : SingleValueInstruction, UnaryInstruction {
   public var pointer: Value { operand.value }
+  public var isStrict: Bool { bridged.PointerToAddressInst_isStrict() }
 }
 
 final public

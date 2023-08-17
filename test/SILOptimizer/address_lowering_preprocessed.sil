@@ -1,0 +1,38 @@
+// RUN: %empty-directory(%t) 
+// RUN: %target-sil-opt -test-runner -address-lowering -enable-sil-opaque-values -emit-sorted-sil -sil-verify-none %s > %t/out.sil
+// RUN: %target-sil-opt -emit-sorted-sil -sil-verify-all %t/out.sil | %FileCheck %s
+
+import Builtin
+import Swift
+import SwiftShims
+
+struct Box<T> {
+    var _value : T
+}
+
+// Verify that the isCopyValue assertion in
+// AddressMaterialization::materializeDefProjection is not triggered.  This is
+// possible because the destroy_value is rewritten last.  Rewriting it last
+// enables the lifetime analysis done in isStoreCopy to remain valid until the
+// lifetime-ending uses are rewritten.
+// CHECK-LABEL: sil [ossa] @destroy_before_copy_in_use_list : {{.*}} {
+// CHECK:       bb0([[T:%[^,]+]] : $*T, [[BOX:%[^,]+]] :
+// CHECK:         [[FIELD_ADDR:%[^,]+]] = struct_element_addr [[BOX]] : {{.*}}, #Box._value
+// CHECK:         copy_addr [[T]] to [[FIELD_ADDR]]
+// CHECK:         [[RETVAL:%[^,]+]] = tuple ()
+// CHECK:         destroy_addr [[T]]
+// CHECK:         return [[RETVAL]]
+// CHECK-LABEL: } // end sil function 'destroy_before_copy_in_use_list'
+sil [ossa] @destroy_before_copy_in_use_list : $@convention(thin) <T> (@in T, @inout Box<T>) -> () {
+bb0(%t : @owned $T, %box : $*Box<T>):
+  // The destroy_value appears first in the textual SIL in order to be first in
+  // the use list.  Before running AddressLowering, it's sunk to after the
+  // end_access.
+  test_specification "instruction-move-before @instruction @instruction[+5]"
+  destroy_value %t : $T
+  %copy = copy_value %t : $T
+  %field_addr = struct_element_addr %box : $*Box<T>, #Box._value
+  store %copy to [assign] %field_addr : $*T
+  %retval = tuple ()
+  return %retval : $()
+}

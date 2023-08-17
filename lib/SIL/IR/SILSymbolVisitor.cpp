@@ -238,9 +238,6 @@ class SILSymbolVisitorImpl : public ASTVisitor<SILSymbolVisitorImpl> {
   void addConformances(const IterableDeclContext *IDC) {
     for (auto conformance :
          IDC->getLocalConformances(ConformanceLookupKind::NonInherited)) {
-      if (conformance->getSourceKind() == ConformanceEntryKind::PreMacroExpansion)
-        continue;
-
       auto protocol = conformance->getProtocol();
       if (Ctx.getOpts().PublicSymbolsOnly &&
           getDeclLinkage(protocol) != FormalLinkage::PublicUnique)
@@ -368,13 +365,6 @@ class SILSymbolVisitorImpl : public ASTVisitor<SILSymbolVisitorImpl> {
     Visitor.addMethodDescriptor(method);
   }
 
-  void addRuntimeDiscoverableAttrGenerators(ValueDecl *D) {
-    for (auto *attr : D->getRuntimeDiscoverableAttrs()) {
-      addFunction(SILDeclRef::getRuntimeAttributeGenerator(attr, D),
-                  /*ignoreLinkage=*/true);
-    }
-  }
-
 public:
   SILSymbolVisitorImpl(SILSymbolVisitor &Visitor,
                        const SILSymbolVisitorContext &Ctx)
@@ -492,8 +482,6 @@ public:
                          AFD->getGenericSignature()));
     }
 
-    addRuntimeDiscoverableAttrGenerators(AFD);
-
     visitDefaultArguments(AFD, AFD->getParameters());
 
     if (AFD->hasAsync()) {
@@ -580,8 +568,6 @@ public:
     }
 
     visitAbstractStorageDecl(VD);
-
-    addRuntimeDiscoverableAttrGenerators(VD);
   }
 
   void visitSubscriptDecl(SubscriptDecl *SD) {
@@ -618,8 +604,6 @@ public:
 
     // There are symbols associated with any protocols this type conforms to.
     addConformances(NTD);
-
-    addRuntimeDiscoverableAttrGenerators(NTD);
 
     visitMembers(NTD);
   }

@@ -17,7 +17,7 @@ func test3(x: Int, y: inout DiffableStruct, z: Float) -> (Float, Float) { return
 @differentiable(reverse, wrt: y)
 func test4(x: Int, y: inout DiffableStruct, z: Float) -> Void { }
 
-@differentiable(reverse, wrt: z)
+@differentiable(reverse, wrt: (y, z))
 func test5(x: Int, y: inout DiffableStruct, z: Float) -> Void { }
 
 @differentiable(reverse, wrt: (y, z))
@@ -48,9 +48,9 @@ func test6(x: Int, y: inout DiffableStruct, z: Float) -> (Float, Float) { return
 // CHECK: }
 
 // CHECK-LABEL: differentiability witness for test5(x:y:z:)
-// CHECK: sil_differentiability_witness hidden [reverse] [parameters 2] [results 0] @$s31inout_differentiability_witness5test51x1y1zySi_AA14DiffableStructVzSftF : $@convention(thin) (Int, @inout DiffableStruct, Float) -> () {
-// CHECK:   jvp: @$s31inout_differentiability_witness5test51x1y1zySi_AA14DiffableStructVzSftFTJfUUSpSr : $@convention(thin) (Int, @inout DiffableStruct, Float) -> @owned @callee_guaranteed (Float) -> @out DiffableStruct.TangentVector
-// CHECK:   vjp: @$s31inout_differentiability_witness5test51x1y1zySi_AA14DiffableStructVzSftFTJrUUSpSr : $@convention(thin) (Int, @inout DiffableStruct, Float) -> @owned @callee_guaranteed (@in_guaranteed DiffableStruct.TangentVector) -> Float
+// CHECK: sil_differentiability_witness hidden [reverse] [parameters 1 2] [results 0] @$s31inout_differentiability_witness5test51x1y1zySi_AA14DiffableStructVzSftF : $@convention(thin) (Int, @inout DiffableStruct, Float) -> () {
+// CHECK:   jvp: @$s31inout_differentiability_witness5test51x1y1zySi_AA14DiffableStructVzSftFTJfUSSpSr : $@convention(thin) (Int, @inout DiffableStruct, Float) -> @owned @callee_guaranteed (@inout DiffableStruct.TangentVector, Float) -> ()
+// CHECK:   vjp: @$s31inout_differentiability_witness5test51x1y1zySi_AA14DiffableStructVzSftFTJrUSSpSr : $@convention(thin) (Int, @inout DiffableStruct, Float) -> @owned @callee_guaranteed (@inout DiffableStruct.TangentVector) -> Float
 // CHECK: }
 
 // CHECK-LABEL: differentiability witness for test6(x:y:z:)

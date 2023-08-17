@@ -64,4 +64,26 @@ tuples.test("expandTuple") {
   expandTupleElements(1, "hello", true)
 }
 
+func tupleLabelMix<each T, each U>(t: repeat (each T).Type, u: repeat (each U).Type) -> Any.Type {
+  return (Float, hello: Int, repeat each T, swift: String, repeat each U, Bool, world: UInt8).self
+}
+
+func oneElementLabeledTuple<each T>(t: repeat (each T).Type) -> Any.Type {
+  return (label: Int, repeat each T).self
+}
+
+tuples.test("labels") {
+  expectEqual("(Swift.Float, hello: Swift.Int, swift: Swift.String, Swift.Bool, world: Swift.UInt8)", _typeName(tupleLabelMix()))
+  expectEqual("(Swift.Float, hello: Swift.Int, swift: Swift.String, Swift.Double, Swift.Bool, world: Swift.UInt8)", _typeName(tupleLabelMix(u: Double.self)))
+  expectEqual("(Swift.Float, hello: Swift.Int, swift: Swift.String, Swift.Double, Swift.Int32, Swift.Bool, world: Swift.UInt8)", _typeName(tupleLabelMix(u: Double.self, Int32.self)))
+  expectEqual("(Swift.Float, hello: Swift.Int, Swift.Character, swift: Swift.String, Swift.Double, Swift.Bool, world: Swift.UInt8)", _typeName(tupleLabelMix(t: Character.self, u: Double.self)))
+  expectEqual("(Swift.Float, hello: Swift.Int, Swift.Character, Swift.Substring, swift: Swift.String, Swift.Double, Swift.Int32, Swift.Bool, world: Swift.UInt8)", _typeName(tupleLabelMix(t: Character.self, Substring.self, u: Double.self, Int32.self)))
+
+  // FIXME: One-element labeled tuples
+  expectEqual("Swift.Int", _typeName(oneElementLabeledTuple()))
+
+  expectEqual("(label: Swift.Int, Swift.String)", _typeName(oneElementLabeledTuple(t: String.self)))
+}
+
+
 runAllTests()

@@ -7,6 +7,9 @@
 # order.
 
 # TODO: /.clang-format
+
+/.clang-tidy   @egorzhdan
+
 # TODO: /.dir-locals.el
 # TODO: /.flake8
 # TODO: /.gitattributes
@@ -182,6 +185,7 @@
 /tools/SourceKit                                    @ahoppen @bnbarham @rintaro @hamishknight
 /tools/lldb-moduleimport-test/                      @adrian-prantl
 /tools/swift-ide-test                               @ahoppen @bnbarham @rintaro @hamishknight
+/tools/swift-inspect                                @mikeash @al45tair @compnerd
 /tools/swift-refactor                               @ahoppen @bnbarham
 
 # unittests

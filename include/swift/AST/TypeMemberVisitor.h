@@ -71,7 +71,7 @@ public:
   ///
   /// \seealso IterableDeclContext::getImplementationContext()
   void visitImplementationMembers(NominalTypeDecl *D) {
-    for (Decl *member : D->getImplementationContext()->getMembers()) {
+    for (Decl *member : D->getImplementationContext()->getAllMembers()) {
       asImpl().visit(member);
     }
     

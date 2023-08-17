@@ -3083,7 +3083,7 @@ sil [ossa] @alloc_ref_dynamic_with_upcast_metatype : $@convention(thin) () -> @o
 // CHECK: } // end sil function 'alloc_ref_dynamic_after_successful_checked_cast_br'
 sil [ossa] @alloc_ref_dynamic_after_successful_checked_cast_br : $(@thick B.Type) -> Builtin.Int32 {
 bb0(%1 : $@thick B.Type):
-  checked_cast_br [exact] %1 : $@thick B.Type to B.Type, bb1, bb2
+  checked_cast_br [exact] @thick B.Type in %1 : $@thick B.Type to B.Type, bb1, bb2
 
 bb1(%2 : $@thick B.Type):
   %3 = alloc_ref_dynamic %2 : $@thick B.Type, $B
@@ -3108,7 +3108,7 @@ bb3 (%10: $Builtin.Int32):
 // CHECK: } // end sil function 'alloc_ref_dynamic_upcast_after_successful_checked_cast_br'
 sil [ossa] @alloc_ref_dynamic_upcast_after_successful_checked_cast_br : $(@thick B.Type) -> Builtin.Int32 {
 bb0(%1 : $@thick B.Type):
-  checked_cast_br [exact] %1 : $@thick B.Type to E.Type, bb1, bb2
+  checked_cast_br [exact] @thick B.Type in %1 : $@thick B.Type to E.Type, bb1, bb2
 
 bb1(%2 : $@thick E.Type):
   %3 = upcast %2 : $@thick E.Type to $@thick B.Type
@@ -3163,7 +3163,7 @@ sil [ossa] @alloc_ref_dynamic_stack_with_upcast_metatype : $() -> () {
 // CHECK:       } // end sil function 'alloc_ref_dynamic_stack_after_successful_checked_cast_br'
 sil [ossa] @alloc_ref_dynamic_stack_after_successful_checked_cast_br : $(@thick B.Type) -> Builtin.Int32 {
 bb0(%1 : $@thick B.Type):
-  checked_cast_br [exact] %1 : $@thick B.Type to B.Type, bb1, bb2
+  checked_cast_br [exact] @thick B.Type in %1 : $@thick B.Type to B.Type, bb1, bb2
 
 bb1(%2 : $@thick B.Type):
   %3 = alloc_ref_dynamic [stack] %2 : $@thick B.Type, $B

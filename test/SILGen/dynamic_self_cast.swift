@@ -39,7 +39,7 @@ public class SelfCasts {
   }
 
   // CHECK-LABEL: sil [ossa] @$s17dynamic_self_cast9SelfCastsC02toD11ConditionalyACXDSgACFZ : $@convention(method) (@guaranteed SelfCasts, @thick SelfCasts.Type) -> @owned Optional<SelfCasts> {
-  // CHECK: checked_cast_br {{.*}} : $SelfCasts to @dynamic_self SelfCasts
+  // CHECK: checked_cast_br SelfCasts in {{.*}} : $SelfCasts to @dynamic_self SelfCasts
   // CHECK: }
   public static func toSelfConditional(_ s: SelfCasts) -> Self? {
     return s as? Self
@@ -53,7 +53,7 @@ public class SelfCasts {
   }
 
   // CHECK-LABEL: sil [ossa] @$s17dynamic_self_cast9SelfCastsC014classGenericToD11ConditionalyACXDSgxRlzClFZ : $@convention(method) <T where T : AnyObject> (@guaranteed T, @thick SelfCasts.Type) -> @owned Optional<SelfCasts> {
-  // CHECK: checked_cast_br {{.*}} : $T to @dynamic_self SelfCasts
+  // CHECK: checked_cast_br T in {{.*}} : $T to @dynamic_self SelfCasts
   // CHECK: }
   public static func classGenericToSelfConditional<T : AnyObject>(_ s: T) -> Self? {
     return s as? Self

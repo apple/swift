@@ -628,3 +628,21 @@ bb0(%0 : $P):
   return %6 : $()
 }
 
+// CHECK-LABEL: @testCowMutation
+// CHECK:       PAIR #23.
+// CHECK-NEXT:    %4 = ref_tail_addr %0 : $X, $Int32
+// CHECK-NEXT:    %5 = ref_tail_addr %3 : $X, $Int32
+// CHECK-NEXT:  MustAlias
+sil @testCowMutation : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_ref $X
+  (%1, %2) = begin_cow_mutation %0 : $X
+  %3 = end_cow_mutation %2 : $X
+  %4 = ref_tail_addr %0 : $X, $Int32
+  %5 = ref_tail_addr %3 : $X, $Int32
+  fix_lifetime %4 : $*Int32
+  fix_lifetime %5 : $*Int32
+  %99 = tuple ()
+  return %99 : $()
+}
+ 

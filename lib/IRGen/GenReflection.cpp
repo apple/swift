@@ -853,9 +853,9 @@ private:
     if (hasPayload && (decl->isIndirect() || enumDecl->isIndirect()))
       flags.setIsIndirectCase();
 
-    Type interfaceType = Lowering::shouldSkipLowering(decl)
-                             ? nullptr
-                             : decl->getArgumentInterfaceType();
+    Type interfaceType = decl->isAvailableDuringLowering()
+                             ? decl->getArgumentInterfaceType()
+                             : nullptr;
 
     addField(flags, interfaceType, decl->getBaseIdentifier().str());
   }
@@ -1674,13 +1674,15 @@ void IRGenModule::emitFieldDescriptor(const NominalTypeDecl *D) {
       needsFieldDescriptor = false;
   }
 
-  // If the type has custom @_alignment, emit a fixed record with the
-  // alignment since remote mirrors will need to treat the type as opaque.
+  // If the type has custom @_alignment, @_rawLayout, or other manual layout
+  // attributes, emit a fixed record with the size and alignment since the
+  // remote mirrors will need to treat the type as opaque.
   //
   // Note that we go on to also emit a field descriptor in this case,
   // since in-process reflection only cares about the types of the fields
   // and does not independently re-derive the layout.
-  if (D->getAttrs().hasAttribute<AlignmentAttr>()) {
+  if (D->getAttrs().hasAttribute<AlignmentAttr>()
+      || D->getAttrs().hasAttribute<RawLayoutAttr>()) {
     auto &TI = getTypeInfoForUnlowered(T);
     if (isa<FixedTypeInfo>(TI)) {
       needsOpaqueDescriptor = true;

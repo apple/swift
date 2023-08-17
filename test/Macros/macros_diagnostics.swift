@@ -136,7 +136,7 @@ func shadow(a: Int, b: Int, stringify: Int) {
 }
 
 func testMissing() {
-  #missingMacro1("hello") // expected-error{{external macro implementation type 'MissingModule.MissingType' could not be found for macro 'missingMacro1'; the type must be public and provided by a macro target in a Swift package, or via '-plugin-path' or '-load-plugin-library'}}
+  #missingMacro1("hello") // expected-error{{external macro implementation type 'MissingModule.MissingType' could not be found for macro 'missingMacro1'}}
 }
 
 @freestanding(expression) macro undefined() // expected-error{{macro 'undefined()' requires a definition}}

@@ -660,9 +660,13 @@ memserver_fault(int sig) {
 ssize_t __attribute__((noinline))
 memserver_read(void *to, const void *from, size_t len) {
   if (memserver_has_ptrace) {
+// This won't run for older Android APIs anyway, but it can't be compiled
+// either, as process_vm_readv() isn't available.
+#if !(defined(__ANDROID_API__) && __ANDROID_API__ < 23)
     struct iovec local = { to, len };
     struct iovec remote = { const_cast<void *>(from), len };
     return process_vm_readv(memserver_pid, &local, 1, &remote, 1, 0);
+#endif
   } else {
     if (!sigsetjmp(memserver_fault_buf, 1)) {
       memcpy(to, from, len);
@@ -682,7 +686,12 @@ memserver_entry(void *dummy __attribute__((unused))) {
   prctl(PR_SET_NAME, "[backtrace]");
 #endif
 
+// process_vm_readv() is not available for older Android APIs.
+#if defined(__ANDROID_API__) && __ANDROID_API__ < 23
+  memserver_has_ptrace = false;
+#else
   memserver_has_ptrace = !!prctl(PR_CAPBSET_READ, CAP_SYS_PTRACE);
+#endif
 
   if (!memserver_has_ptrace) {
     struct sigaction sa;

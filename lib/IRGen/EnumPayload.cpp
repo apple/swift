@@ -163,8 +163,22 @@ EnumPayload EnumPayload::fromExplosion(IRGenModule &IGM,
   
   schema.forEachType(IGM, [&](llvm::Type *type) {
     auto next = in.claimNext();
-    assert(next->getType() == type && "explosion doesn't match payload schema");
-    result.PayloadValues.push_back(next);
+    if (next->getType() == type) {
+      result.PayloadValues.push_back(next);
+    } else {
+      // The original value had an unaligned integer size and was replaced by
+      // byte values in `replaceUnalignedIntegerValues`.
+      // This is done for enums in statically initialized global variables.
+      unsigned bitSize = cast<llvm::IntegerType>(type)->getBitWidth();
+      assert(bitSize % 8 == 0);
+      assert(cast<llvm::ConstantInt>(next)->getBitWidth() == 8);
+      result.PayloadValues.push_back(next);
+      for (unsigned byte = 1; byte < bitSize / 8; ++byte) {
+        auto nextByte = in.claimNext();
+        assert(cast<llvm::ConstantInt>(nextByte)->getBitWidth() == 8);
+        result.PayloadValues.push_back(nextByte);
+      }
+    }
   });
   
   return result;

@@ -1,0 +1,23 @@
+// RUN: %target-sil-opt -enable-sil-verify-all %s -pack-metadata-marker-inserter -enable-pack-metadata-stack-promotion=true | %FileCheck %s --check-prefixes CHECK-SIL
+
+// REQUIRES: asserts
+
+sil_stage lowered
+
+import Builtin
+
+protocol Error {}
+
+struct GVT<each T> {
+}
+
+// CHECK-SIL-LABEL: sil @throw_variadic : {{.*}} {
+// CHECK-SIL:         [[ERROR:%[^,]+]] = struct
+// CHECK-SIL:         throw [[ERROR]]
+// CHECK-SIL-LABEL: } // end sil function 'throw_variadic'
+sil @throw_variadic : $<each T>() -> ((), @error GVT<repeat each T>) {
+entry:
+  %retval = struct $GVT<repeat each T> () 
+  throw %retval : $GVT<repeat each T>
+}
+

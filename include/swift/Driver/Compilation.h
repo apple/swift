@@ -89,6 +89,11 @@ public:
     /// This data is used for cross-module module dependencies.
     fine_grained_dependencies::ModuleDepGraph depGraph;
 
+    Result(bool hadAbnormalExit, int exitCode,
+           fine_grained_dependencies::ModuleDepGraph depGraph)
+        : hadAbnormalExit(hadAbnormalExit), exitCode(exitCode),
+          depGraph(std::move(depGraph)) {}
+
     Result(const Result &) = delete;
     Result &operator=(const Result &) = delete;
 

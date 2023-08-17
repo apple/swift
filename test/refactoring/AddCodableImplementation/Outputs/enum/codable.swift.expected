@@ -25,12 +25,10 @@ enum Payload: Codable {
     }
     switch onlyKey {
     case .plain:
-
       let nestedContainer = try container.nestedContainer(keyedBy: Payload.PlainCodingKeys.self, forKey: Payload.CodingKeys.plain)
 
       self = Payload.plain(try nestedContainer.decode(String.self, forKey: Payload.PlainCodingKeys._0))
-      case .pair:
-
+    case .pair:
       let nestedContainer = try container.nestedContainer(keyedBy: Payload.PairCodingKeys.self, forKey: Payload.CodingKeys.pair)
 
       self = Payload.pair(key: try nestedContainer.decode(String.self, forKey: Payload.PairCodingKeys.key), value: try nestedContainer.decode(String.self, forKey: Payload.PairCodingKeys.value))
@@ -42,12 +40,10 @@ enum Payload: Codable {
 
     switch self {
     case .plain(let a0):
-
       var nestedContainer = container.nestedContainer(keyedBy: Payload.PlainCodingKeys.self, forKey: Payload.CodingKeys.plain)
 
       try nestedContainer.encode(a0, forKey: Payload.PlainCodingKeys._0)
-      case .pair(let key, let value):
-
+    case .pair(let key, let value):
       var nestedContainer = container.nestedContainer(keyedBy: Payload.PairCodingKeys.self, forKey: Payload.CodingKeys.pair)
 
       try nestedContainer.encode(key, forKey: Payload.PairCodingKeys.key)

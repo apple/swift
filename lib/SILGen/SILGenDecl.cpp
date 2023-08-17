@@ -508,7 +508,7 @@ public:
 
     // The box type's context is lowered in the minimal resilience domain.
     auto instanceType = SGF.SGM.Types.getLoweredRValueType(
-        TypeExpansionContext::minimal(), decl->getType());
+        TypeExpansionContext::minimal(), decl->getTypeInContext());
 
     // If we have a no implicit copy param decl, make our instance type
     // @moveOnly.
@@ -553,7 +553,7 @@ public:
           decl, Box, MarkUnresolvedReferenceBindingInst::Kind::InOut);
 
     if (SGF.getASTContext().SILOpts.supportsLexicalLifetimes(SGF.getModule())) {
-      auto loweredType = SGF.getTypeLowering(decl->getType()).getLoweredType();
+      auto loweredType = SGF.getTypeLowering(decl->getTypeInContext()).getLoweredType();
       auto lifetime = SGF.F.getLifetime(decl, loweredType);
       // The box itself isn't lexical--neither a weak reference nor an unsafe
       // pointer to a box can be formed; and the box doesn't synchronize on
@@ -651,9 +651,9 @@ public:
     const TypeLowering *lowering = nullptr;
     if (vd->isNoImplicitCopy()) {
       lowering = &SGF.getTypeLowering(
-          SILMoveOnlyWrappedType::get(vd->getType()->getCanonicalType()));
+          SILMoveOnlyWrappedType::get(vd->getTypeInContext()->getCanonicalType()));
     } else {
-      lowering = &SGF.getTypeLowering(vd->getType());
+      lowering = &SGF.getTypeLowering(vd->getTypeInContext());
     }
 
     // Decide whether we need a temporary stack buffer to evaluate this 'let'.
@@ -1439,7 +1439,7 @@ SILGenFunction::emitInitializationForVarDecl(VarDecl *vd, bool forceImmutable,
     return InitializationPtr(new KnownAddressInitialization(SV));
   }
 
-  CanType varType = vd->getType()->getCanonicalType();
+  CanType varType = vd->getTypeInContext()->getCanonicalType();
 
   assert(!isa<InOutType>(varType) && "local variables should never be inout");
 
@@ -2087,7 +2087,7 @@ SILGenFunction::emitFormalAccessManagedRValueWithCleanup(SILLocation loc,
   assert(isInFormalEvaluationScope() && "Must be in formal evaluation scope");
   auto &lowering = getTypeLowering(value->getType());
   if (lowering.isTrivial())
-    return ManagedValue::forUnmanaged(value);
+    return ManagedValue::forObjectRValueWithoutOwnership(value);
 
   auto &cleanup = Cleanups.pushCleanup<FormalAccessReleaseValueCleanup>();
   CleanupHandle handle = Cleanups.getTopCleanup();

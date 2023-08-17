@@ -128,12 +128,10 @@ lookupUnqualifiedEnumMemberElement(DeclContext *DC, DeclNameRef name,
                               /*unqualifiedLookup=*/true, lookup);
 }
 
-/// Find an enum element in an enum type.
-static EnumElementDecl *
-lookupEnumMemberElement(DeclContext *DC, Type ty,
-                        DeclNameRef name, SourceLoc UseLoc) {
+static LookupResult lookupMembers(DeclContext *DC, Type ty, DeclNameRef name,
+                                  SourceLoc UseLoc) {
   if (!ty->mayHaveMembers())
-    return nullptr;
+    return LookupResult();
 
   // FIXME: We should probably pay attention to argument labels someday.
   name = name.withoutArgumentLabels();
@@ -141,10 +139,36 @@ lookupEnumMemberElement(DeclContext *DC, Type ty,
   // Look up the case inside the enum.
   // FIXME: We should be able to tell if this is a private lookup.
   NameLookupOptions lookupOptions = defaultMemberLookupOptions;
-  LookupResult foundElements =
-      TypeChecker::lookupMember(DC, ty, name, UseLoc, lookupOptions);
+  return TypeChecker::lookupMember(DC, ty, name, UseLoc, lookupOptions);
+}
+
+/// Find an enum element in an enum type.
+static EnumElementDecl *lookupEnumMemberElement(DeclContext *DC, Type ty,
+                                                DeclNameRef name,
+                                                SourceLoc UseLoc) {
+  LookupResult foundElements = lookupMembers(DC, ty, name, UseLoc);
   return filterForEnumElement(DC, UseLoc,
                               /*unqualifiedLookup=*/false, foundElements);
+}
+
+/// Whether the type contains an enum element or static var member with the
+/// given name. Used for potential ambiguity diagnostics when matching against
+/// \c .none on \c Optional since users might be trying to match against an
+/// underlying \c .none member on the wrapped type.
+static bool hasEnumElementOrStaticVarMember(DeclContext *DC, Type ty,
+                                            DeclNameRef name,
+                                            SourceLoc UseLoc) {
+  LookupResult foundElements = lookupMembers(DC, ty, name, UseLoc);
+  return llvm::any_of(foundElements, [](const LookupResultEntry &result) {
+    auto *VD = result.getValueDecl();
+    if (isa<VarDecl>(VD) && VD->isStatic())
+      return true;
+
+    if (isa<EnumElementDecl>(VD))
+      return true;
+
+    return false;
+  });
 }
 
 namespace {
@@ -1030,8 +1054,7 @@ void repairTupleOrAssociatedValuePatternIfApplicable(
   }
 
   if (addDeclNote)
-    DE.diagnose(enumCase->getStartLoc(), diag::decl_declared_here,
-                enumCase->getName());
+    DE.diagnose(enumCase->getStartLoc(), diag::decl_declared_here, enumCase);
 }
 
 NullablePtr<Pattern> TypeChecker::trySimplifyExprPattern(ExprPattern *EP,
@@ -1481,13 +1504,10 @@ Pattern *TypeChecker::coercePatternToType(
               return coercePatternToType(
                   pattern.forSubPattern(P, /*retainTopLevel=*/true), type,
                   options, tryRewritePattern);
-            } else {
-              diags.diagnose(EEP->getLoc(),
-                             diag::enum_element_pattern_member_not_found,
-                             EEP->getName(), type);
-              return nullptr;
             }
-          } else if (EEP->hasUnresolvedOriginalExpr()) {
+          }
+
+          if (EEP->hasUnresolvedOriginalExpr()) {
             // If we have the original expression parse tree, try reinterpreting
             // it as an expr-pattern if enum element lookup failed, since `.foo`
             // could also refer to a static member of the context type.
@@ -1496,6 +1516,12 @@ Pattern *TypeChecker::coercePatternToType(
             return coercePatternToType(
                 pattern.forSubPattern(P, /*retainTopLevel=*/true), type,
                 options, tryRewritePattern);
+          } else {
+            // Otherwise, treat this as a failed enum element lookup.
+            diags.diagnose(EEP->getLoc(),
+                           diag::enum_element_pattern_member_not_found,
+                           EEP->getName(), type);
+            return nullptr;
           }
         }
       }
@@ -1511,8 +1537,8 @@ Pattern *TypeChecker::coercePatternToType(
           type->getOptionalObjectType()) {
         SmallVector<Type, 4> allOptionals;
         auto baseTyUnwrapped = type->lookThroughAllOptionalTypes(allOptionals);
-        if (lookupEnumMemberElement(dc, baseTyUnwrapped, EEP->getName(),
-                                    EEP->getLoc())) {
+        if (hasEnumElementOrStaticVarMember(dc, baseTyUnwrapped, EEP->getName(),
+                                            EEP->getLoc())) {
           auto baseTyName = type->getCanonicalType().getString();
           auto baseTyUnwrappedName = baseTyUnwrapped->getString();
           diags.diagnoseWithNotes(
@@ -1726,7 +1752,7 @@ void TypeChecker::coerceParameterListToType(ParameterList *P,
   // Local function to check whether type of given parameter
   // should be coerced to a given contextual type or not.
   auto shouldOverwriteParam = [&](ParamDecl *param) -> bool {
-    return !isValidType(param->getType());
+    return !isValidType(param->getTypeInContext());
   };
 
   auto handleParameter = [&](ParamDecl *param, Type ty, bool forceMutable) {

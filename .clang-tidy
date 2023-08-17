@@ -1,0 +1,14 @@
+# See https://clang.llvm.org/extra/clang-tidy/checks/list.html
+
+Checks: '
+-*,
+llvm-*,
+misc-*,
+-misc-const-correctness,
+-misc-unused-parameters,
+-misc-non-private-member-variables-in-classes,
+-misc-no-recursion,
+-misc-use-anonymous-namespace,
+-readability-qualified-auto,
+-llvm-qualified-auto
+'

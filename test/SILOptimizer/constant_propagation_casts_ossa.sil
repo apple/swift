@@ -22,7 +22,7 @@ sil [noinline] @blackhole2 : $@convention(thin) (@guaranteed NoSubKlass) -> ()
 sil [ossa] @test_guaranteed_cast_opt1 : $@convention(thin) (@owned SubKlass) -> () {
 bb0(%0 : @owned $SubKlass):
   %borrow = begin_borrow %0 : $SubKlass
-  checked_cast_br %borrow : $SubKlass to Klass, bb1, bb2
+  checked_cast_br SubKlass in %borrow : $SubKlass to Klass, bb1, bb2
 
 bb1(%val1 : @guaranteed $Klass):
   %copy = copy_value %val1: $Klass
@@ -47,7 +47,7 @@ bb3:
 sil [ossa] @test_guaranteed_cast_opt2 : $@convention(thin) (@owned SubKlass) -> () {
 bb0(%0 : @owned $SubKlass):
   %borrow = begin_borrow %0 : $SubKlass
-  checked_cast_br %borrow : $SubKlass to Klass, bb1, bb2
+  checked_cast_br SubKlass in %borrow : $SubKlass to Klass, bb1, bb2
 
 bb1(%val1 : @guaranteed $Klass):
   %copy = copy_value %val1: $Klass
@@ -74,7 +74,7 @@ bb3:
 sil [ossa] @test_guaranteed_cast_opt3 : $@convention(thin) (@owned NoSubKlass) -> () {
 bb0(%0 : @owned $NoSubKlass):
   %borrow = begin_borrow %0 : $NoSubKlass
-  checked_cast_br %borrow : $NoSubKlass to Klass, bb1, bb2
+  checked_cast_br NoSubKlass in %borrow : $NoSubKlass to Klass, bb1, bb2
 
 bb1(%val1 : @guaranteed $Klass):
   %copy = copy_value %val1: $Klass

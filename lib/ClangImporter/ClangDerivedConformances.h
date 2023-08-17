@@ -59,6 +59,12 @@ void conformToCxxDictionaryIfNeeded(ClangImporter::Implementation &impl,
                                     NominalTypeDecl *decl,
                                     const clang::CXXRecordDecl *clangDecl);
 
+/// If the decl is an instantiation of C++ `std::vector`, synthesize a
+/// conformance to CxxVector, which is defined in the Cxx module.
+void conformToCxxVectorIfNeeded(ClangImporter::Implementation &impl,
+                                NominalTypeDecl *decl,
+                                const clang::CXXRecordDecl *clangDecl);
+
 } // namespace swift
 
 #endif // SWIFT_CLANG_DERIVED_CONFORMANCES_H

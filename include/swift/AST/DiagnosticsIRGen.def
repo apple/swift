@@ -49,6 +49,9 @@ ERROR(alignment_less_than_natural,none,
 ERROR(alignment_more_than_maximum,none,
       "@_alignment cannot increase alignment above maximum alignment of %0",
       (unsigned))
+      
+ERROR(raw_layout_dynamic_type_layout_unsupported,none,
+      "@_rawLayout is not yet supported for layouts dependent on generic types", ())
 
 ERROR(temporary_allocation_size_negative,none,
       "allocation capacity must be greater than or equal to zero", ())

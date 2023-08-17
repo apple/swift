@@ -21,7 +21,7 @@ public struct LargeValue : Codable {
 distributed actor D {
   typealias ActorSystem = LocalTestingDistributedActorSystem
 
-  // CHECK: sil hidden [distributed] @takeLarge : $@convention(method) (@in LargeValue, @guaranteed D) -> () {
+  // CHECK: sil hidden [distributed] @takeLarge : $@convention(method) (@in_guaranteed LargeValue, @guaranteed D) -> () {
   @_silgen_name("takeLarge")
   distributed func takeLarge(_ l: LargeValue) {}
 }

@@ -1052,13 +1052,6 @@ protected:
           return *optError;
       }
 
-      // Unwrap unlabeled one-element tuples.
-      //
-      // FIXME: The behavior of one-element labeled tuples is inconsistent throughout
-      // the different re-implementations of type substitution and pack expansion.
-      if (elements.size() == 1 && labels[0].empty())
-        return elements[0];
-
       return Builder.createTupleType(elements, labels);
     }
     case NodeKind::TupleElement:

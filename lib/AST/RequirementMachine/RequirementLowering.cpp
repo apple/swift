@@ -180,6 +180,7 @@ static void desugarSameTypeRequirement(Requirement req, SourceLoc loc,
     SourceLoc loc;
     SmallVectorImpl<Requirement> &result;
     SmallVectorImpl<RequirementError> &errors;
+    SmallVector<Position, 2> stack;
 
   public:
     bool recordedErrors = false;
@@ -191,32 +192,53 @@ static void desugarSameTypeRequirement(Requirement req, SourceLoc loc,
 
     bool alwaysMismatchTypeParameters() const { return true; }
 
+    void pushPosition(Position pos) {
+      stack.push_back(pos);
+    }
+
+    void popPosition(Position pos) {
+      assert(stack.back() == pos);
+      stack.pop_back();
+    }
+
+    Position getPosition() const {
+      if (stack.empty()) return Position::Type;
+      return stack.back();
+    }
+
     bool mismatch(TypeBase *firstType, TypeBase *secondType,
                   Type sugaredFirstType) {
+      RequirementKind kind;
+      switch (getPosition()) {
+      case Position::Type:
+        kind = RequirementKind::SameType;
+        break;
+      case Position::Shape:
+        kind = RequirementKind::SameShape;
+        break;
+      }
+
       // If one side is a parameter pack, this is a same-element requirement, which
       // is not yet supported.
       if (firstType->isParameterPack() != secondType->isParameterPack()) {
         errors.push_back(RequirementError::forSameElement(
-            {RequirementKind::SameType, sugaredFirstType, secondType}, loc));
+            {kind, sugaredFirstType, secondType}, loc));
         recordedErrors = true;
         return true;
       }
 
       if (firstType->isTypeParameter() && secondType->isTypeParameter()) {
-        result.emplace_back(RequirementKind::SameType,
-                            sugaredFirstType, secondType);
+        result.emplace_back(kind, sugaredFirstType, secondType);
         return true;
       }
 
       if (firstType->isTypeParameter()) {
-        result.emplace_back(RequirementKind::SameType,
-                            sugaredFirstType, secondType);
+        result.emplace_back(kind, sugaredFirstType, secondType);
         return true;
       }
 
       if (secondType->isTypeParameter()) {
-        result.emplace_back(RequirementKind::SameType,
-                            secondType, sugaredFirstType);
+        result.emplace_back(kind, secondType, sugaredFirstType);
         return true;
       }
 
@@ -1020,7 +1042,7 @@ TypeAliasRequirementsRequest::evaluate(Evaluator &evaluator,
             .fixItRemove(assocTypeDecl->getSourceRange());
 
           ctx.Diags.diagnose(inheritedAssocTypeDecl, diag::decl_declared_here,
-                             inheritedAssocTypeDecl->getName());
+                             inheritedAssocTypeDecl);
 
           shouldWarnAboutRedeclaration = false;
         }
@@ -1096,7 +1118,7 @@ TypeAliasRequirementsRequest::evaluate(Evaluator &evaluator,
                                   getConcreteTypeReq(type, fixItWhere.Item))
                 .fixItRemove(type->getSourceRange());
               ctx.Diags.diagnose(inheritedAssocTypeDecl, diag::decl_declared_here,
-                                 inheritedAssocTypeDecl->getName());
+                                 inheritedAssocTypeDecl);
 
               shouldWarnAboutRedeclaration = false;
             }

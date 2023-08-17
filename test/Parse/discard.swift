@@ -34,6 +34,10 @@ func c() {
 }
 
 func c() {
+  _forget self  // expected-error {{consecutive statements on a line must be separated by ';'}}
+}
+
+func c() {
   discard `self`
 }
 

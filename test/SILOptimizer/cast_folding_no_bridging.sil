@@ -49,7 +49,7 @@ bb3:
 // CHECK: return
 sil @testObjCToObjC : $@convention(thin) (NSSet, NSSet) -> @owned NSSet {
 bb0(%0 : $NSSet, %1 : $NSSet):
-  checked_cast_br %0 : $NSSet to NSSet, bb1, bb3
+  checked_cast_br NSSet in %0 : $NSSet to NSSet, bb1, bb3
 
 bb1(%2 : $NSSet):
   br bb2(%2 : $NSSet)

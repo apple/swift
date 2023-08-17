@@ -380,6 +380,15 @@ llvm::Optional<ProjectionPath> ProjectionPath::getProjectionPath(SILValue Start,
 
   auto Iter = End;
   while (Start != Iter) {
+
+    if (auto *mvr = dyn_cast<MultipleValueInstructionResult>(Iter)) {
+      if (auto *bci = dyn_cast<BeginCOWMutationInst>(mvr->getParent())) {
+        Iter = bci->getOperand();
+        continue;
+      }
+      break;
+    }
+
     // end_cow_mutation and begin_access are not projections, but we need to be
     // able to form valid ProjectionPaths across them, otherwise optimization
     // passes like RLE/DSE cannot recognize their locations.

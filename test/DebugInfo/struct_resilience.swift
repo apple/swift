@@ -18,7 +18,7 @@ public func takesSize(_ s: Size) {}
 
 // CHECK-LABEL: define{{.*}} swiftcc void @"$s17struct_resilience1fyyF"()
 // CHECK-LLDB-LABEL: define{{.*}} swiftcc void @"$s17struct_resilience1fyyF"()
-func f() {
+public func f() {
   let s1 = Size(w: 1, h: 2)
   takesSize(s1)
   // CHECK: %[[ADDR:.*]] = alloca ptr
@@ -28,7 +28,6 @@ func f() {
   // CHECK: %[[S1:.*]] = alloca i8,
   // CHECK: store ptr %[[S1]], ptr %[[ADDR]]
 }
-f()
 
 // CHECK: ![[TY:[0-9]+]] = !DICompositeType(tag: DW_TAG_structure_type, name: "$s16resilient_struct4SizeVD",
 // CHECK: ![[LET_TY:[0-9]+]] = !DIDerivedType(tag: DW_TAG_const_type,

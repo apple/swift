@@ -20,7 +20,7 @@ _ = Layout<Class, Subclass>.self  // ok
 _ = Layout<Int, String>.self  // expected-error {{'Layout' requires that 'Int' be a class type}}
 
 struct Outer<each T: Sequence> {
-  struct Inner<each U: Sequence> where repeat each T.Element == each U.Element {}
+  struct Inner<each U: Sequence> where repeat (each T).Element == (each U).Element {}
   // expected-note@-1 {{requirement specified as '(each T).Element' == '(each U).Element' [with each T = Array<Int>, Array<String>; each U = Set<String>, Set<Int>]}}
   // expected-note@-2 {{requirement specified as '(each T).Element' == '(each U).Element' [with each T = Array<Int>; each U = Set<Int>, Set<String>]}}
 

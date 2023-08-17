@@ -220,6 +220,12 @@ void CleanupManager::setCleanupState(CleanupsDepth depth, CleanupState state) {
     popTopDeadCleanups();
 }
 
+bool CleanupManager::isFormalAccessCleanup(CleanupHandle depth) {
+  using RawTy = std::underlying_type<Cleanup::Flags>::type;
+  auto state = getFlagsAndWritebackBuffer(depth);
+  return RawTy(std::get<0>(state)) & RawTy(Cleanup::Flags::FormalAccessCleanup);
+}
+
 std::tuple<Cleanup::Flags, llvm::Optional<SILValue>>
 CleanupManager::getFlagsAndWritebackBuffer(CleanupHandle depth) {
   auto iter = stack.find(depth);

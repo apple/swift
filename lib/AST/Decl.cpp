@@ -2079,19 +2079,23 @@ bool VarDecl::isLayoutExposedToClients() const {
   if (!parent) return false;
   if (isStatic()) return false;
 
-  if (!hasStorage() &&
-      !getAttrs().hasAttribute<LazyAttr>() &&
-      !hasAttachedPropertyWrapper()) {
-    return false;
-  }
 
   auto nominalAccess =
     parent->getFormalAccessScope(/*useDC=*/nullptr,
                                  /*treatUsableFromInlineAsPublic=*/true);
   if (!nominalAccess.isPublic()) return false;
 
-  return (parent->getAttrs().hasAttribute<FrozenAttr>() ||
-          parent->getAttrs().hasAttribute<FixedLayoutAttr>());
+  if (!parent->getAttrs().hasAttribute<FrozenAttr>() &&
+      !parent->getAttrs().hasAttribute<FixedLayoutAttr>())
+    return false;
+
+  if (!hasStorage() &&
+      !getAttrs().hasAttribute<LazyAttr>() &&
+      !hasAttachedPropertyWrapper()) {
+    return false;
+  }
+
+  return true;
 }
 
 /// Check whether the given type representation will be
@@ -2806,26 +2810,13 @@ bool AbstractStorageDecl::isResilient() const {
   return getModuleContext()->isResilient();
 }
 
-static bool isOriginallyDefinedIn(const Decl *D, const ModuleDecl* MD) {
-  if (!MD)
-    return false;
-  if (D->getAlternateModuleName().empty())
-    return false;
-  return D->getAlternateModuleName() == MD->getName().str();
-}
-
 bool AbstractStorageDecl::isResilient(ModuleDecl *M,
                                       ResilienceExpansion expansion) const {
   switch (expansion) {
   case ResilienceExpansion::Minimal:
     return isResilient();
   case ResilienceExpansion::Maximal:
-    // We consider this decl belongs to the module either it's currently
-    // defined in this module or it's originally defined in this module, which
-    // is specified by @_originallyDefinedIn
-    return (M != getModuleContext() &&
-            !isOriginallyDefinedIn(this, M) &&
-            isResilient());
+    return M != getModuleContext() && isResilient();
   }
   llvm_unreachable("bad resilience expansion");
 }
@@ -4778,6 +4769,14 @@ DestructorDecl *NominalTypeDecl::getValueTypeDestructor() {
   return cast<DestructorDecl>(found[0]);
 }
 
+static bool isOriginallyDefinedIn(const Decl *D, const ModuleDecl* MD) {
+  if (!MD)
+    return false;
+  if (D->getAlternateModuleName().empty())
+    return false;
+  return D->getAlternateModuleName() == MD->getName().str();
+}
+
 bool NominalTypeDecl::isResilient(ModuleDecl *M,
                                   ResilienceExpansion expansion) const {
   switch (expansion) {
@@ -4787,9 +4786,8 @@ bool NominalTypeDecl::isResilient(ModuleDecl *M,
     // We consider this decl belongs to the module either it's currently
     // defined in this module or it's originally defined in this module, which
     // is specified by @_originallyDefinedIn
-    return (M != getModuleContext() &&
-            !isOriginallyDefinedIn(this, M) &&
-            isResilient());
+    return M != getModuleContext() && !isOriginallyDefinedIn(this, M) &&
+      isResilient();
   }
   llvm_unreachable("bad resilience expansion");
 }
@@ -5480,7 +5478,7 @@ NominalTypeDecl::getExecutorLegacyOwnedEnqueueFunction() const {
 
       if ((params->get(0)->getSpecifier() == ParamSpecifier::LegacyOwned ||
           params->get(0)->getSpecifier() == ParamSpecifier::Consuming) &&
-          params->get(0)->getType()->isEqual(legacyJobDecl->getDeclaredInterfaceType())) {
+          params->get(0)->getInterfaceType()->isEqual(legacyJobDecl->getDeclaredInterfaceType())) {
         return funcDecl;
       }
     }
@@ -5940,14 +5938,13 @@ EnumCaseDecl *EnumCaseDecl::create(SourceLoc CaseLoc,
 }
 
 bool EnumDecl::hasPotentiallyUnavailableCaseValue() const {
-  switch (static_cast<AssociatedValueCheck>(Bits.EnumDecl.HasAssociatedValues)) {
-    case AssociatedValueCheck::Unchecked:
-      // Compute below
-      this->hasOnlyCasesWithoutAssociatedValues();
-      LLVM_FALLTHROUGH;
-    default:
-      return static_cast<bool>(Bits.EnumDecl.HasAnyUnavailableValues);
-  }
+  (void)this->hasOnlyCasesWithoutAssociatedValues(); // Prime the cache
+  return static_cast<bool>(Bits.EnumDecl.HasAnyUnavailableValues);
+}
+
+bool EnumDecl::hasCasesUnavailableDuringLowering() const {
+  (void)this->hasOnlyCasesWithoutAssociatedValues(); // Prime the cache
+  return static_cast<bool>(Bits.EnumDecl.HasAnyUnavailableDuringLoweringValues);
 }
 
 bool EnumDecl::hasOnlyCasesWithoutAssociatedValues() const {
@@ -5964,25 +5961,35 @@ bool EnumDecl::hasOnlyCasesWithoutAssociatedValues() const {
     case AssociatedValueCheck::HasAssociatedValues:
       return false;
   }
+
+  bool hasAnyUnavailableValues = false;
+  bool hasAnyUnavailableDuringLoweringValues = false;
+  bool hasAssociatedValues = false;
+
   for (auto elt : getAllElements()) {
     for (auto Attr : elt->getAttrs()) {
       if (auto AvAttr = dyn_cast<AvailableAttr>(Attr)) {
-        if (!AvAttr->isInvalid()) {
-          const_cast<EnumDecl*>(this)->Bits.EnumDecl.HasAnyUnavailableValues
-            = true;
-        }
+        if (!AvAttr->isInvalid())
+          hasAnyUnavailableValues = true;
       }
     }
 
-    if (elt->hasAssociatedValues()) {
-      const_cast<EnumDecl*>(this)->Bits.EnumDecl.HasAssociatedValues
-        = static_cast<unsigned>(AssociatedValueCheck::HasAssociatedValues);
-      return false;
-    }
+    if (!elt->isAvailableDuringLowering())
+      hasAnyUnavailableDuringLoweringValues = true;
+
+    if (elt->hasAssociatedValues())
+      hasAssociatedValues = true;
   }
-  const_cast<EnumDecl*>(this)->Bits.EnumDecl.HasAssociatedValues
-    = static_cast<unsigned>(AssociatedValueCheck::NoAssociatedValues);
-  return true;
+
+  EnumDecl *enumDecl = const_cast<EnumDecl *>(this);
+
+  enumDecl->Bits.EnumDecl.HasAnyUnavailableValues = hasAnyUnavailableValues;
+  enumDecl->Bits.EnumDecl.HasAnyUnavailableDuringLoweringValues =
+      hasAnyUnavailableDuringLoweringValues;
+  enumDecl->Bits.EnumDecl.HasAssociatedValues = static_cast<unsigned>(
+      hasAssociatedValues ? AssociatedValueCheck::HasAssociatedValues
+                          : AssociatedValueCheck::NoAssociatedValues);
+  return !hasAssociatedValues;
 }
 
 bool EnumDecl::isFormallyExhaustive(const DeclContext *useDC) const {
@@ -6816,7 +6823,7 @@ VarDecl::VarDecl(DeclKind kind, bool isStatic, VarDecl::Introducer introducer,
   Bits.VarDecl.IsTopLevelGlobal = false;
 }
 
-Type VarDecl::getType() const {
+Type VarDecl::getTypeInContext() const {
   return getDeclContext()->mapTypeIntoContext(getInterfaceType());
 }
 
@@ -7383,7 +7390,7 @@ LifetimeAnnotation ParamDecl::getLifetimeAnnotation() const {
   auto specifier = getSpecifier();
   // Copyable parameters which are consumed have eager-move semantics.
   if (specifier == ParamDecl::Specifier::Consuming &&
-      !getType()->isPureMoveOnly()) {
+      !getTypeInContext()->isPureMoveOnly()) {
     if (getAttrs().hasAttribute<NoEagerMoveAttr>())
       return LifetimeAnnotation::Lexical;
     return LifetimeAnnotation::EagerMove;
@@ -7440,11 +7447,6 @@ bool VarDecl::hasAttachedPropertyWrapper() const {
     return true;
 
   return false;
-}
-
-/// Whether this property has any attached runtime metadata attributes.
-bool VarDecl::hasRuntimeMetadataAttributes() const {
-  return !getRuntimeDiscoverableAttrs().empty();
 }
 
 bool VarDecl::hasImplicitPropertyWrapper() const {
@@ -8633,10 +8635,10 @@ AbstractFunctionDecl *AbstractFunctionDecl::getAsyncAlternative() const {
 }
 
 static bool isPotentialCompletionHandler(const ParamDecl *param) {
-  if (!param->getType())
+  if (!param->getInterfaceType())
     return false;
 
-  const AnyFunctionType *paramType = param->getType()->getAs<AnyFunctionType>();
+  auto *paramType = param->getInterfaceType()->getAs<AnyFunctionType>();
   return paramType && paramType->getResult()->isVoid() &&
          !paramType->isNoEscape() && !param->isAutoClosure();
 }
@@ -8706,11 +8708,11 @@ AbstractFunctionDecl::findPotentialCompletionHandlerParam(
       }
 
       // Don't have types for some reason, just return no match
-      if (!param->getType() || !asyncParam->getType())
+      if (!param->getInterfaceType() || !asyncParam->getInterfaceType())
         return llvm::None;
 
-      paramMatches = param->getType()->matchesParameter(asyncParam->getType(),
-                                                        TypeMatchOptions());
+      paramMatches = param->getInterfaceType()->matchesParameter(
+          asyncParam->getInterfaceType(), TypeMatchOptions());
     }
 
     if (paramMatches) {
@@ -9614,7 +9616,7 @@ LifetimeAnnotation FuncDecl::getLifetimeAnnotation() const {
   // Copyable parameters which are consumed have eager-move semantics.
   if (getSelfAccessKind() == SelfAccessKind::Consuming) {
     auto *selfDecl = getImplicitSelfDecl();
-    if (selfDecl && !selfDecl->getType()->isPureMoveOnly()) {
+    if (selfDecl && !selfDecl->getTypeInContext()->isPureMoveOnly()) {
       if (getAttrs().hasAttribute<NoEagerMoveAttr>())
         return LifetimeAnnotation::Lexical;
       return LifetimeAnnotation::EagerMove;
@@ -10043,7 +10045,7 @@ Type TypeBase::getSwiftNewtypeUnderlyingType() {
   for (auto member : structDecl->getMembers())
     if (auto varDecl = dyn_cast<VarDecl>(member))
       if (varDecl->getName() == getASTContext().Id_rawValue)
-        return varDecl->getType();
+        return varDecl->getInterfaceType();
 
   return {};
 }
@@ -10586,11 +10588,10 @@ bool swift::isMacroSupported(MacroRole role, ASTContext &ctx) {
   case MacroRole::Member:
   case MacroRole::Peer:
   case MacroRole::Conformance:
+  case MacroRole::Extension:
     return true;
   case MacroRole::CodeItem:
     return ctx.LangOpts.hasFeature(Feature::CodeItemMacros);
-  case MacroRole::Extension:
-    return ctx.LangOpts.hasFeature(Feature::ExtensionMacros);
   }
 }
 
@@ -10764,15 +10765,6 @@ void MacroDecl::getIntroducedNames(MacroRole role, ValueDecl *attachedTo,
     switch (expandedName.getKind()) {
     case MacroIntroducedDeclNameKind::Named: {
       names.push_back(DeclName(expandedName.getName()));
-
-      // Temporary hack: we previously allowed named(`init`) to mean the same
-      // thing as named(init), before the latter was supported. Smooth over the
-      // difference by treating the former as the latter, for a short time.
-      if (expandedName.getName().isSimpleName() &&
-          !expandedName.getName().getBaseName().isSpecial() &&
-          expandedName.getName().getBaseIdentifier().is("init"))
-        names.push_back(DeclName(DeclBaseName::createConstructor()));
-
       break;
     }
 
@@ -10962,22 +10954,6 @@ void MacroExpansionDecl::forEachExpandedNode(
   auto *sourceFile = moduleDecl->getSourceFileContainingLocation(startLoc);
   for (auto node : sourceFile->getTopLevelItems())
     callback(node);
-}
-
-NominalTypeDecl *
-ValueDecl::getRuntimeDiscoverableAttrTypeDecl(CustomAttr *attr) const {
-  auto &ctx = getASTContext();
-  auto *nominal = evaluateOrDefault(
-      ctx.evaluator, CustomAttrNominalRequest{attr, getDeclContext()}, nullptr);
-  assert(nominal->getAttrs().hasAttribute<RuntimeMetadataAttr>());
-  return nominal;
-}
-
-ArrayRef<CustomAttr *> Decl::getRuntimeDiscoverableAttrs() const {
-  auto *mutableSelf = const_cast<Decl *>(this);
-  return evaluateOrDefault(getASTContext().evaluator,
-                           GetRuntimeDiscoverableAttributes{mutableSelf},
-                           nullptr);
 }
 
 /// Adjust the declaration context to find a point in the context hierarchy

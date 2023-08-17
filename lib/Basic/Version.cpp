@@ -306,5 +306,9 @@ StringRef getCurrentCompilerSerializationTag() {
 #endif
 }
 
+unsigned getUpcomingCxxInteropCompatVersion() {
+  return SWIFT_VERSION_MAJOR + 1;
+}
+
 } // end namespace version
 } // end namespace swift

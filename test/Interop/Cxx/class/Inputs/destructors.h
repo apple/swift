@@ -6,11 +6,21 @@ struct DummyStruct {};
 struct __attribute__((swift_attr("import_unsafe")))
 HasUserProvidedDestructorAndDummy {
   DummyStruct dummy;
+  HasUserProvidedDestructorAndDummy(DummyStruct dummy) : dummy(dummy) {}
+#if __is_target_os(windows)
+  // On windows, force this type to be address-only.
+  HasUserProvidedDestructorAndDummy(const HasUserProvidedDestructorAndDummy &) {}
+#endif
   ~HasUserProvidedDestructorAndDummy() {}
 };
 
 struct __attribute__((swift_attr("import_unsafe"))) HasUserProvidedDestructor {
   int *value;
+#if __is_target_os(windows)
+  // On windows, force this type to be address-only.
+  HasUserProvidedDestructor() {}
+  HasUserProvidedDestructor(const HasUserProvidedDestructor &other) {}
+#endif
   ~HasUserProvidedDestructor() { *value = 42; }
 };
 

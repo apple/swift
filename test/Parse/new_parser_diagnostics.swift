@@ -1,8 +1,7 @@
-// RUN: %target-typecheck-verify-swift -enable-experimental-feature ParserDiagnostics
-
-// FIXME: Swift parser is not enabled on Linux CI yet.
-// REQUIRES: OS=macosx
+// REQUIRES: swift_swift_parser
 // REQUIRES: asserts
+
+// RUN: %target-typecheck-verify-swift -enable-experimental-feature ParserDiagnostics
 
 _ = [(Int) -> async throws Int]()
 // expected-error@-1{{'async throws' must precede '->'}}

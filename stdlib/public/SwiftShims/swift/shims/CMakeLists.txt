@@ -152,7 +152,7 @@ if(NOT SWIFT_BUILT_STANDALONE)
   endforeach()
 endif()
 
-if(${BOOTSTRAPPING_MODE} MATCHES "BOOTSTRAPPING.*")
+if(BOOTSTRAPPING_MODE MATCHES "BOOTSTRAPPING.*")
   foreach(bootstrapping "0" "1")
     get_bootstrapping_path(outdir ${SWIFTLIB_DIR} ${bootstrapping})
     set(target_name "symlink-headers-bootstrapping${bootstrapping}")

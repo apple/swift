@@ -33,7 +33,28 @@
 namespace swift {
 
 class SILPassPipelinePlan;
-struct SILPassPipeline;
+
+struct SILPassPipeline final {
+  unsigned ID;
+  StringRef Name;
+  unsigned KindOffset;
+  bool isFunctionPassPipeline;
+
+  friend bool operator==(const SILPassPipeline &lhs,
+                         const SILPassPipeline &rhs) {
+    return lhs.ID == rhs.ID && lhs.Name.equals(rhs.Name) &&
+           lhs.KindOffset == rhs.KindOffset;
+  }
+
+  friend bool operator!=(const SILPassPipeline &lhs,
+                         const SILPassPipeline &rhs) {
+    return !(lhs == rhs);
+  }
+
+  friend llvm::hash_code hash_value(const SILPassPipeline &pipeline) {
+    return llvm::hash_combine(pipeline.ID, pipeline.Name, pipeline.KindOffset);
+  }
+};
 
 enum class PassPipelineKind {
 #define PASSPIPELINE(NAME, DESCRIPTION) NAME,
@@ -120,28 +141,6 @@ public:
     return hash_combine(&plan.Options,
                         hash_combine_range(kinds.begin(), kinds.end()),
                         hash_combine_range(stages.begin(), stages.end()));
-  }
-};
-
-struct SILPassPipeline final {
-  unsigned ID;
-  StringRef Name;
-  unsigned KindOffset;
-  bool isFunctionPassPipeline;
-
-  friend bool operator==(const SILPassPipeline &lhs,
-                         const SILPassPipeline &rhs) {
-    return lhs.ID == rhs.ID && lhs.Name.equals(rhs.Name) &&
-           lhs.KindOffset == rhs.KindOffset;
-  }
-
-  friend bool operator!=(const SILPassPipeline &lhs,
-                         const SILPassPipeline &rhs) {
-    return !(lhs == rhs);
-  }
-
-  friend llvm::hash_code hash_value(const SILPassPipeline &pipeline) {
-    return llvm::hash_combine(pipeline.ID, pipeline.Name, pipeline.KindOffset);
   }
 };
 

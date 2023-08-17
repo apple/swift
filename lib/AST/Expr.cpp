@@ -1887,7 +1887,7 @@ ActorIsolation ClosureActorIsolation::getActorIsolation() const {
   case ClosureActorIsolation::ActorInstance: {
     auto selfDecl = getActorInstance();
     auto actor =
-        selfDecl->getType()->getReferenceStorageReferent()->getAnyActor();
+        selfDecl->getTypeInContext()->getReferenceStorageReferent()->getAnyActor();
     assert(actor && "Bad closure actor isolation?");
     // FIXME: This could be a parameter... or a capture... hmmm.
     return ActorIsolation::forActorInstanceSelf(actor).withPreconcurrency(
@@ -2611,29 +2611,33 @@ void InterpolatedStringLiteralExpr::forEachSegment(ASTContext &Ctx,
 TapExpr::TapExpr(Expr * SubExpr, BraceStmt *Body)
     : Expr(ExprKind::Tap, /*Implicit=*/true),
       SubExpr(SubExpr), Body(Body) {
-  if (Body) {
-    assert(!Body->empty() &&
-         Body->getFirstElement().isDecl(DeclKind::Var) &&
-         "First element of Body should be a variable to init with the subExpr");
-  }
+  assert(Body);
+  assert(!Body->empty() &&
+       Body->getFirstElement().isDecl(DeclKind::Var) &&
+       "First element of Body should be a variable to init with the subExpr");
 }
 
 VarDecl * TapExpr::getVar() const {
   return dyn_cast<VarDecl>(Body->getFirstElement().dyn_cast<Decl *>());
 }
 
-SourceLoc TapExpr::getEndLoc() const {
-  // Include the body in the range, assuming the body follows the SubExpr.
-  // Also, be (perhaps overly) defensive about null pointers & invalid
-  // locations.
-  if (auto *const b = getBody()) {
-    const auto be = b->getEndLoc();
-    if (be.isValid())
-      return be;
-  }
-  if (auto *const se = getSubExpr())
-    return se->getEndLoc();
-  return SourceLoc();
+SourceRange TapExpr::getSourceRange() const {
+  if (!SubExpr)
+    return Body->getSourceRange();
+
+  SourceLoc start = SubExpr->getStartLoc();
+  if (!start.isValid())
+    start = Body->getStartLoc();
+  if (!start.isValid())
+    return SourceRange();
+
+  SourceLoc end = Body->getEndLoc();
+  if (!end.isValid())
+    end = SubExpr->getEndLoc();
+  if (!end.isValid())
+    return SourceRange();
+
+  return SourceRange(start, end);
 }
 
 RegexLiteralExpr *

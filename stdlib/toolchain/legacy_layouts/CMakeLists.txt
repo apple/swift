@@ -55,7 +55,7 @@ foreach(sdk ${SWIFT_SDKS})
   endforeach()
 endforeach()
 
-if(${BOOTSTRAPPING_MODE} MATCHES "BOOTSTRAPPING.*")
+if(BOOTSTRAPPING_MODE MATCHES "BOOTSTRAPPING.*")
   # The resource dir for bootstrapping0 may be used explicitly
   # to cross compile for other architectures, so we would need
   # to have all the legacy layouts in there

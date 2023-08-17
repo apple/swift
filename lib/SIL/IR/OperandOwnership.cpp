@@ -220,9 +220,9 @@ OPERAND_OWNERSHIP(InstantaneousUse, ClassMethod)
 OPERAND_OWNERSHIP(InstantaneousUse, SuperMethod)
 OPERAND_OWNERSHIP(InstantaneousUse, ClassifyBridgeObject)
 OPERAND_OWNERSHIP(InstantaneousUse, SetDeallocating)
-#define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)            \
-  OPERAND_OWNERSHIP(InstantaneousUse, StrongCopy##Name##Value)
-#define UNCHECKED_REF_STORAGE(Name, ...)                                       \
+OPERAND_OWNERSHIP(InstantaneousUse, UnownedCopyValue)
+OPERAND_OWNERSHIP(InstantaneousUse, WeakCopyValue)
+#define REF_STORAGE(Name, ...)                                                 \
   OPERAND_OWNERSHIP(InstantaneousUse, StrongCopy##Name##Value)
 #include "swift/AST/ReferenceStorage.def"
 

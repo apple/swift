@@ -171,7 +171,7 @@ public final class TaskLocal<Value: Sendable>: Sendable, CustomStringConvertible
     // check if we're not trying to bind a value from an illegal context; this may crash
     _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
 
-    _taskLocalValuePush(key: key, value: valueDuringOperation)
+    _taskLocalValuePush(key: key, value: consume valueDuringOperation)
     defer { _taskLocalValuePop() }
 
     return try await operation()

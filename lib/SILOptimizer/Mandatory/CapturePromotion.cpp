@@ -1555,7 +1555,9 @@ processPartialApplyInst(SILOptFunctionBuilder &funcBuilder,
         builder.setInsertionPoint(std::next(SILBasicBlock::iterator(dsi)));
         insertDestroyOfCapturedArguments(
             newPAI, builder,
-            [&](SILValue arg) -> bool { return newCaptures.count(arg); });
+            [&](SILValue arg) -> SILValue {
+              return newCaptures.count(arg) ? arg : SILValue();
+            });
       }
     }
     // Map the mark dependence arguments.

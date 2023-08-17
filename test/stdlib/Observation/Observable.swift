@@ -1,12 +1,9 @@
 // REQUIRES: swift_swift_parser, executable_test
 
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature InitAccessors -enable-experimental-feature Macros -enable-experimental-feature ExtensionMacros -Xfrontend -plugin-path -Xfrontend %swift-host-lib-dir/plugins)
+// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature Macros -enable-experimental-feature ExtensionMacros -Xfrontend -plugin-path -Xfrontend %swift-host-lib-dir/plugins)
 
 // Run this test via the swift-plugin-server
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature InitAccessors -enable-experimental-feature Macros -enable-experimental-feature ExtensionMacros -Xfrontend -external-plugin-path -Xfrontend %swift-host-lib-dir/plugins#%swift-plugin-server)
-
-// Asserts is required for '-enable-experimental-feature InitAccessors'.
-// REQUIRES: asserts
+// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking -parse-as-library -enable-experimental-feature Macros -enable-experimental-feature ExtensionMacros -Xfrontend -external-plugin-path -Xfrontend %swift-host-lib-dir/plugins#%swift-plugin-server)
 
 // REQUIRES: observation
 // REQUIRES: concurrency
@@ -176,6 +173,42 @@ class CapturedState<State>: @unchecked Sendable {
   }
 }
 
+@Observable
+class RecursiveInner {
+  var value = "prefix"
+}
+
+@Observable
+class RecursiveOuter {
+  var inner = RecursiveInner()
+  var value = "prefix"
+  @ObservationIgnored var innerEventCount = 0
+  @ObservationIgnored var outerEventCount = 0
+
+  func recursiveTrackingCalls() {
+    withObservationTracking({
+      let _ = value
+      _ = withObservationTracking({
+        inner.value
+      }, onChange: {
+        self.innerEventCount += 1
+      })
+    }, onChange: {
+      self.outerEventCount += 1
+    })
+  }
+}
+
+@Observable
+#if FOO
+@available(SwiftStdlib 5.9, *)
+#elseif BAR
+@available(SwiftStdlib 5.9, *)
+#else
+#endif
+class GuardedAvailability {
+}
+
 @main
 struct Validator {
   @MainActor
@@ -183,6 +216,10 @@ struct Validator {
 
     
     let suite = TestSuite("Observable")
+
+    suite.test("only instantiate") {
+      let test = MiddleNamePerson()
+    }
     
     suite.test("unobserved value changes") {
       let test = MiddleNamePerson()
@@ -363,7 +400,31 @@ struct Validator {
       test.test = "c"
       expectEqual(changed.state, false)
     }
-    
+
+    suite.test("recursive tracking inner then outer") {
+      let obj = RecursiveOuter()
+      obj.recursiveTrackingCalls()
+      obj.inner.value = "test"
+      expectEqual(obj.innerEventCount, 1)
+      expectEqual(obj.outerEventCount, 1)
+      obj.recursiveTrackingCalls()
+      obj.value = "test"
+      expectEqual(obj.innerEventCount, 1)
+      expectEqual(obj.outerEventCount, 2)
+    }
+
+    suite.test("recursive tracking outer then inner") {
+      let obj = RecursiveOuter()
+      obj.recursiveTrackingCalls()
+      obj.value = "test"
+      expectEqual(obj.innerEventCount, 0)
+      expectEqual(obj.outerEventCount, 1)
+      obj.recursiveTrackingCalls()
+      obj.inner.value = "test"
+      expectEqual(obj.innerEventCount, 2)
+      expectEqual(obj.outerEventCount, 2)
+    }
+
     runAllTests()
   }
 }

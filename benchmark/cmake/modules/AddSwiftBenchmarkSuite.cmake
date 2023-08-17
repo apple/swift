@@ -21,7 +21,7 @@ macro(configure_build)
     # thus allowing the --host-cc build-script argument to work here.
     get_filename_component(c_compiler ${CMAKE_C_COMPILER} NAME)
 
-    if(${c_compiler} STREQUAL "clang")
+    if(c_compiler STREQUAL "clang")
       set(CLANG_EXEC ${CMAKE_C_COMPILER})
     else()
       if(NOT SWIFT_DARWIN_XCRUN_TOOLCHAIN)
@@ -713,7 +713,7 @@ function(swift_benchmark_compile)
 
   if(NOT SWIFT_BENCHMARK_BUILT_STANDALONE)
     set(stdlib_dependencies "swift-frontend" "swiftCore-${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}")
-    if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+    if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
       list(APPEND stdlib_dependencies "swiftDarwin-${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}")
     endif()
     foreach(stdlib_dependency ${UNIVERSAL_LIBRARY_NAMES_${SWIFT_BENCHMARK_COMPILE_PLATFORM}})

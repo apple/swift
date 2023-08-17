@@ -92,14 +92,14 @@ bb2(%11 : $Bool):
 class A {}
 
 //CHECK-LABEL: no_remove_mandatory_dead_args
-//CHECK: checked_cast_br {{%.*}} : $AnyObject to A, bb1
+//CHECK: checked_cast_br AnyObject in {{%.*}} : $AnyObject to A, bb1
 //CHECK-NOT: bb1
 //CHECK: bb1([[VAR:%[0-9]+]] : $A)
 //CHECK-NOT: [[VAR]]
 //CHECK: return
 sil @no_remove_mandatory_dead_args : $@convention(thin) (@owned AnyObject) -> Int32 {
 bb0(%0 : $AnyObject):
-  checked_cast_br %0 : $AnyObject to A, bb1, bb2
+  checked_cast_br AnyObject in %0 : $AnyObject to A, bb1, bb2
 
 bb1(%1 : $A):
   %2 = integer_literal $Builtin.Int32, 1

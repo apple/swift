@@ -309,6 +309,11 @@ PrintOptions PrintOptions::printSwiftInterfaceFile(ModuleDecl *ModuleToPrint,
         }
       }
 
+      if (auto *accessor = dyn_cast<AccessorDecl>(D)) {
+        if (accessor->isInitAccessor() && !options.PrintForSIL)
+          return false;
+      }
+
       return ShouldPrintChecker::shouldPrint(D, options);
     }
   };
@@ -1917,11 +1922,6 @@ bool isNonSendableExtension(const Decl *D) {
 bool ShouldPrintChecker::shouldPrint(const Decl *D,
                                      const PrintOptions &Options) {
   if (auto *ED = dyn_cast<ExtensionDecl>(D)) {
-    // Always print unavilable extensions that carry reflection
-    // metadata attributes.
-    if (!ED->getRuntimeDiscoverableAttrs().empty())
-      return true;
-
     if (Options.printExtensionContentAsMembers(ED))
       return false;
   }
@@ -2259,8 +2259,12 @@ void PrintAST::printAccessors(const AbstractStorageDecl *ASD) {
       accessorsToPrint.push_back(Accessor);
   };
 
+  if (ASD->hasInitAccessor())
+    AddAccessorToPrint(AccessorKind::Init);
+
   if (PrintAbstract) {
     AddAccessorToPrint(AccessorKind::Get);
+
     if (ASD->supportsMutation())
       AddAccessorToPrint(AccessorKind::Set);
   } else {
@@ -2390,23 +2394,38 @@ static void addNamespaceMembers(Decl *decl,
         }
       }
 
+      auto lookupAndAddMembers = [&](DeclName name) {
+        auto allResults = evaluateOrDefault(
+            ctx.evaluator, ClangDirectLookupRequest({decl, redecl, name}), {});
+
+        for (auto found : allResults) {
+          auto clangMember = found.get<clang::NamedDecl *>();
+          if (auto importedDecl =
+                  ctx.getClangModuleLoader()->importDeclDirectly(clangMember)) {
+            if (addedMembers.insert(importedDecl).second)
+              members.push_back(importedDecl);
+          }
+        }
+      };
+
       auto namedDecl = dyn_cast<clang::NamedDecl>(member);
       if (!namedDecl)
         continue;
-
       auto name = ctx.getClangModuleLoader()->importName(namedDecl);
       if (!name)
         continue;
+      lookupAndAddMembers(name);
 
-      auto allResults = evaluateOrDefault(
-          ctx.evaluator, ClangDirectLookupRequest({decl, redecl, name}), {});
-
-      for (auto found : allResults) {
-        auto clangMember = found.get<clang::NamedDecl *>();
-        if (auto importedDecl =
-                ctx.getClangModuleLoader()->importDeclDirectly(clangMember)) {
-          if (addedMembers.insert(importedDecl).second)
-            members.push_back(importedDecl);
+      // Unscoped enums could have their enumerators present
+      // in the parent namespace.
+      if (auto *ed = dyn_cast<clang::EnumDecl>(member)) {
+        if (!ed->isScoped()) {
+          for (const auto *ecd : ed->enumerators()) {
+            auto name = ctx.getClangModuleLoader()->importName(ecd);
+            if (!name)
+              continue;
+            lookupAndAddMembers(name);
+          }
         }
       }
     }
@@ -3084,10 +3103,6 @@ static bool usesFeatureSpecializeAttributeWithAvailability(Decl *decl) {
   return false;
 }
 
-static bool usesFeatureRuntimeDiscoverableAttrs(Decl *decl) {
-  return false;
-}
-
 static bool usesFeatureParserRoundTrip(Decl *decl) {
   return false;
 }
@@ -3253,10 +3268,6 @@ static bool usesFeatureSymbolLinkageMarkers(Decl *decl) {
   });
 }
 
-static bool usesFeatureInitAccessors(Decl *decl) {
-  return false;
-}
-
 static bool usesFeatureLayoutPrespecialization(Decl *decl) {
   auto &attrs = decl->getAttrs();
   return std::any_of(attrs.begin(), attrs.end(), [](auto *attr) {
@@ -3387,7 +3398,7 @@ static bool usesFeatureBuiltinMacros(Decl *decl) {
 }
 
 
-static bool usesFeatureDisableActorInferenceFromPropertyWrapperUsage(Decl *decl) {
+static bool usesFeatureDisableOutwardActorInference(Decl *decl) {
   return false;
 }
 
@@ -3439,6 +3450,10 @@ static bool usesFeatureBuiltinModule(Decl *decl) {
   return false;
 }
 
+static bool usesFeatureRawLayout(Decl *decl) {
+  return decl->getAttrs().hasAttribute<RawLayoutAttr>();
+}
+
 static bool hasParameterPacks(Decl *decl) {
   if (auto genericContext = decl->getAsGenericContext()) {
     auto sig = genericContext->getGenericSignature();
@@ -3476,8 +3491,16 @@ static bool usesFeatureParameterPacks(Decl *decl) {
   return false;
 }
 
-static bool usesFeatureDeferredSendableChecking(Decl *decl) {
+static bool usesFeatureSendNonSendable(Decl *decl) {
   return false;
+}
+
+static bool usesFeaturePlaygroundExtendedCallbacks(Decl *decl) {
+  return false;
+}
+
+static bool usesFeatureNewCxxMethodSafetyHeuristics(Decl *decl) {
+  return decl->hasClangNode();
 }
 
 /// Suppress the printing of a particular feature.
@@ -5627,9 +5650,10 @@ void PrintAST::visitCaseStmt(CaseStmt *CS) {
                [&] { Printer << ", "; });
   }
   Printer << ":";
-  Printer.printNewline();
 
-  printASTNodes((cast<BraceStmt>(CS->getBody())->getElements()));
+  if (!printASTNodes((cast<BraceStmt>(CS->getBody())->getElements())))
+    Printer.printNewline();
+  indent();
 }
 
 void PrintAST::visitFailStmt(FailStmt *stmt) {
@@ -6523,6 +6547,9 @@ public:
       Printer << " ";
     }
 
+    if (info.isUnimplementable()) {
+      Printer.printSimpleAttr("@unimplementable") << " ";
+    }
     if (info.isPseudogeneric()) {
       Printer.printSimpleAttr("@pseudogeneric") << " ";
     }

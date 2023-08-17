@@ -51,10 +51,6 @@ public:
   
   /// The Swift module we are visiting.
   ModuleDecl *SwiftModule;
-  
-  /// TopLevelSGF - The SILGenFunction used to visit top-level code, or null if
-  /// the current source file is not a script source file.
-  SILGenFunction /*nullable*/ *TopLevelSGF;
 
   /// Mapping from SILDeclRefs to emitted SILFunctions.
   llvm::DenseMap<SILDeclRef, SILFunction*> emittedFunctions;
@@ -285,7 +281,7 @@ public:
 
   void visitFuncDecl(FuncDecl *fd);
   void visitPatternBindingDecl(PatternBindingDecl *vd);
-  void visitTopLevelCodeDecl(TopLevelCodeDecl *td);
+  void visitTopLevelCodeDecl(TopLevelCodeDecl *td) {}
   void visitIfConfigDecl(IfConfigDecl *icd);
   void visitPoundDiagnosticDecl(PoundDiagnosticDecl *PDD);
   void visitNominalTypeDecl(NominalTypeDecl *ntd);
@@ -295,6 +291,9 @@ public:
   void visitMissingDecl(MissingDecl *d);
   void visitMacroDecl(MacroDecl *d);
   void visitMacroExpansionDecl(MacroExpansionDecl *d);
+
+  void emitEntryPoint(SourceFile *SF);
+  void emitEntryPoint(SourceFile *SF, SILFunction *TopLevel);
 
   void emitAbstractFuncDecl(AbstractFunctionDecl *AFD);
 
@@ -597,11 +596,6 @@ public:
   /// Mark _ObjectiveCBridgeable conformances as used for any imported types
   /// mentioned by the given type.
   void useConformancesFromObjectiveCType(CanType type);
-
-  /// Emit a `mark_function_escape` instruction for top-level code when a
-  /// function or closure at top level refers to script globals.
-  void emitMarkFunctionEscapeForTopLevelCodeGlobals(SILLocation loc,
-                                                    CaptureInfo captureInfo);
 
   /// Map the substitutions for the original declaration to substitutions for
   /// the overridden declaration.

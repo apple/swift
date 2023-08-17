@@ -342,7 +342,7 @@ static bool validateCodingKeysEnum(const DerivedConformance &derived,
             .isInvalid()) {
       TypeLoc typeLoc = {
           it->second->getTypeReprOrParentPatternTypeRepr(),
-          it->second->getType(),
+          it->second->getTypeInContext(),
       };
 
       auto var = it->second;
@@ -1110,9 +1110,18 @@ deriveBodyEncodable_enum_encode(AbstractFunctionDecl *encodeDecl, void *) {
   auto switchStmt = createEnumSwitch(
       C, funcDC, enumRef, enumDecl, codingKeysEnum,
       /*createSubpattern*/ true,
-      [&](auto *elt, auto *codingKeyCase,
-          auto payloadVars) -> std::tuple<EnumElementDecl *, BraceStmt *> {
+      [&](EnumElementDecl *elt, EnumElementDecl *codingKeyCase,
+          ArrayRef<VarDecl *> payloadVars)
+          -> std::tuple<EnumElementDecl *, BraceStmt *> {
         SmallVector<ASTNode, 3> caseStatements;
+
+        if (elt->getAttrs().isUnavailable(C)) {
+          // This case is not encodable because it is unavailable and therefore
+          // should not be instantiable at runtime. Skipping this case will
+          // result in the SIL pipeline giving the switch a default case for
+          // unexpected values.
+          return std::make_tuple(nullptr, nullptr);
+        }
 
         if (!codingKeyCase) {
           // This case should not be encodable, so throw an error if an attempt
@@ -1539,11 +1548,13 @@ deriveBodyDecodable_enum_init(AbstractFunctionDecl *initDecl, void *) {
   // enum Foo : Codable {
   //   case bar(x: Int)
   //   case baz(y: String)
+  //   @available(*, unavailable) case qux(z: Double)
   //
   //   // Already derived by this point if possible.
   //   @derived enum CodingKeys : CodingKey {
   //     case bar
   //     case baz
+  //     case qux
   //
   //     @derived enum BarCodingKeys : CodingKey {
   //       case x
@@ -1551,6 +1562,10 @@ deriveBodyDecodable_enum_init(AbstractFunctionDecl *initDecl, void *) {
   //
   //     @derived enum BazCodingKeys : CodingKey {
   //       case y
+  //     }
+  //
+  //     @derived enum QuxCodingKeys : CodingKey {
+  //       case z
   //     }
   //   }
   //
@@ -1571,9 +1586,15 @@ deriveBodyDecodable_enum_init(AbstractFunctionDecl *initDecl, void *) {
   //       self = .bar(x: x)
   //     case .baz:
   //       let nestedContainer = try container.nestedContainer(
-  //           keyedBy: BarCodingKeys.self, forKey: .baz)
+  //           keyedBy: BazCodingKeys.self, forKey: .baz)
   //       let y = try nestedContainer.decode(String.self, forKey: .y)
   //       self = .baz(y: y)
+  //     case .qux:
+  //       throw DecodingError.dataCorrupted(
+  //         DecodingError.Context(
+  //           codingPath: decoder.codingPath,
+  //           debugDescription: "Unavailable enum element encountered.")
+  //       )
   //     }
   //   }
 
@@ -1689,14 +1710,30 @@ deriveBodyDecodable_enum_init(AbstractFunctionDecl *initDecl, void *) {
     auto switchStmt = createEnumSwitch(
         C, funcDC, theKeyExpr, targetEnum, codingKeysEnum,
         /*createSubpattern*/ false,
-        [&](auto *elt, auto *codingKeyCase,
-            auto payloadVars) -> std::tuple<EnumElementDecl *, BraceStmt *> {
+        [&](EnumElementDecl *elt, EnumElementDecl *codingKeyCase,
+            ArrayRef<VarDecl *> payloadVars)
+            -> std::tuple<EnumElementDecl *, BraceStmt *> {
           // Skip this case if it's not defined in the CodingKeys
           if (!codingKeyCase)
             return std::make_tuple(nullptr, nullptr);
 
-          llvm::SmallVector<ASTNode, 3> caseStatements;
+          if (elt->getAttrs().isUnavailable(C)) {
+            // generate:
+            //       throw DecodingError.dataCorrupted(
+            //         DecodingError.Context(
+            //           codingPath: decoder.codingPath,
+            //           debugDescription: "...")
+            auto *throwStmt = createThrowCodingErrorStmt(
+                C, containerExpr, C.getDecodingErrorDecl(), C.Id_dataCorrupted,
+                llvm::None, "Unavailable enum element encountered.");
 
+            auto body =
+                BraceStmt::create(C, SourceLoc(), {throwStmt}, SourceLoc());
+
+            return std::make_tuple(codingKeyCase, body);
+          }
+
+          llvm::SmallVector<ASTNode, 3> caseStatements;
           auto caseIdentifier = caseCodingKeysIdentifier(C, elt);
           auto *caseCodingKeys =
               lookupEvaluatedCodingKeysEnum(C, targetEnum, caseIdentifier);
@@ -2088,8 +2125,7 @@ ValueDecl *DerivedConformance::deriveEncodable(ValueDecl *requirement) {
     ConformanceDecl->diagnose(diag::type_does_not_conform,
                               Nominal->getDeclaredType(), getProtocolType());
     requirement->diagnose(diag::no_witnesses, diag::RequirementKind::Func,
-                          requirement->getName(), getProtocolType(),
-                          /*AddFixIt=*/false);
+                          requirement, getProtocolType(), /*AddFixIt=*/false);
 
     return nullptr;
   }
@@ -2120,8 +2156,7 @@ ValueDecl *DerivedConformance::deriveDecodable(ValueDecl *requirement) {
     ConformanceDecl->diagnose(diag::type_does_not_conform,
                               Nominal->getDeclaredType(), getProtocolType());
     requirement->diagnose(diag::no_witnesses, diag::RequirementKind::Constructor,
-                          requirement->getName(), getProtocolType(),
-                          /*AddFixIt=*/false);
+                          requirement, getProtocolType(), /*AddFixIt=*/false);
 
     return nullptr;
   }

@@ -236,7 +236,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSString, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSString, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   strong_release [[LOADED_INPUT]]
@@ -303,7 +303,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSString, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSString, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -372,7 +372,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSString, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSString, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -442,7 +442,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSArray, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSArray, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   strong_release [[LOADED_INPUT]]
@@ -509,7 +509,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSArray, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSArray, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -578,7 +578,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSArray, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSArray, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -648,7 +648,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSDictionary, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSDictionary, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   strong_release [[LOADED_INPUT]]
@@ -715,7 +715,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSDictionary, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSDictionary, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -784,7 +784,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSDictionary, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSDictionary, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -854,7 +854,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSSet, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSSet, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   strong_release [[LOADED_INPUT]]
@@ -921,7 +921,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSSet, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSSet, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]
@@ -990,7 +990,7 @@ bb4:
 //
 // CHECK: bb1:
 // CHECK:   [[LOADED_INPUT:%.*]] = load [[INPUT]]
-// CHECK:   checked_cast_br [[LOADED_INPUT]] : $NSObject to NSSet, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
+// CHECK:   checked_cast_br NSObject in [[LOADED_INPUT]] : $NSObject to NSSet, [[YES_BB:bb[0-9]+]], [[NO_BB:bb[0-9]+]]
 //
 // CHECK: [[NO_BB]]:
 // CHECK-NEXT:   br [[FAIL_EXIT_TRAMPOLINE:bb[0-9]+]]

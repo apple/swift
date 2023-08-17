@@ -302,6 +302,12 @@ private func constructObject(of allocRef: AllocRefInstBase,
     }
   }
   globalBuilder.createObject(type: allocRef.type, arguments: objectArgs, numBaseElements: storesToClassFields.count)
+
+  // The initial value can contain a `begin_access` if it references another global variable by address, e.g.
+  //   var p = Point(x: 10, y: 20)
+  //   let a = [UnsafePointer(&p)]
+  //
+  global.stripAccessInstructionFromInitializer(context)
 }
 
 private func replace(object allocRef: AllocRefInstBase,
@@ -338,6 +344,9 @@ private extension Value {
   var isValidGlobalInitValue: Bool {
     guard let svi = self as? SingleValueInstruction else {
       return false
+    }
+    if let beginAccess = svi as? BeginAccessInst {
+      return beginAccess.address.isValidGlobalInitValue
     }
     if !svi.isValidInStaticInitializerOfGlobal {
       return false

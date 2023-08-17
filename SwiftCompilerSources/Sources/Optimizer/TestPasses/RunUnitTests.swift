@@ -14,11 +14,11 @@ import SIL
 
 /// This pass should only be used by sil-opt to run all the unit tests.
 ///
-let runUnitTests = ModulePass(name: "run-unit-tests", {
+let runUnitTests = ModulePass(name: "run-unit-tests") {
     (context: ModulePassContext) in
 
   print("--- Run unit tests ---")
   
   print("test ProjectionPath")
   SmallProjectionPath.runUnitTests()
-})
+}

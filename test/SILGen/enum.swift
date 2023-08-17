@@ -222,6 +222,30 @@ func matchOptionalEnum2(bar: OneOrTwo??) {
   }
 }
 
+enum OneTwoOrNone {
+    case one
+    case two
+
+    var none: Self {
+        .one
+    }
+}
+
+// CHECK-LABEL: sil hidden [ossa] @$s4enum18matchOptionalEnum33baryAA12OneTwoOrNoneOSg_tF : $@convention(thin) (Optional<OneTwoOrNone>) -> () {
+// CHECK: bb0(%0 : $Optional<OneTwoOrNone>):
+// CHECK-NEXT:  debug_value %0 : $Optional<OneTwoOrNone>, let, name "bar", argno 1
+// CHECK-NEXT:  switch_enum %0 : $Optional<OneTwoOrNone>, case #Optional.some!enumelt: bb1, case #Optional.none!enumelt: bb4
+// CHECK: bb1([[PHI_ARG:%.*]] : $OneTwoOrNone):
+// CHECK-NEXT:  switch_enum [[PHI_ARG]] : $OneTwoOrNone, case #OneTwoOrNone.one!enumelt: bb2, case #OneTwoOrNone.two!enumelt: bb3
+func matchOptionalEnum3(bar: OneTwoOrNone?) {
+  switch bar {
+  case .one: print("one")
+  case .two?: print("two")
+  case .none: print("none")
+  default: print("default")
+  }
+}
+
 // Make sure that we handle enum, tuple initialization composed
 // correctly. Previously, we leaked down a failure path due to us misusing
 // scopes.

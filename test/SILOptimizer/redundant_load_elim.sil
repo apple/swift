@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enforce-exclusivity=none -enable-sil-verify-all %s -redundant-load-elim | %FileCheck %s
+// RUN: %target-sil-opt -enforce-exclusivity=none -enable-sil-verify-all %s -redundant-load-elimination | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 
@@ -191,7 +191,7 @@ bb0(%0 : $AB):
 
 // Check that we don't crash if the address is an unchecked_addr_cast.
 // CHECK-LABEL: sil @test_unchecked_addr_cast
-// CHECK-NOT: = load
+// CHECK: = load
 // CHECK: return
 sil @test_unchecked_addr_cast : $@convention(thin) (@inout A, A) -> A {
 bb0(%0 : $*A, %1 : $A):
@@ -204,7 +204,7 @@ bb0(%0 : $*A, %1 : $A):
 // Multi-BB version of the previous test.
 // CHECK-LABEL: sil @test_forwarding_ignoring_unchecked_addr_cast2 : $@convention(thin) (@inout A, A, A) -> A {
 // CHECK: bb1
-// CHECK-NOT: = load
+// CHECK: = load
 // CHECK: cond_br
 sil @test_forwarding_ignoring_unchecked_addr_cast2 : $@convention(thin) (@inout A, A, A) -> A {
 bb0(%0 : $*A, %1 : $A, %2: $A):
@@ -414,12 +414,14 @@ bb0(%0 : $Builtin.Int64):
 }
 
 // CHECK-LABEL: sil @load_dedup_forwarding_from_aggregate_to_field
-// CHECK: bb0([[INPUT_PTR:%[0-9]+]]
-// CHECK-NEXT: = load [[INPUT_PTR]]
-// CHECK-NEXT: struct_extract
-// CHECK-NEXT: struct_extract
-// CHECK-NEXT: tuple_extract
-// CHECK-NEXT: return
+// CHECK: bb0(%0 : $*Agg1):
+// CHECK:   [[L:%.*]] = load %0
+// CHECK:   [[S1:%.*]] = struct_extract [[L]]
+// CHECK:   [[S2:%.*]] = struct_extract [[S1]]
+// CHECK:   [[T:%.*]] = tuple_extract [[S2]]
+// CHECK-NOT: load
+// CHECK:   return [[T]]
+// CHECK: } // end sil function 'load_dedup_forwarding_from_aggregate_to_field'
 sil @load_dedup_forwarding_from_aggregate_to_field : $@convention(thin) (@inout Agg1) -> (Builtin.Int32) {
 bb0(%0 : $*Agg1):
   %1 = load %0 : $*Agg1
@@ -807,11 +809,11 @@ bb2:                                              // Preds: bb1 bb2
 
 // Make sure we form a single SILArgument.
 //
-// CHECK-LABEL: single_silargument_agg_in_one_block
-// CHECK: bb3([[ARG:%.*]] : $TwoField):
+// CHECK-LABEL: silargument_agg_in_one_block
+// CHECK:       bb3([[A1:%.*]] : $Int, [[A2:%.*]] : $Int):
 // CHECK-NOT: = load
 // CHECK: return
-sil hidden @single_silargument_agg_in_one_block : $@convention(thin) (Bool) -> () {
+sil hidden @silargument_agg_in_one_block : $@convention(thin) (Bool) -> () {
 bb0(%0 : $Bool):
   %1 = alloc_stack $TwoField, var, name "x"       // users: %5, %7, %13, %15, %19
   cond_br undef, bb1, bb2                         // id: %2
@@ -892,9 +894,6 @@ bb9:                                              // Preds: bb7 bb8
   return %22 : $Int                               // id: %24
 }
 
-// Make sure we can re-use the SILArgument inserted in bb8 for forwarding
-// in bb9 and bb10.
-//
 // CHECK-LABEL: reuse_silargument_multiple_bb_forwarding
 // CHECK: bb7:
 // CHECK:   br bb10(%3 : $Int)
@@ -1121,23 +1120,6 @@ bb2:
   return %9999 : $()
 }
 
-// CHECK-LABEL: sil hidden @redundant_load_over_intermediate_release_with_epilogue_release : $@convention(thin) (@owned AB) -> () {
-// CHECK: [[AD:%.*]] = ref_element_addr
-// CHECK: [[AD2:%.*]] = load [[AD]]
-// CHECK: release_value
-// CHECK-NOT: [[AD3:%.*]] = load [[AD]]
-// CHECK: return
-sil hidden @redundant_load_over_intermediate_release_with_epilogue_release : $@convention(thin) (@owned AB) -> () {
-bb0(%0 : $AB):
-  %1 = ref_element_addr %0 : $AB, #AB.value
-  %2 = load %1 : $*Int
-  release_value %0 : $AB
-  %3 = load %1 : $*Int
-  release_value %0 : $AB
-  %4 = tuple ()
-  return %4 : $()
-}
-
 // CHECK-LABEL: sil hidden @redundant_load_over_intermediate_release_without_epilogue_release : $@convention(thin) (@owned AB) -> () {
 // CHECK: [[AD:%.*]] = ref_element_addr
 // CHECK: [[AD2:%.*]] = load [[AD]]
@@ -1296,3 +1278,20 @@ bb0:
   return %9 : $Int64
 }
 
+sil @yieldTwoAddresses : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
+
+// CHECK-LABEL: sil @dont_remove_load_from_different_yield_result :
+// CHECK:         [[L1:%[0-9]+]] = load
+// CHECK:         [[L2:%[0-9]+]] = load
+// CHECK:         tuple ([[L1]] : $String, [[L2]] : $Int64)
+// CHECK-LABEL: } // end sil function 'dont_remove_load_from_different_yield_result'
+sil @dont_remove_load_from_different_yield_result : $@convention(thin) () -> (String, Int64) {
+bb0:
+  %0 = function_ref @yieldTwoAddresses : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
+  (%1, %2, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
+  %4 = load %1 : $*String
+  %5 = load %2 : $*Int64
+  end_apply %3
+  %7 = tuple (%4 : $String, %5 : $Int64)
+  return %7 : $(String, Int64)
+}

@@ -199,7 +199,7 @@ bb1:
 }
 
 // CHECK: Begin Error in function test_store_borrow_dest
-// CHECK: SIL verification failed: store_borrow destination can only be an alloc_stack: isa<AllocStackInst>(SI->getDest())
+// CHECK: SIL verification failed: store_borrow destination can only be an alloc_stack: isLegal(SI->getDest())
 // CHECK: Verifying instruction:
 // CHECK:    %0 = argument of bb0 : $Klass                  // user: %3
 // CHECK:      %2 = struct_element_addr %1 : $*NonTrivialStruct, #NonTrivialStruct.val // user: %3

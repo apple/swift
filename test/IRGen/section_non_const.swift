@@ -11,6 +11,10 @@
 @_section("__TEXT,__mysection") var g6: Any = 1 // expected-error {{global variable must be a compile-time constant to use @_section attribute}}
 @_section("__TEXT,__mysection") var g7: UInt8 = 42
 @_section("__TEXT,__mysection") var g8: Int = 5 * 5
+@_section("__TEXT,__mysection") var g9 = MemoryLayout<Int>.size
+@_section("__TEXT,__mysection") var g10 = MemoryLayout<Int>.stride
+@_section("__TEXT,__mysection") var g11 = MemoryLayout<Int>.alignment
+@_section("__TEXT,__mysection") var g12 = MemoryLayout<Int>.size * 2
 
 @_section("__TEXT,__mysection") var s: StaticString = "hello"
 

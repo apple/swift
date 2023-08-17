@@ -19,7 +19,7 @@ import SIL
 /// dumps anything, but aborts if the result is wrong.
 ///
 /// This pass is used for testing `AccessUtils`.
-let accessDumper = FunctionPass(name: "dump-access", {
+let accessDumper = FunctionPass(name: "dump-access") {
   (function: Function, context: FunctionPassContext) in
   print("Accesses for \(function.name)")
 
@@ -46,7 +46,7 @@ let accessDumper = FunctionPass(name: "dump-access", {
   }
 
   print("End accesses for \(function.name)")
-})
+}
 
 private struct AccessStoragePathVisitor : ValueUseDefWalker {
   var walkUpCache = WalkerCache<Path>()

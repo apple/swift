@@ -1403,9 +1403,6 @@ public:
 
     /// A defer body
     DeferBody,
-
-    // A runtime discoverable attribute initialization expression.
-    RuntimeAttribute,
   };
 
 private:
@@ -1547,10 +1544,6 @@ public:
 
     if (isa<PropertyWrapperInitializer>(init)) {
       return Context(Kind::PropertyWrapper);
-    }
-
-    if (isa<RuntimeAttributeInitializer>(init)) {
-      return Context(Kind::RuntimeAttribute);
     }
 
     auto *binding = cast<PatternBindingInitializer>(init)->getBinding();
@@ -1829,7 +1822,6 @@ public:
     case Kind::CatchPattern:
     case Kind::CatchGuard:
     case Kind::DeferBody:
-    case Kind::RuntimeAttribute:
       Diags.diagnose(E.getStartLoc(), diag::throwing_op_in_illegal_context,
                  static_cast<unsigned>(getKind()), getEffectSourceName(reason));
       return;
@@ -1866,7 +1858,6 @@ public:
     case Kind::CatchPattern:
     case Kind::CatchGuard:
     case Kind::DeferBody:
-    case Kind::RuntimeAttribute:
       Diags.diagnose(S->getStartLoc(), diag::throw_in_illegal_context,
                      static_cast<unsigned>(getKind()));
       return;
@@ -1893,7 +1884,6 @@ public:
     case Kind::CatchPattern:
     case Kind::CatchGuard:
     case Kind::DeferBody:
-    case Kind::RuntimeAttribute:
       assert(!DiagnoseErrorOnTry);
       // Diagnosed at the call sites.
       return;
@@ -1944,7 +1934,7 @@ public:
           if (var->isAsyncLet()) {
             Diags.diagnose(
                 e->getLoc(), diag::async_let_in_illegal_context,
-                var->getName(), static_cast<unsigned>(getKind()));
+                var, static_cast<unsigned>(getKind()));
             return;
           }
         }
@@ -1996,7 +1986,6 @@ public:
     case Kind::CatchPattern:
     case Kind::CatchGuard:
     case Kind::DeferBody:
-    case Kind::RuntimeAttribute:
       diagnoseAsyncInIllegalContext(Diags, node);
       return;
     }
@@ -2880,8 +2869,7 @@ private:
             if (auto var = dyn_cast<VarDecl>(declR->getDecl())) {
               if (var->isAsyncLet()) {
                 Ctx.Diags.diagnose(declR->getLoc(),
-                                   diag::async_let_without_await,
-                                   var->getName());
+                                   diag::async_let_without_await, var);
                 continue;
               }
             }
@@ -2927,7 +2915,7 @@ private:
            auto callee = call->getCalledValue(/*skipFunctionConversions=*/true);
            if (callee) {
              Ctx.Diags.diagnose(diag.expr.getStartLoc(), diag::actor_isolated_sync_func,
-                                callee->getDescriptiveKind(), callee->getName());
+                                callee);
            } else {
              Ctx.Diags.diagnose(
                  diag.expr.getStartLoc(), diag::actor_isolated_sync_func_value,

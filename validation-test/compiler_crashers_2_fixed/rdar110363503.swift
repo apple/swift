@@ -6,11 +6,11 @@ struct ZipCollection<each C: Collection> {
 
 extension ZipCollection: Collection {
   struct Element {
-    var elt: (repeat each C.Element)
+    var elt: (repeat (each C).Element)
   }
 
   struct Index {
-    let i: (repeat each C.Index)
+    let i: (repeat (each C).Index)
   }
 
   var startIndex: Index {

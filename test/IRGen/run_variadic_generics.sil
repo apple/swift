@@ -626,10 +626,10 @@ entry(%intIndex : $Builtin.Word):
   return %t : $()
 }
 
-sil @unwrap_from_PA : $<each T_1 : PA where repeat each T_1.A : P> (Builtin.Word) -> () {
+sil @unwrap_from_PA : $<each T_1 : PA where repeat (each T_1).A : P> (Builtin.Word) -> () {
 entry(%intIndex : $Builtin.Word):
   %direct_access_from_parameter_with_conformance = function_ref @direct_access_from_parameter_with_conformance : $@convention(thin) <each T_1: P> (Builtin.Word) -> ()
-  apply %direct_access_from_parameter_with_conformance<Pack{repeat GenFwdP<each T_1.A>}>(%intIndex) : $@convention(thin) <each T_1: P> (Builtin.Word) -> ()
+  apply %direct_access_from_parameter_with_conformance<Pack{repeat GenFwdP<(each T_1).A>}>(%intIndex) : $@convention(thin) <each T_1: P> (Builtin.Word) -> ()
   %t = tuple ()
   return %t : $()
 }
@@ -637,7 +637,7 @@ entry(%intIndex : $Builtin.Word):
 sil @extract_associatedtype_with_conformance : $<each T_1 : P> (Builtin.Word) -> () {
 entry(%intIndex : $Builtin.Word):
   %innerIndex = dynamic_pack_index %intIndex of $Pack{repeat each T_1}
-  %token = open_pack_element %innerIndex of <each U_1 : PA where repeat each U_1.A : P> at <Pack{repeat GenAssocPA<GenFwdP<each T_1>>}>, shape $U_1, uuid "01234567-89AB-CDEF-0123-000000000005"
+  %token = open_pack_element %innerIndex of <each U_1 : PA where repeat (each U_1).A : P> at <Pack{repeat GenAssocPA<GenFwdP<each T_1>>}>, shape $U_1, uuid "01234567-89AB-CDEF-0123-000000000005"
   %metatype_1 = metatype $@thick (@pack_element("01234567-89AB-CDEF-0123-000000000005") U_1).Type
   %printGenericType = function_ref @printGenericType : $@convention(thin) <T> (@thick T.Type) -> ()
   apply %printGenericType<(@pack_element("01234567-89AB-CDEF-0123-000000000005") U_1)>(%metatype_1) : $@convention(thin) <T> (@thick T.Type) -> ()
@@ -653,7 +653,7 @@ sil @extract_associatedtype_with_conformance2 : $<each T_1 : P, Tee : P, each T_
 entry(%intIndex : $Builtin.Word):
   %innerIndex = dynamic_pack_index %intIndex of $Pack{repeat GenAssocPA<GenAssocPA<GenAssocPA<GenFwdP<each T_1>>>>, repeat GenAssocPA<GenAssocPA<GenAssocPA<GenFwdP<each T_1>>>>}
   %token = open_pack_element %innerIndex 
-    of <each U_1 : PA, Ewe : PA, each U_2 : PA where repeat each U_1.A : PA, repeat each U_1.A.A : PA, repeat each U_1.A.A.A : P, Ewe.A : PA, Ewe.A.A : PA, Ewe.A.A.A : P, repeat each U_2.A : PA, repeat each U_2.A.A : PA, repeat each U_2.A.A.A : P, (repeat (each U_1, each U_2)): Any> 
+    of <each U_1 : PA, Ewe : PA, each U_2 : PA where repeat (each U_1).A : PA, repeat (each U_1).A.A : PA, repeat (each U_1).A.A.A : P, Ewe.A : PA, Ewe.A.A : PA, Ewe.A.A.A : P, repeat (each U_2).A : PA, repeat (each U_2).A.A : PA, repeat (each U_2).A.A.A : P, (repeat (each U_1, each U_2)): Any> 
     at <
         Pack{repeat GenAssocPA<GenAssocPA<GenAssocPA<GenFwdP<each T_1>>>>, repeat GenAssocPA<GenAssocPA<GenAssocPA<GenFwdP<each T_1>>>>}, 
         GenAssocPA<GenAssocPA<GenAssocPA<GenFwdP<Tee>>>>, 

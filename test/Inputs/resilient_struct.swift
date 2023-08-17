@@ -110,3 +110,12 @@ public struct Container {
 public struct PairContainer {
   public var pair : (Container, Container)
 }
+
+@available(*, unavailable)
+public struct UnavailableResilientInt {
+  public let i: Int
+
+  public init(i: Int) {
+    self.i = i
+  }
+}

@@ -568,6 +568,8 @@ public:
                                  clang::FunctionTemplateDecl *func,
                                  SubstitutionMap subst) override;
 
+  bool isSynthesizedAndVisibleFromAllModules(const clang::Decl *decl);
+
   bool isCXXMethodMutating(const clang::CXXMethodDecl *method) override;
 
   bool isUnsafeCXXMethod(const FuncDecl *func) override;

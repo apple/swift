@@ -325,8 +325,9 @@ bb2:
 bb3:
 // CHECK-NOT: load
   %13 = load [copy] %1 : $*@callee_owned () -> Int
-// CHECK: [[COPY:%.*]] = copy_value [[ARG]]
-// CHECK: [[RESULT:%.*]] = apply [[COPY]]
+//      : [[COPY:%.*]] = copy_value [[ARG]]
+// The above copy is eliminated by owned value canonicalization.
+// CHECK: [[RESULT:%.*]] = apply [[ARG]]
   %15 = apply %13() : $@callee_owned () -> Int
   br bb4
 
@@ -336,7 +337,8 @@ bb3:
 // CHECK: bb4
 bb4:
 // CHECK-NOT: destroy_addr
-// CHECK: destroy_value [[ARG]]
+//      : destroy_value [[ARG]]
+// The above destroy is eliminated by owned value canonicalization.
   destroy_addr %1 : $*@callee_owned () -> Int
 // CHECK-NOT: dealloc_stack
   dealloc_stack %1 : $*@callee_owned () -> Int
@@ -437,13 +439,13 @@ bb0(%0 : @owned $SmallCodesizeStruct):
 // CHECK-LABEL: sil [ossa] @small_struct_multi_test :
 // CHECK-NOT: alloc_stack
 // CHECK: [[COPY:%.*]] = copy_value %0
-// CHECK-NEXT: destructure_struct %0
+// CHECK-NEXT: destructure_struct %2
 // CHECK-NEXT: destroy_value
 // CHECK-NEXT: destroy_value
-// CHECK-NEXT: begin_borrow [[COPY]]
+// CHECK-NEXT: begin_borrow %0
 // CHECK-NEXT: debug_value
 // CHECK-NEXT: end_borrow
-// CHECK-NEXT: destroy_value [[COPY]]
+// CHECK-NEXT: destroy_value %0
 // CHECK: bb2:
 // CHECK-NEXT: destructure_struct %0
 // CHECK-NEXT: destroy_value
@@ -725,6 +727,37 @@ backedge:
 
 exit:
   destroy_value %instance : $S
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_canonicalize_undef : {{.*}} {
+// CHECK:         [[RETVAL:%[^,]+]] = tuple
+// CHECK:         return [[RETVAL]]
+// CHECK-LABEL: } // end sil function 'dont_canonicalize_undef'
+sil [ossa] @dont_canonicalize_undef : $@convention(thin) () -> () {
+  %addr = alloc_stack $()
+  store undef to [trivial] %addr : $*()
+  dealloc_stack %addr : $*()
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_canonicalize_erased_copy : {{.*}} {
+// CHECK:       bb0(%0 :
+// CHECK:         destroy_value %0
+// CHECK-LABEL: } // end sil function 'dont_canonicalize_erased_copy'
+sil [ossa] @dont_canonicalize_erased_copy : $@convention(thin) (@owned C) -> () {
+entry(%instance : @owned $C):
+  %stack = alloc_stack $C
+  %copy = copy_value %instance : $C
+  store %copy to [init] %stack : $*C
+  %loaded_copy = load [take] %stack : $*C
+  destroy_value %loaded_copy : $C
+  store %instance to [init] %stack : $*C
+  %loaded_instance = load [take] %stack : $*C
+  destroy_value %loaded_instance : $C
+  dealloc_stack %stack : $*C
   %retval = tuple ()
   return %retval : $()
 }

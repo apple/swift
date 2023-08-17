@@ -311,8 +311,9 @@ bb2:
 // CHECK: bb3([[ARG:%.*]] : @owned $@callee_owned () -> Int):
 bb3:
   %13 = load [copy] %1 : $*@callee_owned () -> Int
-// CHECK: [[COPY:%.*]] = copy_value [[ARG]]
-// CHECK: [[RESULT:%.*]] = apply [[COPY]]
+//      : [[COPY:%.*]] = copy_value [[ARG]]
+// The above copy is eliminated by owned value canonicalization.
+// CHECK: [[RESULT:%.*]] = apply [[ARG]]
   %15 = apply %13() : $@callee_owned () -> Int
   br bb4
 
@@ -321,7 +322,8 @@ bb3:
   //       block.
 // CHECK: bb4
 bb4:
-// CHECK: destroy_value [[ARG]]
+//      : destroy_value [[ARG]]
+// The above destroy is eliminated by owned value canonicalization.
   destroy_addr %1 : $*@callee_owned () -> Int
   dealloc_stack %1 : $*@callee_owned () -> Int
   return %15 : $Int
@@ -1202,7 +1204,7 @@ one(%instance : @owned $C):
 // CHECK-LABEL: sil [ossa] @term_4 : $@convention(thin) (@owned C, @owned D) -> @owned D {
 // CHECK:       {{bb[^,]+}}([[SUPER_IN:%[^,]+]] : @owned $C, [[SUB_IN:%[^,]+]] : @owned $D):
 // CHECK:         [[LIFETIME_OWNED:%[^,]+]] = move_value [lexical] [[SUPER_IN]]
-// CHECK:         checked_cast_br [[LIFETIME_OWNED]] : $C to D, [[SUPER_IS_SUB:bb[^,]+]], [[SUPER_IS_SUPER:bb[0-9]+]]
+// CHECK:         checked_cast_br C in [[LIFETIME_OWNED]] : $C to D, [[SUPER_IS_SUB:bb[^,]+]], [[SUPER_IS_SUPER:bb[0-9]+]]
 // CHECK:       [[SUPER_IS_SUB]]([[SUPER_AS_SUB:%[^,]+]] : @owned $D):
 // CHECK:         destroy_value [[SUB_IN]]
 // CHECK:         br [[EXIT:bb[^,]+]]([[SUPER_AS_SUB]] : $D)
@@ -1217,7 +1219,7 @@ bb0(%super_in : @owned $C, %sub_in : @owned $D):
     %addr = alloc_stack [lexical] $C
     store %super_in to [init] %addr : $*C
     %super_load = load [take] %addr : $*C
-    checked_cast_br %super_load : $C to D, super_is_sub, super_is_super
+    checked_cast_br C in %super_load : $C to D, super_is_sub, super_is_super
 super_is_sub(%super_as_sub : @owned $D):
     destroy_value %sub_in : $D
     br exit(%super_as_sub : $D)

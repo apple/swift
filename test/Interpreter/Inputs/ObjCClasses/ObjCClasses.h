@@ -118,6 +118,9 @@ __attribute__((swift_name("OuterType.InnerType")))
 @property NSArray<OuterType *> *things;
 @end
 
+@interface ObjCPrintOnDealloc : NSObject
+@end
+
 NS_ASSUME_NONNULL_END
 
 #endif

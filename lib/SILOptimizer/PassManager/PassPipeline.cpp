@@ -637,8 +637,8 @@ static void addPerfEarlyModulePassPipeline(SILPassPipelinePlan &P) {
 // callees. This provides more precise escape analysis and side effect analysis
 // of callee arguments.
 static void addHighLevelFunctionPipeline(SILPassPipelinePlan &P) {
-  P.startPipeline("HighLevel,Function+EarlyLoopOpt");
-  // FIXME: update EagerSpecializer to be a function pass!
+  P.startPipeline("HighLevel,Function+EarlyLoopOpt",
+                  true /*isFunctionPassPipeline*/);
   P.addEagerSpecializer();
   P.addObjCBridgingOptimization();
 
@@ -692,7 +692,6 @@ static void addClosureSpecializePassPipeline(SILPassPipelinePlan &P) {
   P.startPipeline("ClosureSpecialize");
   P.addDeadFunctionAndGlobalElimination();
   P.addReadOnlyGlobalVariablesPass();
-  P.addTargetConstantFolding();
   P.addDeadStoreElimination();
   P.addDeadObjectElimination();
 
@@ -1022,9 +1021,6 @@ SILPassPipelinePlan::getOnonePassPipeline(const SILOptions &Options) {
   // Finally perform some small transforms.
   P.startPipeline("Rest of Onone");
   P.addUsePrespecialized();
-
-  // Needed to fold MemoryLayout constants in performance-annotated functions.
-  P.addTargetConstantFolding();
 
   // Has only an effect if the -assume-single-thread option is specified.
   if (P.getOptions().AssumeSingleThreaded) {

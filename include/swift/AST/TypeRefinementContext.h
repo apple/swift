@@ -297,6 +297,9 @@ public:
   static StringRef getReasonName(Reason R);
 };
 
+void simple_display(llvm::raw_ostream &out,
+                    const TypeRefinementContext *trc);
+
 } // end namespace swift
 
 #endif

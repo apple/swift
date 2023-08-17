@@ -138,7 +138,7 @@ bb0(%0 : $X, %1 : $*Int32):
 
 // CHECK-LABEL: sil @partial_apply_load_store_to_args
 // CHECK-NEXT:  [%0: read v**]
-// CHECK-NEXT:  [%1: write v**]
+// CHECK-NEXT:  [%1: read v**, write v**]
 // CHECK-NEXT:  [%2: write c0.v**, destroy c*.v**]
 // CHECK-NEXT:  [global: read,write,copy,destroy,allocate,deinit_barrier]
 // CHECK-NEXT:  {{^[^[]}}
@@ -157,7 +157,7 @@ bb0(%0 : $*Int32, %1 : $*Int32, %2 : $X):
 
 // CHECK-LABEL: sil @guaranteed_partial_apply_load_store_to_args
 // CHECK-NEXT:  [%0: read v**]
-// CHECK-NEXT:  [%1: write v**]
+// CHECK-NEXT:  [%1: read v**, write v**]
 // CHECK-NEXT:  [%2: write c0.v**]
 // CHECK-NEXT:  [global: ]
 // CHECK-NEXT:  {{^[^[]}}
@@ -827,6 +827,7 @@ bb0(%0 : $X):
 }
 
 // CHECK-LABEL: sil @not_called_partial_apply
+// CHECK-NEXT:  [%0: read v**]
 // CHECK-NEXT:  [global: ]
 // CHECK-NEXT:  {{^[^[]}}
 sil @not_called_partial_apply : $@convention(thin) (@in Int32) ->  @owned @callee_owned (Bool) -> Int32 {
@@ -837,6 +838,8 @@ bb0(%0 : $*Int32):
 }
 
 // CHECK-LABEL: sil @partial_apply_chain
+// CHECK-NEXT: [%0: read v**]
+// CHECK-NEXT: [%1: read v**]
 // CHECK-NEXT: [global: ]
 // CHECK-NEXT: {{^[^[]}}
 sil @partial_apply_chain : $@convention(thin) (@in Int32, @in Int32) ->  @owned @callee_owned (Bool) -> Int32 {
@@ -849,7 +852,7 @@ bb0(%0 : $*Int32, %1 : $*Int32):
 
 // CHECK-LABEL: sil @two_nonstack_partial_applies
 // CHECK-NEXT:  [%0: read v**]
-// CHECK-NEXT:  [%1: write v**]
+// CHECK-NEXT:  [%1: read v**, write v**]
 // CHECK-NEXT:  [%2: write c0.v**]
 // CHECK-NEXT:  [global: ]
 // CHECK-NEXT:  {{^[^[]}}

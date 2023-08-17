@@ -8,6 +8,15 @@ import objc_extensions_helper
 
 class Sub : Base {}
 
+// CHECK-LABEL: sil hidden [ossa] @$s15objc_extensions20testOverridePropertyyyAA3SubCF
+func testOverrideProperty(_ obj: Sub) {
+  // CHECK: bb0([[ARG:%.*]] : @guaranteed $Sub):
+  // CHECK: = objc_method [[ARG]] : $Sub, #Sub.prop!setter.foreign : (Sub) -> (String?) -> ()
+  obj.prop = "abc"
+} // CHECK: } // end sil function '$s15objc_extensions20testOverridePropertyyyAA3SubCF'
+
+testOverrideProperty(Sub())
+
 extension Sub {
   @objc override var prop: String! {
     didSet(oldValue) {
@@ -104,15 +113,6 @@ extension Sub {
 
   @objc override func objCBaseMethod() {}
 }
-
-// CHECK-LABEL: sil hidden [ossa] @$s15objc_extensions20testOverridePropertyyyAA3SubCF
-func testOverrideProperty(_ obj: Sub) {
-  // CHECK: bb0([[ARG:%.*]] : @guaranteed $Sub):
-  // CHECK: = objc_method [[ARG]] : $Sub, #Sub.prop!setter.foreign : (Sub) -> (String?) -> ()
-  obj.prop = "abc"
-} // CHECK: } // end sil function '$s15objc_extensions20testOverridePropertyyyAA3SubCF'
-
-testOverrideProperty(Sub())
 
 // CHECK-LABEL: sil private [ossa] @$s15objc_extensions9testCurryyyAA3SubCFyycADcfu_ : $@convention(thin) (@guaranteed Sub) -> @owned @callee_guaranteed () -> ()
 // CHECK: function_ref @$s15objc_extensions9testCurryyyAA3SubCFyycADcfu_yycfu0_ : $@convention(thin) (@guaranteed Sub) -> ()

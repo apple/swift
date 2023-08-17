@@ -1259,7 +1259,8 @@ namespace {
 
       visitConformances(theExtension);
 
-      for (Decl *member : TheExtension->getImplementationContext()->getMembers())
+      for (Decl *member :
+           TheExtension->getImplementationContext()->getAllMembers())
         visit(member);
     }
 
@@ -1840,7 +1841,7 @@ namespace {
 
     void buildMethod(ConstantArrayBuilder &descriptors,
                      AbstractFunctionDecl *method) {
-      if (Lowering::shouldSkipLowering(method))
+      if (!method->isAvailableDuringLowering())
         return;
 
       auto accessor = dyn_cast<AccessorDecl>(method);

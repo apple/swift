@@ -10,10 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/LLVM.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILValue.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 
 namespace swift {
 
@@ -69,6 +71,53 @@ namespace swift {
 /// a place-holder value and updating the map entry. This works because the
 /// value storage map holds no direct references to any SIL entities, such as
 /// Operands or SILValues.
+///
+/// An opaque value's storage will be a def-projection if it's the result of
+/// some disaggregation.  If %o = disaggregate %p then %o's storage will be
+/// a def-projection out of %p's storage.
+///
+/// An opaque value's storage _may_ be a use-projection if it's an operand of
+/// some aggregation.  If %p = aggregate %o, then %o's storage may be a
+/// use-projection out of %p's storage.
+///
+/// Projections naturally form chains.  A value's storage may be a projection
+/// out of the storage of some other value's storage which is itself a
+/// projection out of a third value's storage.  This can happen in three ways:
+///
+/// (1) %o -def-> %p -def-> %q
+///       %p = disaggregate %q
+///       %o = disaggregate %p
+/// (2) %o -use-> %p -use-> %q
+///       %p = aggregate %o
+///       %q = aggregate %p
+/// (3) %o -def-> %p -use-> %q
+///       %p = ...
+///       cond_br left, right
+///     left:
+///       %o = disaggregate %p
+///     right:
+///       %q = aggregate %p
+///
+///     Branching like this is actually necessary.  It's not legal to aggregate
+///     guaranteed opaque values since doing so changes representation which
+///     implies a copy.
+///
+/// It is NOT possible to have links like
+///
+/// (4) %o -use-> %p -def-> %q
+///
+///     The reason is that the links mean contradictory things:
+///       %o -use-> %p means %p = aggregate %o
+///       %p -def-> %q means %p = disaggregate %q
+///     There is no overlap between the "aggregate" and the "disaggregate"
+///     opcodes.
+///
+/// This means that any chain of projections looks like
+///
+///    %d_0 -def-> ... -def-> %d_N -use-> %u_0 -use-> ... -use-> %u_M
+///
+/// a sequence (possibly empty) of def projections followed by a sequence
+/// (possibly emtpy) of use projections [projection_chain_structure].
 struct ValueStorage {
   enum : uint32_t { InvalidID = uint32_t(~0) };
   enum : uint16_t { InvalidOper = uint16_t(~0) };
@@ -78,6 +127,10 @@ struct ValueStorage {
   /// alloc_stack or indirect function argument. For projections, it is only set
   /// after materialization (during instruction rewriting).
   SILValue storageAddress;
+
+  /// The latest instruction which opens an archetype involved in the value's
+  /// type.  Just a cache of getLatestOpeningInst(value).
+  mutable llvm::Optional<SILInstruction *> latestOpeningInst = llvm::None;
 
   /// When either isDefProjection or isUseProjection is set, this refers to the
   /// storage whose "def" this value projects out of or whose operand this
@@ -98,15 +151,21 @@ struct ValueStorage {
   // The definition of this value is fully translated to lowered SIL.
   unsigned isRewritten : 1;
 
-  // This is a use-projection into an enum. Tracked to avoid projecting enums
-  // across phis, which would result in piecewise initialization.
-  unsigned initializesEnum : 1;
+  // This is a use-projection which performs an initialization side-effect,
+  // either into an enum or an existential.
+  //
+  // Tracked to avoid projecting enums/existentials across phis, which would
+  // result in piecewise initialization.
+  //
+  // Note that the corresponding value is the payload, not the
+  // enum instruction.
+  unsigned initializes : 1;
 
   ValueStorage(SILValue storageAddress): storageAddress(storageAddress) {
     isDefProjection = false;
     isUseProjection = false;
     isRewritten = false;
-    initializesEnum = false;
+    initializes = false;
 
     // The initial storage address is only valid when the value is effectively
     // already rewritten.
@@ -138,6 +197,10 @@ struct ValueStorage {
     assert(isRewritten && "storage has not been materialized");
     return storageAddress;
   }
+
+#ifndef NDEBUG
+  void dump() const;
+#endif
 };
 
 /// Map each opaque/resilient SILValue to its abstract storage.
@@ -146,11 +209,17 @@ struct ValueStorage {
 /// Mapped values are expected to be created in a single RPO pass. "erase" is
 /// unsupported. Values must be replaced using 'replaceValue()'.
 class ValueStorageMap {
+public:
   struct ValueStoragePair {
     SILValue value;
     ValueStorage storage;
     ValueStoragePair(SILValue v, ValueStorage s) : value(v), storage(s) {}
+#ifndef NDEBUG
+    void dump() const;
+#endif
   };
+
+private:
   typedef std::vector<ValueStoragePair> ValueVector;
   // Hash of values to ValueVector indices.
   typedef llvm::DenseMap<SILValue, unsigned> ValueHashMap;
@@ -163,6 +232,63 @@ class ValueStorageMap {
   SWIFT_ASSERT_ONLY_DECL(bool stableStorage = false);
 
 public:
+  class ProjectionIterator {
+  public:
+    using This = ProjectionIterator;
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = ValueStoragePair const *;
+    using difference_type = std::ptrdiff_t;
+    using pointer = value_type *;
+    using reference = value_type &;
+
+  protected:
+    value_type Cur;
+    ValueStorageMap const &Map;
+
+  public:
+    explicit ProjectionIterator(value_type cur, ValueStorageMap const &map)
+        : Cur(cur), Map(map) {}
+    ValueStoragePair const *operator->() const { return Cur; }
+    ValueStoragePair const *operator*() const { return Cur; }
+
+    ValueStorage const &getStorage() const { return Cur->storage; }
+    SILValue getValue() const { return Cur->value; }
+    This &operator++() {
+      assert(Cur && "incrementing past end()!");
+      if (Cur->storage.isProjection())
+        Cur = &Map.getProjectedStorage(Cur->storage);
+      else
+        Cur = nullptr;
+      return *this;
+    }
+
+    This operator++(int unused) {
+      This copy = *this;
+      ++*this;
+      return copy;
+    }
+
+    friend bool operator==(This lhs, This rhs) { return lhs.Cur == rhs.Cur; }
+    friend bool operator!=(This lhs, This rhs) { return !(lhs == rhs); }
+  };
+
+  ProjectionIterator projection_begin(SILValue value) const {
+    return ProjectionIterator(&valueVector[getOrdinal(value)], *this);
+  }
+  ProjectionIterator projection_end() const {
+    return ProjectionIterator(nullptr, *this);
+  }
+  /// Returns projections of the specified value from the inside out, starting
+  /// from the projection for the value and walking outwards to its storage
+  /// root.
+  iterator_range<ProjectionIterator> getProjections(SILValue value) const {
+    if (!contains(value))
+      return {projection_end(), projection_end()};
+    return {projection_begin(value), projection_end()};
+  }
+
+  friend class ProjectionIterator;
+
   bool empty() const { return valueVector.empty(); }
 
   void clear() {
@@ -191,6 +317,12 @@ public:
     return hashIter->second;
   }
 
+  ValueStoragePair &operator[](uint32_t index) { return valueVector[index]; }
+
+  ValueStoragePair const &operator[](uint32_t index) const {
+    return valueVector[index];
+  }
+
   ValueStorage &getStorage(SILValue value) {
     return valueVector[getOrdinal(value)].storage;
   }
@@ -211,49 +343,25 @@ public:
   /// Given storage for a projection, return the projected storage by following
   /// single level of projected storage. The returned storage may
   /// recursively be a another projection.
+  const ValueStoragePair &
+  getProjectedStorage(const ValueStorage &storage) const {
+    assert(storage.isProjection());
+    return valueVector[storage.projectedStorageID];
+  }
+
   ValueStoragePair &getProjectedStorage(const ValueStorage &storage) {
     assert(storage.isProjection());
     return valueVector[storage.projectedStorageID];
   }
 
   /// Return the non-projection storage that the given storage ultimately refers
-  /// to by following all projections. After allocation, this storage always has
-  /// a valid address.
-  const ValueStorage &getBaseStorage(const ValueStorage &storage) {
-    if (storage.isDefProjection || storage.isUseProjection)
-      return getBaseStorage(getProjectedStorage(storage).storage);
-
-    return storage;
-  }
-
-  /// Return the non-projection storage that the given storage ultimately refers
   /// to by following all projections.
   const ValueStorage &getBaseStorage(SILValue value) {
-    return getBaseStorage(getStorage(value));
-  }
-
-  /// Return the non-projection storage that this storage refers to.  If this
-  /// storage holds an Enum or any intermediate storage that projects into this
-  /// storage holds an Enum, then return nullptr.
-  const ValueStorage *getNonEnumBaseStorage(const ValueStorage &storage) {
-    if (storage.initializesEnum)
-      return nullptr;
-
-    if (storage.isUseProjection) {
-      auto &storageAndValue = getProjectedStorage(storage);
-      return getNonEnumBaseStorage(storageAndValue.storage);
+    ValueStorage const *last = nullptr;
+    for (auto *pair : getProjections(value)) {
+      last = &pair->storage;
     }
-    assert(!storage.isDefProjection && "def projections should not reach here");
-    return &storage;
-  }
-
-  /// Return the non-projection storage that this storage refers to, or nullptr
-  /// if \p allowInitEnum is true and the storage initializes an Enum.
-  const ValueStorage *getBaseStorage(SILValue value, bool allowInitEnum) {
-    if (allowInitEnum)
-      return &getBaseStorage(value);
-
-    return getNonEnumBaseStorage(getStorage(value));
+    return *last;
   }
 
   void setStorageAddress(SILValue value, SILValue addr) {
@@ -288,6 +396,7 @@ public:
   bool isComposingUseProjection(Operand *oper) const;
 
 #ifndef NDEBUG
+  void dumpProjections(SILValue value);
   void dump();
 #endif
 };

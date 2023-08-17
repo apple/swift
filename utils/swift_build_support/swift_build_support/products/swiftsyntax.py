@@ -50,10 +50,13 @@ class SwiftSyntax(product.Product):
         return True
 
     def run_swiftsyntax_build_script(self, target, command, additional_params=[]):
-        script_path = os.path.join(self.source_dir, 'build-script.py')
+        script_path = os.path.join(self.source_dir, 'SwiftSyntaxDevUtils')
 
         build_cmd = [
-            script_path,
+            os.path.join(self.install_toolchain_path(target), "bin", "swift"),
+            'run',
+            '--package-path', script_path,
+            'swift-syntax-dev-utils',
             command,
             '--build-dir', self.build_dir,
             '--multiroot-data-file', MULTIROOT_DATA_FILE_PATH,
@@ -74,21 +77,33 @@ class SwiftSyntax(product.Product):
 
         build_cmd.extend(additional_params)
 
-        shell.call(build_cmd)
+        env = dict(os.environ)
+        env["SWIFTCI_USE_LOCAL_DEPS"] = "1"
+
+        shell.call(build_cmd, env=env)
 
     def should_build(self, host_target):
         return True
 
     def build(self, host_target):
         if self.args.swiftsyntax_verify_generated_files:
+            script_path = os.path.join(self.source_dir, 'SwiftSyntaxDevUtils')
+
             build_cmd = [
-                os.path.join(self.source_dir, 'build-script.py'),
+                os.path.join(self.install_toolchain_path(host_target), "bin", "swift"),
+                'run',
+                '--package-path', script_path,
+                'swift-syntax-dev-utils',
                 'verify-source-code',
                 '--toolchain', self.install_toolchain_path(host_target)
             ]
             if self.args.verbose_build:
                 build_cmd.append('--verbose')
-            shell.call(build_cmd)
+
+            env = dict(os.environ)
+            env["SWIFTCI_USE_LOCAL_DEPS"] = "1"
+
+            shell.call(build_cmd, env=env)
 
         self.run_swiftsyntax_build_script(target=host_target,
                                           command='build')

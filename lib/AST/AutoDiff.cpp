@@ -199,32 +199,28 @@ void autodiff::getFunctionSemanticResults(
     if (formalResultType->is<TupleType>()) {
       for (auto elt : formalResultType->castTo<TupleType>()->getElements()) {
         resultTypes.emplace_back(elt.getType(), resultIdx++,
-                                 /*isInout*/ false, /*isWrt*/ false);
+                                 /*isParameter*/ false);
       }
     } else {
       resultTypes.emplace_back(formalResultType, resultIdx++,
-                               /*isInout*/ false, /*isWrt*/ false);
+                               /*isParameter*/ false);
     }
   }
 
-  bool addNonWrts = resultTypes.empty();
-
-  // Collect wrt `inout` parameters as semantic results
-  // As an extention, collect all (including non-wrt) inouts as results for
-  // functions returning void.
+  // Collect wrt semantic result (`inout`) parameters as
+  // semantic results
   auto collectSemanticResults = [&](const AnyFunctionType *functionType,
                                     unsigned curryOffset = 0) {
     for (auto paramAndIndex : enumerate(functionType->getParams())) {
-      if (!paramAndIndex.value().isInOut())
+      if (!paramAndIndex.value().isAutoDiffSemanticResult())
         continue;
 
       unsigned idx = paramAndIndex.index() + curryOffset;
       assert(idx < parameterIndices->getCapacity() &&
              "invalid parameter index");
-      bool isWrt = parameterIndices->contains(idx);
-      if (addNonWrts || isWrt)
+      if (parameterIndices->contains(idx))
         resultTypes.emplace_back(paramAndIndex.value().getPlainType(),
-                                 resultIdx, /*isInout*/ true, isWrt);
+                                 resultIdx, /*isParameter*/ true);
       resultIdx += 1;
     }
   };

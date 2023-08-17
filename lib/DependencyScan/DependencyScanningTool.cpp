@@ -131,9 +131,10 @@ DependencyScanningTool::getDependencies(
   auto Instance = std::move(*InstanceOrErr);
 
   // Local scan cache instance, wrapping the shared global cache.
-  ModuleDependenciesCache cache(*ScanningService,
-                                Instance->getMainModule()->getNameStr().str(),
-                                Instance->getInvocation().getModuleScanningHash());
+  ModuleDependenciesCache cache(
+      *ScanningService, Instance->getMainModule()->getNameStr().str(),
+      Instance->getInvocation().getFrontendOptions().ExplicitModulesOutputPath,
+      Instance->getInvocation().getModuleScanningHash());
   // Execute the scanning action, retrieving the in-memory result
   auto DependenciesOrErr = performModuleScan(*Instance.get(), cache);
   if (DependenciesOrErr.getError())
@@ -173,9 +174,10 @@ DependencyScanningTool::getDependencies(
   auto Instance = std::move(*InstanceOrErr);
 
   // Local scan cache instance, wrapping the shared global cache.
-  ModuleDependenciesCache cache(*ScanningService,
-                                Instance->getMainModule()->getNameStr().str(),
-                                Instance->getInvocation().getModuleScanningHash());
+  ModuleDependenciesCache cache(
+      *ScanningService, Instance->getMainModule()->getNameStr().str(),
+      Instance->getInvocation().getFrontendOptions().ExplicitModulesOutputPath,
+      Instance->getInvocation().getModuleScanningHash());
   auto BatchScanResults = performBatchModuleScan(
       *Instance.get(), cache, VersionedPCMInstanceCacheCache.get(),
       Saver, BatchInput);

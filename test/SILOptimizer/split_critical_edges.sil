@@ -128,9 +128,9 @@ class ParentNode : Node {
 // CHECK: bb0(
 // CHECK:   cond_br %1, bb1, bb2
 // CHECK: bb1:
-// CHECK:   checked_cast_br [exact] {{.*}} : $Node to ParentNode, bb3, bb4
+// CHECK:   checked_cast_br [exact] Node in {{.*}} : $Node to ParentNode, bb3, bb4
 // CHECK: bb2:
-// CHECK:   checked_cast_br [exact] {{.*}} : $Node to ParentNode, bb5, bb6
+// CHECK:   checked_cast_br [exact] Node in {{.*}} : $Node to ParentNode, bb5, bb6
 // CHECK: bb3({{.*}} : $ParentNode):
 // CHECK:   br bb7
 // CHECK: bb4:
@@ -147,10 +147,10 @@ bb0(%0 : $Node, %2 : $Builtin.Int1):
   cond_br %2, ccb1, ccb2
 
 ccb1:
-  checked_cast_br [exact] %0 : $Node to ParentNode, bb2, bb3
+  checked_cast_br [exact] Node in %0 : $Node to ParentNode, bb2, bb3
 
 ccb2:
-  checked_cast_br [exact] %0 : $Node to ParentNode, bb4, bb5
+  checked_cast_br [exact] Node in %0 : $Node to ParentNode, bb4, bb5
 
 bb2(%5 : $ParentNode):
   br bb1

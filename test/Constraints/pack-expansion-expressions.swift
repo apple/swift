@@ -59,7 +59,7 @@ extension P {
 
 
 func outerArchetype<each T, U>(t: repeat each T, u: U) where repeat each T: P {
-  let _: (repeat (each T.A, U)) = (repeat ((each t).value, u))
+  let _: (repeat ((each T).A, U)) = (repeat ((each t).value, u))
 }
 
 func sameElement<each T, U>(t: repeat each T, u: U) where repeat each T: P, repeat each T == U {
@@ -478,11 +478,11 @@ do {
 
 // rdar://107675464 - misplaced `each` results in `type of expression is ambiguous without a type annotation`
 do {
-  func test_correct_each<each T: P>(_ value: repeat each T) -> (repeat each T.A) {
+  func test_correct_each<each T: P>(_ value: repeat each T) -> (repeat (each T).A) {
     return (repeat (each value).makeA()) // Ok
   }
 
-  func test_misplaced_each<each T: P>(_ value: repeat each T) -> (repeat each T.A) {
+  func test_misplaced_each<each T: P>(_ value: repeat each T) -> (repeat (each T).A) {
     return (repeat each value.makeA())
     // expected-error@-1 {{value pack 'each T' must be referenced with 'each'}} {{25-25=(each }} {{30-30=)}}
   }
@@ -677,6 +677,60 @@ do {
     public func f() -> (repeat Optional<each C>) {
       _ = (repeat each makeTuple())
       _ = (repeat (each makeTuple()))
+    }
+  }
+}
+
+// rdar://112029630 - incorrect variadic generic overload ranking
+do {
+  func test1<T>(_: T...) {}
+  // expected-note@-1 {{found this candidate}}
+  func test1<each T>(_: repeat each T) {}
+  // expected-note@-1 {{found this candidate}}
+
+  test1(1, 2, 3) // expected-error {{ambiguous use of 'test1'}}
+  test1(1, "a") // Ok
+
+  func test2<each T>(_: repeat each T) {}
+  // expected-note@-1 {{found this candidate}}
+  func test2<each T>(vals: repeat each T) {}
+  // expected-note@-1 {{found this candidate}}
+
+  test2() // expected-error {{ambiguous use of 'test2'}}
+
+  func test_different_requirements<A: BinaryInteger & StringProtocol>(_ a: A) {
+    func test3<each T: BinaryInteger>(str: String, _: repeat each T) {}
+    // expected-note@-1 {{found this candidate}}
+    func test3<each U: StringProtocol>(str: repeat each U) {}
+    // expected-note@-1 {{found this candidate}}
+
+    test3(str: "", a, a)  // expected-error {{ambiguous use of 'test3'}}
+  }
+}
+
+// rdar://112095973 - single-element tuples are not unwrapped in member references
+do {
+  struct V<Value> {
+    let key: Int
+  }
+
+  struct S<each T> {
+    let data: (repeat V<each T>)
+  }
+
+  func test<U>(_ value: S<U>) {
+    _ = value.data.key // Ok
+  }
+}
+
+// rdar://110847476 - unrelated assignment and raw representable diagnostics
+do {
+  struct Test<each Base: AsyncSequence> {
+    let base: (repeat each Base)
+
+    init(base: repeat each Base) {
+      self.base = base
+      // expected-error@-1 {{pack reference 'each Base' can only appear in pack expansion}}
     }
   }
 }

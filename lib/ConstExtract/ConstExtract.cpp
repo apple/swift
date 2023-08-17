@@ -85,7 +85,10 @@ std::string toFullyQualifiedProtocolNameString(const swift::ProtocolDecl &Protoc
 }
 
 std::string toMangledTypeNameString(const swift::Type &Type) {
-  return Mangle::ASTMangler().mangleTypeWithoutPrefix(Type->getCanonicalType());
+  auto PrintingType = Type;
+  if (Type->hasArchetype())
+    PrintingType = Type->mapTypeOutOfContext();
+  return Mangle::ASTMangler().mangleTypeWithoutPrefix(PrintingType->getCanonicalType());
 }
 
 } // namespace
@@ -394,23 +397,13 @@ extractPropertyWrapperAttrValues(VarDecl *propertyDecl) {
   return customAttrValues;
 }
 
-static AttrValueVector
-extractRuntimeMetadataAttrValues(VarDecl *propertyDecl) {
-  AttrValueVector customAttrValues;
-  for (auto *runtimeMetadataAttribute : propertyDecl->getRuntimeDiscoverableAttrs())
-    customAttrValues.push_back(extractAttributeValue(runtimeMetadataAttribute));
-  return customAttrValues;
-}
-
 static ConstValueTypePropertyInfo
 extractTypePropertyInfo(VarDecl *propertyDecl) {
   if (const auto binding = propertyDecl->getParentPatternBinding()) {
     if (const auto originalInit = binding->getInit(0)) {
-      if (propertyDecl->hasAttachedPropertyWrapper() ||
-          propertyDecl->hasRuntimeMetadataAttributes()) {
+      if (propertyDecl->hasAttachedPropertyWrapper()) {
         return {propertyDecl, extractCompileTimeValue(originalInit),
-                extractPropertyWrapperAttrValues(propertyDecl),
-                extractRuntimeMetadataAttrValues(propertyDecl)};
+                extractPropertyWrapperAttrValues(propertyDecl)};
       }
 
       return {propertyDecl, extractCompileTimeValue(originalInit)};
@@ -449,7 +442,7 @@ extractEnumCases(NominalTypeDecl *Decl) {
                     : llvm::Optional<std::string>(
                           Parameter->getParameterName().str().str());
 
-            Parameters.push_back({Label, Parameter->getType()});
+            Parameters.push_back({Label, Parameter->getInterfaceType()});
           }
         }
 
@@ -696,21 +689,6 @@ void writePropertyWrapperAttributes(
   });
 }
 
-void writeRuntimeMetadataAttributes(
-    llvm::json::OStream &JSON,
-    llvm::Optional<AttrValueVector> RuntimeMetadataAttributes,
-    const ASTContext &ctx) {
-  if (!RuntimeMetadataAttributes.has_value() ||
-      RuntimeMetadataAttributes.value().empty()) {
-    return;
-  }
-
-  JSON.attributeArray("runtimeMetadataAttributes", [&] {
-    for (auto RMA : RuntimeMetadataAttributes.value())
-      writeAttributeInfo(JSON, RMA, ctx);;
-  });
-}
-
 void writeEnumCases(
     llvm::json::OStream &JSON,
     llvm::Optional<std::vector<EnumElementDeclValue>> EnumElements) {
@@ -880,17 +858,15 @@ void writeProperties(llvm::json::OStream &JSON,
       JSON.object([&] {
         const auto *decl = PropertyInfo.VarDecl;
         JSON.attribute("label", decl->getName().str().str());
-        JSON.attribute("type", toFullyQualifiedTypeNameString(decl->getType()));
-        JSON.attribute("mangledTypeName", toMangledTypeNameString(decl->getType()));
+        JSON.attribute("type", toFullyQualifiedTypeNameString(
+            decl->getInterfaceType()));
+        JSON.attribute("mangledTypeName", "n/a - deprecated");
         JSON.attribute("isStatic", decl->isStatic() ? "true" : "false");
         JSON.attribute("isComputed", !decl->hasStorage() ? "true" : "false");
         writeLocationInformation(JSON, decl->getLoc(),
                                  decl->getDeclContext()->getASTContext());
         writeValue(JSON, PropertyInfo.Value);
         writePropertyWrapperAttributes(JSON, PropertyInfo.PropertyWrappers,
-                                       decl->getASTContext());
-        writeRuntimeMetadataAttributes(JSON,
-                                       PropertyInfo.RuntimeMetadataAttributes,
                                        decl->getASTContext());
         writeResultBuilderInformation(JSON, &NomTypeDecl, decl);
         writeAttrInformation(JSON, decl->getAttrs());

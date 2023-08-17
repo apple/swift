@@ -26,14 +26,14 @@ set(SWIFT_RUNTIME_CONCURRENCY_C_FLAGS)
 set(SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS)
 
 set(swift_concurrency_private_link_libraries)
-if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   list(APPEND swift_concurrency_private_link_libraries Synchronization)
 endif()
 
 set(swift_concurrency_incorporate_object_libraries_so swiftThreading)
 
 if("${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}" STREQUAL "dispatch")
-  if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     include_directories(AFTER
                           ${SWIFT_PATH_TO_LIBDISPATCH_SOURCE})
 
@@ -62,7 +62,7 @@ endif()
 
 # Don't emit extended frame info on platforms other than darwin, system
 # backtracer and system debugger are unlikely to support it.
-if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS
     "-fswift-async-fp=${swift_concurrency_async_fp_mode}")
   list(APPEND SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS
@@ -126,7 +126,25 @@ add_swift_target_library(swift_Concurrency ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} I
   AsyncStream.swift
   AsyncThrowingStream.swift
   AsyncStream.cpp
-  Deque.swift
+  Deque/_DequeBuffer.swift
+  Deque/_DequeBufferHeader.swift
+  Deque/_DequeSlot.swift
+  Deque/_UnsafeWrappedBuffer.swift
+  Deque/Compatibility.swift
+  Deque/Deque+Storage.swift
+  Deque/Deque+UnsafeHandle.swift
+  Deque/Deque.swift
+  Deque/Deque+Codable.swift
+  Deque/Deque+Collection.swift
+  Deque/Deque+CustomDebugStringConvertible.swift
+  Deque/Deque+CustomReflectable.swift
+  Deque/Deque+CustomStringConvertible.swift
+  Deque/Deque+Equatable.swift
+  Deque/Deque+ExpressibleByArrayLiteral.swift
+  Deque/Deque+Extras.swift
+  Deque/Deque+Hashable.swift
+  Deque/Deque+Testing.swift
+  Deque/UnsafeMutableBufferPointer+Utilities.swift
   ${swift_concurrency_extra_sources}
   linker-support/magic-symbols-for-install-name.c
 

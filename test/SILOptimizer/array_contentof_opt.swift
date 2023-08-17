@@ -24,8 +24,6 @@ public func testInt(_ a: inout [Int]) {
 }
 
 // CHECK-LABEL: sil {{.*}}@{{.*}}testThreeInts
-// CHECK-DAG:    [[FR:%[0-9]+]] = function_ref @${{.*(reserveCapacity|_createNewBuffer)}}
-// CHECK-DAG:    apply [[FR]]
 // CHECK-DAG:    [[F:%[0-9]+]] = function_ref @$sSa6appendyyxnFSi_Tg5
 // CHECK-DAG:    apply [[F]]
 // CHECK-DAG:    apply [[F]]

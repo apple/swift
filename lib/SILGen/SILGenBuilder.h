@@ -132,6 +132,14 @@ public:
   /// values.
   ManagedValue createExplicitCopyValue(SILLocation Loc, ManagedValue operand);
 
+  using SILBuilder::createWeakCopyValue;
+
+  ManagedValue createWeakCopyValue(SILLocation loc, ManagedValue originalValue);
+
+#define NEVER_LOADABLE_CHECKED_REF_STORAGE(Name, ...)                          \
+  using SILBuilder::createStrongCopy##Name##Value;                             \
+  ManagedValue createStrongCopy##Name##Value(SILLocation loc,                  \
+                                             ManagedValue originalValue);
 #define ALWAYS_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)            \
   using SILBuilder::createStrongCopy##Name##Value;                             \
   ManagedValue createStrongCopy##Name##Value(SILLocation loc,                  \
@@ -289,6 +297,7 @@ public:
   using SILBuilder::createCheckedCastBranch;
   void createCheckedCastBranch(SILLocation loc, bool isExact,
                                ManagedValue op,
+                               CanType sourceFormalTy,
                                SILType destLoweredTy,
                                CanType destFormalTy,
                                SILBasicBlock *trueBlock,

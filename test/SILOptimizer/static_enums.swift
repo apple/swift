@@ -171,6 +171,16 @@ public let success: R = .success(27)
 // CHECK-LABEL: sil_global hidden @$s4test10optSuccessAA1ROSgvp : $Optional<R> = {
 var optSuccess: R? = success
 
+public enum Color {
+  case black
+  case rgb(r: UInt8, g: UInt8, b: UInt8)
+}
+
+// CHECK-LABEL: sil_global hidden @$s4test8optBlackAA5ColorOSgvp : $Optional<Color> = {
+var optBlack: Color? = Color.black
+// CHECK-LABEL: sil_global hidden @$s4test9optSalmonAA5ColorOSgvp : $Optional<Color> = {
+var optSalmon: Color? = Color.rgb(r: 0xfa, g: 0x80, b: 0x72)
+
 // CHECK-LABEL: sil_global private @$s4test9createArrSaySiSgGyFTv_ : $_ContiguousArrayStorage<Optional<Int>> = {
 @inline(never)
 func createArr() -> [Int?] {
@@ -246,6 +256,10 @@ struct Main {
     print("stringGen3: \(getStringGen(sg3))")
     // CHECK-OUTPUT: optSuccess: Optional(test.R.success(27))
     print("optSuccess:", optSuccess as Any)
+    // CHECK-OUTPUT: optBlack: Optional(test.Color.black)
+    print("optBlack:", optBlack as Any)
+    // CHECK-OUTPUT: optSalmon: Optional(test.Color.rgb(r: 250, g: 128, b: 114))
+    print("optSalmon:", optSalmon as Any)
   }
 }
 

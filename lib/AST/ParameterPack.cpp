@@ -66,8 +66,7 @@ static Type transformTypeParameterPacksRec(
     if (auto *paramType = dyn_cast<SubstitutableType>(t)) {
       if (expansionLevel == 0 &&
           (isa<PackArchetypeType>(paramType) ||
-           (isa<GenericTypeParamType>(paramType) &&
-            cast<GenericTypeParamType>(paramType)->isParameterPack()))) {
+           paramType->isRootParameterPack())) {
         return fn(paramType);
       }
 
@@ -186,6 +185,12 @@ bool TypeBase::isParameterPack() {
   while (auto *memberTy = t->getAs<DependentMemberType>())
     t = memberTy->getBase();
 
+  return t->isRootParameterPack();
+}
+
+bool TypeBase::isRootParameterPack() {
+  Type t(this);
+
   return t->is<GenericTypeParamType>() &&
          t->castTo<GenericTypeParamType>()->isParameterPack();
 }
@@ -274,14 +279,6 @@ bool CanTupleType::containsPackExpansionTypeImpl(CanTupleType tuple) {
   }
 
   return false;
-}
-
-bool TupleType::isSingleUnlabeledPackExpansion() const {
-  if (getNumElements() != 1)
-    return false;
-
-  const auto &elt = getElement(0);
-  return !elt.hasName() && elt.getType()->is<PackExpansionType>();
 }
 
 bool AnyFunctionType::containsPackExpansionType(ArrayRef<Param> params) {
@@ -435,8 +432,17 @@ PackType::getExpandedGenericArgs(ArrayRef<GenericTypeParamType *> params,
     auto arg = args[i];
 
     if (params[i]->isParameterPack()) {
-      auto argPackElements = arg->castTo<PackType>()->getElementTypes();
-      wrappedArgs.append(argPackElements.begin(), argPackElements.end());
+      // FIXME: A temporary fix to make it possible to debug expressions
+      // with partially resolved variadic generic types. The issue stems
+      // from the fact that `BoundGenericType` is allowed to have pack
+      // parameters directly represented by type variables, as soon as
+      // that is no longer the case this check should be removed.
+      if (arg->is<TypeVariableType>()) {
+        wrappedArgs.push_back(arg);
+      } else {
+        auto argPackElements = arg->castTo<PackType>()->getElementTypes();
+        wrappedArgs.append(argPackElements.begin(), argPackElements.end());
+      }
       continue;
     }
 

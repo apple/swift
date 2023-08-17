@@ -289,14 +289,13 @@ private extension BasicBlockRange {
   /// Returns true if there is a direct edge connecting this range with the `otherRange`.
   func hasControlFlowEdge(to otherRange: BasicBlockRange) -> Bool {
     func isOnlyInOtherRange(_ block: BasicBlock) -> Bool {
-      return !inclusiveRangeContains(block) &&
-             otherRange.inclusiveRangeContains(block) && block != otherRange.begin
+      return !inclusiveRangeContains(block) && otherRange.inclusiveRangeContains(block)
     }
 
     for lifeBlock in inclusiveRange {
       assert(otherRange.inclusiveRangeContains(lifeBlock), "range must be a subset of other range")
       for succ in lifeBlock.successors {
-        if isOnlyInOtherRange(succ) {
+        if isOnlyInOtherRange(succ) && succ != otherRange.begin {
           return true
         }
         // The entry of the begin-block is conceptually not part of the range. We can check if

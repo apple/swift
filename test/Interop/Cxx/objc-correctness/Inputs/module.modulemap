@@ -19,6 +19,11 @@ module NSNofiticationBridging {
   requires cplusplus
 }
 
+module NSStreamDelegate {
+  header "NSStreamDelegate.h"
+  requires objc
+}
+
 module OSObject {
   header "os-object.h"
   requires objc

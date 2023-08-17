@@ -221,19 +221,12 @@ ERROR(unknown_attribute,none,
 // MARK: macro diagnostics
 //------------------------------------------------------------------------------
 NOTE(in_macro_expansion,none,
-     "in expansion of macro %0 here", (DeclName))
+     "in expansion of macro %0%select{| on %kind1}1 here", (DeclName, const Decl *))
 ERROR(macro_experimental,none,
       "%0 macros are an experimental feature that is not enabled %select{|(%1)}1",
       (StringRef, StringRef))
 ERROR(ambiguous_macro_reference,none,
       "ambiguous reference to macro %0", (DeclName))
-
-//------------------------------------------------------------------------------
-// MARK: tuple conformances
-//------------------------------------------------------------------------------
-ERROR(experimental_tuple_extension,none,
-      "tuple extensions are experimental",
-      ())
 
 //------------------------------------------------------------------------------
 // MARK: bridged diagnostics

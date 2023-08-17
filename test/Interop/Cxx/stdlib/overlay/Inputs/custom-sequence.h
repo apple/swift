@@ -108,4 +108,40 @@ struct HasTemplatedIterator {
 
 typedef HasTemplatedIterator<int> HasUninstantiatableIterator;
 
+struct HasInheritedConstIterator {
+private:
+  InheritedConstIterator b = InheritedConstIterator(1);
+  InheritedConstIterator e = InheritedConstIterator(6);
+
+public:
+  InheritedConstIterator begin() const { return b; }
+  InheritedConstIterator end() const { return e; }
+};
+
+template <typename T>
+struct HasInheritedTemplatedConstIterator {
+public:
+  typedef InheritedTemplatedConstIterator<int> iterator;
+
+private:
+  iterator b = iterator(1);
+  iterator e = iterator(7);
+
+public:
+  iterator begin() const { return b; }
+  iterator end() const { return e; }
+};
+
+typedef HasInheritedTemplatedConstIterator<int>
+    HasInheritedTemplatedConstIteratorInt;
+
+struct HasInputOutputConstIterator {
+  typedef InputOutputConstIterator iterator;
+
+  mutable int x[5] = {5, 4, 3, 2, 1};
+
+  iterator begin() const { return iterator(x); }
+  iterator end() const { return iterator(x + 5); }
+};
+
 #endif // TEST_INTEROP_CXX_STDLIB_INPUTS_CUSTOM_SEQUENCE_H

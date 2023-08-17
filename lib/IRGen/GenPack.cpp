@@ -26,6 +26,7 @@
 #include "swift/SIL/SILType.h"
 #include "llvm/IR/DerivedTypes.h"
 
+#include "GenTuple.h"
 #include "GenType.h"
 #include "IRGenFunction.h"
 #include "IRGenModule.h"
@@ -1183,4 +1184,228 @@ void irgen::deallocatePack(IRGenFunction &IGF, StackAddress addr, CanSILPackType
   auto elementCount = packType->getNumElements();
   IGF.Builder.CreateLifetimeEnd(addr.getAddress(),
                                 elementSize * elementCount);
+}
+
+static unsigned getConstantLabelsLength(CanTupleType type) {
+  unsigned total = 0;
+
+  for (auto elt : type->getElements()) {
+    if (elt.getType()->is<PackExpansionType>()) {
+      assert(!elt.hasName());
+      continue;
+    }
+
+    if (elt.hasName()) {
+      assert(!elt.getType()->is<PackExpansionType>());
+      total += elt.getName().getLength();
+    }
+
+    ++total;
+  }
+
+  return total;
+}
+
+/// Emit the dynamic label string for a tuple type containing pack
+/// expansions.
+///
+/// The basic idea is that the static label string is "stretched out".
+/// Pack expansion elements are unlabeled, so they appear as a single
+/// blank space in the static label string. We replace this with the
+/// appropriate number of blank spaces, given the dynamic length of
+/// the pack.
+llvm::Optional<StackAddress>
+irgen::emitDynamicTupleTypeLabels(IRGenFunction &IGF,
+                                  CanTupleType type,
+                                  CanPackType packType,
+                                  llvm::Value *shapeExpression) {
+  bool hasLabels = false;
+  for (auto elt : type->getElements()) {
+    hasLabels |= elt.hasName();
+  }
+
+  if (!hasLabels)
+    return llvm::None;
+
+  // Elements of pack expansion type are unlabeled, so the length of
+  // the label string is the number of elements in the pack, plus the
+  // sum of the lengths of the labels.
+  llvm::Value *labelLength = llvm::ConstantInt::get(
+      IGF.IGM.SizeTy, getConstantLabelsLength(type));
+  labelLength = IGF.Builder.CreateAdd(shapeExpression, labelLength);
+
+  // Leave root for a null byte at the end.
+  labelLength = IGF.Builder.CreateAdd(labelLength,
+      llvm::ConstantInt::get(IGF.IGM.SizeTy, 1));
+
+  // Allocate space for the label string; we fill it in below.
+  StackAddress labelString = IGF.emitDynamicAlloca(
+                                IGF.IGM.Int8Ty, labelLength,
+                                IGF.IGM.getPointerAlignment(),
+                                /*allowTaskAlloc=*/true);
+
+  // Get the static label string, where each pack expansion is one element.
+  auto *staticLabelString = getTupleLabelsString(IGF.IGM, type);
+
+  // The position in the static label string for to the current element.
+  unsigned staticPosition = 0;
+
+  // The position in the dynamic label string for to the current element.
+  llvm::Value *dynamicPosition = llvm::ConstantInt::get(IGF.IGM.SizeTy, 0);
+
+  // Number of expansions we've seen so far.
+  unsigned numExpansions = 0;
+
+  // Was there at least one label?
+  bool sawLabel = false;
+
+  auto visitFn = [&](CanType eltTy,
+                     unsigned scalarIndex,
+                     llvm::Value *dynamicIndex,
+                     llvm::Value *dynamicLength) {
+    auto elt = type->getElements()[scalarIndex + numExpansions];
+    assert(eltTy == CanType(elt.getType()));
+
+    // The destination address, where we put the current element's label.
+    auto eltAddr = IGF.Builder.CreateArrayGEP(labelString.getAddress(),
+                                              dynamicPosition, Size(1));
+
+    // If we're looking at a pack expansion, insert the appropriate
+    // number of blank spaces in the dynamic label string.
+    if (isa<PackExpansionType>(eltTy)) {
+      assert(!elt.hasName() && "Pack expansions cannot have labels");
+      // Fill the dynamic label string with a blank label for each
+      // dynamic element.
+      IGF.Builder.CreateMemSet(
+          eltAddr, llvm::ConstantInt::get(IGF.IGM.Int8Ty, ' '),
+          dynamicLength);
+
+      // We consumed one static label.
+      staticPosition += 1;
+
+      // We produced some number of dynamic labels.
+      dynamicPosition = IGF.Builder.CreateAdd(dynamicPosition, dynamicLength);
+
+      // We consumed an expansion.
+      numExpansions += 1;
+
+      return;
+    }
+
+    // Otherwise, we have a single scalar element, which deposits a single
+    // label in the dynamic label string.
+    unsigned length = 0;
+
+    // Scalar elements may have labels.
+    if (elt.hasName()) {
+      // Index into the static label string.
+      llvm::Constant *indices[] = {
+        llvm::ConstantInt::get(IGF.IGM.SizeTy, staticPosition)
+      };
+
+      // The source address in the static label string.
+      Address srcAddr(
+          llvm::ConstantExpr::getInBoundsGetElementPtr(
+              IGF.IGM.Int8Ty, staticLabelString,
+              indices),
+          IGF.IGM.Int8Ty, Alignment(1));
+
+      // The number of bytes to copy; add one for the space at the end.
+      length = elt.getName().getLength() + 1;
+
+      // Desposit the label for this element in the dynamic label string.
+      IGF.Builder.CreateMemCpy(eltAddr, srcAddr, Size(length));
+
+      sawLabel = true;
+    } else {
+      length = 1;
+
+      // There is no label. The static label string stores a blank space,
+      // and we need to update the dynamic string for the same.
+      IGF.Builder.CreateStore(
+          llvm::ConstantInt::get(IGF.IGM.Int8Ty, ' '),
+          eltAddr);
+    }
+
+    // We consumed one static label.
+    staticPosition += length;
+
+    // We produced one dynamic label.
+    auto *constant = llvm::ConstantInt::get(IGF.IGM.SizeTy, length);
+    accumulateSum(IGF, dynamicPosition, constant);
+  };
+
+  (void) visitPackExplosion(IGF, packType, visitFn);
+
+  // Null-terminate the dynamic label string.
+  auto eltAddr = IGF.Builder.CreateArrayGEP(labelString.getAddress(),
+                                            dynamicPosition, Size(1));
+  IGF.Builder.CreateStore(
+          llvm::ConstantInt::get(IGF.IGM.Int8Ty, '\0'),
+          eltAddr);
+
+  assert(sawLabel);
+  (void) sawLabel;
+
+  return labelString;
+}
+
+StackAddress
+irgen::emitDynamicFunctionParameterFlags(IRGenFunction &IGF,
+                                         AnyFunctionType::CanParamArrayRef params,
+                                         CanPackType packType,
+                                         llvm::Value *shapeExpression) {
+  auto array =
+      IGF.emitDynamicAlloca(IGF.IGM.Int32Ty, shapeExpression,
+                            Alignment(4), /*allowTaskAlloc=*/true);
+
+  unsigned numExpansions = 0;
+
+  auto visitFn = [&](CanType eltTy,
+                     unsigned scalarIndex,
+                     llvm::Value *dynamicIndex,
+                     llvm::Value *dynamicLength) {
+    if (scalarIndex != 0 || dynamicIndex == nullptr) {
+      auto *constant = llvm::ConstantInt::get(IGF.IGM.SizeTy, scalarIndex);
+      accumulateSum(IGF, dynamicIndex, constant);
+    }
+
+    auto elt = params[scalarIndex + numExpansions];
+    auto flags = getABIParameterFlags(elt.getParameterFlags());
+    auto flagsVal = llvm::ConstantInt::get(
+        IGF.IGM.Int32Ty, flags.getIntValue());
+
+    assert(eltTy == elt.getPlainType());
+
+    // If we're looking at a pack expansion, insert the appropriate
+    // number of flags fields.
+    if (auto expansionTy = dyn_cast<PackExpansionType>(eltTy)) {
+      emitPackExpansionPack(IGF, array.getAddress(), expansionTy,
+                            dynamicIndex, dynamicLength,
+                            [&](llvm::Value *) -> llvm::Value * {
+                              return flagsVal;
+                            });
+
+      // We consumed an expansion.
+      numExpansions += 1;
+
+      return;
+    }
+
+    // The destination address, where we put the current element's flags field.
+    Address eltAddr(
+        IGF.Builder.CreateInBoundsGEP(array.getAddress().getElementType(),
+                                      array.getAddressPointer(),
+                                      dynamicIndex),
+        array.getAddress().getElementType(),
+        array.getAlignment());
+
+    // Otherwise, we have a single scalar element, which deposits a single
+    // flags field.
+    IGF.Builder.CreateStore(flagsVal, eltAddr);
+  };
+
+  (void) visitPackExplosion(IGF, packType, visitFn);
+
+  return array;
 }

@@ -64,7 +64,8 @@ struct Outer<each T> {
 
 func packRef<each T>(_: repeat each T) where repeat each T: P {}
 
-func packMemberRef<each T>(_: repeat each T.T) where repeat each T: P {}
+func packMemberRef<each T>(_: repeat (each T).T) where repeat each T: P {}
+// expected-error@-1 {{generic parameter 'T' is not used in function signature}}
 
 // expected-error@+1 {{'each' cannot be applied to non-pack type 'Int'}}{{31-35=}}
 func invalidPackRefEachInt(_: each Int) {}
@@ -98,3 +99,11 @@ func golden<Z>(_ z: Z) {}
 func hour<each T>(_ t: repeat each T)  {
   _ = (repeat golden(each t))
 }
+
+func unusedParameterPack1<each T: Sequence>(_: repeat (each T).Element) {}
+// expected-error@-1 {{generic parameter 'T' is not used in function signature}}
+
+typealias First<T, U> = T
+
+func unusedParameterPack2<each T>(_: repeat First<Int, each T>) {}
+// expected-error@-1 {{generic parameter 'T' is not used in function signature}}

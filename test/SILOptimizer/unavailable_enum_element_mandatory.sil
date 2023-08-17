@@ -1,0 +1,60 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -unavailable-decl-optimization=complete %s -diagnostics | %FileCheck %s
+
+sil_stage raw
+
+import Builtin
+
+func foo()
+
+enum HasUnavailableElement {
+  case available
+  @available(*, unavailable)
+  case unavailable
+}
+
+sil @foo : $@convention(thin) () -> ()
+
+// CHECK-LABEL: sil @test_fully_covered_switch
+// CHECK:         switch_enum %0 : $HasUnavailableElement, case #HasUnavailableElement.available!enumelt: [[AVAILBB:bb[0-9]+]], default [[DEFAULTBB:bb[0-9]+]]
+// CHECK:       [[AVAILBB]]:
+// CHECK-NOT:     function_ref @foo
+// CHECK:         return
+// CHECK:       [[DEFAULTBB]]:
+// CHECK:         integer_literal $Builtin.Int1, -1
+// CHECK:         cond_fail {{%.*}} : $Builtin.Int1, "unexpected enum value"
+// CHECK:         unreachable
+
+sil @test_fully_covered_switch : $@convention(thin) (HasUnavailableElement) -> () {
+bb0(%0 : $HasUnavailableElement):
+  switch_enum %0 : $HasUnavailableElement, case #HasUnavailableElement.available!enumelt: bb1, case #HasUnavailableElement.unavailable!enumelt: bb2
+bb1:
+  br bb3
+bb2:
+  %1 = function_ref @foo : $@convention(thin) () -> ()
+  %2 = apply %1() : $@convention(thin) () -> ()
+  br bb3
+bb3:
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil @test_available_element_skipped_switch
+// CHECK:         switch_enum %0 : $HasUnavailableElement, default [[DEFAULTBB:bb[0-9]+]]
+// CHECK:       [[DEFAULTBB]]:
+// CHECK:         function_ref @foo
+// CHECK:         apply
+// CHECK:         return
+
+sil @test_available_element_skipped_switch : $@convention(thin) (HasUnavailableElement) -> () {
+bb0(%0 : $HasUnavailableElement):
+  switch_enum %0 : $HasUnavailableElement, case #HasUnavailableElement.unavailable!enumelt: bb1, default bb2
+bb1:
+  br bb3
+bb2:
+  %4 = function_ref @foo : $@convention(thin) () -> ()
+  %5 = apply %4() : $@convention(thin) () -> ()
+  br bb3
+bb3:
+  %7 = tuple ()
+  return %7 : $()
+}

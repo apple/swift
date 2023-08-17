@@ -55,7 +55,6 @@ bool Parser::isStartOfStmt() {
   case tok::kw_case:
   case tok::kw_default:
   case tok::kw_yield:
-  case tok::kw_forget: // NOTE: support for deprecated _forget
   case tok::kw_discard:
   case tok::pound_assert:
   case tok::pound_if:
@@ -560,11 +559,7 @@ ParserResult<Stmt> Parser::parseStmt() {
   if (isContextualYieldKeyword()) {
     Tok.setKind(tok::kw_yield);
   } else if (isContextualDiscardKeyword()) {
-    // NOTE: support for deprecated _forget
-    if (Tok.isContextualKeyword("_forget"))
-      Tok.setKind(tok::kw_forget);
-    else
-      Tok.setKind(tok::kw_discard);
+    Tok.setKind(tok::kw_discard);
   }
 
   // This needs to handle everything that `Parser::isStartOfStmt()` accepts as
@@ -619,7 +614,6 @@ ParserResult<Stmt> Parser::parseStmt() {
   case tok::kw_for:
     if (tryLoc.isValid()) diagnose(tryLoc, diag::try_on_stmt, Tok.getText());
     return parseStmtForEach(LabelInfo);
-  case tok::kw_forget: // NOTE: support for deprecated _forget
   case tok::kw_discard:
     if (LabelInfo) diagnose(LabelInfo.Loc, diag::invalid_label_on_stmt);
     if (tryLoc.isValid()) diagnose(tryLoc, diag::try_on_stmt, Tok.getText());
@@ -942,16 +936,7 @@ ParserResult<Stmt> Parser::parseStmtThrow(SourceLoc tryLoc) {
 ///   'discard' 'self'
 ///
 ParserResult<Stmt> Parser::parseStmtDiscard() {
-  SourceLoc discardLoc;
-
-  // NOTE: support for deprecated _forget
-  if (Tok.is(tok::kw_forget)) {
-    discardLoc = consumeToken(tok::kw_forget);
-    diagnose(discardLoc, diag::forget_is_deprecated)
-        .fixItReplace(discardLoc, "discard");
-  } else {
-    discardLoc = consumeToken(tok::kw_discard);
-  }
+  SourceLoc discardLoc = consumeToken(tok::kw_discard);
 
   SourceLoc exprLoc;
   if (Tok.isNot(tok::eof))

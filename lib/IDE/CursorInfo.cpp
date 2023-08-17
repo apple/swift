@@ -277,6 +277,12 @@ public:
     bool IsDynamicRef;
     /// The declaration that is being referenced. Will never be \c nullptr.
     ValueDecl *ReferencedDecl;
+
+    bool operator==(const CursorInfoDeclReference &Other) const {
+      return nullableTypesEqual(BaseType, Other.BaseType) &&
+             IsDynamicRef == Other.IsDynamicRef &&
+             ReferencedDecl == Other.ReferencedDecl;
+    }
   };
 
 private:
@@ -326,8 +332,16 @@ private:
                             [&S](Expr *E) { return S.getResolvedType(E); });
     }
 
-    Results.push_back(
-        {OverloadInfo.BaseTy, IsDynamicRef, OverloadInfo.getValue()});
+    CursorInfoDeclReference NewResult = {OverloadInfo.BaseTy, IsDynamicRef,
+                                         OverloadInfo.getValue()};
+
+    if (llvm::any_of(Results, [&](const CursorInfoDeclReference &R) {
+          return R == NewResult;
+        })) {
+      return;
+    }
+
+    Results.push_back(NewResult);
   }
 
 public:

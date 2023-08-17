@@ -1,5 +1,6 @@
 struct __attribute__((swift_attr("import_unsafe"))) NonTrivial {
   NonTrivial() {}
+  NonTrivial(const NonTrivial &) {}
   ~NonTrivial() {}
 
   inline const char *inNonTrivial() const

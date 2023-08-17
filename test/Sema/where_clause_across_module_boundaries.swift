@@ -14,3 +14,10 @@ struct ModuleBFoo: Codable, DefaultsSerializable {
 enum ModuleBBar: Int, Codable, DefaultsSerializable { // expected-error {{type 'ModuleBBar' does not conform to protocol 'DefaultsSerializable'}}
   case foo, bar
 }
+
+func foo() {
+  _ = AliasTest<Int>.A.self // expected-error {{type 'Int' does not conform to protocol 'Collection'}}
+  _ = AliasTest<Int>.B.self // expected-error {{type 'Int' does not conform to protocol 'Collection'}}
+  _ = AliasTest<String>.A.self
+  _ = AliasTest<String>.B.self
+}

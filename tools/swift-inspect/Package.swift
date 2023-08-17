@@ -9,7 +9,7 @@ let package = Package(
         .library(name: "SwiftInspectClient", type: .dynamic, targets: ["SwiftInspectClient"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "0.0.1"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.2.2"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -22,13 +22,11 @@ let package = Package(
                 .target(name: "SwiftInspectClient", condition: .when(platforms: [.windows])),
                 .target(name: "SwiftInspectClientInterface", condition: .when(platforms: [.windows])),
             ],
-            swiftSettings: [
-                .unsafeFlags([
-                    "-parse-as-library",
-                ]),
-            ]),
+            swiftSettings: [.unsafeFlags(["-parse-as-library"])]),
         .target(
-            name: "SwiftInspectClient"),
+            name: "SwiftInspectClient",
+            // Workaround https://github.com/llvm/llvm-project/issues/40056
+            cxxSettings: [.unsafeFlags(["-Xclang", "-fno-split-cold-code"])]),
         .systemLibrary(
             name: "SwiftInspectClientInterface"),
         .testTarget(

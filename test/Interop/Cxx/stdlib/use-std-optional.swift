@@ -1,7 +1,6 @@
 // RUN: %target-run-simple-swift(-I %S/Inputs -Xfrontend -enable-experimental-cxx-interop -Xcc -std=c++17)
 //
 // REQUIRES: executable_test
-// REQUIRES: OS=macosx || OS=linux-gnu
 
 import StdlibUnittest
 import StdOptional
@@ -13,6 +12,12 @@ StdOptionalTestSuite.test("pointee") {
   let nonNilOpt = getNonNilOptional()
   let pointee = nonNilOpt.pointee
   expectEqual(123, pointee)
+
+#if !os(Linux) // crashes on Ubuntu 18.04 (rdar://113414160)
+  var modifiedOpt = getNilOptional()
+  modifiedOpt.pointee = 777
+  expectEqual(777, modifiedOpt.pointee)
+#endif
 }
 
 StdOptionalTestSuite.test("std::optional => Swift.Optional") {

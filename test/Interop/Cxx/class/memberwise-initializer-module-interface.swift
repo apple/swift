@@ -42,3 +42,13 @@
 // CHECK-NEXT:   init(varPublic: Int32)
 // CHECK-NEXT:   var varPublic: Int32
 // CHECK-NEXT: }
+// CHECK-NEXT: struct ClassWithTemplatedFunction {
+// CHECK-NEXT:   init()
+// CHECK-NEXT:   init(varPublic: Int32)
+// CHECK-NEXT:   var varPublic: Int32
+// CHECK-NEXT: }
+// CHECK-NEXT: struct ClassWithTemplatedUsingDecl {
+// CHECK-NEXT:   init()
+// CHECK-NEXT:   init(varPublic: Int32)
+// CHECK-NEXT:   var varPublic: Int32
+// CHECK-NEXT: }

@@ -638,6 +638,10 @@ def disable_swift3_objc_inference :
 def enable_implicit_dynamic : Flag<["-"], "enable-implicit-dynamic">,
   Flags<[FrontendOption, NoInteractiveOption, HelpHidden]>,
   HelpText<"Add 'dynamic' to all declarations">;
+
+def bypass_resilience : Flag<["-"], "bypass-resilience-checks">,
+  Flags<[FrontendOption, NoInteractiveOption, HelpHidden]>,
+  HelpText<"Ignore all checks for module resilience.">;
   
 def enable_experimental_opaque_type_erasure : Flag<["-"], "enable-experimental-opaque-type-erasure">,
   Flags<[FrontendOption, NoInteractiveOption, HelpHidden]>,
@@ -1221,6 +1225,8 @@ def always_compile_output_files :
 def allow_unstable_cache_key_for_testing: Flag<["-"], "allow-unstable-cache-key-for-testing">,
   HelpText<"Allow compilation caching with unstable inputs for testing purpose">;
 
+def input_file_key : Separate<["-"], "input-file-key">,
+  HelpText<"Cache Key for input file">;
 def bridging_header_pch_key : Separate<["-"], "bridging-header-pch-key">,
   HelpText<"Cache Key for bridging header pch">;
 

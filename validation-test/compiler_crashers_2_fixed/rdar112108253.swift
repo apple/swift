@@ -6,7 +6,12 @@ public protocol P {
 
 public struct G<each T> {}
 
-public struct S<T: P, each U: P> where repeat T.A == G<repeat each U> {
-    public init(predicate: repeat each U) {}
+public protocol Q {
+  init()
+}
+
+public struct S<T: P, each U: P>: Q where repeat T.A == G<repeat (each U).A> {
+  public init() {}
+  public init(predicate: repeat each U) {}
 }
 

@@ -143,6 +143,11 @@ void ClangImporter::recordModuleDependencies(
                     ModuleDependencyKind::Clang))
       continue;
 
+    // Record this module as one we have now seen, to prevent future
+    // scand unnecessarily return it as a result
+    cache.addSeenClangModule(clang::tooling::dependencies::ModuleID{
+        clangModuleDep.ID.ModuleName, clangModuleDep.ID.ContextHash});
+
     // File dependencies for this module.
     std::vector<std::string> fileDeps;
     for (const auto &fileDep : clangModuleDep.FileDeps) {
@@ -169,7 +174,7 @@ void ClangImporter::recordModuleDependencies(
 
     auto pcmPath = moduleCacheRelativeLookupModuleOutput(
         clangModuleDep.ID, ModuleOutputKind::ModuleFile,
-        getModuleCachePathFromClang(getClangInstance()));
+        cache.getModuleOutputPath());
     swiftArgs.push_back("-o");
     swiftArgs.push_back(pcmPath);
 
@@ -416,7 +421,7 @@ ClangImporter::getModuleDependencies(StringRef moduleName,
   }
   std::string workingDir = *optionalWorkingDir;
 
-  auto moduleCachePath = getModuleCachePathFromClang(getClangInstance());
+  auto moduleCachePath = cache.getModuleOutputPath();
   auto lookupModuleOutput =
       [moduleCachePath](const ModuleID &MID,
                         ModuleOutputKind MOK) -> std::string {

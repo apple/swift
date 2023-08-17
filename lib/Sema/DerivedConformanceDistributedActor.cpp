@@ -649,7 +649,7 @@ deriveBodyDistributedActor_unownedExecutor(AbstractFunctionDecl *getter, void *)
   };
 
   // Build a reference to self.
-  Type selfType = getter->getImplicitSelfDecl()->getType();
+  Type selfType = getter->getImplicitSelfDecl()->getTypeInContext();
   Expr *selfArg = DerivedConformance::createSelfDeclRef(getter);
   selfArg->setType(selfType);
 
@@ -694,7 +694,7 @@ deriveBodyDistributedActor_unownedExecutor(AbstractFunctionDecl *getter, void *)
         [&](SubstitutableType *dependentType) {
           if (auto gp = dyn_cast<GenericTypeParamType>(dependentType)) {
             if (gp->getDepth() == 0 && gp->getIndex() == 0) {
-              return getter->getImplicitSelfDecl()->getType();
+              return getter->getImplicitSelfDecl()->getTypeInContext();
             }
           }
 

@@ -145,6 +145,7 @@ struct S: P {
 func checkConformer(_ s: S, _ p: any P, _ ma: MyActor) async {
   s.m(thing: ma)
   await p.m(thing: ma)
+  // expected-warning@-1 {{passing argument of non-sendable type 'any P' into actor-isolated context may introduce data races}}
 }
 
 

@@ -12,6 +12,8 @@ module Test {
 struct Ptr { int *p; };
 
 struct X {
+  X(const X&);
+  
   int *test() { }
   Ptr other() { }
 };

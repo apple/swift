@@ -14,7 +14,7 @@ extension ASTGenVisitor {
 
   public func visit(_ node: IntegerLiteralExprSyntax) -> ASTNode {
     let loc = bridgedSourceLoc(for: node)
-    var segment = node.digits.text
+    var segment = node.literal.text
     return .expr(
       segment.withBridgedString { bridgedSegment in
         return IntegerLiteralExpr_create(ctx, bridgedSegment, loc)
@@ -23,7 +23,7 @@ extension ASTGenVisitor {
 
   public func visit(_ node: BooleanLiteralExprSyntax) -> ASTNode {
     let loc = bridgedSourceLoc(for: node)
-    let value = node.booleanLiteral == .keyword(.true)
+    let value = node.literal == .keyword(.true)
     return .expr(BooleanLiteralExpr_create(ctx, value, loc))
   }
 

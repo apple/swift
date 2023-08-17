@@ -38,8 +38,8 @@ private func log(_ message: @autoclosure () -> String) {
 /// inter-procedural analysis. If this is not possible and the `enableMoveInoutStackProtection`
 /// option is set, the fallback is to move the argument into a temporary `alloc_stack`
 /// and do the unsafe pointer operations on the temporary.
-let stackProtection = ModulePass(name: "stack-protection", {
-    (context: ModulePassContext) in
+let stackProtection = ModulePass(name: "stack-protection") {
+  (context: ModulePassContext) in
 
   if !context.options.enableStackProtection {
     return
@@ -47,13 +47,13 @@ let stackProtection = ModulePass(name: "stack-protection", {
 
   var optimization = StackProtectionOptimization(enableMoveInout: context.options.enableMoveInoutStackProtection)
   optimization.processModule(context)
-})
+}
 
 /// The stack-protection optimization on function-level.
 ///
 /// In contrast to the `stack-protection` pass, this pass doesn't do any inter-procedural
 /// analysis. It runs at Onone.
-let functionStackProtection = FunctionPass(name: "function-stack-protection", {
+let functionStackProtection = FunctionPass(name: "function-stack-protection") {
   (function: Function, context: FunctionPassContext) in
 
   if !context.options.enableStackProtection {
@@ -62,7 +62,7 @@ let functionStackProtection = FunctionPass(name: "function-stack-protection", {
 
   var optimization = StackProtectionOptimization(enableMoveInout: context.options.enableMoveInoutStackProtection)
   optimization.process(function: function, context)
-})
+}
 
 /// The optimization algorithm.
 private struct StackProtectionOptimization {

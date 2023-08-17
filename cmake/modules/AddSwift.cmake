@@ -8,7 +8,6 @@ include(SwiftCXXUtils)
 function(_swift_gyb_target_sources target scope)
   file(GLOB GYB_UNICODE_DATA ${SWIFT_SOURCE_DIR}/utils/UnicodeData/*)
   file(GLOB GYB_STDLIB_SUPPORT ${SWIFT_SOURCE_DIR}/utils/gyb_stdlib_support.py)
-  file(GLOB GYB_SYNTAX_SUPPORT ${SWIFT_SOURCE_DIR}/utils/gyb_syntax_support/*.py)
   file(GLOB GYB_SOURCEKIT_SUPPORT ${SWIFT_SOURCE_DIR}/utils/gyb_sourcekit_support/*.py)
   set(GYB_SOURCES
     ${SWIFT_SOURCE_DIR}/utils/gyb
@@ -68,16 +67,16 @@ function(_set_target_prefix_and_suffix target kind sdk)
   precondition(kind MESSAGE "kind is required")
   precondition(sdk MESSAGE "sdk is required")
 
-  if(${sdk} STREQUAL ANDROID)
-    if(${kind} STREQUAL STATIC)
+  if(sdk STREQUAL "ANDROID")
+    if(kind STREQUAL "STATIC")
       set_target_properties(${target} PROPERTIES PREFIX "lib" SUFFIX ".a")
-    elseif(${kind} STREQUAL SHARED)
+    elseif(kind STREQUAL "SHARED")
       set_target_properties(${target} PROPERTIES PREFIX "lib" SUFFIX ".so")
     endif()
-  elseif(${sdk} STREQUAL WINDOWS)
-    if(${kind} STREQUAL STATIC)
+  elseif(sdk STREQUAL "WINDOWS")
+    if(kind STREQUAL "STATIC")
       set_target_properties(${target} PROPERTIES PREFIX "" SUFFIX ".lib")
-    elseif(${kind} STREQUAL SHARED)
+    elseif(kind STREQUAL "SHARED")
       set_target_properties(${target} PROPERTIES PREFIX "" SUFFIX ".dll")
     endif()
   endif()
@@ -120,7 +119,7 @@ function(_add_host_variant_c_compile_link_flags name)
     set(DEPLOYMENT_VERSION "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_DEPLOYMENT_VERSION}")
   endif()
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID")
     set(DEPLOYMENT_VERSION ${SWIFT_ANDROID_API_LEVEL})
   endif()
 
@@ -156,7 +155,7 @@ function(_add_host_variant_c_compile_link_flags name)
     target_compile_options(${name} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:--sysroot=${_sysroot}>)
   endif()
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID")
     # Make sure the Android NDK lld is used.
     swift_android_tools_path(${SWIFT_HOST_VARIANT_ARCH} tools_path)
     target_compile_options(${name} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-B${tools_path}>)
@@ -228,7 +227,7 @@ function(_add_host_variant_c_compile_flags target)
     endif()
   endif()
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL WINDOWS)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "WINDOWS")
     # MSVC/clang-cl don't support -fno-pic or -fms-compatibility-version.
     if(NOT SWIFT_COMPILER_IS_MSVC_LIKE)
       target_compile_options(${target} PRIVATE
@@ -285,14 +284,14 @@ function(_add_host_variant_c_compile_flags target)
     # NOTE(compnerd) workaround LLVM invoking `add_definitions(-D_DEBUG)` which
     # causes failures for the runtime library when cross-compiling due to
     # undefined symbols from the standard library.
-    if(NOT CMAKE_BUILD_TYPE STREQUAL Debug)
+    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
       target_compile_options(${target} PRIVATE
         $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-U_DEBUG>)
     endif()
   endif()
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID)
-    if(SWIFT_HOST_VARIANT_ARCH STREQUAL x86_64)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID")
+    if(SWIFT_HOST_VARIANT_ARCH STREQUAL "x86_64")
       # NOTE(compnerd) Android NDK 21 or lower will generate library calls to
       # `__sync_val_compare_and_swap_16` rather than lowering to the CPU's
       # `cmpxchg16b` instruction as the `cx16` feature is disabled due to a bug
@@ -326,15 +325,15 @@ function(_add_host_variant_c_compile_flags target)
       $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fprofile-instr-generate -fcoverage-mapping>)
   endif()
 
-  if((SWIFT_HOST_VARIANT_ARCH STREQUAL armv7 OR
-      SWIFT_HOST_VARIANT_ARCH STREQUAL aarch64) AND
-     (SWIFT_HOST_VARIANT_SDK STREQUAL LINUX OR
-      SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID))
+  if((SWIFT_HOST_VARIANT_ARCH STREQUAL "armv7" OR
+      SWIFT_HOST_VARIANT_ARCH STREQUAL "aarch64") AND
+     (SWIFT_HOST_VARIANT_SDK STREQUAL "LINUX" OR
+      SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID"))
     target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-funwind-tables>)
   endif()
 
   if(SWIFT_HOST_VARIANT_SDK STREQUAL "LINUX")
-    if(SWIFT_HOST_VARIANT_ARCH STREQUAL x86_64)
+    if(SWIFT_HOST_VARIANT_ARCH STREQUAL "x86_64")
       # this is the minimum architecture that supports 16 byte CAS, which is
       # necessary to avoid a dependency to libatomic
       target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-march=core2>)
@@ -345,7 +344,7 @@ function(_add_host_variant_c_compile_flags target)
   # llvm/llvm-project@66395c9, which can cause incompatibilities with the Swift
   # frontend if not built the same way.
   if("${SWIFT_HOST_VARIANT_ARCH}" MATCHES "armv6|armv7|i686" AND
-     NOT (SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID AND SWIFT_ANDROID_API_LEVEL LESS 24))
+     NOT (SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID" AND SWIFT_ANDROID_API_LEVEL LESS 24))
     target_compile_definitions(${target} PRIVATE
       $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:_LARGEFILE_SOURCE _FILE_OFFSET_BITS=64>)
   endif()
@@ -354,19 +353,19 @@ endfunction()
 function(_add_host_variant_link_flags target)
   _add_host_variant_c_compile_link_flags(${target})
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL LINUX)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "LINUX")
     target_link_libraries(${target} PRIVATE
       pthread
       dl)
     if("${SWIFT_HOST_VARIANT_ARCH}" MATCHES "armv5|armv6|armv7|i686")
       target_link_libraries(${target} PRIVATE atomic)
     endif()
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL FREEBSD)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "FREEBSD")
     target_link_libraries(${target} PRIVATE
       pthread)
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL CYGWIN)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "CYGWIN")
     # No extra libraries required.
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL WINDOWS)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "WINDOWS")
     # We don't need to add -nostdlib using MSVC or clang-cl, as MSVC and
     # clang-cl rely on auto-linking entirely.
     if(NOT SWIFT_COMPILER_IS_MSVC_LIKE)
@@ -384,12 +383,12 @@ function(_add_host_variant_link_flags target)
     # the Windows SDK on case sensitive file systems.
     target_link_directories(${target} PRIVATE
       ${CMAKE_BINARY_DIR}/winsdk_lib_${SWIFT_HOST_VARIANT_ARCH}_symlinks)
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL HAIKU)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "HAIKU")
     target_link_libraries(${target} PRIVATE
       bsd)
     target_link_options(${target} PRIVATE
       "SHELL:-Xlinker -Bsymbolic")
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL ANDROID)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID")
     target_link_libraries(${target} PRIVATE
       dl
       log
@@ -431,7 +430,7 @@ function(_add_host_variant_link_flags target)
   #
   # TODO: Evaluate/enable -f{function,data}-sections --gc-sections for bfd,
   # gold, and lld.
-  if(NOT CMAKE_BUILD_TYPE STREQUAL Debug AND CMAKE_SYSTEM_NAME MATCHES Darwin)
+  if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_SYSTEM_NAME MATCHES Darwin)
     if (NOT SWIFT_DISABLE_DEAD_STRIPPING)
       # See rdar://48283130: This gives 6MB+ size reductions for swift and
       # SourceKitService, and much larger size reductions for sil-opt etc.
@@ -455,7 +454,7 @@ function(_add_swift_runtime_link_flags target relpath_to_lib_dir bootstrapping)
   # RPATH where Swift runtime can be found.
   set(swift_runtime_rpath)
 
-  if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+  if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
 
     set(sdk_dir "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_ARCH_${SWIFT_HOST_VARIANT_ARCH}_PATH}/usr/lib/swift")
 
@@ -538,7 +537,7 @@ function(_add_swift_runtime_link_flags target relpath_to_lib_dir bootstrapping)
 
   elseif(SWIFT_HOST_VARIANT_SDK MATCHES "LINUX|ANDROID|OPENBSD|FREEBSD")
     set(swiftrt "swiftImageRegistrationObject${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_OBJECT_FORMAT}-${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_LIB_SUBDIR}-${SWIFT_HOST_VARIANT_ARCH}")
-    if(${ASRLF_BOOTSTRAPPING_MODE} MATCHES "HOSTTOOLS|CROSSCOMPILE")
+    if(ASRLF_BOOTSTRAPPING_MODE MATCHES "HOSTTOOLS|CROSSCOMPILE")
       # At build time and run time, link against the swift libraries in the
       # installed host toolchain.
       get_filename_component(swift_bin_dir ${SWIFT_EXEC_FOR_SWIFT_MODULES} DIRECTORY)
@@ -584,7 +583,7 @@ function(_add_swift_runtime_link_flags target relpath_to_lib_dir bootstrapping)
     # able to fall back to the SDK directory for libswiftCore et al.
     if (BOOTSTRAPPING_MODE MATCHES "BOOTSTRAPPING.*")
       if (NOT "${bootstrapping}" STREQUAL "1")
-        if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+        if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
           target_link_directories(${target} PRIVATE "${sdk_dir}")
 
           # Include the abi stable system stdlib in our rpath.
@@ -724,10 +723,10 @@ function(add_swift_host_library name)
   if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
     set_target_properties(${name} PROPERTIES
       INSTALL_NAME_DIR "@rpath")
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL LINUX)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "LINUX")
     set_target_properties(${name} PROPERTIES
       INSTALL_RPATH "$ORIGIN")
-  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL CYGWIN)
+  elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "CYGWIN")
     set_target_properties(${name} PROPERTIES
       INSTALL_RPATH "$ORIGIN:/usr/lib/swift/cygwin")
   elseif(SWIFT_HOST_VARIANT_SDK STREQUAL "ANDROID")
@@ -749,18 +748,18 @@ function(add_swift_host_library name)
   endif()
 
   # Set compilation and link flags.
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL WINDOWS)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "WINDOWS")
     swift_windows_include_for_arch(${SWIFT_HOST_VARIANT_ARCH}
       ${SWIFT_HOST_VARIANT_ARCH}_INCLUDE)
     target_include_directories(${name} SYSTEM PRIVATE
       ${${SWIFT_HOST_VARIANT_ARCH}_INCLUDE})
 
-    if(libkind STREQUAL SHARED)
+    if(libkind STREQUAL "SHARED")
       target_compile_definitions(${name} PRIVATE
         _WINDLL)
     endif()
 
-    if(NOT ${CMAKE_C_COMPILER_ID} STREQUAL MSVC)
+    if(NOT CMAKE_C_COMPILER_ID STREQUAL "MSVC")
       swift_windows_get_sdk_vfs_overlay(ASHL_VFS_OVERLAY)
       # Both clang and clang-cl on Windows set CMAKE_C_SIMULATE_ID to MSVC.
       # We are using CMAKE_C_COMPILER_FRONTEND_VARIANT to detect the correct
@@ -788,7 +787,7 @@ function(add_swift_host_library name)
 
   set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
 
-  if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+  if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
     target_link_options(${name} PRIVATE
       "LINKER:-compatibility_version,1")
     if(SWIFT_COMPILER_VERSION)
@@ -874,7 +873,7 @@ function(add_swift_host_tool executable)
     add_dependencies(${executable} ${LLVM_COMMON_DEPENDS})
   endif()
 
-  if(NOT ${ASHT_BOOTSTRAPPING} STREQUAL "")
+  if(NOT "${ASHT_BOOTSTRAPPING}" STREQUAL "")
     # Strip the "-bootstrapping<n>" suffix from the target name to get the base
     # executable name.
     string(REGEX REPLACE "-bootstrapping.*" "" executable_filename ${executable})
@@ -909,7 +908,7 @@ function(add_swift_host_tool executable)
     BINARY_DIR ${out_bin_dir}
     LIBRARY_DIR ${out_lib_dir})
 
-  if(SWIFT_HOST_VARIANT_SDK STREQUAL WINDOWS)
+  if(SWIFT_HOST_VARIANT_SDK STREQUAL "WINDOWS")
     swift_windows_include_for_arch(${SWIFT_HOST_VARIANT_ARCH}
       ${SWIFT_HOST_VARIANT_ARCH}_INCLUDE)
     target_include_directories(${executable} SYSTEM PRIVATE
@@ -931,13 +930,13 @@ function(add_swift_host_tool executable)
 
   if(SWIFT_SWIFT_PARSER)
     set(extra_relative_rpath "")
-    if(NOT ${ASHT_BOOTSTRAPPING} STREQUAL "")
-      if (${executable} MATCHES "-bootstrapping")
+    if(NOT "${ASHT_BOOTSTRAPPING}" STREQUAL "")
+      if(executable MATCHES "-bootstrapping")
         set(extra_relative_rpath "../")
       endif()
     endif()
 
-    if(${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+    if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
       set_property(
         TARGET ${executable}
         APPEND PROPERTY INSTALL_RPATH
@@ -963,7 +962,7 @@ function(add_swift_host_tool executable)
     target_link_options(${executable} PRIVATE "${lto_codegen_only_link_options}")
   endif()
 
-  if(NOT ${ASHT_SWIFT_COMPONENT} STREQUAL "no_component")
+  if(NOT ASHT_SWIFT_COMPONENT STREQUAL "no_component")
     add_dependencies(${ASHT_SWIFT_COMPONENT} ${executable})
     swift_install_in_component(TARGETS ${executable}
                                RUNTIME

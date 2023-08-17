@@ -1,0 +1,169 @@
+// RUN: %target-sil-opt -sil-print-debuginfo -enable-sil-verify-all -deadobject-elim %s | %FileCheck %s
+
+// Linux doesn't have the same symbol name for _ArrayBuffer, which is part of
+// the ObjC runtime interop.  Use `_ContiguousArrayBuffer instead.
+// REQUIRES: objc_interop
+
+import Swift
+import Builtin
+
+//////////
+// Data //
+//////////
+
+class TrivialDestructor {
+  var int : Builtin.Int32
+  var ptr : Builtin.NativeObject
+  init()
+  deinit { }
+}
+
+// Remove a dead array.
+// rdar://20980377 Add dead array elimination to DeadObjectElimination
+// Swift._allocateUninitializedArray <A> (Builtin.Word) -> (Swift.Array<A>, Builtin.RawPointer)
+sil [_semantics "array.uninitialized_intrinsic"] @allocArray : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+
+sil [_semantics "array.uninitialized"] @adoptStorageSpecializedForInt : $@convention(method) (@guaranteed _ContiguousArrayStorage<Int>, Builtin.Word, @thin Array<Int>.Type) -> (@owned Array<Int>, UnsafeMutablePointer<Int>)
+
+sil [_semantics "array.finalize_intrinsic"] @finalize : $@convention(thin) (@owned Array<Int>) -> @owned Array<Int>
+
+// CHECK-LABEL: sil [ossa] @deadarrayWithAdoptStorage : $@convention(thin) () -> () {
+// CHECK-NOT: apply
+// CHECK: } // end sil function 'deadarrayWithAdoptStorage'
+sil [ossa] @deadarrayWithAdoptStorage : $@convention(thin) () -> () {
+bb0:
+  %0 = integer_literal $Builtin.Word, 3
+  %6 = alloc_ref [tail_elems $Int * %0 : $Builtin.Word] $_ContiguousArrayStorage<Int>
+  %7 = metatype $@thin Array<Int>.Type
+  %8 = function_ref @adoptStorageSpecializedForInt : $@convention(method) (@guaranteed _ContiguousArrayStorage<Int>, Builtin.Word, @thin Array<Int>.Type) -> (@owned Array<Int>, UnsafeMutablePointer<Int>)
+  %9 = apply %8(%6, %0, %7) : $@convention(method) (@guaranteed _ContiguousArrayStorage<Int>, Builtin.Word, @thin Array<Int>.Type) -> (@owned Array<Int>, UnsafeMutablePointer<Int>)
+  (%10, %11) = destructure_tuple %9 : $(Array<Int>, UnsafeMutablePointer<Int>)
+  %f = function_ref @finalize : $@convention(thin) (@owned Array<Int>) -> @owned Array<Int>
+  %a = apply %f(%10) : $@convention(thin) (@owned Array<Int>) -> @owned Array<Int>
+  fix_lifetime %a : $Array<Int>
+  destroy_value %a : $Array<Int>
+  dealloc_ref %6 : $_ContiguousArrayStorage<Int>
+  %9999 = tuple()
+  return %9999 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @deadarray :
+// CHECK-NOT: apply
+// CHECK-NOT: store
+// CHECK-LABEL: } // end sil function 'deadarray'
+sil [ossa] @deadarray : $@convention(thin) (@owned TrivialDestructor) -> () {
+bb0(%0 : @owned $TrivialDestructor):
+  %copy0 = copy_value %0 : $TrivialDestructor
+  %2 = integer_literal $Builtin.Word, 2
+  %3 = function_ref @allocArray : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  %4 = apply %3<TrivialDestructor>(%2) : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  (%5, %6) = destructure_tuple %4 : $(Array<TrivialDestructor>, Builtin.RawPointer)
+  %7 = pointer_to_address %6 : $Builtin.RawPointer to [strict] $*TrivialDestructor
+  store %0 to [init] %7 : $*TrivialDestructor
+  %9 = integer_literal $Builtin.Word, 1
+  %10 = index_addr %7 : $*TrivialDestructor, %9 : $Builtin.Word
+  store %copy0 to [init] %10 : $*TrivialDestructor
+  destroy_value %5 : $Array<TrivialDestructor>
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @not_all_paths_release_the_dead_array :
+// CHECK-NOT: apply
+//} // end sil function 'not_all_paths_release_the_dead_array'
+sil [ossa] @not_all_paths_release_the_dead_array : $@convention(thin) (@owned TrivialDestructor) -> () {
+bb0(%0 : @owned $TrivialDestructor):
+  %2 = integer_literal $Builtin.Word, 2
+  // function_ref Swift._allocateUninitializedArray <A> (Builtin.Word) -> (Swift.Array<A>, Builtin.RawPointer)
+  %3 = function_ref @allocArray : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  %4 = apply %3<TrivialDestructor>(%2) : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  (%5, %6) = destructure_tuple %4 : $(Array<TrivialDestructor>, Builtin.RawPointer)
+  cond_br undef, bb1, bb2
+
+bb1:
+  unreachable
+
+bb2:
+  %7 = pointer_to_address %6 : $Builtin.RawPointer to [strict] $*TrivialDestructor
+  store %0 to [init] %7 : $*TrivialDestructor
+  destroy_value %5 : $Array<TrivialDestructor>
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @tuple_extract_in_different_block :
+// CHECK-NOT: apply
+// CHECK-LABEL: } // end sil function 'tuple_extract_in_different_block'
+sil [ossa] @tuple_extract_in_different_block : $@convention(thin) (@owned TrivialDestructor) -> () {
+bb0(%0 : @owned $TrivialDestructor):
+  %2 = integer_literal $Builtin.Word, 2
+  // function_ref Swift._allocateUninitializedArray <A> (Builtin.Word) -> (Swift.Array<A>, Builtin.RawPointer)
+  %3 = function_ref @allocArray : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  %4 = apply %3<TrivialDestructor>(%2) : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  br bb1
+
+bb1:
+  (%5, %6) = destructure_tuple %4 : $(Array<TrivialDestructor>, Builtin.RawPointer)
+  %7 = pointer_to_address %6 : $Builtin.RawPointer to [strict] $*TrivialDestructor
+  store %0 to [init] %7 : $*TrivialDestructor
+  destroy_value %5 : $Array<TrivialDestructor>
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @release_dead_array_on_two_branches :
+// CHECK-NOT: apply
+// CHECK-LABEL: } // end sil function 'release_dead_array_on_two_branches'
+sil [ossa] @release_dead_array_on_two_branches : $@convention(thin) (@owned TrivialDestructor, @owned TrivialDestructor) -> () {
+bb0(%0 : @owned $TrivialDestructor, %1 : @owned $TrivialDestructor):
+  %2 = integer_literal $Builtin.Word, 2
+  // function_ref Swift._allocateUninitializedArray <A> (Builtin.Word) -> (Swift.Array<A>, Builtin.RawPointer)
+  %3 = function_ref @allocArray : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  %4 = apply %3<TrivialDestructor>(%2) : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  (%5, %6) = destructure_tuple %4 : $(Array<TrivialDestructor>, Builtin.RawPointer)
+  %7 = pointer_to_address %6 : $Builtin.RawPointer to [strict] $*TrivialDestructor
+  cond_br undef, bb1, bb2
+
+bb1:
+  store %0 to [init] %7 : $*TrivialDestructor
+  destroy_value %1 : $TrivialDestructor
+  destroy_value %5 : $Array<TrivialDestructor>
+  br bb3
+
+bb2:
+  store %1 to [init] %7 : $*TrivialDestructor
+  destroy_value %0 : $TrivialDestructor
+  destroy_value %5 : $Array<TrivialDestructor>
+  br bb3
+
+bb3:
+  %18 = tuple ()
+  return %18 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dead_array_in_single_cycle_loop
+// CHECK-NOT: apply
+// CHECK-LABEL: } // end sil function 'dead_array_in_single_cycle_loop'
+sil [ossa] @dead_array_in_single_cycle_loop : $@convention(thin) (@guaranteed TrivialDestructor) -> () {
+bb0(%0 : @guaranteed $TrivialDestructor):
+  br bb1
+
+bb1:
+  %2 = integer_literal $Builtin.Word, 2
+  %3 = function_ref @allocArray : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  %4 = apply %3<TrivialDestructor>(%2) : $@convention(thin) <τ_0_0> (Builtin.Word) -> @owned (Array<τ_0_0>, Builtin.RawPointer)
+  (%5, %6) = destructure_tuple %4 : $(Array<TrivialDestructor>, Builtin.RawPointer)
+  %7 = pointer_to_address %6 : $Builtin.RawPointer to [strict] $*TrivialDestructor
+  %copy0 = copy_value %0 : $TrivialDestructor
+  store %copy0 to [init] %7 : $*TrivialDestructor
+  destroy_value %5 : $Array<TrivialDestructor>
+  cond_br undef, bb3, bb2
+
+bb3:
+  br bb1
+
+bb2:
+  %18 = tuple ()
+  return %18 : $()
+}
+

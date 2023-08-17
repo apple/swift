@@ -142,7 +142,9 @@ convertObjectToLoadableBridgeableType(SILBuilderWithScope &builder,
 
   // Ok, we need to perform the full cast optimization. This means that we are
   // going to replace the cast terminator in inst_block with a checked_cast_br.
-  auto *ccbi = builder.createCheckedCastBranch(loc, false, load, silBridgedTy,
+  auto *ccbi = builder.createCheckedCastBranch(loc, false, load, 
+                                               dynamicCast.getBridgedSourceType(), 
+                                               silBridgedTy,
                                                dynamicCast.getBridgedTargetType(),
                                                castSuccessBB, castFailBB);
   splitEdge(ccbi, /* EdgeIdx to CastFailBB */ 1);
@@ -538,6 +540,7 @@ static SILValue computeFinalCastedValue(SILBuilderWithScope &builder,
   auto loc = dynamicCast.getLocation();
   auto convTy = newAI->getType();
   bool isConditional = dynamicCast.isConditional();
+  auto sourceFormalTy = dynamicCast.getSourceFormalType();
   auto destLoweredTy = dynamicCast.getTargetLoweredType().getObjectType();
   auto destFormalTy = dynamicCast.getTargetFormalType();
   assert(destLoweredTy == dynamicCast.getLoweredBridgedTargetObjectType() &&
@@ -581,7 +584,7 @@ static SILValue computeFinalCastedValue(SILBuilderWithScope &builder,
         newAI->getFunction()->createBasicBlockAfter(newAI->getParent());
     condBrSuccessBB->createPhiArgument(destLoweredTy, OwnershipKind::Owned);
     builder.createCheckedCastBranch(loc, /* isExact*/ false, newAI,
-                                    destLoweredTy, destFormalTy,
+                                    sourceFormalTy, destLoweredTy, destFormalTy,
                                     condBrSuccessBB, failureBB);
     builder.setInsertionPoint(condBrSuccessBB, condBrSuccessBB->begin());
     return condBrSuccessBB->getArgument(0);
@@ -1151,6 +1154,7 @@ SILInstruction *CastOptimizer::optimizeCheckedCastAddrBranchInst(
           SILBuilderWithScope B(Inst, builderContext);
           auto NewI = B.createCheckedCastBranch(
               Loc, false /*isExact*/, MI,
+              Inst->getSourceFormalType(),
               Inst->getTargetLoweredType().getObjectType(),
               Inst->getTargetFormalType(),
               SuccessBB, FailureBB, Inst->getTrueBBCount(),
@@ -1193,6 +1197,9 @@ CastOptimizer::optimizeCheckedCastBranchInst(CheckedCastBranchInst *Inst) {
     }
     return B.createCheckedCastBranch(
         dynamicCast.getLocation(), false /*isExact*/, mi,
+        // The cast is now from the the MetatypeInst, so get the source formal
+        // type from it.
+        mi->getType().getASTType(),
         dynamicCast.getTargetLoweredType(),
         dynamicCast.getTargetFormalType(),
         dynamicCast.getSuccessBlock(),

@@ -215,11 +215,22 @@ bool noncopyable::memInstMustInitialize(Operand *memOper) {
     return qual == StoreOwnershipQualifier::Init ||
            qual == StoreOwnershipQualifier::Trivial;
   }
+  case SILInstructionKind::BuiltinInst: {
+    auto bi = cast<BuiltinInst>(memInst);
+    if (bi->getBuiltinKind() == BuiltinValueKind::ZeroInitializer) {
+      // `zeroInitializer` with an address operand zeroes out the address operand
+      return true;
+    }
+    return false;
+  }
 
 #define NEVER_OR_SOMETIMES_LOADABLE_CHECKED_REF_STORAGE(Name, ...)             \
   case SILInstructionKind::Store##Name##Inst:                                  \
     return cast<Store##Name##Inst>(memInst)->isInitializationOfDest();
 #include "swift/AST/ReferenceStorage.def"
+
+  case SILInstructionKind::StoreBorrowInst:
+    return true;
   }
 }
 
@@ -248,7 +259,7 @@ bool noncopyable::memInstMustReinitialize(Operand *memOper) {
   case SILInstructionKind::TryApplyInst:
   case SILInstructionKind::ApplyInst: {
     FullApplySite applySite(memInst);
-    return applySite.getArgumentOperandConvention(*memOper).isInoutConvention();
+    return applySite.getCaptureConvention(*memOper).isInoutConvention();
   }
   case SILInstructionKind::StoreInst:
     return cast<StoreInst>(memInst)->getOwnershipQualifier() ==
@@ -285,7 +296,7 @@ bool noncopyable::memInstMustConsume(Operand *memOper) {
   case SILInstructionKind::TryApplyInst:
   case SILInstructionKind::ApplyInst: {
     FullApplySite applySite(memInst);
-    return applySite.getArgumentOperandConvention(*memOper).isOwnedConvention();
+    return applySite.getCaptureConvention(*memOper).isOwnedConvention();
   }
   case SILInstructionKind::PartialApplyInst: {
     // If we are on the stack or have an inout convention, we do not
@@ -381,8 +392,8 @@ struct SimpleTemporaryAllocStackElimState {
   }
 };
 
-struct SimpleTemporaryAllocStackElimVisitor final
-    : public TransitiveAddressWalker {
+struct SimpleTemporaryAllocStackElimVisitor
+    : public TransitiveAddressWalker<SimpleTemporaryAllocStackElimVisitor> {
   SimpleTemporaryAllocStackElimState &state;
   CopyAddrInst *caiToVisit;
   CopyAddrInst *&nextCAI;
@@ -406,7 +417,7 @@ struct SimpleTemporaryAllocStackElimVisitor final
     return true;
   }
 
-  bool visitUse(Operand *op) override {
+  bool visitUse(Operand *op) {
     LLVM_DEBUG(llvm::dbgs() << "SimpleTemporaryAllocStackElimVisitor visiting: "
                             << *op->getUser());
 
@@ -545,12 +556,13 @@ bool siloptimizer::eliminateTemporaryAllocationsFromLet(
     return false;
 
   StackList<CopyAddrInst *> copiesToVisit(markedInst->getFunction());
-  struct FindCopyAddrWalker final : public TransitiveAddressWalker {
+  struct FindCopyAddrWalker
+      : public TransitiveAddressWalker<FindCopyAddrWalker> {
     StackList<CopyAddrInst *> &copiesToVisit;
     FindCopyAddrWalker(StackList<CopyAddrInst *> &copiesToVisit)
         : TransitiveAddressWalker(), copiesToVisit(copiesToVisit) {}
 
-    bool visitUse(Operand *op) override {
+    bool visitUse(Operand *op) {
       auto *cai = dyn_cast<CopyAddrInst>(op->getUser());
       // We want copy_addr that are not a take of src and are an init of their
       // dest.

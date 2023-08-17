@@ -36,7 +36,10 @@ enum class ResolutionKind {
   Overloadable,
 
   /// Lookup should match a single decl that declares a type.
-  TypesOnly
+  TypesOnly,
+
+  /// Lookup should only match macros.
+  MacrosOnly,
 };
 
 void simple_display(llvm::raw_ostream &out, ResolutionKind kind);

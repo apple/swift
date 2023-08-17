@@ -114,5 +114,5 @@ struct MyBrokenStruct {
 
 @myPropertyWrapper
 struct CannotHaveAccessors {}
-// CHECK-DIAGS: 'accessor' macro cannot be attached to struct
+// CHECK-DIAGS: 'accessor' macro cannot be attached to struct ('CannotHaveAccessors')
 #endif

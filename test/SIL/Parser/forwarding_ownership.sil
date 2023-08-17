@@ -62,7 +62,7 @@ bb3:
 sil [ossa] @checked_cast_test : $@convention(thin) (@owned Klass) -> () {
 bb0(%0 : @owned $Klass):
   %trivial = unchecked_ownership_conversion %0 : $Klass, @owned to @none
-  checked_cast_br %trivial : $Klass to SubKlass, bb1, bb2, forwarding: @guaranteed
+  checked_cast_br Klass in %trivial : $Klass to SubKlass, bb1, bb2, forwarding: @guaranteed
 
 bb1(%arg1 : @guaranteed $SubKlass):
   br bb3

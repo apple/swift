@@ -19,6 +19,9 @@ struct Mystruct {
   static var structglobal = Mystruct(a: 3, b: Empty(), c: 4)
   // CHECK: @{{[^ ]*tupleglobal[^ ]*}} = hidden global <{ %TSi, %TSi }> <{ %TSi <{ i{{[0-9]+}} 5 }>, %TSi <{ i{{[0-9]+}} 6 }> }>
   static var tupleglobal = (a: 5, b: Empty(), c: 6)
+
+  static var empty: () = ()
+  static var ptrToEmpty = UnsafePointer(&empty)
 }
 
 // CHECK-OUTPUT:      3
@@ -33,3 +36,6 @@ print(Mystruct.tupleglobal.a)
 print(Mystruct.tupleglobal.b)
 // CHECK-OUTPUT-NEXT: 6
 print(Mystruct.tupleglobal.c)
+// CHECK-OUTPUT-NEXT: {{0x0+$}}
+print(Mystruct.ptrToEmpty)
+

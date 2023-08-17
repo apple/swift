@@ -242,6 +242,8 @@ enum class UnqualifiedLookupFlags {
   IncludeUsableFromInline = 1 << 5,
   /// This lookup should exclude any names introduced by macro expansions.
   ExcludeMacroExpansions = 1 << 6,
+  /// This lookup should only return macros.
+  MacroLookup            = 1 << 7,
 };
 
 using UnqualifiedLookupOptions = OptionSet<UnqualifiedLookupFlags>;

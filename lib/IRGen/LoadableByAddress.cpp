@@ -402,14 +402,16 @@ SILParameterInfo LargeSILTypeMapper::getNewParameter(GenericEnvironment *env,
       return param;
     }
   } else if (isLargeLoadableType(env, storageType, IGM)) {
-    if (param.getConvention() == ParameterConvention::Direct_Guaranteed)
-      return SILParameterInfo(storageType.getASTType(),
-                              ParameterConvention::Indirect_In_Guaranteed,
-                              param.getDifferentiability());
-    else
+    if (param.getConvention() == ParameterConvention::Direct_Owned) {
       return SILParameterInfo(storageType.getASTType(),
                               ParameterConvention::Indirect_In,
                               param.getDifferentiability());
+    }
+    assert(param.getConvention() == ParameterConvention::Direct_Guaranteed
+           || param.getConvention() == ParameterConvention::Direct_Unowned);
+    return SILParameterInfo(storageType.getASTType(),
+                            ParameterConvention::Indirect_In_Guaranteed,
+                            param.getDifferentiability());
   } else {
     auto newType = getNewSILType(env, storageType, IGM);
     return SILParameterInfo(newType.getASTType(),

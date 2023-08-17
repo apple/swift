@@ -14,10 +14,15 @@
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main | %FileCheck %s
 
-@attached(conformance)
+#if TEST_DIAGNOSTICS
+@attached(conformance) // expected-error{{conformance macros are replaced by extension macros}}
+macro InvalidEquatable() = #externalMacro(module: "MacroDefinition", type: "EquatableMacro")
+#endif
+
+@attached(extension, conformances: Equatable)
 macro Equatable() = #externalMacro(module: "MacroDefinition", type: "EquatableMacro")
 
-@attached(conformance)
+@attached(extension, conformances: Hashable)
 macro Hashable() = #externalMacro(module: "MacroDefinition", type: "HashableMacro")
 
 #if MODULE_EXPORTING_TYPE
@@ -52,7 +57,7 @@ enum E {
   @Equatable struct Nested {}
 }
 
-// CHECK-DUMP: @__swiftmacro_25macro_expand_conformances1S9EquatablefMc_.swift
+// CHECK-DUMP: @__swiftmacro_25macro_expand_conformances1S9EquatablefMe_.swift
 // CHECK-DUMP: extension S: Equatable  {
 // CHECK-DUMP: }
 
@@ -77,7 +82,7 @@ requireHashable(PublicEquatable())
 //expected-error@-1{{global function 'requireHashable' requires that 'PublicEquatable' conform to 'Hashable'}}
 #endif
 
-@attached(conformance)
+@attached(extension, conformances: P)
 @attached(member, names: named(requirement))
 macro DelegatedConformance() = #externalMacro(module: "MacroDefinition", type: "DelegatedConformanceMacro")
 
@@ -94,7 +99,7 @@ struct Wrapped: P {
 @DelegatedConformance
 struct Generic<Element> {}
 
-// CHECK-DUMP: @__swiftmacro_25macro_expand_conformances7Generic20DelegatedConformancefMc_.swift
+// CHECK-DUMP: @__swiftmacro_25macro_expand_conformances7Generic20DelegatedConformancefMe_.swift
 // CHECK-DUMP: extension Generic: P where Element: P {
 // CHECK-DUMP: }
 

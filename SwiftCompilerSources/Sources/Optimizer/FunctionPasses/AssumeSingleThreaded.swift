@@ -27,12 +27,12 @@
 
 import SIL
 
-let assumeSingleThreadedPass = FunctionPass(
-  name: "sil-assume-single-threaded", { function, context in
-    for inst in function.instructions {
-      guard let rcInst = inst as? RefCountingInst else { continue }
+let assumeSingleThreadedPass = FunctionPass(name: "sil-assume-single-threaded") {
+  (function: Function, context: FunctionPassContext) in
 
-      rcInst.setAtomicity(isAtomic: false, context)
-    }
+  for inst in function.instructions {
+    guard let rcInst = inst as? RefCountingInst else { continue }
+
+    rcInst.setAtomicity(isAtomic: false, context)
   }
-)
+}

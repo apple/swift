@@ -31,6 +31,11 @@ struct GenericStruct<T> {
   var x: T
 }
 
+struct TwoFields {
+  let a: Int32
+  let b: Int32
+}
+
 let nontrivialglobal: TClass
 
 // CHECK-LABEL: sil_global hidden [let] @$trivialglobal : $TStruct = {
@@ -74,6 +79,24 @@ sil_global private @g3_token : $Builtin.Word
 sil_global [let] @g4 : $Optional<UnsafeMutablePointer<Int>>
 sil_global private @g4_token : $Builtin.Word
 
+// CHECK-LABEL: sil_global [let] @g5 : $TwoFields = {
+// CHECK-NEXT:    %0 = integer_literal $Builtin.Int32, 11
+// CHECK-NEXT:    %1 = struct $Int32 (%0 : $Builtin.Int32)
+// CHECK-NEXT:    %2 = integer_literal $Builtin.Int32, 10
+// CHECK-NEXT:    %3 = struct $Int32 (%2 : $Builtin.Int32)
+// CHECK-NEXT:    %initval = struct $TwoFields (%1 : $Int32, %3 : $Int32)
+// CHECK-NEXT:  }
+sil_global [let] @g5 : $TwoFields
+
+sil_global [let] @g6 : $TwoFields
+sil_global [let] @g7 : $TwoFields
+
+// CHECK-LABEL: sil_global [let] @g8 : $UnsafePointer<Int32> = {
+// CHECK-NEXT:    %0 = global_addr @g1 : $*Int32
+// CHECK-NEXT:    %1 = address_to_pointer %0 : $*Int32 to $Builtin.RawPointer
+// CHECK-NEXT:    %initval = struct $UnsafePointer<Int32> (%1 : $Builtin.RawPointer)
+// CHECK-NEXT:  }
+sil_global [let] @g8 : $UnsafePointer<Int32>
 
 // CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_trivialglobal_func :
 // CHECK-NOT:     alloc_global
@@ -189,3 +212,62 @@ bb0:
   %10 = tuple ()
   return %10 : $()
 }
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_separate_stores :
+// CHECK-NOT:     alloc_global
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'globalinit_separate_stores'
+sil [global_init_once_fn] [ossa] @globalinit_separate_stores : $@convention(c) () -> () {
+bb0:
+  alloc_global @g5
+  %1 = global_addr @g5 : $*TwoFields
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  %4 = struct_element_addr %1 : $*TwoFields, #TwoFields.b
+  store %3 to [trivial] %4 : $*Int32
+  %6 = integer_literal $Builtin.Int32, 11
+  %7 = struct $Int32 (%6 : $Builtin.Int32)
+  %8 = struct_element_addr %1 : $*TwoFields, #TwoFields.a
+  store %7 to [trivial] %8 : $*Int32
+  %10 = tuple ()
+  return %10 : $()
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_wrong_separate_stores :
+// CHECK:         alloc_global
+// CHECK:         store
+// CHECK:         store
+// CHECK:       } // end sil function 'globalinit_wrong_separate_stores'
+sil [global_init_once_fn] [ossa] @globalinit_wrong_separate_stores : $@convention(c) () -> () {
+bb0:
+  alloc_global @g5
+  %1 = global_addr @g5 : $*TwoFields
+  %2 = integer_literal $Builtin.Int32, 10
+  %3 = struct $Int32 (%2 : $Builtin.Int32)
+  %4 = struct_element_addr %1 : $*TwoFields, #TwoFields.b
+  store %3 to [trivial] %4 : $*Int32
+  %6 = integer_literal $Builtin.Int32, 11
+  %7 = struct $Int32 (%6 : $Builtin.Int32)
+  store %7 to [trivial] %4 : $*Int32
+  %10 = tuple ()
+  return %10 : $()
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] [ossa] @globalinit_pointer_to_other_global :
+// CHECK-NOT:     alloc_global
+// CHECK-NOT:     store
+// CHECK:       } // end sil function 'globalinit_pointer_to_other_global'
+sil [global_init_once_fn] [ossa] @globalinit_pointer_to_other_global : $@convention(c) (Builtin.RawPointer) -> () {
+bb0(%0 : $Builtin.RawPointer):
+  alloc_global @g8
+  %2 = global_addr @g8 : $*UnsafePointer<Int32>
+  %3 = global_addr @g1 : $*Int32
+  %4 = begin_access [read] [dynamic] %3 : $*Int32
+  %5 = address_to_pointer %4 : $*Int32 to $Builtin.RawPointer
+  end_access %4 : $*Int32
+  %7 = struct $UnsafePointer<Int32> (%5 : $Builtin.RawPointer)
+  store %7 to [trivial] %2 : $*UnsafePointer<Int32>
+  %8 = tuple ()
+  return %8 : $()
+}
+

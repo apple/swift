@@ -51,6 +51,12 @@ var diffTypesArrayByVal = DifferentTypesArrayByVal()
 let diffTypesResultIntByVal: Int32 = diffTypesArrayByVal[0]
 let diffTypesResultDoubleByVal: Double = diffTypesArrayByVal[0.5]
 
+var iter = Iterator()
+iter.pointee = 123
+
+var constIter = ConstIterator()
+constIter.pointee = 123 // expected-error {{cannot assign to property: 'pointee' is a get-only property}}
+
 let postIncrement = HasPostIncrementOperator()
 postIncrement.successor() // expected-error {{value of type 'HasPostIncrementOperator' has no member 'successor'}}
 

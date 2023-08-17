@@ -510,9 +510,11 @@ static void swift_objc_classCopyFixupHandler(Class oldClass, Class newClass) {
   if (!oldClassMetadata->isTypeMetadata())
    return;
 
-  // Copy the value witness table pointer for pointer authentication.
+  // Copy the value witness table and pointer and heap object destroyer for
+  // pointer authentication.
   auto newClassMetadata = reinterpret_cast<ClassMetadata *>(newClass);
   newClassMetadata->setValueWitnesses(oldClassMetadata->getValueWitnesses());
+  newClassMetadata->setHeapObjectDestroyer(oldClassMetadata->getHeapObjectDestroyer());
 
  // Otherwise, re-sign v-table entries using the extra discriminators stored
  // in the v-table descriptor.
@@ -2785,15 +2787,26 @@ size_t swift::_swift_refCountBytesForMetatype(const Metadata *type) {
     size_t offset = sizeof(uint64_t);
     return LayoutStringReader{type->getLayoutString(), offset}
         .readBytes<size_t>();
-  } else if (type->isClassObject() || type->isAnyExistentialType()) {
-    return sizeof(uint64_t);
   } else if (auto *tuple = dyn_cast<TupleTypeMetadata>(type)) {
     size_t res = 0;
     for (InProcess::StoredSize i = 0; i < tuple->NumElements; i++) {
       res += _swift_refCountBytesForMetatype(tuple->getElement(i).Type);
     }
     return res;
+  } else if (auto *cls = type->getClassObject()) {
+    if (cls->isTypeMetadata()) {
+      auto *vwt = cls->getValueWitnesses();
+      if (vwt != &VALUE_WITNESS_SYM(Bo) &&
+          vwt != &VALUE_WITNESS_SYM(BO) &&
+          vwt != &VALUE_WITNESS_SYM(Bb)) {
+        goto metadata;
+      }
+    }
+    return sizeof(uint64_t);
+  } else if (type->isAnyExistentialType()) {
+    return sizeof(uint64_t);
   } else {
+  metadata:
     return sizeof(uint64_t) + sizeof(uintptr_t);
   }
 }
@@ -2822,14 +2835,15 @@ void swift::_swift_addRefCountStringForMetatype(LayoutStringWriter &writer,
              reader.layoutStr + layoutStringHeaderSize, fieldRefCountBytes);
 
       if (fieldFlags & LayoutStringFlags::HasRelativePointers) {
-        swift_resolve_resilientAccessors(writer.layoutStr, writer.offset,
-                                         reader.layoutStr, fieldType);
+        swift_resolve_resilientAccessors(
+            writer.layoutStr, writer.offset,
+            reader.layoutStr + layoutStringHeaderSize, fieldType);
       }
 
       if (offset) {
+        LayoutStringReader tagReader {writer.layoutStr, writer.offset};
         auto writerOffsetCopy = writer.offset;
-        reader.offset = layoutStringHeaderSize;
-        auto firstTagAndOffset = reader.readBytes<uint64_t>();
+        auto firstTagAndOffset = tagReader.readBytes<uint64_t>();
         firstTagAndOffset += offset;
         writer.writeBytes(firstTagAndOffset);
         writer.offset = writerOffsetCopy;
@@ -2891,6 +2905,35 @@ metadata:
   previousFieldOffset = fieldType->vw_size();
   fullOffset += previousFieldOffset;
   }
+}
+
+/// Initialize the value witness table for a @_rawLayout struct.
+SWIFT_RUNTIME_EXPORT
+void swift::swift_initRawStructMetadata(StructMetadata *structType,
+                                        StructLayoutFlags layoutFlags,
+                                        const TypeLayout *likeTypeLayout,
+                                        int32_t count) {
+  auto vwtable = getMutableVWTableForInit(structType, layoutFlags);
+
+  // The existing vwt function entries are all fine to preserve, the only thing
+  // we need to initialize is the actual type layout.
+  auto size = likeTypeLayout->size;
+  auto stride = likeTypeLayout->stride;
+  auto alignMask = likeTypeLayout->flags.getAlignmentMask();
+  auto extraInhabitantCount = likeTypeLayout->extraInhabitantCount;
+
+  // If our count is greater than or equal 0, we're dealing an array like layout.
+  if (count >= 0) {
+    stride *= count;
+    size = stride;
+  }
+
+  vwtable->size = size;
+  vwtable->stride = stride;
+  vwtable->flags = ValueWitnessFlags()
+                    .withAlignmentMask(alignMask)
+                    .withCopyable(false);
+  vwtable->extraInhabitantCount = extraInhabitantCount;
 }
 
 /***************************************************************************/

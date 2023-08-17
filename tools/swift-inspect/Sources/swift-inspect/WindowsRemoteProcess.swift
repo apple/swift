@@ -161,16 +161,13 @@ internal final class WindowsRemoteProcess: RemoteProcess {
     self.context = context
 
     // Locate swiftCore.dll in the target process and load modules.
-    iterateRemoteModules(
-      dwProcessId: processId,
-      closure: { (entry, module) in
-        // FIXME(compnerd) support static linking at some point
-        if module == "swiftCore.dll" {
-          self.hSwiftCore = entry.hModule
-        }
-        _ = swift_reflection_addImage(
-          context, unsafeBitCast(entry.modBaseAddr, to: swift_addr_t.self))
-      })
+    modules(of: processId) { (entry, module) in
+      // FIXME(compnerd) support static linking at some point
+      if module == "swiftCore.dll" { self.hSwiftCore = entry.hModule }
+      _ = swift_reflection_addImage(context,
+                                    unsafeBitCast(entry.modBaseAddr,
+                                                  to: swift_addr_t.self))
+    }
     if self.hSwiftCore == HMODULE(bitPattern: -1) {
       // FIXME(compnerd) log error
       return nil
@@ -213,18 +210,17 @@ internal final class WindowsRemoteProcess: RemoteProcess {
     }
 
     var context: (DWORD64, String?) = (pSymbolInfo.pointee.ModBase, nil)
-    _ = SymEnumerateModules64(
-      self.process,
-      { ModuleName, BaseOfDll, UserContext in
-        let pContext: UnsafeMutablePointer<(DWORD64, String?)> =
-          UserContext!.bindMemory(to: (DWORD64, String?).self, capacity: 1)
-
-        if BaseOfDll == pContext.pointee.0 {
-          pContext.pointee.1 = String(cString: ModuleName!)
-          return false
+    _ = withUnsafeMutablePointer(to: &context) {
+      SymEnumerateModules64(self.process, { (ModuleName, BaseOfDll, UserContext) -> WindowsBool in
+        if let pContext = UserContext?.bindMemory(to: (DWORD64, String?).self, capacity: 1) {
+          if pContext.pointee.0 == BaseOfDll {
+            pContext.pointee.1 = String(cString: ModuleName!)
+            return false
+          }
         }
         return true
-      }, &context)
+      }, $0)
+    }
 
     return (context.1, symbol)
   }
@@ -322,7 +318,7 @@ internal final class WindowsRemoteProcess: RemoteProcess {
       print("Failed to find remote LoadLibraryW/FreeLibrary addresses")
       return
     }
-    let (loadLibraryAddr, freeLibraryAddr) = (remoteAddrs[0], remoteAddrs[1])
+    let (loadLibraryAddr, pfnFreeLibrary) = (remoteAddrs[0], remoteAddrs[1])
     let hThread: HANDLE = CreateRemoteThread(
       self.process, nil, 0, loadLibraryAddr,
       dllPathRemote, 0, nil)
@@ -331,6 +327,18 @@ internal final class WindowsRemoteProcess: RemoteProcess {
       return
     }
     defer { CloseHandle(hThread) }
+
+    defer {
+      // Always perform the code ejection process even if the heap walk fails.
+      // The module cannot re-execute the heap walk and will leave a retain
+      // count behind, preventing the module from being unlinked on the file
+      // system as well as leave code in the inspected process.  This will
+      // eventually be an issue for treating the injected code as a resource
+      // which is extracted temporarily.
+      if !eject(module: dllPathRemote, from: dwProcessId, pfnFreeLibrary) {
+        print("Failed to unload the remote dll")
+      }
+    }
 
     // The main heap iteration loop.
     outer: while true {
@@ -382,75 +390,68 @@ internal final class WindowsRemoteProcess: RemoteProcess {
       print("LoadLibraryW failed \(threadExitCode)")
       return
     }
-
-    // Unload the dll and deallocate the dll path from the remote process
-    if !unloadDllAndPathRemote(
-      dwProcessId: dwProcessId, dllPathRemote: dllPathRemote, freeLibraryAddr: freeLibraryAddr)
-    {
-      print("Failed to unload the remote dll")
-      return
-    }
   }
 
   private func allocateDllPathRemote() -> UnsafeMutableRawPointer? {
-    // The path to the dll assuming it's in the same directory as swift-inspect.
-    let swiftInspectPath = ProcessInfo.processInfo.arguments[0]
-    return URL(fileURLWithPath: swiftInspectPath)
+    URL(fileURLWithPath: ProcessInfo.processInfo.arguments[0])
       .deletingLastPathComponent()
       .appendingPathComponent("SwiftInspectClient.dll")
-      .withUnsafeFileSystemRepresentation {
-        #"\\?\\#(String(decodingCString: unsafeBitCast($0!, to: UnsafePointer<UInt8>.self), as: UTF8.self))"#
-          .withCString(encodedAs: UTF16.self) {
-            // Check that the dll file exists
-            var faAttributes: WIN32_FILE_ATTRIBUTE_DATA = .init()
-            guard GetFileAttributesExW($0, GetFileExInfoStandard, &faAttributes),
-              faAttributes.dwFileAttributes & DWORD(FILE_ATTRIBUTE_REPARSE_POINT) == 0
-            else {
-              print("\($0) doesn't exist")
-              return nil
-            }
-            // Allocate memory in the remote process
-            let szLength = SIZE_T(wcslen($0) * MemoryLayout<WCHAR>.size + 1)
-            guard
-              let allocation = VirtualAllocEx(
-                self.process, nil, szLength,
-                DWORD(MEM_COMMIT), DWORD(PAGE_READWRITE))
-            else {
-              print("VirtualAllocEx failed \(GetLastError())")
-              return nil
-            }
-            // Write the path in the allocated memory
-            if !WriteProcessMemory(self.process, allocation, $0, szLength, nil) {
-              print("WriteProcessMemory failed \(GetLastError())")
-              VirtualFreeEx(self.process, allocation, 0, DWORD(MEM_RELEASE))
-              return nil
-            }
+      .path
+      .withCString(encodedAs: UTF16.self) { pwszPath in
+        let dwLength = GetFullPathNameW(pwszPath, 0, nil, nil)
+        return withUnsafeTemporaryAllocation(of: WCHAR.self, capacity: Int(dwLength)) {
+          guard GetFullPathNameW(pwszPath, dwLength, $0.baseAddress, nil) == dwLength - 1 else { return nil }
 
-            return allocation
+          var faAttributes: WIN32_FILE_ATTRIBUTE_DATA = .init()
+          guard GetFileAttributesExW($0.baseAddress, GetFileExInfoStandard, &faAttributes) else {
+            print("\(String(decodingCString: $0.baseAddress!, as: UTF16.self)) doesn't exist")
+            return nil
           }
+          guard faAttributes.dwFileAttributes & DWORD(FILE_ATTRIBUTE_REPARSE_POINT) == 0 else {
+            print("\(String(decodingCString: $0.baseAddress!, as: UTF16.self)) doesn't exist")
+            return nil
+          }
+
+          let szLength = SIZE_T(Int(dwLength) * MemoryLayout<WCHAR>.size)
+          guard let pAllocation =
+              VirtualAllocEx(self.process, nil, szLength,
+                             DWORD(MEM_COMMIT), DWORD(PAGE_READWRITE)) else {
+            print("VirtualAllocEx failed \(GetLastError())")
+            return nil
+          }
+
+          if !WriteProcessMemory(self.process, pAllocation, $0.baseAddress, szLength, nil) {
+            print("WriteProcessMemory failed \(GetLastError())")
+            _ = VirtualFreeEx(self.process, pAllocation, 0, DWORD(MEM_RELEASE))
+            return nil
+          }
+
+          return pAllocation
+        }
       }
   }
 
-  private func unloadDllAndPathRemote(
-    dwProcessId: DWORD, dllPathRemote: UnsafeMutableRawPointer,
-    freeLibraryAddr: LPTHREAD_START_ROUTINE
-  ) -> Bool {
+  /// Eject the injected code from the instrumented process.
+  ///
+  /// Performs the necessary clean up to remove the injected code from the
+  /// instrumented process once the heap walk is complete.
+  private func eject(module dllPathRemote: UnsafeMutableRawPointer,
+                     from dwProcessId: DWORD,
+                     _ freeLibraryAddr: LPTHREAD_START_ROUTINE) -> Bool {
     // Get the dll module handle in the remote process to use it to
     // unload it below.
+
     // GetExitCodeThread returns a DWORD (32-bit) but the HMODULE
     // returned from LoadLibraryW is a 64-bit pointer and may be truncated.
     // So, search for it using the snapshot instead.
-    guard
-      let hDllModule = findRemoteModule(
-        dwProcessId: dwProcessId, moduleName: "SwiftInspectClient.dll")
-    else {
+    guard let hModule = find(module: "SwiftInspectClient.dll", in: dwProcessId) else {
       print("Failed to find the client dll")
       return false
     }
     // Unload the dll from the remote process
     let hUnloadThread = CreateRemoteThread(
       self.process, nil, 0, freeLibraryAddr,
-      unsafeBitCast(hDllModule, to: LPVOID.self), 0, nil)
+      UnsafeMutableRawPointer(hModule), 0, nil)
     if hUnloadThread == HANDLE(bitPattern: 0) {
       print("CreateRemoteThread for unload failed \(GetLastError())")
       return false
@@ -477,7 +478,7 @@ internal final class WindowsRemoteProcess: RemoteProcess {
     return true
   }
 
-  private func iterateRemoteModules(dwProcessId: DWORD, closure: (MODULEENTRY32W, String) -> Void) {
+  private func modules(of dwProcessId: DWORD, _ closure: (MODULEENTRY32W, String) -> Void) {
     let hModuleSnapshot: HANDLE =
       CreateToolhelp32Snapshot(DWORD(TH32CS_SNAPMODULE), dwProcessId)
     if hModuleSnapshot == INVALID_HANDLE_VALUE {
@@ -504,22 +505,18 @@ internal final class WindowsRemoteProcess: RemoteProcess {
     } while Module32NextW(hModuleSnapshot, &entry)
   }
 
-  private func findRemoteModule(dwProcessId: DWORD, moduleName: String) -> HMODULE? {
-    var hDllModule: HMODULE? = nil
-    iterateRemoteModules(
-      dwProcessId: dwProcessId,
-      closure: { (entry, module) in
-        if module == moduleName {
-          hDllModule = entry.hModule
-        }
-      })
-    return hDllModule
+  private func find(module named: String, in dwProcessId: DWORD) -> HMODULE? {
+    var hModule: HMODULE?
+    modules(of: dwProcessId) { (entry, module) in
+      if module == named { hModule = entry.hModule }
+    }
+    return hModule
   }
 
   private func findRemoteAddresses(dwProcessId: DWORD, moduleName: String, symbols: [String])
     -> [LPTHREAD_START_ROUTINE]?
   {
-    guard let hDllModule = findRemoteModule(dwProcessId: dwProcessId, moduleName: moduleName) else {
+    guard let hDllModule = find(module: moduleName, in: dwProcessId) else {
       print("Failed to find remote module \(moduleName)")
       return nil
     }

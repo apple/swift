@@ -13,20 +13,21 @@
 #ifndef SWIFT_SIL_SILBRIDGING_H
 #define SWIFT_SIL_SILBRIDGING_H
 
-#include "swift/Basic/BasicBridging.h"
-#include "swift/Basic/BridgedSwiftObject.h"
 #include "swift/AST/Builtins.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/SubstitutionMap.h"
-#include "swift/SIL/SILInstruction.h"
+#include "swift/Basic/BasicBridging.h"
+#include "swift/Basic/BridgedSwiftObject.h"
+#include "swift/Basic/Nullability.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/SILBuilder.h"
-#include "swift/SIL/SILLocation.h"
-#include "swift/SIL/SILFunctionConventions.h"
-#include "swift/SIL/SILModule.h"
-#include "swift/SIL/SILWitnessTable.h"
 #include "swift/SIL/SILDefaultWitnessTable.h"
+#include "swift/SIL/SILFunctionConventions.h"
+#include "swift/SIL/SILInstruction.h"
+#include "swift/SIL/SILLocation.h"
+#include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILVTable.h"
+#include "swift/SIL/SILWitnessTable.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <string>
@@ -366,7 +367,7 @@ struct BridgedGlobalVar {
   }
 
   SWIFT_IMPORT_UNSAFE
-  inline OptionalBridgedInstruction getStaticInitializerValue() const;
+  inline OptionalBridgedInstruction getFirstStaticInitInst() const;
 
   bool canBeInitializedStatically() const;
   
@@ -418,7 +419,7 @@ struct BridgedTypeArray {
 
   SWIFT_IMPORT_UNSAFE
   swift::SILType getAt(SwiftInt index) const {
-    auto ty = swift::CanType(typeArray[index]);
+    auto ty = typeArray[index]->getCanonicalType();
     if (ty->isLegalSILType())
       return swift::SILType::getPrimitiveObjectType(ty);
     return swift::SILType();
@@ -465,6 +466,9 @@ struct BridgedInstruction {
 
   SWIFT_IMPORT_UNSAFE
   inline BridgedBasicBlock getParent() const;
+
+  SWIFT_IMPORT_UNSAFE
+  inline BridgedInstruction getLastInstOfParent() const;
 
   bool isDeleted() const {
     return getInst()->isDeleted();
@@ -545,6 +549,9 @@ struct BridgedInstruction {
     return getAs<swift::BuiltinInst>()->getSubstitutions();
   }
 
+  bool PointerToAddressInst_isStrict() const {
+    return getAs<swift::PointerToAddressInst>()->isStrict();
+  }
 
   bool AddressToPointerInst_needsStackProtection() const {
     return getAs<swift::AddressToPointerInst>()->needsStackProtection();
@@ -802,6 +809,10 @@ struct BridgedInstruction {
 
   void GlobalValueInst_setIsBare() const {
     getAs<swift::GlobalValueInst>()->setBare(true);
+  }
+
+  void LoadInst_setOwnership(SwiftInt ownership) const {
+    getAs<swift::LoadInst>()->setOwnershipQualifier((swift::LoadOwnershipQualifier)ownership);
   }
 
   SWIFT_IMPORT_UNSAFE
@@ -1165,6 +1176,16 @@ struct BridgedBuilder{
   }
 
   SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createBeginBorrow(BridgedValue op) const {
+    return {builder().createBeginBorrow(regularLoc(), op.getSILValue())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createEndBorrow(BridgedValue op) const {
+    return {builder().createEndBorrow(regularLoc(), op.getSILValue())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
   BridgedInstruction createCopyAddr(BridgedValue from, BridgedValue to,
                                     bool takeSource, bool initializeDest) const {
     return {builder().createCopyAddr(regularLoc(),
@@ -1176,6 +1197,11 @@ struct BridgedBuilder{
   SWIFT_IMPORT_UNSAFE
   BridgedInstruction createDestroyValue(BridgedValue op) const {
     return {builder().createDestroyValue(regularLoc(), op.getSILValue())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createDestroyAddr(BridgedValue op) const {
+    return {builder().createDestroyAddr(regularLoc(), op.getSILValue())};
   }
 
   SWIFT_IMPORT_UNSAFE
@@ -1283,6 +1309,11 @@ struct BridgedBuilder{
   }
 
   SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createDestructureStruct(BridgedValue str) const {
+    return {builder().createDestructureStruct(regularLoc(), str.getSILValue())};
+  }
+
+  SWIFT_IMPORT_UNSAFE
   BridgedInstruction createTuple(swift::SILType type, BridgedValueArray elements) const {
     llvm::SmallVector<swift::SILValue, 16> elementValues;
     return {builder().createTuple(regularLoc(), type, elements.getValues(elementValues))};
@@ -1298,6 +1329,11 @@ struct BridgedBuilder{
   BridgedInstruction createTupleElementAddr(BridgedValue addr, SwiftInt elementIndex) const {
     swift::SILValue v = addr.getSILValue();
     return {builder().createTupleElementAddr(regularLoc(), v, elementIndex)};
+  }
+
+  SWIFT_IMPORT_UNSAFE
+  BridgedInstruction createDestructureTuple(BridgedValue str) const {
+    return {builder().createDestructureTuple(regularLoc(), str.getSILValue())};
   }
 
   SWIFT_IMPORT_UNSAFE
@@ -1328,6 +1364,8 @@ struct BridgedNominalTypeDecl {
   llvm::StringRef getName() const {
     return decl->getName().str();
   }
+
+  bool isStructWithUnreferenceableStorage() const;
 };
 
 // Passmanager and Context
@@ -1381,11 +1419,12 @@ OptionalBridgedBasicBlock BridgedFunction::getLastBlock() const {
   return {getFunction()->empty() ? nullptr : &*getFunction()->rbegin()};
 }
 
-OptionalBridgedInstruction BridgedGlobalVar::getStaticInitializerValue() const {
-  if (swift::SILInstruction *inst = getGlobal()->getStaticInitializerValue()) {
-    return {inst->asSILNode()};
+OptionalBridgedInstruction BridgedGlobalVar::getFirstStaticInitInst() const {
+  if (getGlobal()->begin() == getGlobal()->end()) {
+    return {nullptr};
   }
-  return {nullptr};
+  swift::SILInstruction *firstInst = &*getGlobal()->begin();
+  return {firstInst->asSILNode()};
 }
 
 BridgedInstruction BridgedMultiValueResult::getParent() const {
@@ -1396,6 +1435,10 @@ BridgedBasicBlock BridgedInstruction::getParent() const {
   assert(!getInst()->isStaticInitializerInst() &&
          "cannot get the parent of a static initializer instruction");
   return {getInst()->getParent()};
+}
+
+inline BridgedInstruction BridgedInstruction::getLastInstOfParent() const {
+  return {getInst()->getParent()->back().asSILNode()};
 }
 
 BridgedSuccessorArray BridgedInstruction::TermInst_getSuccessors() const {

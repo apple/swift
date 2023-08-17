@@ -898,6 +898,10 @@ public:
   /// Get the runtime availability of support for concurrency.
   AvailabilityContext getConcurrencyAvailability();
 
+  /// Get the runtime availability of the `DiscardingTaskGroup`,
+  /// and supporting runtime functions function
+  AvailabilityContext getConcurrencyDiscardingTaskGroupAvailability();
+
   /// Get the back-deployed availability for concurrency.
   AvailabilityContext getBackDeployedConcurrencyAvailability();
 
@@ -936,6 +940,10 @@ public:
   /// Get the runtime availability of runtime entrypoints that take signed type
   /// descriptors.
   AvailabilityContext getSignedDescriptorAvailability();
+
+  /// Get the runtime availability of the swift_initRawStructMetadata entrypoint
+  /// that fixes up the value witness table of @_rawLayout dependent types.
+  AvailabilityContext getInitRawStructMetadataAvailability();
 
   /// Get the runtime availability of features introduced in the Swift 5.2
   /// compiler for the target platform.
@@ -1254,13 +1262,16 @@ public:
   unsigned bumpGeneration() { return CurrentGeneration++; }
 
   /// Produce a "normal" conformance for a nominal type.
+  ///
+  /// For ordinary conformance lookups, use ModuleDecl::lookupConformance()
+  /// instead.
   NormalProtocolConformance *
-  getConformance(Type conformingType,
-                 ProtocolDecl *protocol,
-                 SourceLoc loc,
-                 DeclContext *dc,
-                 ProtocolConformanceState state,
-                 bool isUnchecked);
+  getNormalConformance(Type conformingType,
+                       ProtocolDecl *protocol,
+                       SourceLoc loc,
+                       DeclContext *dc,
+                       ProtocolConformanceState state,
+                       bool isUnchecked);
 
   /// Produce a self-conformance for the given protocol.
   SelfProtocolConformance *
@@ -1269,8 +1280,6 @@ public:
   /// Produce the builtin conformance for some structural type to some protocol.
   BuiltinProtocolConformance *
   getBuiltinConformance(Type type, ProtocolDecl *protocol,
-                        GenericSignature genericSig,
-                        ArrayRef<Requirement> conditionalRequirements,
                         BuiltinConformanceKind kind);
 
   /// A callback used to produce a diagnostic for an ill-formed protocol

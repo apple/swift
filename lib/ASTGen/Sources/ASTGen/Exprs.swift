@@ -1,5 +1,8 @@
 import CASTBridging
 import SwiftParser
+
+// Needed to use SyntaxTransformVisitor's visit method.
+@_spi(SyntaxTransformVisitor)
 import SwiftSyntax
 
 extension ASTGenVisitor {
@@ -17,22 +20,25 @@ extension ASTGenVisitor {
   public func visit(_ node: FunctionCallExprSyntax) -> ASTNode {
     // Transform the trailing closure into an argument.
     if let trailingClosure = node.trailingClosure {
-      let tupleElement = TupleExprElementSyntax(
+      let tupleElement = LabeledExprSyntax(
         label: nil, colon: nil, expression: ExprSyntax(trailingClosure), trailingComma: nil)
 
-      return visit(node.addArgument(tupleElement).with(\.trailingClosure, nil))
+      var node = node
+      node.arguments.append(tupleElement)
+      node.trailingClosure = nil
+      return visit(node)
     }
 
-    let args = visit(node.argumentList).rawValue
+    let args = visit(node.arguments).rawValue
     let callee = visit(node.calledExpression).rawValue
 
     return .expr(FunctionCallExpr_create(self.ctx, callee, args))
   }
 
-  public func visit(_ node: IdentifierExprSyntax) -> ASTNode {
+  public func visit(_ node: DeclReferenceExprSyntax) -> ASTNode {
     let loc = bridgedSourceLoc(for: node)
 
-    var text = node.identifier.text
+    var text = node.baseName.text
     let id = text.withBridgedString { bridgedText in
       return ASTContext_getIdentifier(ctx, bridgedText)
     }
@@ -54,7 +60,7 @@ extension ASTGenVisitor {
   public func visit(_ node: MemberAccessExprSyntax) -> ASTNode {
     let loc = bridgedSourceLoc(for: node)
     let base = visit(node.base!).rawValue
-    var nameText = node.name.text
+    var nameText = node.declName.baseName.text
     let name = nameText.withBridgedString { bridgedName in
       return ASTContext_getIdentifier(ctx, bridgedName)
     }
@@ -71,7 +77,7 @@ extension ASTGenVisitor {
     return .expr(sve)
   }
 
-  public func visit(_ node: TupleExprElementListSyntax) -> ASTNode {
+  public func visit(_ node: LabeledExprListSyntax) -> ASTNode {
     let elements = node.map { self.visit($0).rawValue }
     let labels: [BridgedIdentifier?] = node.map {
       guard var name = $0.label?.text else {

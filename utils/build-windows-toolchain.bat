@@ -929,91 +929,77 @@ endlocal
 setlocal enableextensions enabledelayedexpansion
 
 :: Package bld.msi
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\bld.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\bld\bld.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\bld\ ^
-  -p:OutputPath=%PackageRoot%\bld\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\bld\ ^
   -p:DEVTOOLS_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain ^
   -p:TOOLCHAIN_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\bld\bld.msi
 
 :: Package cli.msi
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\cli.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\cli\cli.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\cli\ ^
-  -p:OutputPath=%PackageRoot%\cli\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\cli\ ^
   -p:DEVTOOLS_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain ^
   -p:TOOLCHAIN_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\cli\cli.msi
 
 :: Package dbg.msi
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\dbg.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\dbg\dbg.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\dbg\ ^
-  -p:OutputPath=%PackageRoot%\dbg\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\dbg\ ^
   -p:DEVTOOLS_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain ^
   -p:TOOLCHAIN_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\dbg\dbg.msi
 
 :: Package ide.msi
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\ide.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\ide\ide.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\ide\ ^
-  -p:OutputPath=%PackageRoot%\ide\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\ide\ ^
   -p:DEVTOOLS_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain ^
   -p:TOOLCHAIN_ROOT=%BuildRoot%\Library\Developer\Toolchains\unknown-Asserts-development.xctoolchain
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\ide\ide.msi
 
 :: Package sdk.msi
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\sdk.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\sdk\sdk.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\sdk\ ^
-  -p:OutputPath=%PackageRoot%\sdk\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\sdk\ ^
   -p:PLATFORM_ROOT=%PlatformRoot%\ ^
   -p:SDK_ROOT=%SDKInstallRoot%\
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\sdk\sdk.msi
 
 :: Package runtime.msi
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\runtime.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\runtimemsi\runtimemsi.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\runtime\ ^
-  -p:OutputPath=%PackageRoot%\runtime\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\runtime\ ^
   -p:SDK_ROOT=%SDKInstallRoot%\
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\runtime\runtime.msi
 
 :: Collate MSIs
-move %PackageRoot%\bld\bld.msi %PackageRoot% || (exit /b)
-move %PackageRoot%\cli\cli.msi %PackageRoot% || (exit /b)
-move %PackageRoot%\dbg\dbg.msi %PackageRoot% || (exit /b)
-move %PackageRoot%\ide\ide.msi %PackageRoot% || (exit /b)
-move %PackageRoot%\sdk\sdk.msi %PackageRoot% || (exit /b)
-move %PackageRoot%\runtime\runtime.msi %PackageRoot% || (exit /b)
+move %PackageRoot%\bld\Release\amd64\bld.msi %PackageRoot% || (exit /b)
+move %PackageRoot%\cli\Release\amd64\cli.msi %PackageRoot% || (exit /b)
+move %PackageRoot%\dbg\Release\amd64\dbg.msi %PackageRoot% || (exit /b)
+move %PackageRoot%\ide\Release\amd64\ide.msi %PackageRoot% || (exit /b)
+move %PackageRoot%\sdk\Release\amd64\sdk.msi %PackageRoot% || (exit /b)
+move %PackageRoot%\runtime\Release\amd64\runtime.msi %PackageRoot% || (exit /b)
 
 :: Build Installer
-msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\installer.wixproj ^
+msbuild %SourceRoot%\swift-installer-scripts\platforms\Windows\bundle\installer.wixproj ^
   -restore ^
   -p:Configuration=Release ^
-  -p:IntermediateOutputPath=%PackageRoot%\installer\ ^
-  -p:OutputPath=%PackageRoot%\installer\ ^
-  -p:RunWixToolsOutOfProc=true ^
+  -p:BaseOutputPath=%PackageRoot%\installer\ ^
   -p:MSI_LOCATION=%PackageRoot%\
 :: TODO(compnerd) actually perform the code-signing
 :: signtool sign /f Apple_CodeSign.pfx /p Apple_CodeSign_Password /tr http://timestamp.digicert.com /fd sha256 %PackageRoot%\installer\installer.exe
@@ -1035,7 +1021,7 @@ move %PackageRoot%\sdk.msi %BuildRoot%\artifacts || (exit /b)
 :: runtime
 move %PackageRoot%\runtime.msi %BuildRoot%\artifacts || (exit /b)
 :: installer
-move %PackageRoot%\installer\installer.exe %BuildRoot%\artifacts || (exit /b)
+move %PackageRoot%\installer\Release\amd64\installer.exe %BuildRoot%\artifacts || (exit /b)
 
 goto :eof
 endlocal

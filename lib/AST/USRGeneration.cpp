@@ -176,7 +176,8 @@ swift::USRGenerationRequest::evaluate(Evaluator &evaluator,
 
   if (!D->hasName() && !isa<ParamDecl>(D) && !isa<AccessorDecl>(D))
     return std::string(); // Ignore.
-  if (D->getModuleContext()->isBuiltinModule())
+  if (D->getModuleContext()->isBuiltinModule() &&
+      !isa<BuiltinTupleDecl>(D))
     return std::string(); // Ignore.
   if (isa<ModuleDecl>(D))
     return std::string(); // Ignore.

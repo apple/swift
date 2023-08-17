@@ -56,29 +56,29 @@ extension Int: Q {}
 extension Bool: Q {}
 
 protocol HasPackRequirements {
-  func doStuff1<each T: Q>(_ value: repeat each T) -> (repeat each T.A)
-  func doStuff2<each T: Q>(_ value: repeat each T) -> (repeat each T.A)
+  func doStuff1<each T: Q>(_ value: repeat each T) -> (repeat (each T).A)
+  func doStuff2<each T: Q>(_ value: repeat each T) -> (repeat (each T).A)
 }
 
 extension HasPackRequirements {
-  func doStuff1<each T: Q>(_ value: repeat each T) -> (repeat each T.A) {
+  func doStuff1<each T: Q>(_ value: repeat each T) -> (repeat (each T).A) {
     return (repeat (each value).makeA())
   }
 }
 
 struct ConformsPackRequirements: HasPackRequirements {
-  func doStuff2<each T: Q>(_ value: repeat each T) -> (repeat each T.A) {
+  func doStuff2<each T: Q>(_ value: repeat each T) -> (repeat (each T).A) {
     return (repeat (each value).makeA())
   }
 }
 
 func testPackRequirements1<T: HasPackRequirements, each U: Q>(_ t: T, _ u: repeat each U)
-    -> (repeat each U.A) {
+    -> (repeat (each U).A) {
   return t.doStuff1(repeat each u)
 }
 
 func testPackRequirements2<T: HasPackRequirements, each U: Q>(_ t: T, _ u: repeat each U)
-    -> (repeat each U.A) {
+    -> (repeat (each U).A) {
   return t.doStuff2(repeat each u)
 }
 

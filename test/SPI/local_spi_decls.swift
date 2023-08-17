@@ -37,8 +37,8 @@ func inlinable() -> SPIClass { // expected-error {{class 'SPIClass' cannot be us
   spiFunc() // expected-error {{global function 'spiFunc()' cannot be used in an '@inlinable' function because it is SPI}}
   _ = SPIClass() // expected-error {{class 'SPIClass' cannot be used in an '@inlinable' function because it is SPI}}
   // expected-error@-1 {{initializer 'init()' cannot be used in an '@inlinable' function because it is SPI}}
-  globalArrayWithSPISetter = [] // expected-error {{setter 'globalArrayWithSPISetter' cannot be used in an '@inlinable' function because it is SPI}}
-  globalArrayWithSPISetter.append(0) // expected-error {{setter 'globalArrayWithSPISetter' cannot be used in an '@inlinable' function because it is SPI}}
+  globalArrayWithSPISetter = [] // expected-error {{setter for var 'globalArrayWithSPISetter' cannot be used in an '@inlinable' function because it is SPI}}
+  globalArrayWithSPISetter.append(0) // expected-error {{setter for var 'globalArrayWithSPISetter' cannot be used in an '@inlinable' function because it is SPI}}
 }
 
 @_spi(S) public struct SPIStruct {

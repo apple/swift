@@ -959,7 +959,7 @@ static Expr *buildStorageReference(AccessorDecl *accessor,
 
   AccessSemantics semantics;
   SelfAccessorKind selfAccessKind;
-  Type selfTypeForAccess = (selfDecl ? selfDecl->getType() : Type());
+  Type selfTypeForAccess = (selfDecl ? selfDecl->getTypeInContext() : Type());
 
   bool isMemberLValue = isLValue;
 
@@ -1263,7 +1263,7 @@ static ProtocolConformanceRef checkConformanceToNSCopying(VarDecl *var,
 }
 
 static std::pair<Type, bool> getUnderlyingTypeOfVariable(VarDecl *var) {
-  Type type = var->getType()->getReferenceStorageReferent();
+  Type type = var->getTypeInContext()->getReferenceStorageReferent();
 
   if (Type objectType = type->getOptionalObjectType()) {
     return {objectType, true};
@@ -1562,7 +1562,7 @@ synthesizeLazyGetterBody(AccessorDecl *Get, VarDecl *VD, VarDecl *Storage,
   Tmp1VD->setInterfaceType(VD->getValueInterfaceType());
   Tmp1VD->setImplicit();
 
-  auto *Named = NamedPattern::createImplicit(Ctx, Tmp1VD, Tmp1VD->getType());
+  auto *Named = NamedPattern::createImplicit(Ctx, Tmp1VD, Tmp1VD->getTypeInContext());
   auto *Let =
       BindingPattern::createImplicit(Ctx, VarDecl::Introducer::Let, Named);
   Let->setType(Named->getType());
@@ -1578,7 +1578,7 @@ synthesizeLazyGetterBody(AccessorDecl *Get, VarDecl *VD, VarDecl *Storage,
   // Build the early return inside the if.
   auto *Tmp1DRE = new (Ctx) DeclRefExpr(Tmp1VD, DeclNameLoc(), /*Implicit*/true,
                                         AccessSemantics::Ordinary);
-  Tmp1DRE->setType(Tmp1VD->getType());
+  Tmp1DRE->setType(Tmp1VD->getTypeInContext());
   auto *Return = new (Ctx) ReturnStmt(SourceLoc(), Tmp1DRE,
                                       /*implicit*/true);
 
@@ -1612,7 +1612,7 @@ synthesizeLazyGetterBody(AccessorDecl *Get, VarDecl *VD, VarDecl *Storage,
 
     InitValue = PBD->getInit(entryIndex);
   } else {
-    InitValue = new (Ctx) ErrorExpr(SourceRange(), Tmp2VD->getType());
+    InitValue = new (Ctx) ErrorExpr(SourceRange(), Tmp2VD->getTypeInContext());
   }
 
   // Recontextualize any closure declcontexts nested in the initializer to
@@ -1628,9 +1628,9 @@ synthesizeLazyGetterBody(AccessorDecl *Get, VarDecl *VD, VarDecl *Storage,
   InitValue->setType(initType);
 
   Pattern *Tmp2PBDPattern =
-      NamedPattern::createImplicit(Ctx, Tmp2VD, Tmp2VD->getType());
+      NamedPattern::createImplicit(Ctx, Tmp2VD, Tmp2VD->getTypeInContext());
   Tmp2PBDPattern =
-    TypedPattern::createImplicit(Ctx, Tmp2PBDPattern, Tmp2VD->getType());
+    TypedPattern::createImplicit(Ctx, Tmp2PBDPattern, Tmp2VD->getTypeInContext());
 
   auto *Tmp2PBD = PatternBindingDecl::createImplicit(
       Ctx, StaticSpellingKind::None, Tmp2PBDPattern, InitValue, Get,
@@ -1641,14 +1641,14 @@ synthesizeLazyGetterBody(AccessorDecl *Get, VarDecl *VD, VarDecl *Storage,
   // Assign tmp2 into storage.
   auto Tmp2DRE = new (Ctx) DeclRefExpr(Tmp2VD, DeclNameLoc(), /*Implicit*/true,
                                        AccessSemantics::DirectToStorage);
-  Tmp2DRE->setType(Tmp2VD->getType());
+  Tmp2DRE->setType(Tmp2VD->getTypeInContext());
   createPropertyStoreOrCallSuperclassSetter(Get, Tmp2DRE, Storage,
                                             TargetImpl::Storage, Body, Ctx);
 
   // Return tmp2.
   Tmp2DRE = new (Ctx) DeclRefExpr(Tmp2VD, DeclNameLoc(), /*Implicit*/true,
                                   AccessSemantics::DirectToStorage);
-  Tmp2DRE->setType(Tmp2VD->getType());
+  Tmp2DRE->setType(Tmp2VD->getTypeInContext());
 
   Body.push_back(new (Ctx) ReturnStmt(SourceLoc(), Tmp2DRE, /*implicit*/true));
 
@@ -1729,7 +1729,7 @@ synthesizeTrivialSetterBodyWithStorage(AccessorDecl *setter,
 
   auto *valueDRE =
     new (ctx) DeclRefExpr(valueParamDecl, DeclNameLoc(), /*IsImplicit=*/true);
-  valueDRE->setType(valueParamDecl->getType());
+  valueDRE->setType(valueParamDecl->getTypeInContext());
 
   SmallVector<ASTNode, 1> setterBody;
 
@@ -1817,7 +1817,7 @@ synthesizeObservedSetterBody(AccessorDecl *Set, TargetImpl target,
     DeclRefExpr *ValueDRE = nullptr;
     if (arg) {
       ValueDRE = new (Ctx) DeclRefExpr(arg, DeclNameLoc(), /*imp*/ true);
-      ValueDRE->setType(arg->getType());
+      ValueDRE->setType(arg->getTypeInContext());
     }
 
     if (SelfDecl) {
@@ -1862,9 +1862,9 @@ synthesizeObservedSetterBody(AccessorDecl *Set, TargetImpl target,
 
       // Error recovery.
       if (OldValueExpr == nullptr) {
-        OldValueExpr = new (Ctx) ErrorExpr(SourceRange(), VD->getType());
+        OldValueExpr = new (Ctx) ErrorExpr(SourceRange(), VD->getTypeInContext());
       } else {
-        OldValueExpr = new (Ctx) LoadExpr(OldValueExpr, VD->getType());
+        OldValueExpr = new (Ctx) LoadExpr(OldValueExpr, VD->getTypeInContext());
       }
 
       OldValue = new (Ctx) VarDecl(/*IsStatic*/ false, VarDecl::Introducer::Let,
@@ -1872,7 +1872,7 @@ synthesizeObservedSetterBody(AccessorDecl *Set, TargetImpl target,
       OldValue->setImplicit();
       OldValue->setInterfaceType(VD->getValueInterfaceType());
       auto *tmpPattern =
-          NamedPattern::createImplicit(Ctx, OldValue, OldValue->getType());
+          NamedPattern::createImplicit(Ctx, OldValue, OldValue->getTypeInContext());
       auto *tmpPBD = PatternBindingDecl::createImplicit(
           Ctx, StaticSpellingKind::None, tmpPattern, OldValueExpr, Set);
       SetterBody.push_back(tmpPBD);
@@ -1885,7 +1885,7 @@ synthesizeObservedSetterBody(AccessorDecl *Set, TargetImpl target,
   
   // Create an assignment into the storage or call to superclass setter.
   auto *ValueDRE = new (Ctx) DeclRefExpr(ValueDecl, DeclNameLoc(), true);
-  ValueDRE->setType(ValueDecl->getType());
+  ValueDRE->setType(ValueDecl->getTypeInContext());
   createPropertyStoreOrCallSuperclassSetter(
       Set, ValueDRE, isLazy ? VD->getLazyStorageProperty() : VD, target,
       SetterBody, Ctx);
@@ -2689,7 +2689,7 @@ LazyStoragePropertyRequest::evaluate(Evaluator &evaluator,
   NameBuf += VD->getName().str();
   auto StorageName = Context.getIdentifier(NameBuf);
   auto StorageInterfaceTy = OptionalType::get(VD->getInterfaceType());
-  auto StorageTy = OptionalType::get(VD->getType());
+  auto StorageTy = OptionalType::get(VD->getTypeInContext());
 
   auto *Storage = new (Context) VarDecl(/*IsStatic*/false, VarDecl::Introducer::Var,
                                         VD->getLoc(), StorageName,
@@ -2711,7 +2711,7 @@ LazyStoragePropertyRequest::evaluate(Evaluator &evaluator,
       NamedPattern::createImplicit(Context, Storage, StorageTy);
   PBDPattern = TypedPattern::createImplicit(Context, PBDPattern, StorageTy);
   auto *InitExpr = new (Context) NilLiteralExpr(SourceLoc(), /*Implicit=*/true);
-  InitExpr->setType(Storage->getType());
+  InitExpr->setType(Storage->getTypeInContext());
 
   auto *PBD = PatternBindingDecl::createImplicit(
       Context, StaticSpellingKind::None, PBDPattern, InitExpr,
@@ -3119,8 +3119,8 @@ PropertyWrapperInitializerInfoRequest::evaluate(Evaluator &evaluator,
 
   auto createPBD = [&](VarDecl *singleVar) -> PatternBindingDecl * {
     Pattern *pattern =
-        NamedPattern::createImplicit(ctx, singleVar, singleVar->getType());
-    pattern = TypedPattern::createImplicit(ctx, pattern, singleVar->getType());
+        NamedPattern::createImplicit(ctx, singleVar, singleVar->getTypeInContext());
+    pattern = TypedPattern::createImplicit(ctx, pattern, singleVar->getTypeInContext());
     PatternBindingDecl *pbd = PatternBindingDecl::createImplicit(
         ctx, var->getCorrectStaticSpelling(), pattern, /*init*/nullptr,
         dc, SourceLoc());
@@ -3211,7 +3211,7 @@ PropertyWrapperInitializerInfoRequest::evaluate(Evaluator &evaluator,
       // Projected-value initialization is currently only supported for parameters.
       auto *param = dyn_cast<ParamDecl>(var);
       auto *placeholder = PropertyWrapperValuePlaceholderExpr::create(
-          ctx, var->getSourceRange(), projection->getType(), /*projectedValue=*/nullptr);
+          ctx, var->getSourceRange(), projection->getTypeInContext(), /*projectedValue=*/nullptr);
       projectedValueInit = buildPropertyWrapperInitCall(
           var, storageType, placeholder, PropertyWrapperInitKind::ProjectedValue);
       TypeChecker::typeCheckExpression(projectedValueInit, dc);
@@ -3233,7 +3233,7 @@ PropertyWrapperInitializerInfoRequest::evaluate(Evaluator &evaluator,
              var->allAttachedPropertyWrappersHaveWrappedValueInit() &&
              !var->getName().hasDollarPrefix()) {
     wrappedValueInit = PropertyWrapperValuePlaceholderExpr::create(
-        ctx, var->getSourceRange(), var->getType(), /*wrappedValue=*/nullptr);
+        ctx, var->getSourceRange(), var->getTypeInContext(), /*wrappedValue=*/nullptr);
     typeCheckSynthesizedWrapperInitializer(var, wrappedValueInit,
                                            /*contextualize=*/true);
   }

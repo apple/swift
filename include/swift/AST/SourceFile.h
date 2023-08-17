@@ -166,10 +166,6 @@ private:
   /// if it were done from OpaqueResultTypeRequest.
   llvm::SetVector<OpaqueTypeDecl *> UnvalidatedOpaqueReturnTypes;
 
-  /// The set of declarations with valid runtime discoverable attributes
-  /// located in the source file.
-  llvm::SetVector<ValueDecl *> DeclsWithRuntimeDiscoverableAttrs;
-
   /// The list of top-level items in the source file. This is \c None if
   /// they have not yet been parsed.
   /// FIXME: Once addTopLevelDecl/prependTopLevelDecl
@@ -229,10 +225,6 @@ public:
   /// Add a hoisted declaration. See Decl::isHoisted().
   void addHoistedDecl(Decl *d);
 
-  /// Add a declaration with any number of runtime disoverable attributes
-  /// associated with it.
-  void addDeclWithRuntimeDiscoverableAttrs(ValueDecl *);
-
   /// Retrieves an immutable view of the list of top-level items in this file.
   ArrayRef<ASTNode> getTopLevelItems() const;
 
@@ -244,10 +236,6 @@ public:
   /// Retrieves an immutable view of the list of hoisted decls in this file.
   /// See Decl::isHoisted().
   ArrayRef<Decl *> getHoistedDecls() const;
-
-  /// Retrieves an immutable view of the set of all declaration with runtime
-  /// discoverable attributes located in this file.
-  ArrayRef<ValueDecl *> getDeclsWithRuntimeDiscoverableAttrs() const;
 
   /// Retrieves an immutable view of the top-level items if they have already
   /// been parsed, or \c None if they haven't. Should only be used for dumping.

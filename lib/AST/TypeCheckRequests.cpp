@@ -811,14 +811,12 @@ void GenericSignatureRequest::diagnoseCycle(DiagnosticEngine &diags) const {
   auto *D = GC->getAsDecl();
 
   if (auto *VD = dyn_cast<ValueDecl>(D)) {
-    VD->diagnose(diag::recursive_generic_signature,
-                 VD->getDescriptiveKind(), VD->getBaseName());
+    VD->diagnose(diag::recursive_generic_signature, VD);
   } else {
     auto *ED = cast<ExtensionDecl>(D);
     auto *NTD = ED->getExtendedNominal();
 
-    ED->diagnose(diag::recursive_generic_signature_extension,
-                 NTD->getDescriptiveKind(), NTD->getName());
+    ED->diagnose(diag::recursive_generic_signature_extension, NTD);
   }
 }
 
@@ -852,9 +850,7 @@ void UnderlyingTypeRequest::cacheResult(Type value) const {
 
 void UnderlyingTypeRequest::diagnoseCycle(DiagnosticEngine &diags) const {
   auto aliasDecl = std::get<0>(getStorage());
-  diags.diagnose(aliasDecl, diag::recursive_decl_reference,
-                 aliasDecl->getDescriptiveKind(),
-                 aliasDecl->getName());
+  diags.diagnose(aliasDecl, diag::recursive_decl_reference, aliasDecl);
 }
 
 //----------------------------------------------------------------------------//
@@ -863,9 +859,7 @@ void UnderlyingTypeRequest::diagnoseCycle(DiagnosticEngine &diags) const {
 
 void StructuralTypeRequest::diagnoseCycle(DiagnosticEngine &diags) const {
   auto aliasDecl = std::get<0>(getStorage());
-  diags.diagnose(aliasDecl, diag::recursive_decl_reference,
-                 aliasDecl->getDescriptiveKind(),
-                 aliasDecl->getName());
+  diags.diagnose(aliasDecl, diag::recursive_decl_reference, aliasDecl);
 }
 
 //----------------------------------------------------------------------------//
@@ -1394,6 +1388,24 @@ void ResolveTypeEraserTypeRequest::cacheResult(Type value) const {
 }
 
 //----------------------------------------------------------------------------//
+// ResolveRawLayoutLikeTypeRequest computation.
+//----------------------------------------------------------------------------//
+
+llvm::Optional<Type> ResolveRawLayoutLikeTypeRequest::getCachedResult() const {
+  auto Ty = std::get<1>(getStorage())->CachedResolvedLikeType;
+  if (!Ty) {
+    return llvm::None;
+  }
+  return Ty;
+}
+
+void ResolveRawLayoutLikeTypeRequest::cacheResult(Type value) const {
+  assert(value && "Resolved type erasure type to null type!");
+  auto *attr = std::get<1>(getStorage());
+  attr->CachedResolvedLikeType = value;
+}
+
+//----------------------------------------------------------------------------//
 // TypeCheckSourceFileRequest computation.
 //----------------------------------------------------------------------------//
 
@@ -1568,10 +1580,6 @@ void swift::simple_display(llvm::raw_ostream &out, CustomAttrTypeKind value) {
 
   case CustomAttrTypeKind::GlobalActor:
     out << "global-actor";
-    return;
-
-  case CustomAttrTypeKind::RuntimeMetadata:
-    out << "runtime-metadata";
     return;
   }
 

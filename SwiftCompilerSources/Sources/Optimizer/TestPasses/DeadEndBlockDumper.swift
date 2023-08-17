@@ -12,10 +12,9 @@
 
 import SIL
 
-let deadEndBlockDumper = FunctionPass(name: "dump-deadendblocks", {
+let deadEndBlockDumper = FunctionPass(name: "dump-deadendblocks") {
   (function: Function, context: FunctionPassContext) in
 
-  
   print("Function \(function.name)")
   
   var deadEndBlocks = DeadEndBlocks(function: function, context)
@@ -23,4 +22,4 @@ let deadEndBlockDumper = FunctionPass(name: "dump-deadendblocks", {
   defer { deadEndBlocks.deinitialize() }
 
   print("end function \(function.name)")
-})
+}

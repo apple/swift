@@ -1017,12 +1017,18 @@ void CodeCompletionCallbacksImpl::addKeywords(CodeCompletionResultSink &Sink,
     addClosureSignatureKeywordsIfApplicable(Sink, CurDeclContext);
 
     LLVM_FALLTHROUGH;
+  case CompletionKind::PostfixExprBeginning:
+    // We need to add 'let' and 'var' keywords in expression position here as
+    // we initially parse patterns as expressions.
+    // FIXME: We ought to be able to determine if we're in a pattern context and
+    // only enable 'let' and 'var' in that case.
+    addLetVarKeywords(Sink);
+
+    LLVM_FALLTHROUGH;
   case CompletionKind::ReturnStmtExpr:
   case CompletionKind::YieldStmtExpr:
-  case CompletionKind::PostfixExprBeginning:
   case CompletionKind::ForEachSequence:
     addSuperKeyword(Sink, CurDeclContext);
-    addLetVarKeywords(Sink);
     addExprKeywords(Sink, CurDeclContext);
     addAnyTypeKeyword(Sink, CurDeclContext->getASTContext().TheAnyType);
     break;

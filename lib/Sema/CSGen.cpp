@@ -592,7 +592,25 @@ namespace {
     // Find the argument type.
     size_t nArgs = expr->getArgs()->size();
     auto fnExpr = expr->getFn();
-    
+
+    auto mustConsiderVariadicGenericOverloads = [&](ValueDecl *overload) {
+      if (overload->getAttrs().hasAttribute<DisfavoredOverloadAttr>())
+        return false;
+
+      auto genericContext = overload->getAsGenericContext();
+      if (!genericContext)
+        return false;
+
+      auto *GPL = genericContext->getGenericParams();
+      if (!GPL)
+        return false;
+
+      return llvm::any_of(GPL->getParams(),
+                          [&](const GenericTypeParamDecl *GP) {
+                            return GP->isParameterPack();
+                          });
+    };
+
     // Check to ensure that we have an OverloadedDeclRef, and that we're not
     // favoring multiple overload constraints. (Otherwise, in this case
     // favoring is useless.
@@ -630,8 +648,9 @@ namespace {
         return nArgs == paramCount.first ||
                nArgs == paramCount.second;
       };
-      
-      favorCallOverloads(expr, CS, isFavoredDecl);
+
+      favorCallOverloads(expr, CS, isFavoredDecl,
+                         mustConsiderVariadicGenericOverloads);
     }
 
     // We only currently perform favoring for unary args.
@@ -655,7 +674,8 @@ namespace {
       // inside an extension context, since any archetypes in the parameter
       // list could match exactly.
       auto mustConsider = [&](ValueDecl *value) -> bool {
-        return isa<ProtocolDecl>(value->getDeclContext());
+        return isa<ProtocolDecl>(value->getDeclContext()) ||
+               mustConsiderVariadicGenericOverloads(value);
       };
 
       favorCallOverloads(expr, CS, isFavoredDecl, mustConsider);
@@ -846,63 +866,42 @@ namespace {
   };
 } // end anonymous namespace
 
+void VarRefCollector::inferTypeVars(Decl *D) {
+  // We're only interested in VarDecls.
+  if (!isa_and_nonnull<VarDecl>(D))
+    return;
+
+  auto ty = CS.getTypeIfAvailable(D);
+  if (!ty)
+    return;
+
+  SmallPtrSet<TypeVariableType *, 4> typeVars;
+  ty->getTypeVariables(typeVars);
+  TypeVars.insert(typeVars.begin(), typeVars.end());
+}
+
+ASTWalker::PreWalkResult<Expr *>
+VarRefCollector::walkToExprPre(Expr *expr) {
+  if (auto *DRE = dyn_cast<DeclRefExpr>(expr))
+    inferTypeVars(DRE->getDecl());
+
+  // FIXME: We can see UnresolvedDeclRefExprs here because we don't walk into
+  // patterns when running preCheckExpression, since we don't resolve patterns
+  // until CSGen. We ought to consider moving pattern resolution into
+  // pre-checking, which would allow us to pre-check patterns normally.
+  if (auto *declRef = dyn_cast<UnresolvedDeclRefExpr>(expr)) {
+    auto name = declRef->getName();
+    auto loc = declRef->getLoc();
+    if (name.isSimpleName() && loc.isValid()) {
+      auto *SF = CS.DC->getParentSourceFile();
+      auto *D = ASTScope::lookupSingleLocalDecl(SF, name.getFullName(), loc);
+      inferTypeVars(D);
+    }
+  }
+  return Action::Continue(expr);
+}
+
 namespace {
-
-// Collect any variable references whose types involve type variables,
-// because there will be a dependency on those type variables once we have
-// generated constraints for the closure/tap body. This includes references
-// to other closure params such as in `{ x in { x }}` where the inner
-// closure is dependent on the outer closure's param type, as well as
-// cases like `for i in x where bar({ i })` where there's a dependency on
-// the type variable for the pattern `i`.
-struct VarRefCollector : public ASTWalker {
-  ConstraintSystem &cs;
-  llvm::SmallPtrSet<TypeVariableType *, 4> varRefs;
-
-  VarRefCollector(ConstraintSystem &cs) : cs(cs) {}
-
-  bool shouldWalkCaptureInitializerExpressions() override { return true; }
-
-  MacroWalking getMacroWalkingBehavior() const override {
-    return MacroWalking::Arguments;
-  }
-
-  PreWalkResult<Expr *> walkToExprPre(Expr *expr) override {
-    // Retrieve type variables from references to var decls.
-    if (auto *declRef = dyn_cast<DeclRefExpr>(expr)) {
-      if (auto *varDecl = dyn_cast<VarDecl>(declRef->getDecl())) {
-        if (auto varType = cs.getTypeIfAvailable(varDecl)) {
-          varType->getTypeVariables(varRefs);
-        }
-      }
-    }
-
-    // FIXME: We can see UnresolvedDeclRefExprs here because we have
-    // not yet run preCheckExpression() on the entire closure body
-    // yet.
-    //
-    // We could consider pre-checking more eagerly.
-    if (auto *declRef = dyn_cast<UnresolvedDeclRefExpr>(expr)) {
-      auto name = declRef->getName();
-      auto loc = declRef->getLoc();
-      if (name.isSimpleName() && loc.isValid()) {
-        auto *varDecl =
-            dyn_cast_or_null<VarDecl>(ASTScope::lookupSingleLocalDecl(
-                cs.DC->getParentSourceFile(), name.getFullName(), loc));
-        if (varDecl)
-          if (auto varType = cs.getTypeIfAvailable(varDecl))
-            varType->getTypeVariables(varRefs);
-      }
-    }
-
-    return Action::Continue(expr);
-  }
-
-  PreWalkAction walkToDeclPre(Decl *D) override {
-    return Action::VisitChildrenIf(isa<PatternBindingDecl>(D));
-  }
-};
-
   class ConstraintGenerator : public ExprVisitor<ConstraintGenerator, Type> {
     ConstraintSystem &CS;
     DeclContext *CurDC;
@@ -1309,8 +1308,8 @@ struct VarRefCollector : public ASTWalker {
 
             body->walk(refCollector);
 
-            referencedVars.append(refCollector.varRefs.begin(),
-                                  refCollector.varRefs.end());
+            auto vars = refCollector.getTypeVars();
+            referencedVars.append(vars.begin(), vars.end());
           }
         }
 
@@ -2971,9 +2970,7 @@ struct VarRefCollector : public ASTWalker {
       if (!inferredType || inferredType->hasError())
         return Type();
 
-      SmallVector<TypeVariableType *, 4> referencedVars{
-          refCollector.varRefs.begin(), refCollector.varRefs.end()};
-
+      auto referencedVars = refCollector.getTypeVars();
       CS.addUnsolvedConstraint(
           Constraint::create(CS, ConstraintKind::FallbackType, closureType,
                              inferredType, locator, referencedVars));
@@ -3818,14 +3815,14 @@ struct VarRefCollector : public ASTWalker {
           CS.getConstraintLocator(E, ConstraintLocator::KeyPathValue);
       auto *value = CS.createTypeVariable(valueLocator, TVO_CanBindToNoEscape |
                                                             TVO_CanBindToHole);
-      CS.addConstraint(ConstraintKind::Equal, base, value, locator);
+      CS.addConstraint(ConstraintKind::Equal, base, value, valueLocator);
       CS.recordKeyPath(E, root, value, CurDC);
 
       // The result is a KeyPath from the root to the end component.
       // The type of key path depends on the overloads chosen for the key
       // path components.
       auto typeLoc =
-          CS.getConstraintLocator(locator, LocatorPathElt::KeyPathType(value));
+          CS.getConstraintLocator(locator, LocatorPathElt::KeyPathType());
 
       Type kpTy = CS.createTypeVariable(typeLoc, TVO_CanBindToNoEscape |
                                                      TVO_CanBindToHole);
@@ -4337,8 +4334,9 @@ bool ConstraintSystem::generateWrappedPropertyTypeConstraints(
       ConstraintKind::Equal, propertyType, wrappedValueType,
       getConstraintLocator(
           wrappedVar, LocatorPathElt::ContextualType(CTP_WrappedProperty)));
-  setContextualType(wrappedVar, TypeLoc::withoutLoc(wrappedValueType),
-                    CTP_WrappedProperty);
+
+  ContextualTypeInfo contextInfo(wrappedValueType, CTP_WrappedProperty);
+  setContextualInfo(wrappedVar, contextInfo);
   return false;
 }
 
@@ -4422,10 +4420,9 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
         makeIteratorCall, dc, /*patternType=*/Type(), PB, /*index=*/0,
         /*shouldBindPatternsOneWay=*/false);
 
-    cs.setContextualType(
-        sequenceExpr,
-        TypeLoc::withoutLoc(sequenceProto->getDeclaredInterfaceType()),
-        CTP_ForEachSequence);
+    ContextualTypeInfo contextInfo(sequenceProto->getDeclaredInterfaceType(),
+                                   CTP_ForEachSequence);
+    cs.setContextualInfo(sequenceExpr, contextInfo);
 
     if (cs.generateConstraints(makeIteratorTarget))
       return llvm::None;
@@ -4483,10 +4480,9 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
       if (!iteratorProto)
         return llvm::None;
 
-      cs.setContextualType(
-          nextRef->getBase(),
-          TypeLoc::withoutLoc(iteratorProto->getDeclaredInterfaceType()),
-          CTP_ForEachSequence);
+      ContextualTypeInfo contextInfo(iteratorProto->getDeclaredInterfaceType(),
+                                     CTP_ForEachSequence);
+      cs.setContextualInfo(nextRef->getBase(), contextInfo);
     }
 
     SyntacticElementTarget nextTarget(nextCall, dc, CTP_Unused,
@@ -4552,8 +4548,9 @@ generateForEachStmtConstraints(ConstraintSystem &cs,
       return llvm::None;
 
     cs.setTargetFor(whereExpr, whereTarget);
-    cs.setContextualType(whereExpr, TypeLoc::withoutLoc(boolType),
-                         CTP_Condition);
+
+    ContextualTypeInfo contextInfo(boolType, CTP_Condition);
+    cs.setContextualInfo(whereExpr, contextInfo);
   }
 
   // Populate all of the information for a for-each loop.

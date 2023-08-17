@@ -58,9 +58,9 @@ bb0(%0: $Base):
 // CHECK-LABEL: sil @test_objc_ancestry
 // CHECK: bb0
 // CHECK:  [[METH:%.*]] = class_method %0 : $Base, #Base.foo : (Base) -> () -> (), $@convention(method) (@guaranteed Base) -> ()
-// CHECK:  checked_cast_br [exact] %0 : $Base to Base, bb{{.*}}, bb[[CHECK2:[0-9]+]]
+// CHECK:  checked_cast_br [exact] Base in %0 : $Base to Base, bb{{.*}}, bb[[CHECK2:[0-9]+]]
 // CHECK: bb[[CHECK2]]{{.*}}:
-// CHECK:  checked_cast_br [exact] %0 : $Base to Sub, bb{{.*}}, bb[[GENCALL:[0-9]+]]
+// CHECK:  checked_cast_br [exact] Base in %0 : $Base to Sub, bb{{.*}}, bb[[GENCALL:[0-9]+]]
 // CHECK: bb[[GENCALL]]{{.*}}:
 // CHECK:  apply [[METH]]
 
@@ -111,9 +111,9 @@ bb0(%0: $Base2):
 // CHECK-LABEL: sil @test_objc_ancestry2
 // CHECK: bb0
 // CHECK:  [[METH:%.*]] = class_method %0 : $Base2, #Base2.foo : (Base2) -> () -> (), $@convention(method) (@guaranteed Base2) -> ()
-// CHECK:  checked_cast_br [exact] %0 : $Base2 to Base2, bb{{.*}}, bb[[CHECK2:[0-9]+]]
+// CHECK:  checked_cast_br [exact] Base2 in %0 : $Base2 to Base2, bb{{.*}}, bb[[CHECK2:[0-9]+]]
 // CHECK: bb[[CHECK2]]{{.*}}:
-// CHECK:  checked_cast_br [exact] %0 : $Base2 to Sub2, bb{{.*}}, bb[[GENCALL:[0-9]+]]
+// CHECK:  checked_cast_br [exact] Base2 in %0 : $Base2 to Sub2, bb{{.*}}, bb[[GENCALL:[0-9]+]]
 // CHECK: bb[[GENCALL]]{{.*}}:
 // CHECK:  apply [[METH]]
 
@@ -167,7 +167,7 @@ bb0(%0 : $S2):
 }
 
 // CHECK-LABEL: sil{{.*}} @test_devirt_of_throw_without_error
-// CHECK-NOT: checked_cast_br [exact] %0 : $Throw to S1
+// CHECK-NOT: checked_cast_br [exact] Throw in %0 : $Throw to S1
 // CHECK: return
 
 sil hidden [noinline] @test_devirt_of_throw_without_error : $@convention(thin) (@owned Throw) -> () {

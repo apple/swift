@@ -742,7 +742,7 @@ bb51:
 // We check first for objects, then for metatypes, then for guaranteed values
 sil [ossa] @checked_cast_br_test : $@convention(thin) (@owned Builtin.NativeObject, @guaranteed Builtin.NativeObject) -> () {
 bb0(%0 : @owned $Builtin.NativeObject, %6 : @guaranteed $Builtin.NativeObject):
-  checked_cast_br %0 : $Builtin.NativeObject to SuperKlass, bb1, bb2
+  checked_cast_br Builtin.NativeObject in %0 : $Builtin.NativeObject to SuperKlass, bb1, bb2
 
 bb1(%1 : @owned $SuperKlass):
   destroy_value %1 : $SuperKlass
@@ -754,7 +754,7 @@ bb2(%2 : @owned $Builtin.NativeObject):
 
 bb3:
   %3 = metatype $@thick SuperKlass.Type
-  checked_cast_br %3 : $@thick SuperKlass.Type to @thick SubKlass.Type, bb4, bb5
+  checked_cast_br SuperKlass.Type in %3 : $@thick SuperKlass.Type to @thick SubKlass.Type, bb4, bb5
 
 bb4(%4 : $@thick SubKlass.Type):
   br bb6
@@ -763,7 +763,7 @@ bb5(%5 : $@thick SuperKlass.Type):
   br bb6
 
 bb6:
-  checked_cast_br %6 : $Builtin.NativeObject to SuperKlass, bb7, bb8
+  checked_cast_br Builtin.NativeObject in %6 : $Builtin.NativeObject to SuperKlass, bb7, bb8
 
 bb7(%7 : @guaranteed $SuperKlass):
   br bb9
@@ -1048,7 +1048,7 @@ bb0:
 sil [ossa] @transforming_terminator_undef_test : $@convention(thin) () -> () {
 bb0:
   %0 = unchecked_ref_cast undef : $Builtin.NativeObject to $Builtin.NativeObject
-  checked_cast_br %0 : $Builtin.NativeObject to SuperKlass, bb1, bb2, forwarding: @owned
+  checked_cast_br Builtin.NativeObject in %0 : $Builtin.NativeObject to SuperKlass, bb1, bb2, forwarding: @owned
 
 bb1(%1 : @owned $SuperKlass):
   destroy_value %1 : $SuperKlass

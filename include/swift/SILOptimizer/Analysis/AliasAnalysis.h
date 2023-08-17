@@ -133,6 +133,8 @@ private:
 public:
   AliasAnalysis(SILPassManager *PM) : PM(PM) {}
 
+  ~AliasAnalysis();
+
   static SILAnalysisKind getAnalysisKind() { return SILAnalysisKind::Alias; }
 
   /// Perform an alias query to see if V1, V2 refer to the same values.
@@ -217,7 +219,7 @@ public:
   /// Returns true if \p Ptr may be released by the builtin \p BI.
   bool canBuiltinDecrementRefCount(BuiltinInst *BI, SILValue Ptr);
 
-  int getEstimatedFunctionSize(SILValue valueInFunction);
+  int getComplexityBudget(SILValue valueInFunction);
 
   /// Returns true if the object(s of) `obj` can escape to `toInst`.
   ///

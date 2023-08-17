@@ -614,8 +614,7 @@ public:
         auto countType = expansion->getCountType();
         if (!(countType->is<PackType>() ||
               countType->is<PackArchetypeType>() ||
-              (countType->is<GenericTypeParamType>() &&
-               countType->castTo<GenericTypeParamType>()->isParameterPack()))) {
+              countType->isRootParameterPack())) {
           Out << "non-pack shape type" << countType->getString() << "\n";
           abort();
         }

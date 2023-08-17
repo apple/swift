@@ -16,35 +16,34 @@ struct Val {}
 // CHECK:           {{bb[0-9]+}}({{%[^,]+}} : @_eagerMove @owned $C, {{%[^,]+}} :
 // CHECK-LABEL: } // end sil function '$s12take_closure0B04main1CCTf1nc_n'
 
-sil [ossa] [noinline] @take_closure : $@convention(thin) (@owned C, @guaranteed @noescape @callee_guaranteed (@owned C, @owned C) -> ()) -> () {
-bb0(%c : @_eagerMove @owned $C, %0 : @guaranteed $@noescape @callee_guaranteed (@owned C, @owned C) -> ()):
+sil [ossa] [noinline] @take_closure : $@convention(thin) (@owned C, @guaranteed @noescape @callee_guaranteed (@guaranteed C, @guaranteed C) -> ()) -> () {
+bb0(%c : @_eagerMove @owned $C, %0 : @guaranteed $@noescape @callee_guaranteed (@guaranteed C, @guaranteed C) -> ()):
   %getC = function_ref @getC : $@convention(thin) () -> @owned C
   %c1 = apply %getC() : $@convention(thin) () -> @owned C
   %c2 = apply %getC() : $@convention(thin) () -> @owned C
-  %3 = apply %0(%c1, %c2) : $@noescape @callee_guaranteed (@owned C, @owned C) -> ()
+  %3 = apply %0(%c1, %c2) : $@noescape @callee_guaranteed (@guaranteed C, @guaranteed C) -> ()
+  destroy_value %c2 : $C
+  destroy_value %c1 : $C
   destroy_value %c : $C
   %retval = tuple()
   return %retval : $()
 }
 
-sil shared [ossa] @closure : $@convention(thin) (@owned C, @owned C, @owned C) -> () {
-bb0(%0 : @owned $C, %1 : @owned $C, %2 : @owned $C):
-  destroy_value %0 : $C
-  destroy_value %1 : $C
-  destroy_value %2 : $C
+sil shared [ossa] @closure : $@convention(thin) (@guaranteed C, @guaranteed C, @guaranteed C) -> () {
+bb0(%0 : @guaranteed $C, %1 : @guaranteed $C, %2 : @guaranteed $C):
   %15 = tuple ()
   return %15 : $()
 }
 
 sil @caller : $@convention(thin) (@owned C) -> () {
 bb0(%0 : $C):
-  %3 = function_ref @closure : $@convention(thin) (@owned C, @owned C, @owned C) -> ()
-  %4 = partial_apply [callee_guaranteed] [on_stack] %3(%0) : $@convention(thin) (@owned C, @owned C, @owned C) -> ()
-  %take_closure = function_ref @take_closure : $@convention(thin) (@owned C, @guaranteed @noescape @callee_guaranteed (@owned C, @owned C) -> ()) -> ()
+  %3 = function_ref @closure : $@convention(thin) (@guaranteed C, @guaranteed C, @guaranteed C) -> ()
+  %4 = partial_apply [callee_guaranteed] [on_stack] %3(%0) : $@convention(thin) (@guaranteed C, @guaranteed C, @guaranteed C) -> ()
+  %take_closure = function_ref @take_closure : $@convention(thin) (@owned C, @guaranteed @noescape @callee_guaranteed (@guaranteed C, @guaranteed C) -> ()) -> ()
   strong_retain %0 : $C
-  %5 = apply %take_closure(%0, %4) : $@convention(thin) (@owned C, @guaranteed @noescape @callee_guaranteed (@owned C, @owned C) -> ()) -> ()
+  %5 = apply %take_closure(%0, %4) : $@convention(thin) (@owned C, @guaranteed @noescape @callee_guaranteed (@guaranteed C, @guaranteed C) -> ()) -> ()
   strong_release %0 : $C
-  dealloc_stack %4 : $@noescape @callee_guaranteed (@owned C, @owned C) -> ()
+  dealloc_stack %4 : $@noescape @callee_guaranteed (@guaranteed C, @guaranteed C) -> ()
   %retval = tuple()
   return %retval : $()
 }

@@ -26,6 +26,8 @@ public struct ContainsClosure {
 sil @make_big_struct : $@convention(thin) () -> BigStruct
 sil @use_big_struct : $@convention(thin) (BigStruct) -> ()
 
+sil @takeClosure : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> ()) -> ()
+
 // CHECK-LABEL: sil_global @globalWithClosureInStruct : $ContainsClosure = {
 // CHECK:         %0 = function_ref @make_big_struct : $@convention(thin) () -> @out BigStruct
 // CHECK-NEXT:    %1 = thin_to_thick_function %0 : $@convention(thin) () -> @out BigStruct to $@callee_guaranteed () -> @out BigStruct
@@ -37,7 +39,7 @@ sil_global @globalWithClosureInStruct : $ContainsClosure = {
   %initval = struct $ContainsClosure (%1 : $@callee_guaranteed () -> BigStruct)
 }
 
-// CHECK-LABEL: sil @test_yield_big : $@yield_once @convention(thin) () -> @yields @in BigStruct {
+// CHECK-LABEL: sil @test_yield_big : $@yield_once @convention(thin) () -> @yields @in_guaranteed BigStruct {
 // CHECK:       bb0:
 // CHECK-NEXT:    [[TEMP:%.*]] = alloc_stack $BigStruct
 // CHECK-NEXT:    // function_ref
@@ -69,13 +71,13 @@ unwind:
 // CHECK:       bb0:
 // CHECK-NEXT:    [[TEMP:%.*]] = alloc_stack $BigStruct
 // CHECK-NEXT:    // function_ref
-// CHECK-NEXT:    [[CORO:%.*]] = function_ref @test_yield_big : $@yield_once @convention(thin) () -> @yields @in BigStruct
+// CHECK-NEXT:    [[CORO:%.*]] = function_ref @test_yield_big : $@yield_once @convention(thin) () -> @yields @in_guaranteed BigStruct
 // CHECK-NEXT:    ([[ADDR:%.*]], [[TOKEN:%.*]]) = begin_apply [[CORO]]()
 //   TODO: this isn't very efficient
 // CHECK-NEXT:    [[T0:%.*]] = load [[ADDR]] : $*BigStruct
 // CHECK-NEXT:    store [[T0]] to [[TEMP]] : $*BigStruct
 // CHECK-NEXT:    // function_ref
-// CHECK-NEXT:    [[USE:%.*]] = function_ref @use_big_struct : $@convention(thin) (@in BigStruct) -> ()
+// CHECK-NEXT:    [[USE:%.*]] = function_ref @use_big_struct : $@convention(thin) (@in_guaranteed BigStruct) -> ()
 // CHECK-NEXT:    apply [[USE]]([[TEMP]])
 // CHECK-NEXT:    end_apply [[TOKEN]]
 // CHECK-NEXT:    [[RET:%.*]] = tuple ()
@@ -133,3 +135,26 @@ unwind:
   unwind
 }
 
+// Test that partial apply captured arguments are converted to
+// @in_guaranteed, unless they are actually owned, which is not
+// allowed for on-stack closures.
+//
+// CHECK-LABEL: sil hidden @testLoadableCapture : $@convention(thin) (@in_guaranteed BigStruct) -> () {
+// CHECK: partial_apply [callee_guaranteed] [on_stack] %{{.*}}(%0) : $@convention(thin) (@in_guaranteed BigStruct) -> ()
+// CHECK-LABEL: // end sil function 'testLoadableCapture'
+sil hidden @testLoadableCapture : $@convention(thin) (BigStruct) -> () {
+bb0(%0 : $BigStruct):
+  %2 = function_ref @testLoadableCaptureClosure : $@convention(thin) (BigStruct) -> () // user: %3
+  %3 = partial_apply [callee_guaranteed] [on_stack] %2(%0) : $@convention(thin) (BigStruct) -> () // users: %6, %5
+  %4 = function_ref @takeClosure : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> ()) -> () // user: %5
+  %5 = apply %4(%3) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> ()) -> ()
+  dealloc_stack %3 : $@noescape @callee_guaranteed () -> () // id: %6
+  %7 = tuple ()                                   // user: %8
+  return %7 : $()                                 // id: %8
+}
+
+sil private @testLoadableCaptureClosure : $@convention(thin) (BigStruct) -> () {
+bb0(%0 : @closureCapture $BigStruct):
+  %2 = tuple ()
+  return %2 : $()
+}

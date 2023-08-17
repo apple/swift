@@ -1098,9 +1098,9 @@ public:
   void emitType() {
     SGM.emitLazyConformancesForType(theType);
 
-    forEachMemberToLower(theType, [&](Decl *member) {
+    for (Decl *member : theType->getMembersForLowering()) {
       visit(member);
-    });
+    }
 
     // Build a vtable if this is a class.
     if (auto theClass = dyn_cast<ClassDecl>(theType)) {
@@ -1132,9 +1132,6 @@ public:
     // are existential and do not have witness tables.
     for (auto *conformance : theType->getLocalConformances(
                                ConformanceLookupKind::NonInherited)) {
-      if (conformance->getSourceKind() == ConformanceEntryKind::PreMacroExpansion)
-        continue;
-
       assert(conformance->isComplete());
       if (auto *normal = dyn_cast<NormalProtocolConformance>(conformance))
         SGM.getWitnessTable(normal);
@@ -1276,9 +1273,9 @@ public:
     // @_objcImplementation extension, but we don't actually need to do any of
     // the stuff that it currently does.
 
-    forEachMemberToLower(e, [&](Decl *member) {
+    for (Decl *member : e->getMembersForLowering()) {
       visit(member);
-    });
+    }
 
     // If this is a main-interface @_objcImplementation extension and the class
     // has a synthesized destructor, emit it now.

@@ -22,16 +22,16 @@ bb0:
   %4 = function_ref @$s8capturep6helperySiF : $@convention(thin) (Int32) -> () // user: %5
   %5 = thin_to_thick_function %4 : $@convention(thin) (Int32) -> () to $@callee_owned (Int32) -> () // user: %7
   // function_ref reabstraction thunk helper from @callee_owned (@unowned Swift.Int32) -> (@unowned ()) to @callee_owned (@in Swift.Int32) -> (@unowned ())
-  %6 = function_ref @$sSiytIxyd_SiytIxid_TR : $@convention(thin) (@in Int32, @owned @callee_owned (Int32) -> ()) -> () // user: %7
-  %7 = partial_apply %6(%5) : $@convention(thin) (@in Int32, @owned @callee_owned (Int32) -> ()) -> () // user: %9
+  %6 = function_ref @$sSiytIxyd_SiytIxid_TR : $@convention(thin) (@in Int32, @guaranteed @callee_owned (Int32) -> ()) -> () // user: %7
+  %7 = partial_apply %6(%5) : $@convention(thin) (@in Int32, @guaranteed @callee_owned (Int32) -> ()) -> () // user: %9
   // function_ref specialization <Swift.Int32> of capturep.generic <A>(A, (A) -> ()) -> ()
-  %8 = function_ref @_TTSgSi___TF8capturep7genericU__FTQ_FQ_T__T_ : $@convention(thin) (@in Int32, @owned @callee_owned (@in Int32) -> ()) -> () // user: %9
-  %9 = apply %8(%0, %7) : $@convention(thin) (@in Int32, @owned @callee_owned (@in Int32) -> ()) -> ()
+  %8 = function_ref @_TTSgSi___TF8capturep7genericU__FTQ_FQ_T__T_ : $@convention(thin) (@in Int32, @guaranteed @callee_owned (@in Int32) -> ()) -> () // user: %9
+  %9 = apply %8(%0, %7) : $@convention(thin) (@in Int32, @guaranteed @callee_owned (@in Int32) -> ()) -> ()
 
   %11 = thin_to_thick_function %4 : $@convention(thin) (Int32) -> () to $@callee_owned (Int32) -> () // user: %7
-  %12 = function_ref @bad_thunk : $@convention(thin) (@in Int32, @owned @callee_owned (Int32) -> ()) -> ()
-  %13 = partial_apply %12(%11) : $@convention(thin) (@in Int32, @owned @callee_owned (Int32) -> ()) -> () // user: %9
-  %14 = apply %8(%0, %13) : $@convention(thin) (@in Int32, @owned @callee_owned (@in Int32) -> ()) -> ()
+  %12 = function_ref @bad_thunk : $@convention(thin) (@in Int32, @guaranteed @callee_owned (Int32) -> ()) -> ()
+  %13 = partial_apply %12(%11) : $@convention(thin) (@in Int32, @guaranteed @callee_owned (Int32) -> ()) -> () // user: %9
+  %14 = apply %8(%0, %13) : $@convention(thin) (@in Int32, @guaranteed @callee_owned (@in Int32) -> ()) -> ()
 
   dealloc_stack %0 : $*Int32       // id: %10
   %15 = tuple ()                                  // user: %12
@@ -45,10 +45,10 @@ bb0(%0 : $Int32):
   return %1 : $()                                 // id: %2
 }
 
-sil @bad_thunk : $@convention(thin) (@in Int32, @owned @callee_owned (Int32) -> ()) -> ()
+sil @bad_thunk : $@convention(thin) (@in Int32, @guaranteed @callee_owned (Int32) -> ()) -> ()
 
 // reabstraction thunk helper from @callee_owned (@unowned Swift.Int32) -> (@unowned ()) to @callee_owned (@in Swift.Int32) -> (@unowned ())
-sil shared [transparent] @$sSiytIxyd_SiytIxid_TR : $@convention(thin) (@in Int32, @owned @callee_owned (Int32) -> ()) -> () {
+sil shared [transparent] @$sSiytIxyd_SiytIxid_TR : $@convention(thin) (@in Int32, @guaranteed @callee_owned (Int32) -> ()) -> () {
 bb0(%0 : $*Int32, %1 : $@callee_owned (Int32) -> ()):
   %2 = load %0 : $*Int32                            // user: %3
   %3 = apply %1(%2) : $@callee_owned (Int32) -> ()  // user: %4
@@ -56,7 +56,7 @@ bb0(%0 : $*Int32, %1 : $@callee_owned (Int32) -> ()):
 }
 
 // specialization <Swift.Int32> of capturep.generic <A>(A, (A) -> ()) -> ()
-sil shared [noinline] @_TTSgSi___TF8capturep7genericU__FTQ_FQ_T__T_ : $@convention(thin) (@in Int32, @owned @callee_owned (@in Int32) -> ()) -> () {
+sil shared [noinline] @_TTSgSi___TF8capturep7genericU__FTQ_FQ_T__T_ : $@convention(thin) (@in Int32, @guaranteed @callee_owned (@in Int32) -> ()) -> () {
 bb0(%0 : $*Int32, %1 : $@callee_owned (@in Int32) -> ()):
   %2 = alloc_stack $Int32                           // users: %4, %5, %6
   %3 = load %0 : $*Int32                            // user: %4
@@ -77,7 +77,7 @@ bb0(%0 : $*Int32, %1 : $@callee_owned (Int32) -> ()):
 }
 */
 
-sil @_TFtest_capture_propagation2_closure : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> () {
+sil @_TFtest_capture_propagation2_closure : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> () {
 bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*Builtin.Word):
   %9999 = tuple()
   return %9999 : $()
@@ -90,19 +90,19 @@ sil @test_capture_propagation2_caller : $@convention(thin) () -> () {
   %1 = float_literal $Builtin.FPIEEE32, 0
   %2 = string_literal utf8 "123"
   %3 = global_addr @globalinit_33_06E7F1D906492AE070936A9B58CBAE1C_token8 : $*Builtin.Word
-  %4 = function_ref @_TFtest_capture_propagation2_closure : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()
-  %5 = thin_to_thick_function %4 : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> () to $@callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()
+  %4 = function_ref @_TFtest_capture_propagation2_closure : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()
+  %5 = thin_to_thick_function %4 : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> () to $@callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()
   %6 = function_ref @test_capture_propagation2_callee : $@convention(thin) (@owned @callee_owned () -> ()) -> ()
-  %7 = function_ref @test_capture_propagation2_thunk : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word, @owned @callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()) -> ()
-  %8 = partial_apply %7(%0, %1, %2, %3, %5) : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word, @owned @callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()) -> ()
+  %7 = function_ref @test_capture_propagation2_thunk : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word, @guaranteed @callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()) -> ()
+  %8 = partial_apply %7(%0, %1, %2, %3, %5) : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word, @guaranteed @callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()) -> ()
   apply %6(%8) : $@convention(thin) (@owned @callee_owned () -> ()) -> ()
   %9999 = tuple()
   return %9999 : $()
 }
 
-sil shared @test_capture_propagation2_thunk : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word, @owned @callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()) -> () {
-bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*Builtin.Word, %4 : $@callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()):
-  apply %4(%0, %1, %2, %3) : $@callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()
+sil shared @test_capture_propagation2_thunk : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word, @guaranteed @callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()) -> () {
+bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*Builtin.Word, %4 : $@callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()):
+  apply %4(%0, %1, %2, %3) : $@callee_owned (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()
   %9999 = tuple()
   return %9999 : $()
 }
@@ -380,7 +380,7 @@ bb0:
 
 // Test generic capture propagation
 
-sil @_TFtest_generic_capture_propagation2_closure : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> () {
+sil @_TFtest_generic_capture_propagation2_closure : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> () {
 bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*T):
   %9999 = tuple()
   return %9999 : $()
@@ -399,19 +399,19 @@ sil @test_generic_capture_propagation2_caller : $@convention(thin) () -> () {
   %1 = float_literal $Builtin.FPIEEE32, 0
   %2 = string_literal utf8 "123"
   %3 = global_addr @globalinit_33_06E7F1D906492AE070936A9B58CBAE1C_token8 : $*Builtin.Word
-  %4 = function_ref @_TFtest_generic_capture_propagation2_closure : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()
-  %5 = thin_to_thick_function %4 : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> () to $@callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()
+  %4 = function_ref @_TFtest_generic_capture_propagation2_closure : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()
+  %5 = thin_to_thick_function %4 : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> () to $@callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()
   %6 = function_ref @test_generic_capture_propagation2_callee : $@convention(thin) (@owned @callee_owned () -> ()) -> ()
-  %7 = function_ref @test_generic_capture_propagation2_thunk : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T, @owned @callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()) -> ()
-  %8 = partial_apply %7<Builtin.Word>(%0, %1, %2, %3, %5) : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T, @owned @callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()) -> ()
+  %7 = function_ref @test_generic_capture_propagation2_thunk : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T, @owned @callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()) -> ()
+  %8 = partial_apply %7<Builtin.Word>(%0, %1, %2, %3, %5) : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T, @owned @callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()) -> ()
   apply %6(%8) : $@convention(thin) (@owned @callee_owned () -> ()) -> ()
   %9999 = tuple()
   return %9999 : $()
 }
 
-sil shared @test_generic_capture_propagation2_thunk : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T, @owned @callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()) -> () {
-bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*T, %4 : $@callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()):
-  apply %4<T>(%0, %1, %2, %3) : $@callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in T) -> ()
+sil shared @test_generic_capture_propagation2_thunk : $@convention(thin) <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T, @owned @callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()) -> () {
+bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*T, %4 : $@callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()):
+  apply %4<T>(%0, %1, %2, %3) : $@callee_owned <T> (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed T) -> ()
   %9999 = tuple()
   return %9999 : $()
 }
@@ -478,9 +478,9 @@ bb0(%0 : $@noescape @callee_guaranteed () -> ()):
   return %9999 : $()
 }
 
-sil shared @test_capture_propagation2_thunk_on_stack : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word, @noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()) -> () {
-bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*Builtin.Word, %4 : $@noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()):
-  apply %4(%0, %1, %2, %3) : $@noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()
+sil shared @test_capture_propagation2_thunk_on_stack : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word, @noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()) -> () {
+bb0(%0 : $Builtin.Int32, %1 : $Builtin.FPIEEE32, %2 : $Builtin.RawPointer, %3 : $*Builtin.Word, %4 : $@noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()):
+  apply %4(%0, %1, %2, %3) : $@noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()
   %9999 = tuple()
   return %9999 : $()
 }
@@ -497,11 +497,11 @@ sil @test_capture_propagation2_caller_on_stack : $@convention(thin) () -> () {
   %1 = float_literal $Builtin.FPIEEE32, 0
   %2 = string_literal utf8 "123"
   %3 = global_addr @globalinit_33_06E7F1D906492AE070936A9B58CBAE1C_token8 : $*Builtin.Word
-  %4 = function_ref @_TFtest_capture_propagation2_closure : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()
-  %5 = thin_to_thick_function %4 : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> () to $@noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()
+  %4 = function_ref @_TFtest_capture_propagation2_closure : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()
+  %5 = thin_to_thick_function %4 : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> () to $@noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()
   %6 = function_ref @test_capture_propagation2_callee_on_stack : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
-  %7 = function_ref @test_capture_propagation2_thunk_on_stack : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word, @noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()) -> ()
-  %8 = partial_apply [callee_guaranteed] [on_stack] %7(%0, %1, %2, %3, %5) : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word, @noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in Builtin.Word) -> ()) -> ()
+  %7 = function_ref @test_capture_propagation2_thunk_on_stack : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word, @noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()) -> ()
+  %8 = partial_apply [callee_guaranteed] [on_stack] %7(%0, %1, %2, %3, %5) : $@convention(thin) (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word, @noescape @callee_guaranteed (Builtin.Int32, Builtin.FPIEEE32, Builtin.RawPointer, @in_guaranteed Builtin.Word) -> ()) -> ()
   apply %6(%8) : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
   dealloc_stack %8 : $@noescape @callee_guaranteed () -> ()
   %9999 = tuple()

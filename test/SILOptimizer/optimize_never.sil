@@ -326,7 +326,7 @@ bb0(%0 : $*T, %1 : $C):
 // CHECK-NOT: function_ref @$s14optimize_never4foo3ys5Int32Vx_AA1CCtlF
 // Presence of checked_cast_br indicates that the speculative devirtualization
 // was performed. And this is only possible, if the original call is inlined.
-// CHECK: checked_cast_br [exact] {{%.*}} : $C to C, bb2, bb3
+// CHECK: checked_cast_br [exact] C in {{%.*}} : $C to C, bb2, bb3
 // CHECK: return
 sil @$s14optimize_never4boo3ys5Int32VAA1CCF : $@convention(thin) (@owned C) -> Int32 {
 bb0(%0 : $C):
@@ -376,7 +376,7 @@ bb0(%0 : $Int32, %1 : $C):
 // CHECK-NOT: function_ref @$s14optimize_never4foo4ys5Int32VAD_AA1CCtF
 // Presence of checked_cast_br indicates that the speculative devirtualization
 // was performed. And this is only possible, if the original call is inlined.
-// CHECK: checked_cast_br [exact] {{%.*}} : $C to C, bb2, bb3
+// CHECK: checked_cast_br [exact] C in {{%.*}} : $C to C, bb2, bb3
 // CHECK: return
 sil @$s14optimize_never4boo4ys5Int32VAA1CCF : $@convention(thin) (@owned C) -> Int32 {
 bb0(%0 : $C):
@@ -455,8 +455,8 @@ bb0(%0 : $Base):
 // CHECK-LABEL: sil @$s14optimize_never23testDoNotDevirtDerived11os5Int32VAA4BaseC_tF
 // CHECK: bb0
 // CHECK: class_method {{%[0-9]+}} : $Base, #Base.boo : (Base) -> () -> Int32
-// CHECK: checked_cast_br [exact] {{%[0-9]+}} : $Base to Base
-// CHECK: checked_cast_br [exact] {{%[0-9]+}} : $Base to Derived2
+// CHECK: checked_cast_br [exact] Base in {{%[0-9]+}} : $Base to Base
+// CHECK: checked_cast_br [exact] Base in {{%[0-9]+}} : $Base to Derived2
 // CHECK-NOT: class_method
 // CHECK: }
 sil @$s14optimize_never23testDoNotDevirtDerived11os5Int32VAA4BaseC_tF : $@convention(thin) (@owned Base) -> Int32 {

@@ -875,7 +875,7 @@ void GenericSignature::verify(ArrayRef<Requirement> reqts) const {
         abort();
       }
 
-      if (!reqt.getFirstType()->castTo<GenericTypeParamType>()->isParameterPack()) {
+      if (!reqt.getFirstType()->isRootParameterPack()) {
         llvm::errs() << "Left hand side is not a parameter pack: ";
         reqt.dump(llvm::errs());
         llvm::errs() << "\n";
@@ -889,7 +889,7 @@ void GenericSignature::verify(ArrayRef<Requirement> reqts) const {
         abort();
       }
 
-      if (!reqt.getSecondType()->castTo<GenericTypeParamType>()->isParameterPack()) {
+      if (!reqt.getSecondType()->isRootParameterPack()) {
         llvm::errs() << "Right hand side is not a parameter pack: ";
         reqt.dump(llvm::errs());
         llvm::errs() << "\n";

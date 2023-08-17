@@ -556,8 +556,10 @@ static std::string encodeTypeInfo(const T &abiTypeInfo,
   return std::move(typeEncodingOS.str());
 }
 
+// Returns false if the given direct type is not yet supported because
+// of its ABI.
 template <class T>
-static void printDirectReturnOrParamCType(
+static bool printDirectReturnOrParamCType(
     const T &abiTypeInfo, Type valueType, const ModuleDecl *emittedModule,
     raw_ostream &os, raw_ostream &cPrologueOS,
     PrimitiveTypeMapping &typeMapping,
@@ -575,12 +577,13 @@ static void printDirectReturnOrParamCType(
 
   unsigned Count = 0;
   clang::CharUnits lastOffset;
-  abiTypeInfo.enumerateRecordMembers(
-      [&](clang::CharUnits offset, clang::CharUnits end, Type t) {
+  if (abiTypeInfo.enumerateRecordMembers([&](clang::CharUnits offset,
+                                             clang::CharUnits end, Type t) {
         lastOffset = offset;
         ++Count;
         addABIRecordToTypeEncoding(typeEncodingOS, offset, end, t, typeMapping);
-      });
+      }))
+    return false;
   assert(Count > 0 && "missing return values");
 
   // FIXME: is this "prettyfying" logic sound for multiple return values?
@@ -588,7 +591,7 @@ static void printDirectReturnOrParamCType(
       (Count == 1 && lastOffset.isZero() && !valueType->hasTypeParameter() &&
        valueType->isAnyClassReferenceType())) {
     prettifiedValuePrinter();
-    return;
+    return true;
   }
 
   os << "struct " << typeEncodingOS.str();
@@ -642,6 +645,7 @@ static void printDirectReturnOrParamCType(
   interopContext.runIfStubForDeclNotEmitted(typeEncodingOS.str(), [&]() {
     printStub(cPrologueOS, typeEncodingOS.str());
   });
+  return true;
 }
 
 /// Make adjustments to the Swift parameter name in generated C++, to
@@ -750,18 +754,20 @@ ClangRepresentation DeclAndTypeClangFunctionPrinter::printFunctionSignature(
     if (!directResultType) {
       os << "void";
     } else {
-      printDirectReturnOrParamCType(
-          *directResultType, resultTy, emittedModule, os, cPrologueOS,
-          typeMapping, interopContext, [&]() {
-            OptionalTypeKind retKind;
-            Type objTy;
-            std::tie(objTy, retKind) =
-                DeclAndTypePrinter::getObjectTypeAndOptionality(FD, resultTy);
+      if (!printDirectReturnOrParamCType(
+              *directResultType, resultTy, emittedModule, os, cPrologueOS,
+              typeMapping, interopContext, [&]() {
+                OptionalTypeKind retKind;
+                Type objTy;
+                std::tie(objTy, retKind) =
+                    DeclAndTypePrinter::getObjectTypeAndOptionality(FD,
+                                                                    resultTy);
 
-            auto s = printClangFunctionReturnType(objTy, retKind, emittedModule,
-                                                  outputLang);
-            assert(!s.isUnsupported());
-          });
+                auto s = printClangFunctionReturnType(
+                    objTy, retKind, emittedModule, outputLang);
+                assert(!s.isUnsupported());
+              }))
+        return ClangRepresentation::unsupported;
     }
   } else {
     OptionalTypeKind retKind;

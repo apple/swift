@@ -214,7 +214,7 @@ enum class ForeignRepresentableKind : uint8_t {
 /// therefore, the result type is in covariant position relative to the function
 /// type.
 struct TypePosition final {
-  enum : uint8_t { Covariant, Contravariant, Invariant };
+  enum : uint8_t { Covariant, Contravariant, Invariant, Shape };
 
 private:
   decltype(Covariant) kind;
@@ -224,6 +224,7 @@ public:
 
   TypePosition flipped() const {
     switch (kind) {
+    case Shape:
     case Invariant:
       return *this;
     case Covariant:

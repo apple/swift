@@ -707,7 +707,7 @@ AbstractionPattern::getPackElementType(unsigned index) const {
   llvm_unreachable("bad kind");
 }
 
-bool AbstractionPattern::matchesPack(CanPackType substType) {
+bool AbstractionPattern::matchesPack(CanPackType substType) const {
   switch (getKind()) {
   case Kind::Invalid:
     llvm_unreachable("querying invalid abstraction pattern!");
@@ -739,6 +739,72 @@ bool AbstractionPattern::matchesPack(CanPackType substType) {
   }
   }
   llvm_unreachable("bad kind");
+}
+
+void AbstractionPattern::forEachPackElement(CanPackType substType,
+      llvm::function_ref<void(PackElementGenerator &)> handleElement) const {
+  PackElementGenerator elt(*this, substType);
+  for (; !elt.isFinished(); elt.advance()) {
+    handleElement(elt);
+  }
+  elt.finish();
+}
+
+void AbstractionPattern::forEachExpandedPackElement(CanPackType substPackType,
+                      llvm::function_ref<void(AbstractionPattern origEltType,
+                                              CanType substEltType)>
+                        handleElement) const {
+  assert(matchesPack(substPackType));
+
+  auto substEltTypes = substPackType.getElementTypes();
+
+  // Handle opaque patterns by just iterating the substituted components.
+  if (!isPack()) {
+    for (auto i : indices(substEltTypes)) {
+      handleElement(getPackElementType(i), substEltTypes[i]);
+    }
+    return;
+  }
+
+  // For non-opaque patterns, we have to iterate the original components
+  // in order to match things up properly, but we'll still end up calling
+  // once per substituted element.
+  size_t substEltIndex = 0;
+  for (size_t origEltIndex : range(getNumPackElements())) {
+    auto origEltType = getPackElementType(origEltIndex);
+    if (!origEltType.isPackExpansion()) {
+      handleElement(origEltType, substEltTypes[substEltIndex]);
+      substEltIndex++;
+    } else {
+      auto origPatternType = origEltType.getPackExpansionPatternType();
+      for (auto i : range(origEltType.getNumPackExpandedComponents())) {
+        (void) i;
+        auto substEltType = substEltTypes[substEltIndex];
+        // When the substituted type is a pack expansion, pass down
+        // the original element type so that it's *also* a pack expansion.
+        // Clients expect to look through this structure in parallel on
+        // both types.  The count is misleading, but normal usage won't
+        // access it, and there's nothing we could provide that *wouldn't*
+        // be misleading in one way or another.
+        handleElement(isa<PackExpansionType>(substEltType)
+                        ? origEltType : origPatternType,
+                      substEltType);
+        substEltIndex++;
+      }
+    }
+  }
+  assert(substEltIndex == substEltTypes.size());
+}
+
+PackElementGenerator::PackElementGenerator(
+                            AbstractionPattern origPackType,
+                            CanPackType substPackType)
+    : origPackType(origPackType), substPackType(substPackType) {
+  assert(origPackType.isPack());
+  assert(origPackType.matchesPack(substPackType));
+  numOrigElts = origPackType.getNumPackElements();
+
+  if (!isFinished()) loadElement();
 }
 
 AbstractionPattern
@@ -791,6 +857,49 @@ AbstractionPattern AbstractionPattern::getPackExpansionPatternType() const {
     return AbstractionPattern::getDiscard(
         getGenericSubstitutions(), getGenericSignature(),
         ::getPackExpansionPatternType(getType()));
+  }
+  llvm_unreachable("bad kind");
+}
+
+static CanType getPackExpansionCountType(CanType type) {
+  return cast<PackExpansionType>(type).getCountType();
+}
+
+AbstractionPattern AbstractionPattern::getPackExpansionCountType() const {
+  switch (getKind()) {
+  case Kind::Invalid:
+    llvm_unreachable("querying invalid abstraction pattern!");
+  case Kind::ObjCMethodType:
+  case Kind::CurriedObjCMethodType:
+  case Kind::PartialCurriedObjCMethodType:
+  case Kind::CFunctionAsMethodType:
+  case Kind::CurriedCFunctionAsMethodType:
+  case Kind::PartialCurriedCFunctionAsMethodType:
+  case Kind::CXXMethodType:
+  case Kind::CurriedCXXMethodType:
+  case Kind::PartialCurriedCXXMethodType:
+  case Kind::Tuple:
+  case Kind::OpaqueFunction:
+  case Kind::OpaqueDerivativeFunction:
+  case Kind::ObjCCompletionHandlerArgumentsType:
+  case Kind::ClangType:
+    llvm_unreachable("pattern for function or tuple cannot be for "
+                     "pack expansion type");
+
+  case Kind::Opaque:
+    return *this;
+
+  case Kind::Type:
+    if (isTypeParameterOrOpaqueArchetype())
+      return AbstractionPattern::getOpaque();
+    return AbstractionPattern(getGenericSubstitutions(),
+                              getGenericSignature(),
+                              ::getPackExpansionCountType(getType()));
+
+  case Kind::Discard:
+    return AbstractionPattern::getDiscard(
+        getGenericSubstitutions(), getGenericSignature(),
+        ::getPackExpansionCountType(getType()));
   }
   llvm_unreachable("bad kind");
 }
@@ -1950,9 +2059,10 @@ public:
   SmallVector<Type, 2> substReplacementTypes;
   CanType substYieldType;
   unsigned packExpansionLevel;
+  bool &unimplementable;
   
-  SubstFunctionTypePatternVisitor(TypeConverter &TC)
-    : TC(TC), packExpansionLevel(0) {}
+  SubstFunctionTypePatternVisitor(TypeConverter &TC, bool &unimplementable)
+    : TC(TC), packExpansionLevel(0), unimplementable(unimplementable) {}
 
   // Creates and returns a fresh type parameter in the substituted generic
   // signature if `pattern` is a type parameter or opaque archetype. Returns
@@ -2213,12 +2323,25 @@ public:
   }
 
   CanType visitPackType(CanPackType pack, AbstractionPattern pattern) {
+    assert(pattern.isPack());
+
     // Break down the pack.
     SmallVector<CanType, 4> packElts;
-    for (auto i : range(pack->getNumElements())) {
-      packElts.push_back(visit(pack.getElementType(i),
-                               pattern.getPackElementType(i)));
-    }
+
+    pattern.forEachPackElement(pack, [&](PackElementGenerator &elt) {
+      auto substEltTypes = elt.getSubstTypes();
+      CanType eltTy;
+      if (!elt.isOrigPackExpansion()) {
+        eltTy = visit(substEltTypes[0], elt.getOrigType());
+      } else {
+        CanType candidateSubstType;
+        if (!substEltTypes.empty())
+          candidateSubstType = substEltTypes[0];
+        eltTy = handlePackExpansion(elt.getOrigType(), candidateSubstType);
+      }
+
+      packElts.push_back(eltTy);
+    });
 
     return CanPackType::get(TC.Context, packElts);
   }
@@ -2267,7 +2390,7 @@ public:
     // Recursively visit the pattern type.
     auto patternTy = visit(substPatternType, origPatternType);
 
-    // Find a pack parameter from the pattern to expand over.
+    // If the pattern contains a pack parameter, use that as the count type.
     CanType countParam;
     patternTy->walkPackReferences([&](Type t) {
       if (t->isTypeParameter()) {
@@ -2281,10 +2404,22 @@ public:
       return false;
     });
 
-    // If that didn't work, we should be able to find an expansion
-    // to use from either the substituted type or the subs.  At worst,
-    // we can make one.
-    assert(countParam && "implementable but lazy");
+    // If the pattern was fully substituted, substitute the original
+    // count type and use that instead.
+    if (!countParam) {
+      auto origCountType = origExpansion.getPackExpansionCountType();
+      CanType substCountType;
+      if (origExpansion.getGenericSubstitutions()) {
+        substCountType = cast<PackExpansionType>(origExpansion.getType())
+            .getCountType();
+      } else {
+        assert(candidateSubstType);
+        substCountType =
+          cast<PackExpansionType>(candidateSubstType).getCountType();
+      }
+
+      countParam = visit(substCountType, origCountType);
+    }
 
     return CanPackExpansionType::get(patternTy, countParam);
   }
@@ -2358,7 +2493,10 @@ public:
 
     pattern.forEachFunctionParam(func.getParams(), /*ignore self*/ false,
                                  [&](FunctionParamGenerator &param) {
-      if (!param.isOrigPackExpansion()) {
+      if (param.isUnimplementablePackExpansion()) {
+        unimplementable = true;
+        // Just ignore it.
+      } else if (!param.isOrigPackExpansion()) {
         auto newParamTy = visit(param.getSubstParams()[0].getParameterType(),
                                 param.getOrigType());
         addParam(param.getOrigFlags(), newParamTy);
@@ -2401,7 +2539,8 @@ std::tuple<AbstractionPattern, SubstitutionMap, AbstractionPattern>
 AbstractionPattern::getSubstFunctionTypePattern(CanAnyFunctionType substType,
                                                 TypeConverter &TC,
                                                 AbstractionPattern origYieldType,
-                                                CanType substYieldType)
+                                                CanType substYieldType,
+                                                bool &unimplementable)
 const {
   // If this abstraction pattern isn't meaningfully generic, then we don't
   // need to do any transformation.
@@ -2419,7 +2558,7 @@ const {
               : AbstractionPattern::getInvalid());
   }
 
-  SubstFunctionTypePatternVisitor visitor(TC);
+  SubstFunctionTypePatternVisitor visitor(TC, unimplementable);
   auto substTy = visitor.handleUnabstractedFunctionType(substType, *this,
                                                         substYieldType,
                                                         origYieldType);

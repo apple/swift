@@ -20,8 +20,8 @@ struct G<each T> {}
 
 struct TupleWitnesses<each T: Sequence>: P {
   typealias A = (Bool, repeat each T)
-  typealias B = (repeat each T.Element, x: Bool)
-  typealias C = (x: Bool, repeat H<each T.Element>)
+  typealias B = (repeat (each T).Element, x: Bool)
+  typealias C = (x: Bool, repeat H<(each T).Element>)
 }
 
 struct SingletonTupleWitnesses<each T>: P {
@@ -32,14 +32,14 @@ struct SingletonTupleWitnesses<each T>: P {
 
 struct FunctionWitnesses<each T: Sequence>: P {
   typealias A = (Bool, repeat each T) -> ()
-  typealias B = (repeat each T.Element, Bool) -> ()
-  typealias C = (Bool, repeat H<each T.Element>) -> ()
+  typealias B = (repeat (each T).Element, Bool) -> ()
+  typealias C = (Bool, repeat H<(each T).Element>) -> ()
 }
 
 struct NominalWitnesses<each T: Sequence>: P {
   typealias A = G<Bool, repeat each T>
-  typealias B = G<repeat each T.Element, Bool>
-  typealias C = G<Bool, repeat H<each T.Element>>
+  typealias B = G<repeat (each T).Element, Bool>
+  typealias C = G<Bool, repeat H<(each T).Element>>
 }
 
 func getA<T: P>(_: T.Type) -> Any.Type {

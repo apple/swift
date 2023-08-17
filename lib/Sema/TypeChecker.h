@@ -1326,12 +1326,6 @@ bool diagnoseInvalidFunctionType(FunctionType *fnTy, SourceLoc loc,
 /// \param writtenType The interface type usually derived from a user-written
 /// type repr. \param inferredType The type inferred by the type checker.
 void notePlaceholderReplacementTypes(Type writtenType, Type inferredType);
-
-/// Check whether the given extension introduces a conformance
-/// to a protocol annotated with reflection metadata attribute(s).
-/// If that's the case, conforming type supposed to match attribute
-/// requirements.
-void checkReflectionMetadataAttributes(ExtensionDecl *extension);
 } // namespace TypeChecker
 
 /// Returns the protocol requirement kind of the given declaration.

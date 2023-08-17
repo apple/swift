@@ -161,7 +161,6 @@ public:
     BackDeploymentThunk,
     BackDeploymentFallback,
     HasSymbolQuery,
-    RuntimeDiscoverableAttributeRecord,
   };
 
   /// lldb overrides the defaulted argument to 'true'.
@@ -362,10 +361,6 @@ public:
   std::string mangleGenericSignature(const GenericSignature sig);
 
   std::string mangleHasSymbolQuery(const ValueDecl *decl);
-
-  std::string
-  mangleRuntimeAttributeGeneratorEntity(const ValueDecl *decl, CustomAttr *attr,
-                                        SymbolKind SKind = SymbolKind::Default);
 
   std::string mangleMacroExpansion(const FreestandingMacroExpansion *expansion);
   std::string mangleAttachedMacroExpansion(
@@ -603,9 +598,6 @@ protected:
 
   void appendConstrainedExistential(Type base, GenericSignature sig,
                                     const ValueDecl *forDecl);
-
-  void appendRuntimeAttributeGeneratorEntity(const ValueDecl *decl,
-                                             CustomAttr *attr);
 };
 
 } // end namespace Mangle

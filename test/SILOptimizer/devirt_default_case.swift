@@ -171,8 +171,8 @@ func check_static_class_devirt(_ c: C6) -> Int {
 // Check that C.bar() and D.bar() are devirtualized.
 //
 // CHECK-LABEL: sil{{( hidden)?}} [noinline] @$s19devirt_default_case019check_static_class_A0ySiAA2C6CF
-// CHECK: checked_cast_br [exact] %0 : $C6 to C6
-// CHECK: checked_cast_br [exact] %0 : $C6 to D6
+// CHECK: checked_cast_br [exact] C6 in %0 : $C6 to C6
+// CHECK: checked_cast_br [exact] C6 in %0 : $C6 to D6
 // CHECK: class_method
 // CHECK: } // end sil function '$s19devirt_default_case019check_static_class_A0ySiAA2C6CF'
   return c.bar() 

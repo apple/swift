@@ -483,7 +483,7 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
         if (Lookup.outerResults().empty()) {
           Context.Diags.diagnose(Loc, diag::use_local_before_declaration, Name);
           Context.Diags.diagnose(innerDecl, diag::decl_declared_here,
-                                 localDeclAfterUse->getName());
+                                 localDeclAfterUse);
           Expr *error = new (Context) ErrorExpr(UDRE->getSourceRange());
           return error;
         }
@@ -521,14 +521,14 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
       // FIXME: What if the unviable candidates have different levels of access?
       const ValueDecl *first = inaccessibleResults.front().getValueDecl();
       Context.Diags.diagnose(
-          Loc, diag::candidate_inaccessible, first->getBaseName(),
+          Loc, diag::candidate_inaccessible, first,
           first->getFormalAccessScope().accessLevelForDiagnostics());
 
       // FIXME: If any of the candidates (usually just one) are in the same
       // module we could offer a fix-it.
       for (auto lookupResult : inaccessibleResults) {
         auto *VD = lookupResult.getValueDecl();
-        VD->diagnose(diag::decl_declared_here, VD->getName());
+        VD->diagnose(diag::decl_declared_here, VD);
       }
 
       // Don't try to recover here; we'll get more access-related diagnostics
@@ -796,7 +796,7 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
   Context.Diags.diagnose(Loc, diag::ambiguous_decl_ref, Name);
   for (auto Result : Lookup) {
     auto *Decl = Result.getValueDecl();
-    Context.Diags.diagnose(Decl, diag::decl_declared_here, Decl->getName());
+    Context.Diags.diagnose(Decl, diag::decl_declared_here, Decl);
   }
   return new (Context) ErrorExpr(UDRE->getSourceRange());
 }

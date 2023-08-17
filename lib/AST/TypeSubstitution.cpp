@@ -56,9 +56,7 @@ QueryTypeSubstitutionMapOrIdentity::operator()(SubstitutableType *type) const {
   if (known != substitutions.end() && known->second)
     return known->second;
 
-  if (isa<PackArchetypeType>(type) ||
-      (isa<GenericTypeParamType>(type) &&
-       cast<GenericTypeParamType>(type)->isParameterPack())) {
+  if (isa<PackArchetypeType>(type) || type->isRootParameterPack()) {
     return PackType::getSingletonPackExpansion(type);
   }
 

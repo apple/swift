@@ -1809,7 +1809,7 @@ bool IndexSwiftASTWalker::initFuncDeclIndexSymbol(FuncDecl *D,
     }
 
     if (senderParam)
-      if (auto nominal = senderParam->getType()->getAnyNominal())
+      if (auto nominal = senderParam->getInterfaceType()->getAnyNominal())
         addRelation(Info, (SymbolRoleSet) SymbolRole::RelationIBTypeOf,
                     nominal);
   }

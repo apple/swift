@@ -144,7 +144,7 @@ bb2:
 bb6(%4 : @owned $AnyKlass):
   destroy_value %0 : $AnyKlass
   destroy_value %1 : $AnyKlass
-  checked_cast_br %4 : $AnyKlass to Klass, bb7, bb8
+  checked_cast_br AnyKlass in %4 : $AnyKlass to Klass, bb7, bb8
 
 bb7(%k : @owned $Klass):
   destroy_value %k : $Klass

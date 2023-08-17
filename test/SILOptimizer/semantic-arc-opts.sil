@@ -942,7 +942,7 @@ sil [ossa] @cast_with_optional_result_and_default_simple : $@convention(thin) (@
 bb0(%0 : @guaranteed $StructWithDataAndOwner):
   %1 = struct_extract %0 : $StructWithDataAndOwner, #StructWithDataAndOwner.owner
   %2 = copy_value %1 : $Klass
-  checked_cast_br %2 : $Klass to Builtin.NativeObject, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject
@@ -968,7 +968,7 @@ sil [ossa] @cast_with_optional_result_and_default_simple_unremoved_store : $@con
 bb0(%result : $*FakeOptional<Builtin.NativeObject>, %0 : @guaranteed $StructWithDataAndOwner):
   %1 = struct_extract %0 : $StructWithDataAndOwner, #StructWithDataAndOwner.owner
   %2 = copy_value %1 : $Klass
-  checked_cast_br %2 : $Klass to Builtin.NativeObject, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject
@@ -1001,7 +1001,7 @@ sil [ossa] @cast_with_optional_result_and_default_simple_unremoved_store_multipl
 bb0(%result : $*FakeOptional<Builtin.NativeObject>, %0 : @guaranteed $StructWithDataAndOwner):
   %1 = struct_extract %0 : $StructWithDataAndOwner, #StructWithDataAndOwner.owner
   %2 = copy_value %1 : $Klass
-  checked_cast_br %2 : $Klass to Builtin.NativeObject, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject
@@ -1034,7 +1034,7 @@ sil [ossa] @cast_with_optional_result_and_default_and_switchenum_after : $@conve
 bb0(%result : $*FakeOptional<Builtin.NativeObject>, %0 : @guaranteed $StructWithDataAndOwner):
   %1 = struct_extract %0 : $StructWithDataAndOwner, #StructWithDataAndOwner.owner
   %2 = copy_value %1 : $Klass
-  checked_cast_br %2 : $Klass to Builtin.NativeObject, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject
@@ -1076,7 +1076,7 @@ bb0(%result : $*FakeOptional<Builtin.NativeObject>, %0 : @owned $StructWithDataA
   %0a = begin_borrow %0 : $StructWithDataAndOwner
   %1 = struct_extract %0a : $StructWithDataAndOwner, #StructWithDataAndOwner.owner
   %2 = copy_value %1 : $Klass
-  checked_cast_br %2 : $Klass to Builtin.NativeObject, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject
@@ -1119,7 +1119,7 @@ bb0(%result : $*FakeOptional<Builtin.NativeObject>, %0 : @owned $StructWithDataA
   %0a = begin_borrow %0 : $StructWithDataAndOwner
   %1 = struct_extract %0a : $StructWithDataAndOwner, #StructWithDataAndOwner.owner
   %2 = copy_value %1 : $Klass
-  checked_cast_br %2 : $Klass to Builtin.NativeObject, bb1, bb2
+  checked_cast_br Klass in %2 : $Klass to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject
@@ -1193,7 +1193,7 @@ sil [ossa] @iterated_transforming_terminator : $@convention(method) (@guaranteed
 bb0(%0 : $*FakeOptional<Klass>, %1 : @guaranteed $Builtin.NativeObject):
   %3 = init_enum_data_addr %0 : $*FakeOptional<Klass>, #FakeOptional.some!enumelt
   %4 = copy_value %1 : $Builtin.NativeObject
-  checked_cast_br %4 : $Builtin.NativeObject to Klass, bb1, bb2
+  checked_cast_br Builtin.NativeObject in %4 : $Builtin.NativeObject to Klass, bb1, bb2
 
 bb1(%7 : @owned $Klass):
   %8 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %7 : $Klass
@@ -1505,12 +1505,12 @@ bb3:
 // CHECK-LABEL: sil [ossa] @cast_anyobject_donot_opt : $@convention(thin) (@guaranteed AnyObject) -> () {
 // CHECK: bb0([[ARG:%.*]] : @guaranteed $AnyObject):
 // CHECK: [[COPIED_ARG:%.*]] = copy_value [[ARG]]
-// CHECK: checked_cast_br [[COPIED_ARG]] :
+// CHECK: checked_cast_br AnyObject in [[COPIED_ARG]] :
 // CHECK: } // end sil function 'cast_anyobject_donot_opt'
 sil [ossa] @cast_anyobject_donot_opt : $@convention(thin) (@guaranteed AnyObject) -> () {
 bb0(%0 : @guaranteed $AnyObject):
   %2 = copy_value %0 : $AnyObject
-  checked_cast_br %2 : $AnyObject to Builtin.NativeObject, bb1, bb2
+  checked_cast_br AnyObject in %2 : $AnyObject to Builtin.NativeObject, bb1, bb2
 
 bb1(%3 : @owned $Builtin.NativeObject):
   %4 = enum $FakeOptional<Builtin.NativeObject>, #FakeOptional.some!enumelt, %3 : $Builtin.NativeObject

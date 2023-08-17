@@ -1741,3 +1741,25 @@ func useHasUnavailableExtension(_ s: HasUnavailableExtension) {
   s.inheritsUnavailable() // expected-error {{'inheritsUnavailable()' is unavailable in macOS}}
   s.moreAvailableButStillUnavailable() // expected-error {{'moreAvailableButStillUnavailable()' is unavailable in macOS}}
 }
+
+@available(macOS 10.15, *)
+func f() -> Int { 17 }
+
+class StoredPropertiesWithAvailabilityInClosures {
+  private static let value: Int = {
+    if #available(macOS 10.15, *) {
+      return f()
+    }
+
+    return 0
+  }()
+
+  @available(macOS 10.14, *)
+  private static let otherValue: Int = {
+    if #available(macOS 10.15, *) {
+      return f()
+    }
+
+    return 0
+  }()
+}

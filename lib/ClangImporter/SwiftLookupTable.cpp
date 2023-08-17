@@ -733,19 +733,6 @@ SwiftLookupTable::allGlobalsAsMembers() {
   return results;
 }
 
-SmallVector<SerializedSwiftName, 4>
-SwiftLookupTable::allGlobalsAsMembersBaseNames() {
-  // If we have a reader, enumerate its base names.
-  if (Reader) return Reader->getGlobalsAsMembersBaseNames();
-
-  // Otherwise, walk the lookup table.
-  SmallVector<SerializedSwiftName, 4> result;
-  for (const auto &entry : GlobalsAsMembers) {
-    result.push_back(entry.first);
-  }
-  return result;
-}
-
 SmallVector<SwiftLookupTable::SingleEntry, 4>
 SwiftLookupTable::lookup(SerializedSwiftName baseName,
                          EffectiveClangContext searchContext) {

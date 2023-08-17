@@ -486,15 +486,20 @@ enum class CxxCompatMode {
   off
 };
 
-static CxxCompatMode validateCxxInteropCompatibilityMode(StringRef mode) {
+static std::pair<CxxCompatMode, version::Version>
+validateCxxInteropCompatibilityMode(StringRef mode) {
   if (mode == "off")
-    return CxxCompatMode::off;
+    return {CxxCompatMode::off, {}};
   if (mode == "default")
-    return CxxCompatMode::enabled;
-  // FIXME: Drop swift-5.9.
+    return {CxxCompatMode::enabled, {}};
+  if (mode == "upcoming-swift")
+    return {CxxCompatMode::enabled,
+            version::Version({version::getUpcomingCxxInteropCompatVersion()})};
+  // Swift-5.9 corresponds to the Swift 5 language mode when
+  // Swift 5 is the default language version.
   if (mode == "swift-5.9")
-    return CxxCompatMode::enabled;
-  return CxxCompatMode::invalid;
+    return {CxxCompatMode::enabled, version::Version({5})};
+  return {CxxCompatMode::invalid, {}};
 }
 
 static void diagnoseCxxInteropCompatMode(Arg *verArg, ArgList &Args,
@@ -1066,16 +1071,29 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     }
     
     auto interopCompatMode = validateCxxInteropCompatibilityMode(A->getValue());
-    Opts.EnableCXXInterop |= (interopCompatMode == CxxCompatMode::enabled);
+    Opts.EnableCXXInterop |=
+        (interopCompatMode.first == CxxCompatMode::enabled);
+    if (Opts.EnableCXXInterop) {
+      Opts.cxxInteropCompatVersion = interopCompatMode.second;
+      // The default is tied to the current language version.
+      if (Opts.cxxInteropCompatVersion.empty())
+        Opts.cxxInteropCompatVersion =
+            Opts.EffectiveLanguageVersion.asMajorVersion();
+    }
 
-    if (interopCompatMode == CxxCompatMode::invalid)
+    if (interopCompatMode.first == CxxCompatMode::invalid)
       diagnoseCxxInteropCompatMode(A, Args, Diags);
   }
-  
+
   if (Args.hasArg(OPT_enable_experimental_cxx_interop)) {
     Diags.diagnose(SourceLoc(), diag::enable_interop_flag_deprecated);
     Diags.diagnose(SourceLoc(), diag::swift_will_maintain_compat);
     Opts.EnableCXXInterop |= true;
+    // Using the deprecated option only forces the 'swift-5.9' compat
+    // mode.
+    if (Opts.cxxInteropCompatVersion.empty())
+      Opts.cxxInteropCompatVersion =
+          validateCxxInteropCompatibilityMode("swift-5.9").second;
   }
 
   Opts.EnableObjCInterop =
@@ -1302,6 +1320,7 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
             .Case("task-to-thread", ConcurrencyModel::TaskToThread)
             .Default(ConcurrencyModel::Standard);
   }
+  Opts.BypassResilienceChecks |= Args.hasArg(OPT_bypass_resilience);
 
   return HadError || UnsupportedOS || UnsupportedArch;
 }
@@ -1441,6 +1460,9 @@ static bool ParseClangImporterArgs(ClangImporterOptions &Opts,
 
   if (const Arg *A = Args.getLastArg(OPT_module_cache_path)) {
     Opts.ModuleCachePath = A->getValue();
+  }
+  if (const Arg *A = Args.getLastArg(OPT_clang_scanner_module_cache_path)) {
+    Opts.ClangScannerModuleCachePath = A->getValue();
   }
 
   if (const Arg *A = Args.getLastArg(OPT_target_cpu))

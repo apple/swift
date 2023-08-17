@@ -61,7 +61,7 @@ public struct MyFooProviderInferred: FooProvider {
 // CHECK-NEXT:        {
 // CHECK-NEXT:          "label": "foos",
 // CHECK-NEXT:          "type": "Swift.Array<ExtractResultBuilders.Foo>",
-// CHECK-NEXT:          "mangledTypeName": "Say21ExtractResultBuilders3FooVG",
+// CHECK-NEXT:          "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:          "isStatic": "true",
 // CHECK-NEXT:          "isComputed": "true",
 // CHECK-NEXT:          "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractResultBuilders.swift",
@@ -74,7 +74,7 @@ public struct MyFooProviderInferred: FooProvider {
 // CHECK-NEXT:        {
 // CHECK-NEXT:          "label": "fooTwo",
 // CHECK-NEXT:          "type": "Swift.Array<ExtractResultBuilders.Foo>",
-// CHECK-NEXT:          "mangledTypeName": "Say21ExtractResultBuilders3FooVG",
+// CHECK-NEXT:          "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:          "isStatic": "true",
 // CHECK-NEXT:          "isComputed": "true",
 // CHECK-NEXT:          "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractResultBuilders.swift",
@@ -100,7 +100,7 @@ public struct MyFooProviderInferred: FooProvider {
 // CHECK-NEXT:        {
 // CHECK-NEXT:          "label": "foos",
 // CHECK-NEXT:          "type": "Swift.Array<ExtractResultBuilders.Foo>",
-// CHECK-NEXT:          "mangledTypeName": "Say21ExtractResultBuilders3FooVG",
+// CHECK-NEXT:          "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:          "isStatic": "true",
 // CHECK-NEXT:          "isComputed": "true",
 // CHECK-NEXT:          "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractResultBuilders.swift",

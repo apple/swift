@@ -17,3 +17,15 @@
 // CHECK:   typealias Iterator = CxxIterator<SimpleCollectionReadOnly>
 // CHECK:   typealias RawIterator = SimpleCollectionReadOnly.iterator
 // CHECK: }
+
+// CHECK: struct HasInheritedTemplatedConstRACIterator<Int32> : CxxRandomAccessCollection {
+// CHECK:   typealias Element = InheritedTemplatedConstRACIterator<Int32>.Pointee
+// CHECK:   typealias Iterator = CxxIterator<HasInheritedTemplatedConstRACIterator<Int32>>
+// CHECK:   typealias RawIterator = InheritedTemplatedConstRACIterator<Int32>
+// CHECK: }
+
+// CHECK: struct HasInheritedTemplatedConstRACIteratorOutOfLineOps<Int32> : CxxRandomAccessCollection {
+// CHECK:   typealias Element = InheritedTemplatedConstRACIteratorOutOfLineOps<Int32>.Pointee
+// CHECK:   typealias Iterator = CxxIterator<HasInheritedTemplatedConstRACIteratorOutOfLineOps<Int32>>
+// CHECK:   typealias RawIterator = InheritedTemplatedConstRACIteratorOutOfLineOps<Int32>
+// CHECK: }

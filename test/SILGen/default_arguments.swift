@@ -6,6 +6,14 @@
 // CHECK-LABEL: sil [ossa] @main
 // CHECK:         string_literal utf8 "default_arguments"
 
+// Test at top level.
+testMagicLiterals()
+closure { testMagicLiterals() }
+autoclosure(testMagicLiterals())
+
+// CHECK: string_literal utf8 "default_arguments"
+let y : String = #function
+
 // Default argument for first parameter.
 // CHECK-LABEL: sil hidden [ossa] @$s17default_arguments7defarg11i1d1sySi_SdSStFfA_ : $@convention(thin) () -> Int
 // CHECK: [[LIT:%[0-9]+]] = integer_literal $Builtin.IntLiteral, 17
@@ -162,14 +170,6 @@ class Foo {
   static let x = Foo(int:0)
 
 }
-
-// Test at top level.
-testMagicLiterals()
-closure { testMagicLiterals() }
-autoclosure(testMagicLiterals())
-
-// CHECK: string_literal utf8 "default_arguments"
-let y : String = #function 
 
 // CHECK-LABEL: sil hidden [ossa] @$s17default_arguments16testSelectorCall_17withMagicLiteralsySi_SitF
 // CHECK:         string_literal utf8 "testSelectorCall(_:withMagicLiterals:)"

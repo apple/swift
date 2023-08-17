@@ -338,6 +338,32 @@ bb0(%0 : $MyArray<String>):
   return %14 : $()
 }
 
+sil @yieldTwoAddresses : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
+
+// CHECK-LABEL: Accesses for testBeginApply
+// CHECK-NEXT: Value: (**%1**, %2, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64) // user: %4
+// CHECK-NEXT:   Scope: base
+// CHECK-NEXT:   Base: yield - (**%1**, %2, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64) // user: %4
+// CHECK-NEXT:   Path: ""
+// CHECK-NEXT:    no Storage paths
+// CHECK-NEXT: Value: (%1, **%2**, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64) // user: %5
+// CHECK-NEXT:   Scope: base
+// CHECK-NEXT:   Base: yield - (%1, **%2**, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64) // user: %5
+// CHECK-NEXT:   Path: ""
+// CHECK-NEXT:    no Storage paths
+// CHECK-NEXT:  End accesses for testBeginApply
+sil @testBeginApply : $@convention(thin) () -> () {
+bb0:
+  %0 = function_ref @yieldTwoAddresses : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
+  (%1, %2, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
+  %4 = load %1 : $*String
+  %5 = load %2 : $*Int64
+  end_apply %3
+  %7 = tuple ()
+  return %7 : $()
+}
+
+
 sil_global @global1 : $Int64
 sil_global @global2 : $Int64
 

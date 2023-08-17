@@ -275,9 +275,10 @@ public:
   /// Given an imported C++ dereference operator (`operator*()`), create a
   /// `pointee` computed property.
   ///
-  /// \param dereferenceFunc function returning `Unsafe(Mutable)?Pointer<T>`
+  /// \param getter function returning `UnsafePointer<T>`
+  /// \param setter function returning `UnsafeMutablePointer<T>`
   /// \return computed property declaration
-  VarDecl *makeDereferencedPointeeProperty(FuncDecl *dereferenceFunc);
+  VarDecl *makeDereferencedPointeeProperty(FuncDecl *getter, FuncDecl *setter);
 
   /// Given a C++ pre-increment operator (`operator++()`). create a non-mutating
   /// function `successor() -> Self`.

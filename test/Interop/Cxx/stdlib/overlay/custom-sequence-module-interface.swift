@@ -56,3 +56,9 @@
 // CHECK-NOT:   typealias RawIterator
 // CHECK: }
 // CHECK: typealias HasUninstantiatableIterator = HasTemplatedIterator<Int32, NoDefinition<Int32>>
+
+// CHECK: struct HasInputOutputConstIterator : CxxConvertibleToCollection {
+// CHECK:   typealias Element = InputOutputConstIterator.Pointee
+// CHECK:   typealias Iterator = CxxIterator<HasInputOutputConstIterator>
+// CHECK:   typealias RawIterator = HasInputOutputConstIterator.iterator
+// CHECK: }

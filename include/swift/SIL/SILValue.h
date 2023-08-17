@@ -271,6 +271,17 @@ struct ValueOwnershipKind {
 
   explicit operator bool() const { return value != OwnershipKind::Any; }
 
+#ifndef __cpp_impl_three_way_comparison
+  // C++20 (more precisely P1185) introduced more overload candidates for
+  // comparison operator calls. With that in place the following definitions are
+  // redundant and actually cause compilation errors because of ambiguity.
+  // P1630 explains the rationale behind introducing this backward
+  // incompatibility.
+  //
+  // References:
+  // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1185r2.html
+  // https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1630r1.html
+
   bool operator==(ValueOwnershipKind other) const {
     return value == other.value;
   }
@@ -280,6 +291,7 @@ struct ValueOwnershipKind {
 
   bool operator==(innerty other) const { return value == other; }
   bool operator!=(innerty other) const { return !(value == other); }
+#endif
 
   /// We merge by moving down the lattice.
   ValueOwnershipKind merge(ValueOwnershipKind rhs) const {

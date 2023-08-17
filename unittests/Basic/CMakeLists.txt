@@ -50,6 +50,6 @@ target_link_libraries(SwiftBasicTests
   LLVMTestingSupport
   )
 
-if(SWIFT_HOST_VARIANT STREQUAL windows)
+if(SWIFT_HOST_VARIANT STREQUAL "windows")
   target_link_libraries(SwiftBasicTests PRIVATE Synchronization)
 endif()

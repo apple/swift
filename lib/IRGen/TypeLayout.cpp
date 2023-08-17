@@ -2225,7 +2225,7 @@ bool EnumTypeLayoutEntry::buildSinglePayloadRefCountString(
   unsigned extraTagByteCount = 0;
   uint64_t zeroTagValue = 0;
   unsigned xiBitCount = 0;
-  unsigned xiOffset = 0;
+  unsigned xiBitOffset = 0;
   bool isSimple = true;
 
   auto &payloadTI = **cases[0]->getFixedTypeInfo();
@@ -2249,8 +2249,8 @@ bool EnumTypeLayoutEntry::buildSinglePayloadRefCountString(
         isSimple = false;
       } else {
         xiBitCount = std::min(64u, mask.countPopulation());
-        xiOffset = mask.countTrailingZeros();
-        zeroTagValue = lowValue.extractBitsAsZExtValue(xiBitCount, xiOffset);
+        xiBitOffset = mask.countTrailingZeros();
+        zeroTagValue = lowValue.extractBitsAsZExtValue(xiBitCount, xiBitOffset);
       }
     }
   }
@@ -2279,7 +2279,7 @@ bool EnumTypeLayoutEntry::buildSinglePayloadRefCountString(
 
   if (isSimple) {
     B.addSinglePayloadEnumSimple(zeroTagValue, xiTagValues, extraTagByteCount,
-                                 xiBitCount / 8, xiOffset, cases[0]);
+                                 xiBitCount / 8, xiBitOffset / 8, cases[0]);
   } else {
     auto tagFn = createFixedEnumLoadTag(IGM, *this);
     B.addSinglePayloadEnumFN(tagFn, extraTagByteCount, cases[0]);

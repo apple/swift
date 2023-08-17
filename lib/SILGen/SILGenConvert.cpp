@@ -164,20 +164,23 @@ auto SILGenFunction::emitSourceLocationArgs(SourceLoc sourceLoc,
   SourceLocArgs result;
   SILValue literal = B.createStringLiteral(emitLoc, StringRef(filename),
                                            StringLiteralInst::Encoding::UTF8);
-  result.filenameStartPointer = ManagedValue::forUnmanaged(literal);
+  result.filenameStartPointer =
+      ManagedValue::forObjectRValueWithoutOwnership(literal);
   // File length
   literal = B.createIntegerLiteral(emitLoc, wordTy, filename.size());
-  result.filenameLength = ManagedValue::forUnmanaged(literal);
+  result.filenameLength =
+      ManagedValue::forObjectRValueWithoutOwnership(literal);
   // File is ascii
   literal = B.createIntegerLiteral(emitLoc, i1Ty, isASCII);
-  result.filenameIsAscii = ManagedValue::forUnmanaged(literal);
+  result.filenameIsAscii =
+      ManagedValue::forObjectRValueWithoutOwnership(literal);
   // Line
   literal = B.createIntegerLiteral(emitLoc, wordTy, line);
-  result.line = ManagedValue::forUnmanaged(literal);
+  result.line = ManagedValue::forObjectRValueWithoutOwnership(literal);
   // Column
   literal = B.createIntegerLiteral(emitLoc, wordTy, column);
-  result.column = ManagedValue::forUnmanaged(literal);
-  
+  result.column = ManagedValue::forObjectRValueWithoutOwnership(literal);
+
   return result;
 }
 
@@ -225,8 +228,8 @@ SILGenFunction::emitPreconditionOptionalHasValue(SILLocation loc,
     auto isImplicitUnwrapLiteral =
       B.createIntegerLiteral(loc, i1Ty, isImplicitUnwrap);
     auto isImplicitUnwrapValue =
-      ManagedValue::forUnmanaged(isImplicitUnwrapLiteral);
-    
+        ManagedValue::forObjectRValueWithoutOwnership(isImplicitUnwrapLiteral);
+
     emitApplyOfLibraryIntrinsic(loc, diagnoseFailure, SubstitutionMap(),
                                 {
                                   args.filenameStartPointer,
@@ -783,7 +786,7 @@ ManagedValue SILGenFunction::emitExistentialErasure(
       B.createInitExistentialMetatype(loc, metatype,
                       existentialTL.getLoweredType(),
                       conformances);
-    return ManagedValue::forUnmanaged(upcast);
+    return ManagedValue::forObjectRValueWithoutOwnership(upcast);
   }
   case ExistentialRepresentation::Class: {
     assert(existentialTL.isLoadable());

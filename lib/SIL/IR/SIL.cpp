@@ -82,7 +82,7 @@ swift::getLinkageForProtocolConformance(const RootProtocolConformance *C,
   if (isa<ClangModuleUnit>(C->getDeclContext()->getModuleScopeContext()))
     return SILLinkage::Shared;
 
-  auto typeDecl = C->getType()->getNominalOrBoundGenericNominal();
+  auto typeDecl = C->getDeclContext()->getSelfNominalTypeDecl();
   AccessLevel access = std::min(C->getProtocol()->getEffectiveAccess(),
                                 typeDecl->getEffectiveAccess());
   switch (access) {
@@ -296,17 +296,53 @@ bool SILModule::isTypeMetadataForLayoutAccessible(SILType type) {
   return ::isTypeMetadataForLayoutAccessible(*this, type);
 }
 
-bool AbstractStorageDecl::exportsPropertyDescriptor() const {
-  // The storage needs a descriptor if it sits at a module's ABI boundary,
-  // meaning it has public linkage.
-  
+static bool isUnsupportedKeyPathValueType(Type ty) {
+  // Visit lowered positions.
+  if (auto tupleTy = ty->getAs<TupleType>()) {
+    for (auto eltTy : tupleTy->getElementTypes()) {
+      if (eltTy->is<PackExpansionType>())
+        return true;
+
+      if (isUnsupportedKeyPathValueType(eltTy))
+        return true;
+    }
+
+    return false;
+  }
+
+  if (auto objTy = ty->getOptionalObjectType())
+    ty = objTy;
+
+  // FIXME: Remove this once isUnimplementableVariadicFunctionAbstraction()
+  // goes away in SILGenPoly.cpp.
+  if (auto funcTy = ty->getAs<FunctionType>()) {
+    for (auto param : funcTy->getParams()) {
+      auto paramTy = param.getPlainType();
+      if (paramTy->is<PackExpansionType>())
+        return true;
+
+      if (isUnsupportedKeyPathValueType(paramTy))
+        return true;
+    }
+
+    if (isUnsupportedKeyPathValueType(funcTy->getResult()))
+      return true;
+  }
+
   // Noncopyable types aren't supported by key paths in their current form.
   // They would also need a new ABI that's yet to be implemented in order to
   // be properly supported, so let's suppress the descriptor for now if either
   // the container or storage type of the declaration is non-copyable.
-  if (getValueInterfaceType()->isPureMoveOnly()) {
-    return false;
-  }
+  if (ty->isPureMoveOnly())
+    return true;
+
+  return false;
+}
+
+bool AbstractStorageDecl::exportsPropertyDescriptor() const {
+  // The storage needs a descriptor if it sits at a module's ABI boundary,
+  // meaning it has public linkage.
+  
   if (!isStatic()) {
     if (auto contextTy = getDeclContext()->getDeclaredTypeInContext()) {
       if (contextTy->isPureMoveOnly()) {
@@ -360,6 +396,10 @@ bool AbstractStorageDecl::exportsPropertyDescriptor() const {
   case SILLinkage::HiddenExternal:
   case SILLinkage::PublicExternal:
     llvm_unreachable("should be definition linkage?");
+  }
+
+  if (isUnsupportedKeyPathValueType(getValueInterfaceType())) {
+    return false;
   }
 
   // Subscripts with inout arguments (FIXME)and reabstracted arguments(/FIXME)

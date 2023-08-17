@@ -227,7 +227,7 @@ bb3:
 sil [ossa] @checked_cast_br_guaranteed_arg_outlives_original_value : $@convention(thin) (@owned Builtin.NativeObject) -> () {
 bb0(%0 : @owned $Builtin.NativeObject):
   %1 = begin_borrow %0 : $Builtin.NativeObject
-  checked_cast_br %1 : $Builtin.NativeObject to SuperKlass, bb1, bb2
+  checked_cast_br Builtin.NativeObject in %1 : $Builtin.NativeObject to SuperKlass, bb1, bb2
 
 bb1(%2 : @guaranteed $SuperKlass):
   end_borrow %1 : $Builtin.NativeObject

@@ -230,6 +230,19 @@ enum E7: String {
 
 func checkAnyIsAKeyword(x: Any) {}
 
+var binExpr = 1 + 2 + 3
+
+struct A: ExpressibleByIntegerLiteral {
+    init(integerLiteral value: Int) {
+        self.value = value
+    }
+    let value: Int
+}
+var a: A = 42
+
+let stringStr = "str"
+let strInterpolation = "This is a \(stringStr + "ing") interpolation"
+
 // REQUIRES: objc_interop
 // RUN: %empty-directory(%t.tmp)
 // RUN: %swiftc_driver -emit-module -o %t.tmp/FooSwiftModule.swiftmodule %S/Inputs/FooSwiftModule.swift
@@ -804,8 +817,71 @@ func checkAnyIsAKeyword(x: Any) {}
 // CHECK93-NEXT: <decl.enumelement><syntaxtype.keyword>case</syntaxtype.keyword> <decl.name>b</decl.name> = <syntaxtype.string>&quot;f&quot;</syntaxtype.string></decl.enumelement>
 
 // RUN: %sourcekitd-test -req=cursor -pos=227:14 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK94 %s
-// CHECK94: <empty cursor info; internal diagnostic: "Resolved to incomplete expression or statement.">
+// CHECK94: source.lang.swift.ref.struct
+// CHECK94-NEXT: String
+// CHECK94-NEXT: s:SS
+// CHECK94-NEXT: source.lang.swift
+// CHECK94-NEXT: String.Type
+// CHECK94-NEXT: $sSSmD
+// CHECK94-NEXT: Swift
+// CHECK94-NEXT: <Group>String</Group>
+// CHECK94-NEXT: SYSTEM
+// CHECK94-NEXT: <Declaration>@frozen @_eagerMove struct String</Declaration>
 
 // RUN:  %sourcekitd-test -req=cursor -pos=231:6 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK95 %s
 // CHECK95: <Declaration>func checkAnyIsAKeyword(x: Any)</Declaration>
 // CHECK95-NEXT: <decl.function.free><syntaxtype.keyword>func</syntaxtype.keyword> <decl.name>checkAnyIsAKeyword</decl.name>(<decl.var.parameter><decl.var.parameter.argument_label>x</decl.var.parameter.argument_label>: <decl.var.parameter.type><syntaxtype.keyword>Any</syntaxtype.keyword></decl.var.parameter.type></decl.var.parameter>)</decl.function.free>
+
+// RUN: %sourcekitd-test -req=cursor -pos=23:23 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK96 %s
+// CHECK96: source.lang.swift.ref.struct
+// CHECK96-NEXT: String
+// CHECK96-NEXT: s:SS
+// CHECK96-NEXT: source.lang.swift
+// CHECK96-NEXT: String.Type
+// CHECK96-NEXT: $sSSmD
+// CHECK96-NEXT: Swift
+// CHECK96-NEXT: <Group>String</Group>
+// CHECK96-NEXT: SYSTEM
+// CHECK96-NEXT: <Declaration>@frozen @_eagerMove struct String</Declaration>
+
+// RUN: %sourcekitd-test -req=cursor -pos=233:19 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK97 %s
+// CHECK97: source.lang.swift.ref.struct
+// CHECK97-NEXT: Int
+// CHECK97-NEXT: s:Si
+// CHECK97-NEXT: source.lang.swift
+// CHECK97-NEXT: Int.Type
+// CHECK97-NEXT: $sSimD
+// CHECK97-NEXT: Swift
+// CHECK97-NEXT: <Group>Math/Integers</Group>
+// CHECK97-NEXT: SYSTEM
+
+// RUN: %sourcekitd-test -req=cursor -pos=241:12 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK98 %s
+// CHECK98: source.lang.swift.ref.function.constructor (236:5-236:36)
+// CHECK98-NEXT: init(integerLiteral:)
+// CHECK98-NEXT: s:11cursor_info1AV14integerLiteralACSi_tcfc
+// CHECK98-NEXT: source.lang.swift
+// CHECK98-NEXT: (A.Type) -> (Int) -> A
+// CHECK98-NEXT: $s14integerLiteral11cursor_info1AVSi_tcD
+// CHECK98-NEXT: cursor_info
+
+// RUN: %sourcekitd-test -req=cursor -pos=244:51 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK99 %s
+// CHECK99: source.lang.swift.ref.struct ()
+// CHECK99-NEXT: String
+// CHECK99-NEXT: s:SS
+// CHECK99-NEXT: source.lang.swift
+// CHECK99-NEXT: String.Type
+// CHECK99-NEXT: $sSSmD
+// CHECK99-NEXT: Swift
+// CHECK99-NEXT: <Group>String</Group>
+// CHECK99-NEXT: SYSTEM
+
+// RUN: %sourcekitd-test -req=cursor -pos=244:61 %s -- -F %S/../Inputs/libIDE-mock-sdk -I %t.tmp %s | %FileCheck -check-prefix=CHECK100 %s
+// CHECK100: source.lang.swift.ref.function.constructor ()
+// CHECK100-NEXT: init(stringInterpolation:)
+// CHECK100-NEXT: s:SS19stringInterpolationSSs013DefaultStringB0V_tcfc
+// CHECK100-NEXT: source.lang.swift
+// CHECK100-NEXT: (String.Type) -> (DefaultStringInterpolation) -> String
+// CHECK100-NEXT: $s19stringInterpolationSSs013DefaultStringB0V_tcD
+// CHECK100-NEXT: Swift
+// CHECK100-NEXT: <Group>String</Group>
+// CHECK100-NEXT: SYSTEM

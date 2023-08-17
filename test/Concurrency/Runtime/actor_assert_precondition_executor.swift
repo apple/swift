@@ -74,14 +74,16 @@ actor Someone {
 
       // FIXME: calling without await from main() should also succeed, we must set the executor while we're kicking off main
 
-      tests.test("preconditionTaskOnActorExecutor(main): from Main friend") {
+      tests.test("MainActor.preconditionIsolated(): from Main friend") {
         await MainFriend().callCheckMainActor()
       }
 
+      #if !os(WASI)
       tests.test("precondition on actor (main): wrongly assume the main executor, from actor on other executor") {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected 'MainActor' executor.")
         await Someone().callCheckMainActor()
       }
+      #endif
 
       // === Global actor -----------------------------------------------------
 

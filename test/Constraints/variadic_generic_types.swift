@@ -56,3 +56,12 @@ do {
     return Test<String, Int, repeat each T>("a", 42, repeat each v) // Ok
   }
 }
+// rdar://107479662 - variadic tuple of Sendable elements does not conform to Sendable
+do {
+  struct Test<each T> : Sendable {
+    let prop: (repeat TestProperty<each T>)
+  }
+
+  struct TestProperty<T> : Sendable {
+  }
+}

@@ -518,3 +518,16 @@ sil @load_from_uninitialized_empty : $@convention(thin) () -> (Pair<Pair<EmptySt
   dealloc_stack %addr : $*(Pair<Pair<EmptyStruct, EmptyStruct>, EmptyStruct>, (EmptyStruct, EmptyStruct), EmptyStruct)
   return %value : $(Pair<Pair<EmptyStruct, EmptyStruct>, EmptyStruct>, (EmptyStruct, EmptyStruct), EmptyStruct)
 }
+
+
+// CHECK-LABEL: sil @dont_canonicalize_undef : {{.*}} {
+// CHECK:         [[RETVAL:%[^,]+]] = tuple
+// CHECK:         return [[RETVAL]]
+// CHECK-LABEL: } // end sil function 'dont_canonicalize_undef'
+sil @dont_canonicalize_undef : $@convention(thin) () -> () {
+  %addr = alloc_stack $()
+  store undef to %addr : $*()
+  dealloc_stack %addr : $*()
+  %retval = tuple ()
+  return %retval : $()
+}

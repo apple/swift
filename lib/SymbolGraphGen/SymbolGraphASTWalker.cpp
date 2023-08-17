@@ -162,6 +162,10 @@ bool SymbolGraphASTWalker::walkToDeclPre(Decl *D, CharSourceRange Range) {
       return false;
     }
 
+    if (SG->isUnconditionallyUnavailableOnAllPlatforms(Extension)) {
+      return false;
+    }
+
     if (isUnavailableOrObsoleted(ExtendedNominal)) {
       return false;
     }

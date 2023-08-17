@@ -13,13 +13,14 @@ struct Ptr { int *p; };
 struct __attribute__((swift_attr("import_owned"))) StirngLiteral { const char *name; };
 
 struct M {
-        int *_Nonnull test1() const;
-        int &test2() const;
-        Ptr test3() const;
+  M(const M&);
+  int *_Nonnull test1() const;
+  int &test2() const;
+  Ptr test3() const;
 
-        int *begin() const;
+  int *begin() const;
 
-        StirngLiteral stringLiteral() const { return StirngLiteral{"M"}; }
+  StirngLiteral stringLiteral() const { return StirngLiteral{"M"}; }
 };
 
 //--- test.swift

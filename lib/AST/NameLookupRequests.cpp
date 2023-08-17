@@ -362,10 +362,6 @@ void LookupInModuleRequest::writeDependencySink(
   }
 }
 
-//----------------------------------------------------------------------------//
-// LookupConformanceInModuleRequest computation.
-//----------------------------------------------------------------------------//
-
 void swift::simple_display(llvm::raw_ostream &out,
                            const LookupConformanceDescriptor &desc) {
   out << "looking up conformance to ";
@@ -375,6 +371,10 @@ void swift::simple_display(llvm::raw_ostream &out,
   out << " in ";
   simple_display(out, desc.Mod);
 }
+
+//----------------------------------------------------------------------------//
+// AnyObjectLookupRequest computation.
+//----------------------------------------------------------------------------//
 
 void AnyObjectLookupRequest::writeDependencySink(
     evaluator::DependencyCollector &reqTracker,

@@ -1332,7 +1332,7 @@ bool GatherLexicalLifetimeUseVisitor::visitUse(Operand *op,
       return false;
     }
 
-    if (fas.getArgumentOperandConvention(*op) ==
+    if (fas.getCaptureConvention(*op) ==
         SILArgumentConvention::Indirect_InoutAliasable) {
       // If we don't find the function, we can't handle this, so bail.
       auto *func = fas.getCalleeFunction();

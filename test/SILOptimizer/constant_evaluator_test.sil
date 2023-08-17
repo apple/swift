@@ -1480,7 +1480,7 @@ bb0:
 
 sil [ossa] @testMetatypeCast : $@convention(thin) <T> (@thick T.Type) -> Builtin.Int1 {
 bb0(%0 : $@thick T.Type):
-  checked_cast_br %0 : $@thick T.Type to Int64.Type, bb1, bb2
+  checked_cast_br T.Type in %0 : $@thick T.Type to Int64.Type, bb1, bb2
 
 bb1(%3 : $@thick Int64.Type):
   %4 = metatype $@thin Int64.Type

@@ -128,7 +128,8 @@ class ReflectionContext
   /// All buffers we need to keep around long term. This will automatically free them
   /// when this object is destroyed.
   std::vector<MemoryReader::ReadBytesResult> savedBuffers;
-  std::vector<std::tuple<RemoteAddress, RemoteAddress>> imageRanges;
+  std::vector<std::tuple<RemoteAddress, RemoteAddress>> textRanges;
+  std::vector<std::tuple<RemoteAddress, RemoteAddress>> dataRanges;
 
   bool setupTargetPointers = false;
   typename super::StoredPointer target_non_future_adapter = 0;
@@ -253,7 +254,7 @@ public:
     uint64_t Offset = 0;
 
     // Find the __TEXT segment.
-    typename T::SegmentCmd *Command = nullptr;
+    typename T::SegmentCmd *TextCommand = nullptr;
     for (unsigned I = 0; I < NumCommands; ++I) {
       auto CmdBuf = this->getReader().readBytes(
           RemoteAddress(CmdStartAddress.getAddressData() + Offset),
@@ -262,7 +263,7 @@ public:
         return false;
       auto CmdHdr = reinterpret_cast<typename T::SegmentCmd *>(CmdBuf.get());
       if (strncmp(CmdHdr->segname, "__TEXT", sizeof(CmdHdr->segname)) == 0) {
-        Command = CmdHdr;
+        TextCommand = CmdHdr;
         savedBuffers.push_back(std::move(CmdBuf));
         break;
       }
@@ -270,7 +271,7 @@ public:
     }
 
     // No __TEXT segment, bail out.
-    if (!Command)
+    if (!TextCommand)
       return false;
 
    // Find the load command offset.
@@ -293,7 +294,7 @@ public:
     if (!Sections)
       return false;
 
-    auto Slide = ImageStart.getAddressData() - Command->vmaddr;
+    auto Slide = ImageStart.getAddressData() - TextCommand->vmaddr;
     auto SectionsBuf = reinterpret_cast<const char *>(Sections.get());
 
     auto findMachOSectionByName = [&](llvm::StringRef Name)
@@ -357,7 +358,12 @@ public:
 
     auto InfoID = this->addReflectionInfo(info);
 
-    // Find the __DATA segment.
+    auto TextSegmentStart = Slide + TextCommand->vmaddr;
+    auto TextSegmentEnd = TextSegmentStart + TextCommand->vmsize;
+    textRanges.push_back(std::make_tuple(RemoteAddress(TextSegmentStart),
+                                         RemoteAddress(TextSegmentEnd)));
+
+    // Find the __DATA segments.
     for (unsigned I = 0; I < NumCommands; ++I) {
       auto CmdBuf = this->getReader().readBytes(
           RemoteAddress(CmdStartAddress.getAddressData() + Offset),
@@ -365,14 +371,14 @@ public:
       if (!CmdBuf)
         return false;
       auto CmdHdr = reinterpret_cast<typename T::SegmentCmd *>(CmdBuf.get());
-      if (strncmp(CmdHdr->segname, "__DATA", sizeof(CmdHdr->segname)) == 0) {
-        auto DataSegmentEnd =
-            ImageStart.getAddressData() + CmdHdr->vmaddr + CmdHdr->vmsize;
-        assert(DataSegmentEnd > ImageStart.getAddressData() &&
+      // Look for any segment name starting with __DATA.
+      if (strncmp(CmdHdr->segname, "__DATA", 6) == 0) {
+        auto DataSegmentStart = Slide + CmdHdr->vmaddr;
+        auto DataSegmentEnd = DataSegmentStart + CmdHdr->vmsize;
+        assert(DataSegmentStart > ImageStart.getAddressData() &&
                "invalid range for __DATA");
-        imageRanges.push_back(
-            std::make_tuple(ImageStart, RemoteAddress(DataSegmentEnd)));
-        break;
+        dataRanges.push_back(std::make_tuple(RemoteAddress(DataSegmentStart),
+                                             RemoteAddress(DataSegmentEnd)));
       }
       Offset += CmdHdr->cmdsize;
     }
@@ -831,9 +837,11 @@ public:
     return ownsAddress(RemoteAddress(*MetadataAddress));
   }
 
-  /// Returns true if the address falls within a registered image.
-  bool ownsAddressRaw(RemoteAddress Address) {
-    for (auto Range : imageRanges) {
+  /// Returns true if the address falls within the given address ranges.
+  bool ownsAddress(
+      RemoteAddress Address,
+      const std::vector<std::tuple<RemoteAddress, RemoteAddress>> &ranges) {
+    for (auto Range : ranges) {
       auto Start = std::get<0>(Range);
       auto End = std::get<1>(Range);
       if (Start.getAddressData() <= Address.getAddressData()
@@ -845,11 +853,14 @@ public:
   }
 
   /// Returns true if the address is known to the reflection context.
-  /// Currently, that means that either the address falls within a registered
-  /// image, or the address points to a Metadata whose type context descriptor
-  /// is within a registered image.
+  /// Currently, that means that either the address falls within the text or
+  /// data segments of a registered image, or the address points to a Metadata
+  /// whose type context descriptor is within the text segment of a registered
+  /// image.
   bool ownsAddress(RemoteAddress Address) {
-    if (ownsAddressRaw(Address))
+    if (ownsAddress(Address, textRanges))
+      return true;
+    if (ownsAddress(Address, dataRanges))
       return true;
 
     // This is usually called on a Metadata address which might have been
@@ -858,7 +869,7 @@ public:
     if (auto Metadata = readMetadata(Address.getAddressData()))
       if (auto DescriptorAddress =
           super::readAddressOfNominalTypeDescriptor(Metadata, true))
-        if (ownsAddressRaw(RemoteAddress(DescriptorAddress)))
+        if (ownsAddress(RemoteAddress(DescriptorAddress), textRanges))
           return true;
 
     return false;
@@ -1207,6 +1218,8 @@ public:
     auto DescriptorAddress =
         super::readAddressOfNominalTypeDescriptor(Metadata);
     if (!DescriptorAddress)
+      return false;
+    if (!ownsAddress(RemoteAddress(DescriptorAddress), textRanges))
       return false;
 
     auto DescriptorBytes =

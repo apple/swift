@@ -28,13 +28,13 @@ bb0(%0 : $Foo):
 
 
 //CHECK-LABEL: @_TF8testcase7my_mainFCS_3FooT_
-//CHECK: checked_cast_br [exact] %0 : $Foo to Foo
+//CHECK: checked_cast_br [exact] Foo in %0 : $Foo to Foo
 //CHECK: return
-//CHECK: checked_cast_br [exact] %0 : $Foo to Bar
+//CHECK: checked_cast_br [exact] Foo in %0 : $Foo to Bar
 //CHECK: class_method
 
 //CHECK-WMO-LABEL: @_TF8testcase7my_mainFCS_3FooT_
-//CHECK-WMO: checked_cast_br [exact] %0 : $Foo to Foo
+//CHECK-WMO: checked_cast_br [exact] Foo in %0 : $Foo to Foo
 //CHECK-WMO: return
 //CHECK-WMO: unchecked_ref_cast %0 : $Foo to $Bar
 //CHECK-WMO: class_method

@@ -22,6 +22,9 @@ struct S1 {}
 struct S2 {}
 struct S3 {}
 
+struct GVT<each T> : Error {
+}
+
 struct GV<each T> {
   var tu: (repeat each T)
 }
@@ -141,6 +144,16 @@ entry:
   apply %take<Pack{G<T>}>() : $@convention(thin) <each T>() -> ()
   %retval = tuple ()
   return %retval : $()
+}
+
+// CHECK-SIL-LABEL: sil @return_variadic : {{.*}} {
+// CHECK-SIL:         [[RETVAL:%[^,]+]] = struct
+// CHECK-SIL:         return [[RETVAL]]
+// CHECK-SIL-LABEL: } // end sil function 'return_variadic'
+sil @return_variadic : $<each T>() -> GVT<repeat each T> {
+entry:
+  %retval = struct $GVT<repeat each T> () 
+  return %retval : $GVT<repeat each T>
 }
 
 // =============================================================================

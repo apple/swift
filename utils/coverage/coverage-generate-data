@@ -13,8 +13,8 @@ import argparse
 import logging
 import multiprocessing
 import os
-import pipes
 import platform
+import shlex
 import subprocess
 import sys
 import timeit
@@ -38,7 +38,7 @@ global_build_subdir = ''
 
 def quote_shell_cmd(cmd):
     """Return `cmd` as a properly quoted shell string"""
-    return ' '.join([pipes.quote(a) for a in cmd])
+    return ' '.join([shlex.quote(a) for a in cmd])
 
 
 def call(cmd, verbose=True, show_cmd=True):

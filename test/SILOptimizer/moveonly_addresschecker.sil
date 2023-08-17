@@ -69,6 +69,18 @@ sil @finalizeSingleTrivialFieldAndDeinit : $@convention(thin) (@owned SingleTriv
 sil_global hidden @$s23moveonly_addresschecker9varGlobalAA16NonTrivialStructVvp : $NonTrivialStruct
 sil_global hidden [let] @$s23moveonly_addresschecker9letGlobalAA16NonTrivialStructVvp : $NonTrivialStruct
 
+struct NonCopyableNativeObjectIntPair : ~Copyable {
+  var a: Builtin.NativeObject
+  var currentPosition: Int
+}
+
+struct NonCopyableNativeObjectPair : ~Copyable {
+  var a: Builtin.NativeObject
+  var currentPosition: Builtin.NativeObject
+}
+
+sil @get_nativeobject : $@convention(thin) () -> @owned Builtin.NativeObject
+
 ///////////
 // Tests //
 ///////////
@@ -602,7 +614,7 @@ sil @get_M2 : $@convention(thin) () -> @owned M2
 sil @end_addr_see_addr : $@convention(thin) (@in M, @in_guaranteed M) -> ()
 
 /// A single instruction, apply @end_addr_see_addr, consumes one field and
-/// borrows another.  
+/// borrows another.
 
 /// Varify that the consumed value isn't destroyed twice and that the borrowed
 /// value isn't destroyed before it's used.
@@ -765,6 +777,85 @@ bb2:
   br bb3
 
 bb3:
+  %9999 = tuple ()
+  return %9999 : $()
+}
+
+sil @testUseCorrectBitsClosureCallee : $@convention(thin) (Int, @inout_aliasable NonCopyableNativeObjectIntPair) -> Bool
+sil @testUseCorrectBitsClosureUser : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Bool) -> ()
+
+// CHECK-LABEL: sil [ossa] @testUseCorrectBits : $@convention(method) (Int, @inout NonCopyableNativeObjectIntPair) -> () {
+// CHECK-NOT: destroy_addr
+// CHECK: } // end sil function 'testUseCorrectBits'
+sil [ossa] @testUseCorrectBits : $@convention(method) (Int, @inout NonCopyableNativeObjectIntPair) -> () {
+bb0(%0 : $Int, %1a : $*NonCopyableNativeObjectIntPair):
+  debug_value %0 : $Int, let, name "index", argno 1
+  debug_value %1a : $*NonCopyableNativeObjectIntPair, var, name "self", argno 2, implicit, expr op_deref
+  %1 = mark_must_check [consumable_and_assignable] %1a : $*NonCopyableNativeObjectIntPair
+  %4 = function_ref @testUseCorrectBitsClosureCallee : $@convention(thin) (Int, @inout_aliasable NonCopyableNativeObjectIntPair) -> Bool
+  %5 = partial_apply [callee_guaranteed] [on_stack] %4(%0, %1) : $@convention(thin) (Int, @inout_aliasable NonCopyableNativeObjectIntPair) -> Bool
+  %6 = mark_dependence %5 : $@noescape @callee_guaranteed () -> Bool on %1 : $*NonCopyableNativeObjectIntPair
+  %7 = function_ref @testUseCorrectBitsClosureUser : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Bool) -> ()
+  %8 = apply %7(%6) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Bool) -> ()
+  %9 = struct_element_addr %1 : $*NonCopyableNativeObjectIntPair, #NonCopyableNativeObjectIntPair.currentPosition
+  debug_value undef : $*NonCopyableNativeObjectIntPair, var, name "self", argno 2, implicit, expr op_deref
+  destroy_value %6 : $@noescape @callee_guaranteed () -> Bool
+  %12 = begin_access [modify] [static] %1 : $*NonCopyableNativeObjectIntPair
+  %13 = struct_element_addr %12 : $*NonCopyableNativeObjectIntPair, #NonCopyableNativeObjectIntPair.currentPosition
+  store %0 to [trivial] %13 : $*Int
+  end_access %12 : $*NonCopyableNativeObjectIntPair
+  %16 = tuple ()
+  return %16 : $()
+}
+
+sil @testUseCorrectBits2ClosureCallee : $@convention(thin) (Int, @inout_aliasable NonCopyableNativeObjectPair) -> Bool
+
+// CHECK-LABEL: sil [ossa] @testUseCorrectBits2 : $@convention(method) (Int, @inout NonCopyableNativeObjectPair) -> () {
+// CHECK: bb0({{%.*}} : $Int, [[ARG:%.*]] : $*
+// CHECK-NOT: destroy_addr
+// CHECK:   [[ACCESS:%.*]] = begin_access [modify] [static] [[ARG]]
+// CHECK-NEXT: [[GEP:%.*]] = struct_element_addr [[ACCESS]]
+// CHECK-NEXT: function_ref get_nativeobject
+// CHECK-NEXT: function_ref @get_nativeobject
+// CHECK-NEXT: apply {{%.*}}
+// CHECK-NEXT: [[GEP2:%.*]] = struct_element_addr [[ARG]] : $*NonCopyableNativeObjectPair, #NonCopyableNativeObjectPair.currentPosition
+// CHECK-NEXT: destroy_addr [[GEP2]]
+// CHECK-NOT: destroy_addr
+// CHECK: } // end sil function 'testUseCorrectBits2'
+sil [ossa] @testUseCorrectBits2 : $@convention(method) (Int, @inout NonCopyableNativeObjectPair) -> () {
+bb0(%0 : $Int, %1a : $*NonCopyableNativeObjectPair):
+  debug_value %0 : $Int, let, name "index", argno 1
+  debug_value %1a : $*NonCopyableNativeObjectPair, var, name "self", argno 2, implicit, expr op_deref
+  %1 = mark_must_check [consumable_and_assignable] %1a : $*NonCopyableNativeObjectPair
+  %4 = function_ref @testUseCorrectBits2ClosureCallee : $@convention(thin) (Int, @inout_aliasable NonCopyableNativeObjectPair) -> Bool
+  %5 = partial_apply [callee_guaranteed] [on_stack] %4(%0, %1) : $@convention(thin) (Int, @inout_aliasable NonCopyableNativeObjectPair) -> Bool
+  %6 = mark_dependence %5 : $@noescape @callee_guaranteed () -> Bool on %1 : $*NonCopyableNativeObjectPair
+  %7 = function_ref @testUseCorrectBitsClosureUser : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Bool) -> ()
+  %8 = apply %7(%6) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> Bool) -> ()
+  %9 = struct_element_addr %1 : $*NonCopyableNativeObjectPair, #NonCopyableNativeObjectPair.currentPosition
+  debug_value undef : $*NonCopyableNativeObjectPair, var, name "self", argno 2, implicit, expr op_deref
+  destroy_value %6 : $@noescape @callee_guaranteed () -> Bool
+  %12 = begin_access [modify] [static] %1 : $*NonCopyableNativeObjectPair
+  %13 = struct_element_addr %12 : $*NonCopyableNativeObjectPair, #NonCopyableNativeObjectPair.currentPosition
+  %f = function_ref @get_nativeobject : $@convention(thin) () -> @owned Builtin.NativeObject
+  %14 = apply %f() : $@convention(thin) () -> @owned Builtin.NativeObject
+  store %14 to [assign] %13 : $*Builtin.NativeObject
+  end_access %12 : $*NonCopyableNativeObjectPair
+  %16 = tuple ()
+  return %16 : $()
+}
+
+sil [ossa] @testSupportStoreBorrow : $@convention(thin) (@guaranteed NonTrivialStruct) -> () {
+bb0(%0 : @guaranteed $NonTrivialStruct):
+  %1 = alloc_stack $NonTrivialStruct
+  %1a = mark_must_check [no_consume_or_assign] %1 : $*NonTrivialStruct
+  %borrow = store_borrow %0 to %1a : $*NonTrivialStruct
+  %f = function_ref @useNonTrivialStruct : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  %l = load_borrow %borrow : $*NonTrivialStruct
+  apply %f(%l) : $@convention(thin) (@guaranteed NonTrivialStruct) -> ()
+  end_borrow %l : $NonTrivialStruct
+  end_borrow %borrow : $*NonTrivialStruct
+  dealloc_stack %1 : $*NonTrivialStruct
   %9999 = tuple ()
   return %9999 : $()
 }

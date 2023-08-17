@@ -66,19 +66,34 @@ public struct StringRef : CustomStringConvertible, NoReflectionChildren {
   public var description: String { string }
 
   public var count: Int {
+#if $NewCxxMethodSafetyHeuristics
+    Int(_bridged.bytes_end() - _bridged.bytes_begin())
+#else
     Int(_bridged.__bytes_endUnsafe() - _bridged.__bytes_beginUnsafe())
+#endif
   }
 
   public subscript(index: Int) -> UInt8 {
+#if $NewCxxMethodSafetyHeuristics
+    let buffer = UnsafeBufferPointer<UInt8>(start: _bridged.bytes_begin(),
+                                            count: count)
+#else
     let buffer = UnsafeBufferPointer<UInt8>(start: _bridged.__bytes_beginUnsafe(),
                                             count: count)
+#endif
     return buffer[index]
   }
 
   public static func ==(lhs: StringRef, rhs: StaticString) -> Bool {
+#if $NewCxxMethodSafetyHeuristics
+    let lhsBuffer = UnsafeBufferPointer<UInt8>(
+      start: lhs._bridged.bytes_begin(),
+      count: lhs.count)
+#else
     let lhsBuffer = UnsafeBufferPointer<UInt8>(
       start: lhs._bridged.__bytes_beginUnsafe(),
       count: lhs.count)
+#endif
     return rhs.withUTF8Buffer { (rhsBuffer: UnsafeBufferPointer<UInt8>) in
       if lhsBuffer.count != rhsBuffer.count { return false }
       return lhsBuffer.elementsEqual(rhsBuffer, by: ==)

@@ -25,7 +25,7 @@ import SIL
 /// ```
 /// The pass does not try to change or re-compute _defined_ effects.
 ///
-let computeEscapeEffects = FunctionPass(name: "compute-escape-effects", {
+let computeEscapeEffects = FunctionPass(name: "compute-escape-effects") {
   (function: Function, context: FunctionPassContext) in
 
   var newEffects = function.effects.escapeEffects.arguments.filter {!$0.isDerived }
@@ -73,8 +73,7 @@ let computeEscapeEffects = FunctionPass(name: "compute-escape-effects", {
   context.modifyEffects(in: function) { (effects: inout FunctionEffects) in
     effects.escapeEffects.arguments = newEffects
   }
-})
-
+}
 
 /// Returns true if an argument effect was added.
 private

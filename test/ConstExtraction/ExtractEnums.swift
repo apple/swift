@@ -45,7 +45,7 @@ public struct Enums: MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "hashValue",
 // CHECK-NEXT:        "type": "Swift.Int",
-// CHECK-NEXT:        "mangledTypeName": "Si",
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "valueKind": "Runtime"
@@ -83,7 +83,7 @@ public struct Enums: MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "rawValue",
 // CHECK-NEXT:        "type": "Swift.String",
-// CHECK-NEXT:        "mangledTypeName": "SS",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "valueKind": "Runtime"
@@ -153,7 +153,7 @@ public struct Enums: MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "enum1",
 // CHECK-NEXT:        "type": "ExtractEnums.SimpleEnum",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractEnums10SimpleEnumO",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractEnums.swift",
@@ -166,7 +166,7 @@ public struct Enums: MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "enum3",
 // CHECK-NEXT:        "type": "ExtractEnums.AssociatedEnums",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractEnums010AssociatedB0O",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractEnums.swift",
@@ -193,7 +193,7 @@ public struct Enums: MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "enum2",
 // CHECK-NEXT:        "type": "ExtractEnums.StringEnum",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractEnums10StringEnumO",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractEnums.swift",
@@ -206,7 +206,7 @@ public struct Enums: MyProto {
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "enum4",
 // CHECK-NEXT:        "type": "ExtractEnums.AssociatedEnums",
-// CHECK-NEXT:        "mangledTypeName": "12ExtractEnums010AssociatedB0O",        
+// CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",        
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractEnums.swift",

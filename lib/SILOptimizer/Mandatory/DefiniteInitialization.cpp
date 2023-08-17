@@ -1454,7 +1454,7 @@ void LifetimeChecker::handleStoreUse(unsigned UseID) {
     Type selfTy;
     SILLocation fnLoc = TheMemory.getFunction().getLocation();
     if (auto *ctor = fnLoc.getAsASTNode<ConstructorDecl>())
-      selfTy = ctor->getImplicitSelfDecl()->getType();
+      selfTy = ctor->getImplicitSelfDecl()->getTypeInContext();
     else
       selfTy = TheMemory.getASTType();
 

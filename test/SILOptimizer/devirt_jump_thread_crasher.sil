@@ -33,7 +33,7 @@ sil @method2 : $@convention(method) <τ_0_0> (@owned @callee_owned (S) -> @out �
 sil [serialized] @_TFCs28__ContiguousArrayStorageBase25withUnsafeBufferOfObjectsfS_U__FFGVs19UnsafeBufferPointerPs9AnyObject__Q_Q_ : $@convention(method) <R> (@owned @callee_owned (S) -> @out R, @guaranteed Base) -> @out R {
 bb0(%0 : $*R, %1 : $@callee_owned (S) -> @out R, %2 : $Base):
   %3 = alloc_stack $MyOptional<R>                   // users: %9, %12, %13, %15, %20, %26, %33, %42, %50, %54
-  checked_cast_br [exact] %2 : $Base to Derived1, bb1, bb2 // id: %4
+  checked_cast_br [exact] Base in %2 : $Base to Derived1, bb1, bb2 // id: %4
 
 bb1(%5 : $Derived1):                    // Preds: bb0
   %6 = function_ref @method1 : $@convention(method) <τ_0_0> (@owned @callee_owned (S) -> @out τ_0_0, @guaranteed Derived1) -> @out MyOptional<τ_0_0> // user: %9
@@ -43,7 +43,7 @@ bb1(%5 : $Derived1):                    // Preds: bb0
   br bb3                                          // id: %10
 
 bb2:                                              // Preds: bb0
-  checked_cast_br [exact] %2 : $Base to Derived2, bb6, bb7 // id: %11
+  checked_cast_br [exact] Base in %2 : $Base to Derived2, bb6, bb7 // id: %11
 
 bb3:                                              // Preds: bb1 bb6 bb8 bb10
   switch_enum_addr %3 : $*MyOptional<R>, case #MyOptional.some!enumelt: bb4, case #MyOptional.none!enumelt: bb5 // id: %12
@@ -67,7 +67,7 @@ bb6(%22 : $Derived2):             // Preds: bb2
   br bb3                                          // id: %27
 
 bb7:                                              // Preds: bb2
-  checked_cast_br [exact] %2 : $Base to Base, bb8, bb9 // id: %28
+  checked_cast_br [exact] Base in %2 : $Base to Base, bb8, bb9 // id: %28
 
 bb8(%29 : $Base):          // Preds: bb7
   %30 = function_ref @method2 : $@convention(method) <τ_0_0> (@owned @callee_owned (S) -> @out τ_0_0, @guaranteed Base) -> @out MyOptional<τ_0_0> // user: %33
@@ -78,7 +78,7 @@ bb8(%29 : $Base):          // Preds: bb7
 
 bb9:                                              // Preds: bb7
   strong_retain %1 : $@callee_owned (S) -> @out R // id: %35
-  checked_cast_br [exact] %2 : $Base to Derived1, bb11, bb12 // id: %36
+  checked_cast_br [exact] Base in %2 : $Base to Derived1, bb11, bb12 // id: %36
 
 bb10(%37 : $()):                                  // Preds: bb11 bb13
   br bb3                                          // id: %38
@@ -90,7 +90,7 @@ bb11(%39 : $Derived1):                  // Preds: bb9
   br bb10(%42 : $())                              // id: %43
 
 bb12:                                             // Preds: bb9
-  checked_cast_br [exact] %2 : $Base to Base, bb14, bb15 // id: %44
+  checked_cast_br [exact] Base in %2 : $Base to Base, bb14, bb15 // id: %44
 
 bb13(%45 : $()):                                  // Preds: bb14 bb15
   br bb10(%45 : $())                              // id: %46
@@ -109,7 +109,7 @@ bb15:                                             // Preds: bb12
 
 // CHECK-LABEL: sil @multiple_edits_in_adjacent_blocks
 // CHECK: bb0(%0 : $*Base):
-// CHECK: checked_cast_br %
+// CHECK: checked_cast_br Base in %
 // CHECK: bb1:
 // CHECK: checked_cast_br [exact]
 // CHECK-NOT: checked_cast_br
@@ -117,19 +117,19 @@ bb15:                                             // Preds: bb12
 sil @multiple_edits_in_adjacent_blocks : $@convention(method) (@in Base) -> () {
 bb0(%0 : $*Base):
   %1 = load %0 : $*Base
-  checked_cast_br %1 : $Base to Derived1, bb8, bb1
+  checked_cast_br Base in %1 : $Base to Derived1, bb8, bb1
 
 bb1:
-  checked_cast_br [exact] %1 : $Base to Derived2, bb2, bb5
+  checked_cast_br [exact] Base in %1 : $Base to Derived2, bb2, bb5
 
 bb2(%6 : $Derived2):
   %7 = upcast %6 : $Derived2 to $Base
   debug_value %7 : $Base, let, name "self", argno 1
-  checked_cast_br [exact] %7 : $Base to Base, bb3, bb6
+  checked_cast_br [exact] Base in %7 : $Base to Base, bb3, bb6
 
 bb3(%10 : $Base):
   debug_value %10 : $Base, let, name "self", argno 1
-  checked_cast_br %10 : $Base to Derived1, bb4, bb7
+  checked_cast_br Base in %10 : $Base to Derived1, bb4, bb7
 
 bb4(%13 : $Derived1):
   debug_value %13 : $Derived1, let, name "scr"

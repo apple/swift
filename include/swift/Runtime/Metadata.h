@@ -1038,6 +1038,14 @@ SWIFT_RUNTIME_STDLIB_SPI
 void _swift_registerConcurrencyStandardTypeDescriptors(
     const ConcurrencyStandardTypeDescriptors *descriptors);
 
+/// Initialize the value witness table for a struct using the provided like type
+/// as the basis for the layout.
+SWIFT_RUNTIME_EXPORT
+void swift_initRawStructMetadata(StructMetadata *self,
+                                 StructLayoutFlags flags,
+                                 const TypeLayout *likeType,
+                                 int32_t count);
+
 #pragma clang diagnostic pop
 
 } // end namespace swift

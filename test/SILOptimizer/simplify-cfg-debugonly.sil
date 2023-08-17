@@ -24,7 +24,7 @@ bb0(%0 : $Klass):
   %1 = function_ref @getKlass : $@convention(thin) () -> @owned Klass
   %2 = integer_literal $Builtin.Int64, 1
   %3 = apply %1() : $@convention(thin) () -> @owned Klass
-  checked_cast_br %3 : $Klass to OtherKlass, bb1, bb2
+  checked_cast_br Klass in %3 : $Klass to OtherKlass, bb1, bb2
 
 bb1(%5 : $OtherKlass):
   %6 = integer_literal $Builtin.Int1, -1
@@ -48,7 +48,7 @@ bb6:
   br bb10(%2 : $Builtin.Int64)
 
 bb7(%16 : $Klass):
-  checked_cast_br %16 : $Klass to OtherKlass, bb9, bb8
+  checked_cast_br Klass in %16 : $Klass to OtherKlass, bb9, bb8
 
 bb8:
   strong_release %16 : $Klass
@@ -59,7 +59,7 @@ bb9(%20 : $OtherKlass):
 
 bb10(%22 : $Builtin.Int64):
   %23 = apply %1() : $@convention(thin) () -> @owned Klass
-  checked_cast_br %23 : $Klass to OtherKlass, bb11, bb12
+  checked_cast_br Klass in %23 : $Klass to OtherKlass, bb11, bb12
 
 bb11(%25 : $OtherKlass):
   %26 = integer_literal $Builtin.Int1, -1

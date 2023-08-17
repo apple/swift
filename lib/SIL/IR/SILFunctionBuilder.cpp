@@ -129,7 +129,7 @@ void SILFunctionBuilder::addFunctionAttributes(
         // Give up on tuples. Their elements are added as individual
         // arguments. It destroys the 1-1 relation ship between parameters
         // and arguments.
-        if (isa<TupleType>(CanType(pd->getType())))
+        if (pd->getInterfaceType()->is<TupleType>())
           break;
         // First try the "local" parameter name. If there is none, use the
         // API name. E.g. `foo(apiName localName: Type) {}`
@@ -311,8 +311,6 @@ SILFunction *SILFunctionBuilder::getOrCreateFunction(
   }
 
   IsRuntimeAccessible_t isRuntimeAccessible = IsNotRuntimeAccessible;
-  if (constant.isRuntimeAccessibleFunction())
-    isRuntimeAccessible = IsRuntimeAccessible;
 
   auto *F = SILFunction::create(
       mod, linkage, name, constantType, nullptr, llvm::None, IsNotBare, IsTrans,

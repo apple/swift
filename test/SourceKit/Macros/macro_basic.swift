@@ -45,7 +45,7 @@ struct S3 {
   }
 }
 
-@attached(conformance)
+@attached(extension, conformances: Hashable)
 macro Hashable() = #externalMacro(module: "MacroDefinition", type: "HashableMacro")
 
 @Hashable
@@ -211,7 +211,6 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // NESTED_ATTACHED_EXPAND-NEXT:  get {
 // NESTED_ATTACHED_EXPAND-NEXT:    _storage.x
 // NESTED_ATTACHED_EXPAND-NEXT:  }
-// NESTED_ATTACHED_EXPAND-EMPTY:
 // NESTED_ATTACHED_EXPAND-NEXT:  set {
 // NESTED_ATTACHED_EXPAND-NEXT:    _storage.x = newValue
 // NESTED_ATTACHED_EXPAND-NEXT:  }
@@ -226,7 +225,6 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // ACCESSOR1_EXPAND-NEXT:  get {
 // ACCESSOR1_EXPAND-NEXT:    _storage.x
 // ACCESSOR1_EXPAND-NEXT:  }
-// ACCESSOR1_EXPAND-EMPTY:
 // ACCESSOR1_EXPAND-NEXT:  set {
 // ACCESSOR1_EXPAND-NEXT:    _storage.x = newValue
 // ACCESSOR1_EXPAND-NEXT:  }
@@ -241,7 +239,6 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 // ACCESSOR2_EXPAND-NEXT:  get {
 // ACCESSOR2_EXPAND-NEXT:    _storage.y
 // ACCESSOR2_EXPAND-NEXT:  }
-// ACCESSOR2_EXPAND-EMPTY:
 // ACCESSOR2_EXPAND-NEXT:  set {
 // ACCESSOR2_EXPAND-NEXT:    _storage.y = newValue
 // ACCESSOR2_EXPAND-NEXT:  }
@@ -263,7 +260,7 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 //##-- Expansion on a conformance macro.
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=51:5 %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=CONFORMANCE_EXPAND %s
 // CONFORMANCE_EXPAND: source.edit.kind.active:
-// CONFORMANCE_EXPAND-NEXT: 52:14-52:14 (@__swiftmacro_9MacroUser2S48HashablefMc_.swift) "extension S4: Hashable {
+// CONFORMANCE_EXPAND-NEXT: 52:14-52:14 (@__swiftmacro_9MacroUser2S48HashablefMe_.swift) "extension S4: Hashable {
 // CONFORMANCE_EXPAND-NEXT: }"
 // CONFORMANCE_EXPAND-NEXT: source.edit.kind.active:
 // CONFORMANCE_EXPAND-NEXT: 51:1-51:10 ""

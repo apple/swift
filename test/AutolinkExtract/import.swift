@@ -18,4 +18,7 @@
 // CHECK-coff-DAG: -lswiftCore
 // CHECK-coff-DAG: -lempty
 
+// CHECK-wasm-DAG: -lswiftCore
+// CHECK-wasm-DAG: -lempty
+
 import empty

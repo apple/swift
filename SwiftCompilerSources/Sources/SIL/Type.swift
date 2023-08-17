@@ -62,7 +62,7 @@ public struct Type : CustomStringConvertible, NoReflectionChildren {
 
   /// Can only be used if the type is in fact a nominal type (`isNominal` is true).
   public var nominal: NominalTypeDecl {
-    NominalTypeDecl(bridged: BridgedNominalTypeDecl(decl: bridged.getNominalOrBoundGenericNominal()))
+    NominalTypeDecl(_bridged: BridgedNominalTypeDecl(decl: bridged.getNominalOrBoundGenericNominal()))
   }
 
   public var isOrContainsObjectiveCClass: Bool { bridged.isOrContainsObjectiveCClass() }
@@ -193,11 +193,19 @@ extension swift.SILType {
 
 // TODO: use an AST type for this once we have it
 public struct NominalTypeDecl : Equatable {
-  let bridged: BridgedNominalTypeDecl
+  private let bridged: BridgedNominalTypeDecl
+
+  public init(_bridged: BridgedNominalTypeDecl) {
+    self.bridged = _bridged
+  }
 
   public var name: StringRef { StringRef(bridged: bridged.getName()) }
 
   public static func ==(lhs: NominalTypeDecl, rhs: NominalTypeDecl) -> Bool {
     lhs.bridged.decl == rhs.bridged.decl
+  }
+
+  public var isStructWithUnreferenceableStorage: Bool {
+    bridged.isStructWithUnreferenceableStorage()
   }
 }

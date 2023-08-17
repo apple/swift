@@ -71,14 +71,14 @@ static bool isParamRequiredToBeConstant(AbstractFunctionDecl *funcDecl, ParamDec
     // We are looking at a top-level os_log function that accepts level and
     // possibly custom log object. Those need not be constants, but every other
     // parameter must be.
-    paramType = param->getType();
+    paramType = param->getTypeInContext();
     nominal = paramType->getNominalOrBoundGenericNominal();
     return !nominal || !isOSLogDynamicObject(nominal);
   }
   if (!hasSemanticsAttr(funcDecl,
                         semantics::ATOMICS_REQUIRES_CONSTANT_ORDERINGS))
     return false;
-  paramType = param->getType();
+  paramType = param->getTypeInContext();
   structDecl = paramType->getStructOrBoundGenericStruct();
   if (!structDecl)
     return false;

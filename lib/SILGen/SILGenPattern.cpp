@@ -2405,7 +2405,7 @@ void PatternMatchEmission::initSharedCaseBlockDest(CaseStmt *caseBlock,
       continue;
 
     // We don't pass address-only values in basic block arguments.
-    SILType ty = SGF.getLoweredType(vd->getType());
+    SILType ty = SGF.getLoweredType(vd->getTypeInContext());
     if (ty.isAddressOnly(SGF.F))
       continue;
     block->createPhiArgument(ty, OwnershipKind::Owned, vd);
@@ -2435,7 +2435,7 @@ void PatternMatchEmission::emitAddressOnlyAllocations() {
       if (!vd->hasName())
         continue;
 
-      SILType ty = SGF.getLoweredType(vd->getType());
+      SILType ty = SGF.getLoweredType(vd->getTypeInContext());
       if (!ty.isAddressOnly(SGF.F))
         continue;
       assert(!Temporaries[vd]);
@@ -2517,7 +2517,7 @@ void PatternMatchEmission::emitSharedCaseBlocks(
       if (!vd->hasName())
         continue;
 
-      SILType ty = SGF.getLoweredType(vd->getType());
+      SILType ty = SGF.getLoweredType(vd->getTypeInContext());
 
       // Initialize mv at +1. We always pass values in at +1 for today into
       // shared blocks.
@@ -2918,7 +2918,7 @@ void SILGenFunction::emitSwitchStmt(SwitchStmt *S) {
 
     if (auto *singleEnumDecl = canSubjectTy->getEnumOrBoundGenericEnum()) {
       if (singleEnumDecl->isObjC()) {
-        auto metatype = ManagedValue::forUnmanaged(
+        auto metatype = ManagedValue::forObjectRValueWithoutOwnership(
             B.createMetatype(loc, loweredMetatypeType));
 
         // Bitcast the enum value to its raw type. (This is only safe for @objc

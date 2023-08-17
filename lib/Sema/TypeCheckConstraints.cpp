@@ -144,6 +144,10 @@ bool TypeVariableType::Implementation::isKeyPathType() const {
   return locator && locator->isKeyPathType();
 }
 
+bool TypeVariableType::Implementation::isKeyPathValue() const {
+  return locator && locator->isKeyPathValue();
+}
+
 bool TypeVariableType::Implementation::isSubscriptResultType() const {
   if (!(locator && locator->getAnchor()))
     return false;
@@ -458,8 +462,7 @@ TypeChecker::typeCheckTarget(SyntacticElementTarget &target,
   if (auto *expr = target.getAsExpr()) {
     // Tell the constraint system what the contextual type is.  This informs
     // diagnostics and is a hint for various performance optimizations.
-    cs.setContextualType(expr, target.getExprContextualTypeLoc(),
-                         target.getExprContextualTypePurpose());
+    cs.setContextualInfo(expr, target.getExprContextualTypeInfo());
 
     // Try to shrink the system by reducing disjunction domains. This
     // goes through every sub-expression and generate its own sub-system, to
@@ -751,9 +754,8 @@ Type TypeChecker::typeCheckParameterDefault(Expr *&defaultValue,
   }
 
   defaultExprTarget.setExprConversionType(contextualTy);
-  cs.setContextualType(defaultValue,
-                       defaultExprTarget.getExprContextualTypeLoc(),
-                       defaultExprTarget.getExprContextualTypePurpose());
+  cs.setContextualInfo(defaultValue,
+                       defaultExprTarget.getExprContextualTypeInfo());
 
   auto viable = cs.solve(defaultExprTarget, FreeTypeVariableBinding::Disallow);
   if (!viable)
@@ -813,7 +815,7 @@ bool TypeChecker::typeCheckBinding(Pattern *&pattern, Expr *&initializer,
     // Don't change the type of a variable that we've been able to
     // compute a type for.
     if (var->hasInterfaceType() &&
-        !var->getType()->hasUnboundGenericType() &&
+        !var->getTypeInContext()->hasUnboundGenericType() &&
         !var->isInvalid())
       return;
 

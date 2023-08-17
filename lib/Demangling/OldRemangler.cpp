@@ -1555,6 +1555,10 @@ ManglingError Remangler::mangleBuiltinTypeName(Node *node, unsigned depth) {
   return ManglingError::Success;
 }
 
+ManglingError Remangler::mangleBuiltinTupleType(Node *node, unsigned depth) {
+  return MANGLING_ERROR(ManglingError::UnexpectedBuiltinType, node);
+}
+
 ManglingError Remangler::mangleTypeAlias(Node *node, EntityContext &ctx,
                                          unsigned depth) {
   return mangleAnyNominalType(node, ctx, depth + 1);
@@ -2967,17 +2971,4 @@ ManglingError Remangler::mangleBackDeploymentFallback(Node *node,
 ManglingError Remangler::mangleHasSymbolQuery(Node *node, unsigned depth) {
   Buffer << "TwS";
   return ManglingError::Success;
-}
-
-ManglingError
-Remangler::mangleRuntimeDiscoverableAttributeRecord(Node *node,
-                                                    unsigned depth) {
-  Buffer << "Ha";
-  return ManglingError::Success;
-}
-
-ManglingError Remangler::mangleRuntimeAttributeGenerator(Node *node,
-                                                         EntityContext &ctx,
-                                                         unsigned depth) {
-  return mangleSimpleEntity(node, 'I', "a", ctx, depth + 1);
 }

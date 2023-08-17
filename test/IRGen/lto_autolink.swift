@@ -46,9 +46,9 @@ import empty
 // CHECK-ELF-MERGE-DAG: !{{[0-9]+}} = !{!"autolink-module-map-link"}
 
 
-// RUN: %target-swift-frontend -target x86_64-unknown-windows-msvc -emit-module -parse-stdlib -o %t -module-name empty -module-link-name empty %S/../Inputs/empty.swift
-// RUN: %target-swift-emit-ir -target x86_64-unknown-windows-msvc -lto=llvm-full -parse-stdlib -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-COFF
-// RUN: %target-swift-emit-ir -target x86_64-unknown-windows-msvc -lto=llvm-thin -parse-stdlib -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-COFF
+// RUN: %target-swift-frontend -target %target-cpu-unknown-windows-msvc -emit-module -parse-stdlib -o %t -module-name empty -module-link-name empty %S/../Inputs/empty.swift
+// RUN: %target-swift-emit-ir -target %target-cpu-unknown-windows-msvc -lto=llvm-full -parse-stdlib -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-COFF
+// RUN: %target-swift-emit-ir -target %target-cpu-unknown-windows-msvc -lto=llvm-thin -parse-stdlib -I %t -I %S/Inputs -DTEST_CLANG_OPTIONS_MERGE %s | %FileCheck %s --check-prefix CHECK-COFF
 
 // CHECK-COFF-MERGE-DAG: !llvm.linker.options = !{
 // CHECK-COFF-MERGE-DAG: !{{[0-9]+}} = !{!"/DEFAULTLIB:empty.lib"}

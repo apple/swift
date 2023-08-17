@@ -37,6 +37,9 @@ DominanceInfo::DominanceInfo(SILFunction *F)
   recalculate(*F);
 }
 
+DominanceInfo::~DominanceInfo() {
+}
+
 bool DominanceInfo::properlyDominates(SILInstruction *a, SILInstruction *b) {
   auto aBlock = a->getParent(), bBlock = b->getParent();
 
@@ -68,6 +71,15 @@ bool DominanceInfo::properlyDominates(SILValue a, SILInstruction *b) {
     return dominates(Arg->getParent(), b->getParent());
   }
   return false;
+}
+
+SILBasicBlock *DominanceInfo::getLeastCommonAncestorOfUses(SILValue value) {
+  SILBasicBlock *lca = nullptr;
+  for (auto *use : value->getUses()) {
+    auto *block = use->getParentBlock();
+    lca = lca ? findNearestCommonDominator(lca, block) : block;
+  }
+  return lca;
 }
 
 void DominanceInfo::verify() const {

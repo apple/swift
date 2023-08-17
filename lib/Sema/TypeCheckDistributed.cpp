@@ -216,13 +216,10 @@ static bool checkAdHocRequirementAccessControl(
     return false;
   }
 
-  func->diagnose(diag::witness_not_accessible_type,
-                 diag::RequirementKind::Func,
-                 func->getName(),
-                 /*isSetter=*/false,
-                 /*requiredAccess=*/AccessLevel::Public,
-                 AccessLevel::Public,
-                 proto->getName());
+  func->diagnose(diag::witness_not_accessible_type, diag::RequirementKind::Func,
+                 func, /*isSetter=*/false,
+                 /*requiredAccess=*/AccessLevel::Public, AccessLevel::Public,
+                 proto);
       return true;
 }
 
@@ -245,7 +242,7 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
       auto identifier = C.Id_remoteCall;
       decl->diagnose(
           diag::distributed_actor_system_conformance_missing_adhoc_requirement,
-          decl->getDescriptiveKind(), decl->getName(), identifier);
+          decl, identifier);
       decl->diagnose(
           diag::note_distributed_actor_system_conformance_missing_adhoc_requirement,
           Proto->getName(), identifier,
@@ -272,7 +269,7 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
       auto identifier = C.Id_remoteCallVoid;
       decl->diagnose(
           diag::distributed_actor_system_conformance_missing_adhoc_requirement,
-          decl->getDescriptiveKind(), decl->getName(), identifier);
+          decl, identifier);
       decl->diagnose(
           diag::note_distributed_actor_system_conformance_missing_adhoc_requirement,
           Proto->getName(), identifier,
@@ -302,7 +299,7 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
       auto identifier = C.Id_recordArgument;
       decl->diagnose(
           diag::distributed_actor_system_conformance_missing_adhoc_requirement,
-          decl->getDescriptiveKind(), decl->getName(), identifier);
+          decl, identifier);
       decl->diagnose(diag::note_distributed_actor_system_conformance_missing_adhoc_requirement,
                      Proto->getName(), identifier,
                      "mutating func recordArgument<Value: SerializationRequirement>(_ argument: RemoteCallArgument<Value>) throws\n");
@@ -317,7 +314,7 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
       auto identifier = C.Id_recordReturnType;
       decl->diagnose(
           diag::distributed_actor_system_conformance_missing_adhoc_requirement,
-          decl->getDescriptiveKind(), decl->getName(), identifier);
+          decl, identifier);
       decl->diagnose(diag::note_distributed_actor_system_conformance_missing_adhoc_requirement,
                      Proto->getName(), identifier,
                      "mutating func recordReturnType<Res: SerializationRequirement>(_ resultType: Res.Type) throws\n");
@@ -338,7 +335,7 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
       auto identifier = C.Id_decodeNextArgument;
       decl->diagnose(
           diag::distributed_actor_system_conformance_missing_adhoc_requirement,
-          decl->getDescriptiveKind(), decl->getName(), identifier);
+          decl, identifier);
       decl->diagnose(diag::note_distributed_actor_system_conformance_missing_adhoc_requirement,
                      Proto->getName(), identifier,
                      "mutating func decodeNextArgument<Argument: SerializationRequirement>() throws -> Argument\n");
@@ -359,7 +356,7 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
       auto identifier = C.Id_onReturn;
       decl->diagnose(
           diag::distributed_actor_system_conformance_missing_adhoc_requirement,
-          decl->getDescriptiveKind(), decl->getName(), identifier);
+          decl, identifier);
       decl->diagnose(
           diag::note_distributed_actor_system_conformance_missing_adhoc_requirement,
           Proto->getName(), identifier,
@@ -412,8 +409,7 @@ static bool checkDistributedTargetResultType(
         auto diag = valueDecl->diagnose(
             diag::distributed_actor_target_result_not_codable,
             resultType,
-            valueDecl->getDescriptiveKind(),
-            valueDecl->getBaseIdentifier(),
+            valueDecl,
             conformanceToSuggest
         );
 
@@ -560,7 +556,7 @@ bool CheckDistributedFunctionRequest::evaluate(
       param->diagnose(
           diag::distributed_actor_func_inout,
           param->getName(),
-          func->getDescriptiveKind(), func->getName()
+          func
       ).fixItRemove(SourceRange(param->getTypeSourceRangeForDiagnostics().Start,
                                 param->getTypeSourceRangeForDiagnostics().Start.getAdvancedLoc(1)));
       // FIXME(distributed): the fixIt should be on param->getSpecifierLoc(), but that Loc is invalid for some reason?
@@ -575,8 +571,7 @@ bool CheckDistributedFunctionRequest::evaluate(
           diag::distributed_actor_func_unsupported_specifier,
           ParamDecl::getSpecifierSpelling(param->getSpecifier()),
           param->getName(),
-          func->getDescriptiveKind(),
-          func->getName());
+          func);
       return true;
     }
 
@@ -584,7 +579,7 @@ bool CheckDistributedFunctionRequest::evaluate(
       param->diagnose(
           diag::distributed_actor_func_variadic,
           param->getName(),
-          func->getDescriptiveKind(), func->getName()
+          func
       );
     }
   }
@@ -624,8 +619,7 @@ bool swift::checkDistributedActorProperty(VarDecl *var, bool diagnose) {
   // it is not a computed property
   if (var->isLet() || var->hasStorageOrWrapsStorage()) {
     if (diagnose)
-      var->diagnose(diag::distributed_property_can_only_be_computed,
-                    var->getDescriptiveKind(), var->getName());
+      var->diagnose(diag::distributed_property_can_only_be_computed, var);
     return true;
   }
 
@@ -681,6 +675,7 @@ void swift::checkDistributedActorProperties(const NominalTypeDecl *decl) {
       if (id == C.Id_actorSystem || id == C.Id_id) {
         prop->diagnose(diag::distributed_actor_user_defined_special_property,
                       id);
+        prop->setInvalid();
       }
     }
   }

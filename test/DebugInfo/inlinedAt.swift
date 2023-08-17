@@ -40,11 +40,11 @@ public func f(_ i : Int) -> Int { // 301
 // CHECK: ![[F:.*]] = distinct !DISubprogram(name: "f",
 // CHECK: ![[G:.*]] = distinct !DISubprogram(name: "g",
 
-// CHECK: ![[L3:.*]] = !DILocation(line: 302, column: 10,
-// CHECK-SAME:                     scope: ![[F:.*]])
+// CHECK: ![[L3:.*]] = distinct !DILocation(line: 302, column: 10,
+// CHECK-SAME:                              scope: ![[F:.*]])
 // CHECK: ![[H:.*]] = distinct !DISubprogram(name: "h",
 // CHECK: ![[L1]] = !DILocation(line: 101, column: 8, scope: ![[H]],
 // CHECK-SAME:                  inlinedAt: ![[L2:.*]])
-// CHECK: ![[L2]] = !DILocation(line: 203, column: 10, scope: ![[G]],
-// CHECK-SAME:                  inlinedAt: ![[L3]])
+// CHECK: ![[L2]] = distinct !DILocation(line: 203, column: 10, scope: ![[G]],
+// CHECK-SAME:                           inlinedAt: ![[L3]])
 

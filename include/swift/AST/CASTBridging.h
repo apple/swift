@@ -1,4 +1,4 @@
-//===--- ASTBridging.h - header for the swift SILBridging module ----------===//
+//===--- CASTBridging.h - header for the swift SILBridging module ---------===//
 //
 // This source file is part of the Swift.org open source project
 //
@@ -15,29 +15,15 @@
 
 #include "swift/Basic/CBasicBridging.h"
 #include "swift/Basic/Compiler.h"
+#include "swift/Basic/Nullability.h"
 
 // NOTE: DO NOT #include any stdlib headers here. e.g. <stdint.h>. Those are
 // part of "Darwin"/"Glibc" module, so when a Swift file imports this header,
 // it causes importing the "Darwin"/"Glibc" overlay module. That violates
 // layering. i.e. Darwin overlay is created by Swift compiler.
 
-#if __clang__
-// Provide macros to temporarily suppress warning about the use of
-// _Nullable and _Nonnull.
-#define SWIFT_BEGIN_NULLABILITY_ANNOTATIONS                                    \
-  _Pragma("clang diagnostic push")                                             \
-      _Pragma("clang diagnostic ignored \"-Wnullability-extension\"")          \
-          _Pragma("clang assume_nonnull begin")
-
-#define SWIFT_END_NULLABILITY_ANNOTATIONS                                      \
-  _Pragma("clang diagnostic pop") _Pragma("clang assume_nonnull end")
-#else
-#define SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
-#define SWIFT_END_NULLABILITY_ANNOTATIONS
-#define _Nullable
-#endif
-
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
+SWIFT_BEGIN_ASSUME_NONNULL
 
 typedef long SwiftInt;
 typedef unsigned long SwiftUInt;
@@ -190,6 +176,7 @@ typedef enum ENUM_EXTENSIBILITY_ATTR(closed) BridgedTypeAttrKind : long {
   BridgedTypeAttrKind_opened,
   BridgedTypeAttrKind_pack_element,
   BridgedTypeAttrKind_pseudogeneric,
+  BridgedTypeAttrKind_unimplementable,
   BridgedTypeAttrKind_yields,
   BridgedTypeAttrKind_yield_once,
   BridgedTypeAttrKind_yield_many,
@@ -259,6 +246,9 @@ void Diagnostic_finish(BridgedDiagnostic cDiag);
 
 BridgedIdentifier ASTContext_getIdentifier(BridgedASTContext cContext,
                                            BridgedString cStr);
+
+_Bool ASTContext_langOptsHasFeature(BridgedASTContext cContext,
+                                    BridgedFeature feature);
 
 void *ImportDecl_create(BridgedASTContext cContext,
                         BridgedDeclContext cDeclContext,
@@ -485,9 +475,7 @@ _Bool Plugin_waitForNextMessage(PluginHandle handle, BridgedData *data);
 }
 #endif
 
+SWIFT_END_ASSUME_NONNULL
 SWIFT_END_NULLABILITY_ANNOTATIONS
-
-#undef SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
-#undef SWIFT_END_NULLABILITY_ANNOTATIONS
 
 #endif // SWIFT_C_AST_ASTBRIDGING_H

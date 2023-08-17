@@ -613,8 +613,7 @@ public:
   /// a nice diagnostic.
   bool isContextualDiscardKeyword() {
     // must be `discard` ...
-    if (!(Tok.isContextualKeyword("_forget") // NOTE: support for deprecated _forget
-        || Tok.isContextualKeyword("discard")))
+    if (!Tok.isContextualKeyword("discard"))
       return false;
 
     // followed by either an identifier, `self`, or `Self`.

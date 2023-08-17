@@ -42,10 +42,10 @@ public class D : C {}
 // IR-LABEL: define swiftcc i32 @$s6pgo_checked_cast6guess1s5Int32VAD1x_tF
 // IR-OPT-LABEL: define swiftcc i32 @$s6pgo_checked_cast6guess1s5Int32VAD1x_tF
 public func check2(_ a : B) -> Int32 {
-  // SIL: checked_cast_br %0 : $B to D, {{.*}}, {{.*}} !true_count(5000)
-  // SIL: checked_cast_br %0 : $B to C, {{.*}}, {{.*}} !true_count(2)
-  // SIL-OPT: checked_cast_br %0 : $B to D, {{.*}}, {{.*}} !true_count(5000)
-  // SIL-OPT: checked_cast_br %0 : $B to C, {{.*}}, {{.*}} !true_count(2)
+  // SIL: checked_cast_br B in %0 : $B to D, {{.*}}, {{.*}} !true_count(5000)
+  // SIL: checked_cast_br B in %0 : $B to C, {{.*}}, {{.*}} !true_count(2)
+  // SIL-OPT: checked_cast_br B in %0 : $B to D, {{.*}}, {{.*}} !true_count(5000)
+  // SIL-OPT: checked_cast_br B in %0 : $B to C, {{.*}}, {{.*}} !true_count(2)
   switch a {
     case is D:
       return 42

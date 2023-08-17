@@ -18,7 +18,6 @@ target_sources(swiftSILOptimizer PRIVATE
   FunctionOrderPrinter.cpp
   IVInfoPrinter.cpp
   InstCount.cpp
-  LSLocationPrinter.cpp
   Link.cpp
   LoopCanonicalizer.cpp
   LoopInfoPrinter.cpp

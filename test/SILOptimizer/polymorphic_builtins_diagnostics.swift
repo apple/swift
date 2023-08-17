@@ -1,5 +1,4 @@
 // RUN: %target-swift-frontend -parse-stdlib -emit-sil -verify %s
-// RUN: %target-swift-frontend -parse-stdlib -emit-sil -verify %s
 
 import Swift
 

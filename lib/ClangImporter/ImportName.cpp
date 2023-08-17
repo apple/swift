@@ -334,6 +334,8 @@ void ClangImporter::Implementation::printSwiftName(ImportedName name,
   bool isSetter = false;
   switch (name.getAccessorKind()) {
   case ImportedAccessorKind::None:
+  case ImportedAccessorKind::DereferenceGetter:
+  case ImportedAccessorKind::DereferenceSetter:
     break;
 
   case ImportedAccessorKind::PropertyGetter:
@@ -1916,6 +1918,19 @@ ImportedName NameImporter::importNameImpl(const clang::NamedDecl *D,
       baseName = swiftCtx.getIdentifier(operatorName).str();
       isFunction = true;
       addEmptyArgNamesForClangFunction(functionDecl, argumentNames);
+      if (auto cxxMethod = dyn_cast<clang::CXXMethodDecl>(functionDecl)) {
+        if (op == clang::OverloadedOperatorKind::OO_Star &&
+            cxxMethod->param_empty()) {
+          auto returnType = functionDecl->getReturnType();
+          if ((!returnType->isReferenceType() &&
+               !returnType->isAnyPointerType()) ||
+              returnType->isAnyPointerType() ||
+              returnType->getPointeeType().isConstQualified())
+            result.info.accessorKind = ImportedAccessorKind::DereferenceGetter;
+          else
+            result.info.accessorKind = ImportedAccessorKind::DereferenceSetter;
+        }
+      }
       break;
     }
     case clang::OverloadedOperatorKind::OO_Call:

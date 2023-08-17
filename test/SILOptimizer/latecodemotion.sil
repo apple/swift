@@ -724,7 +724,7 @@ bb1:
   strong_retain %17 : $Test
   %19 = class_method %17 : $Test, #Test.testing : (Test) -> () -> UInt64, $@convention(method) (@guaranteed Test) -> UInt64
   %20 = load %7 : $*UInt64
-  checked_cast_br [exact] %17 : $Test to Test, bb3, bb4
+  checked_cast_br [exact] Test in %17 : $Test to Test, bb3, bb4
 bb2:
 // CHECK: bb2:
 // CHECK-NOT: strong_retain

@@ -19,8 +19,8 @@ class Point : PointUtils {
 
 }
 
-// CHECK: define hidden {{.*}}i64 @"$s8protocol4mains5Int64VyF"() {{.*}} {
-func main() -> Int64 {
+// CHECK: define {{.*}}i64 @"$s8protocol4mains5Int64VyF"() {{.*}} {
+public func main() -> Int64 {
     var pt = Point(_x: 2.5, _y: 4.25)
 // CHECK: [[LOC2D:%[a-zA-Z0-9]+]] = alloca %T8protocol10PointUtilsP, align {{(4|8)}}
 // CHECK: call void @llvm.dbg.declare(metadata {{.*}} [[LOC2D]], metadata ![[LOC:.*]], metadata !DIExpression())
@@ -35,6 +35,3 @@ func main() -> Int64 {
 // CHECK-SAME:             DIFlagArtificial
 
 // CHECK: ![[LOC]] = !DILocalVariable(name: "loc2d",{{.*}} line: [[@LINE-10]]
-
-main()
-

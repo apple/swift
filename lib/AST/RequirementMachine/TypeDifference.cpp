@@ -159,6 +159,9 @@ namespace {
       bool rhsAbstract = rhsType->isTypeParameter();
 
       if (lhsAbstract && rhsAbstract) {
+        // FIXME: same-element requirements
+        assert(lhsType->isParameterPack() == rhsType->isParameterPack());
+
         unsigned lhsIndex = RewriteContext::getGenericParamIndex(lhsType);
         unsigned rhsIndex = RewriteContext::getGenericParamIndex(rhsType);
 

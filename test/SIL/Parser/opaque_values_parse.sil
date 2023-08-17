@@ -96,3 +96,35 @@ bb0(%0 : $S):
   return %t : $()
 }
 // CHECK-LABEL: } // end sil function 'parse_mutating'
+
+struct WeakBox<T : AnyObject> {
+  weak var t: T?
+}
+
+// Test strong_copy_weak_value parsing.
+
+// CHECK-LABEL: sil [ossa] @test_strong_copy_weak_value : {{.*}} {
+// CHECK:       bb0([[INSTANCE:%[^,]+]] :
+// CHECK:         [[WEAK_OPTIONAL:%[^,]+]] = struct_extract [[INSTANCE]]
+// CHECK:         strong_copy_weak_value [[WEAK_OPTIONAL]]
+// CHECK-LABEL: } // end sil function 'test_strong_copy_weak_value'
+sil [ossa] @test_strong_copy_weak_value : $@convention(thin) <T where T : AnyObject> (@in_guaranteed WeakBox<T>) -> @owned Optional<T> {
+bb0(%instance : @guaranteed $WeakBox<T>):
+  %weak_optional = struct_extract %instance : $WeakBox<T>, #WeakBox.t
+  %strong_optional = strong_copy_weak_value %weak_optional : $@sil_weak Optional<T>
+  return %strong_optional : $Optional<T>
+}
+
+// Test weak_copy_value parsing.
+
+// CHECK-LABEL: sil [ossa] @test_weak_copy_value_1 : {{.*}} {
+// CHECK:       bb0([[VALUE:%[^,]+]] :
+// CHECK:         weak_copy_value [[VALUE]]
+// CHECK-LABEL: } // end sil function 'test_weak_copy_value_1'
+sil [ossa] @test_weak_copy_value_1 : $@convention(thin) <T where T : AnyObject> (@owned Optional<T>) -> @out WeakBox<T> {
+bb0(%value : @owned $Optional<T>):
+  %weak_value = weak_copy_value %value : $Optional<T>
+  destroy_value %value : $Optional<T>
+  %retval = struct $WeakBox<T> (%weak_value : $@sil_weak Optional<T>)
+  return %retval : $WeakBox<T>
+}

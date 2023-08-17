@@ -211,7 +211,7 @@ public:
   }
 
   StructLayout performLayout(ArrayRef<const TypeInfo *> fieldTypes) {
-    return StructLayout(IGM, /*decl=*/nullptr, LayoutKind::NonHeapObject,
+    return StructLayout(IGM, /*type=*/ llvm::None, LayoutKind::NonHeapObject,
                         LayoutStrategy::Universal, fieldTypes);
   }
 };
@@ -383,7 +383,7 @@ public:
   }
 
   StructLayout performLayout(ArrayRef<const TypeInfo *> fieldTypes) {
-    return StructLayout(IGM, /*decl=*/nullptr, LayoutKind::NonHeapObject,
+    return StructLayout(IGM, /*type=*/ llvm::None, LayoutKind::NonHeapObject,
                         LayoutStrategy::Universal, fieldTypes);
   }
 };

@@ -399,7 +399,7 @@ static void checkForEmptyOptionSet(const VarDecl *VD) {
   auto DC = VD->getDeclContext();
   
   // Make sure property is of same type as the type it is declared in
-  if (!VD->getType()->isEqual(DC->getSelfTypeInContext()))
+  if (!VD->getInterfaceType()->isEqual(DC->getSelfInterfaceType()))
     return;
   
   // Make sure this type conforms to OptionSet
@@ -459,9 +459,8 @@ static void diagnoseDuplicateDecls(T &&decls) {
       auto *other = found.first->second;
 
       current->getASTContext().Diags.diagnoseWithNotes(
-        current->diagnose(diag::invalid_redecl,
-                          current->getName()), [&]() {
-        other->diagnose(diag::invalid_redecl_prev, other->getName());
+        current->diagnose(diag::invalid_redecl, current), [&]() {
+        other->diagnose(diag::invalid_redecl_prev, other);
       });
 
       // Mark the decl as invalid. This is needed to avoid emitting a
@@ -760,9 +759,8 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
                 
                 if (optionalRedecl && currIsIUO != otherIsIUO) {
                   ctx.Diags.diagnoseWithNotes(
-                    current->diagnose(diag::invalid_redecl,
-                                      current->getName()), [&]() {
-                    other->diagnose(diag::invalid_redecl_prev, other->getName());
+                    current->diagnose(diag::invalid_redecl, current), [&]() {
+                    other->diagnose(diag::invalid_redecl_prev, other);
                   });
                   current->diagnose(diag::invalid_redecl_by_optionality_note,
                                     otherIsIUO, currIsIUO);
@@ -869,9 +867,8 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
       // If this isn't a redeclaration in the current version of Swift, but
       // would be in Swift 5 mode, emit a warning instead of an error.
       if (wouldBeSwift5Redeclaration) {
-        current->diagnose(diag::invalid_redecl_swift5_warning,
-                          current->getName());
-        other->diagnose(diag::invalid_redecl_prev, other->getName());
+        current->diagnose(diag::invalid_redecl_swift5_warning, current);
+        other->diagnose(diag::invalid_redecl_prev, other);
       } else {
         const auto *otherInit = dyn_cast<ConstructorDecl>(other);
         // Provide a better description for implicit initializers.
@@ -881,8 +878,7 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
           // checker should have already taken care of emitting a more
           // productive diagnostic.
           if (!other->getOverriddenDecl())
-            current->diagnose(diag::invalid_redecl_init,
-                              current->getName(),
+            current->diagnose(diag::invalid_redecl_init, current,
                               otherInit->isMemberwiseInitializer());
         } else if (current->isImplicit() || other->isImplicit()) {
           // If both declarations are implicit, we do not diagnose anything
@@ -937,7 +933,7 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
             }
             declToDiagnose->diagnose(diag::invalid_redecl_implicit,
                                      current->getDescriptiveKind(),
-                                     isProtocolRequirement, other->getName());
+                                     isProtocolRequirement, other);
 
             // Emit a specialized note if the one of the declarations is
             // the backing storage property ('_foo') or projected value
@@ -965,7 +961,7 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
             if (varToDiagnose) {
               assert(declToDiagnose);
               varToDiagnose->diagnose(
-                  diag::invalid_redecl_implicit_wrapper, varToDiagnose->getName(),
+                  diag::invalid_redecl_implicit_wrapper, varToDiagnose,
                   kind == PropertyWrapperSynthesizedPropertyKind::Backing);
             }
 
@@ -973,9 +969,8 @@ CheckRedeclarationRequest::evaluate(Evaluator &eval, ValueDecl *current,
           }
         } else {
           ctx.Diags.diagnoseWithNotes(
-            current->diagnose(diag::invalid_redecl,
-                              current->getName()), [&]() {
-            other->diagnose(diag::invalid_redecl_prev, other->getName());
+            current->diagnose(diag::invalid_redecl, current), [&]() {
+            other->diagnose(diag::invalid_redecl_prev, other);
           });
 
           current->setInvalid();
@@ -1136,7 +1131,7 @@ Expr *DefaultArgumentExprRequest::evaluate(Evaluator &evaluator,
   }
 
   auto &ctx = param->getASTContext();
-  auto paramTy = param->getType();
+  auto paramTy = param->getTypeInContext();
   auto *initExpr = param->getStructuralDefaultExpr();
   assert(initExpr);
 
@@ -1897,18 +1892,6 @@ public:
       // Compute access level.
       (void) VD->getFormalAccess();
 
-      // Force runtime discoverable attribute checking.
-      {
-        auto runtimeDiscoverableAttrs = VD->getRuntimeDiscoverableAttrs();
-        if (!runtimeDiscoverableAttrs.empty()) {
-          // Register the declaration only if all of its attributes are valid.
-          if (llvm::all_of(runtimeDiscoverableAttrs, [&](CustomAttr *attr) {
-                return VD->getRuntimeDiscoverableAttributeGenerator(attr).first;
-              }))
-            SF->addDeclWithRuntimeDiscoverableAttrs(VD);
-        }
-      }
-
       // Compute overrides.
       if (!VD->getOverriddenDecls().empty())
         checkOverrideActorIsolation(VD);
@@ -1934,7 +1917,7 @@ public:
           Context.SourceMgr.extractText({VD->getNameLoc(), 1}) != "`") {
         auto &DE = Context.Diags;
         DE.diagnose(VD->getNameLoc(), diag::reserved_member_name,
-                    VD->getName(), VD->getBaseIdentifier().str());
+                    VD, VD->getBaseIdentifier().str());
         DE.diagnose(VD->getNameLoc(), diag::backticks_to_escape)
             .fixItReplace(VD->getNameLoc(),
                           "`" + VD->getBaseName().userFacingName().str() + "`");
@@ -2273,7 +2256,7 @@ public:
     // NOTE: We do this here instead of TypeCheckAttr since types are not
     // completely type checked at that point.
     if (auto attr = VD->getAttrs().getAttribute<NoImplicitCopyAttr>()) {
-      if (auto *nom = VD->getType()->getCanonicalType()->getNominalOrBoundGenericNominal()) {
+      if (auto *nom = VD->getInterfaceType()->getNominalOrBoundGenericNominal()) {
         if (nom->isMoveOnly()) {
           DE.diagnose(attr->getLocation(),
                       diag::noimplicitcopy_attr_not_allowed_on_moveonlytype)
@@ -2483,6 +2466,41 @@ public:
         }
       }
     }
+
+    if (auto *var = PBD->getSingleVar()) {
+
+      // If this is an init accessor property with a default initializer,
+      // make sure that it subsumes initializers of all of its "initializes"
+      // stored properties.
+      auto *initAccessor = var->getAccessor(AccessorKind::Init);
+      if (initAccessor && PBD->isInitialized(0)) {
+        for (auto *property : initAccessor->getInitializedProperties()) {
+          auto *propertyBinding = property->getParentPatternBinding();
+          if (propertyBinding->isInitialized(0))
+            propertyBinding->setInitializerSubsumed(0);
+        }
+      }
+
+      // If we have a pure noncopyable type, we cannot have explicit read/set
+      // accessors since this means that we cannot call mutating methods without
+      // copying. We do not want to support types that one cannot define a
+      // modify operation via a get/set or a modify.
+      if (var->getInterfaceType()->isPureMoveOnly()) {
+        if (auto *read = var->getAccessor(AccessorKind::Read)) {
+          if (!read->isImplicit()) {
+            if (auto *set = var->getAccessor(AccessorKind::Set)) {
+              if (!set->isImplicit()) {
+                var->diagnose(diag::noncopyable_cannot_have_read_set_accessor,
+                              0);
+                PBD->setInvalid();
+                var->setInvalid();
+                return;
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   void visitSubscriptDecl(SubscriptDecl *SD) {
@@ -2553,6 +2571,23 @@ public:
           .fixItReplace(SD->getStaticLoc(), "static");
     }
 
+    // Reject noncopyable typed subscripts with read/set accessors since we
+    // cannot define modify operations upon them without copying the read.
+    if (SD->getElementInterfaceType()->isPureMoveOnly()) {
+      if (auto *read = SD->getAccessor(AccessorKind::Read)) {
+        if (!read->isImplicit()) {
+          if (auto *set = SD->getAccessor(AccessorKind::Set)) {
+            if (!set->isImplicit()) {
+              SD->diagnose(diag::noncopyable_cannot_have_read_set_accessor,
+                           1);
+              SD->setInvalid();
+              return;
+            }
+          }
+        }
+      }
+    }
+
     // Now check all the accessors.
     SD->visitEmittedAccessors([&](AccessorDecl *accessor) {
       visit(accessor);
@@ -2611,8 +2646,7 @@ public:
       if (mentionsItself) {
         auto &DE = getASTContext().Diags;
         DE.diagnose(AT->getDefaultDefinitionTypeRepr()->getLoc(),
-                    diag::recursive_decl_reference, AT->getDescriptiveKind(),
-                    AT->getName());
+                    diag::recursive_decl_reference, AT);
         AT->diagnose(diag::kind_declared_here, DescriptiveDeclKind::Type);
       }
     }
@@ -2629,7 +2663,7 @@ public:
     // We don't support protocols outside the top level of a file.
     if (isa<ProtocolDecl>(NTD) &&
         !NTD->getParent()->isModuleScopeContext()) {
-      NTD->diagnose(diag::unsupported_nested_protocol, NTD->getName());
+      NTD->diagnose(diag::unsupported_nested_protocol, NTD);
       NTD->setInvalid();
       return;
     }
@@ -2637,11 +2671,10 @@ public:
     // We don't support nested types in protocols.
     if (auto proto = DC->getSelfProtocolDecl()) {
       if (DC->getExtendedProtocolDecl()) {
-        NTD->diagnose(diag::unsupported_type_nested_in_protocol_extension,
-                      NTD->getName(), proto->getName());
+        NTD->diagnose(diag::unsupported_type_nested_in_protocol_extension, NTD,
+                      proto);
       } else {
-        NTD->diagnose(diag::unsupported_type_nested_in_protocol,
-                      NTD->getName(), proto->getName());
+        NTD->diagnose(diag::unsupported_type_nested_in_protocol, NTD, proto);
       }
     }
 
@@ -2650,11 +2683,10 @@ public:
       if (DC->isLocalContext() && DC->isGenericContext()) {
         // A local generic context is a generic function.
         if (auto AFD = dyn_cast<AbstractFunctionDecl>(DC)) {
-          NTD->diagnose(diag::unsupported_type_nested_in_generic_function,
-                        NTD->getName(), AFD->getName());
+          NTD->diagnose(diag::unsupported_type_nested_in_generic_function, NTD,
+                        AFD);
         } else {
-          NTD->diagnose(diag::unsupported_type_nested_in_generic_closure,
-                        NTD->getName());
+          NTD->diagnose(diag::unsupported_type_nested_in_generic_closure, NTD);
         }
       }
     }
@@ -2743,8 +2775,7 @@ public:
       if (!ED->getASTContext().LangOpts.hasFeature(
               Feature::MoveOnlyResilientTypes) &&
           ED->isResilient()) {
-        ED->diagnose(diag::noncopyable_types_cannot_be_resilient,
-                     ED->getDescriptiveKind(), ED->getBaseIdentifier());
+        ED->diagnose(diag::noncopyable_types_cannot_be_resilient, ED);
       }
     }
   }
@@ -2790,8 +2821,7 @@ public:
     if (!SD->getASTContext().LangOpts.hasFeature(
             Feature::MoveOnlyResilientTypes) &&
         SD->isResilient() && SD->isMoveOnly()) {
-      SD->diagnose(diag::noncopyable_types_cannot_be_resilient,
-                   SD->getDescriptiveKind(), SD->getBaseIdentifier());
+      SD->diagnose(diag::noncopyable_types_cannot_be_resilient, SD);
     }
   }
 
@@ -2916,11 +2946,8 @@ public:
     }
 
     auto &ctx = moveonlyType->getASTContext();
-    ctx.Diags.diagnose(loc,
-                       diag::noncopyable_cannot_conform_to_type,
-                       moveonlyType->getDescriptiveKind(),
-                       moveonlyType->getBaseName(),
-                       type);
+    ctx.Diags.diagnose(loc, diag::noncopyable_cannot_conform_to_type,
+                       moveonlyType, type);
     return true;
   }
 
@@ -3392,8 +3419,8 @@ public:
         auto isProtocol = isa_and_nonnull<ProtocolDecl>(selfNominal);
         // We did not find 'Self'. Complain.
         FD->diagnose(diag::operator_in_unrelated_type,
-                     FD->getDeclContext()->getDeclaredInterfaceType(), isProtocol,
-                     FD->getName());
+                     FD->getDeclContext()->getDeclaredInterfaceType(),
+                     isProtocol, FD);
       }
     }
 
@@ -3466,6 +3493,13 @@ public:
     auto extType = ED->getExtendedType();
 
     auto *nominal = ED->getExtendedNominal();
+
+    // Diagnose experimental tuple extensions.
+    if (nominal && isa<BuiltinTupleDecl>(nominal) &&
+        !getASTContext().LangOpts.hasFeature(Feature::TupleConformances)) {
+      ED->diagnose(diag::experimental_tuple_extension);
+    }
+
     if (nominal == nullptr) {
       const bool wasAlreadyInvalid = ED->isInvalid();
       ED->setInvalid();
@@ -3593,8 +3627,6 @@ public:
       TypeChecker::checkDistributedActor(SF, nominal);
 
     diagnoseIncompatibleProtocolsForMoveOnlyType(ED);
-
-    TypeChecker::checkReflectionMetadataAttributes(ED);
   }
 
   void visitTopLevelCodeDecl(TopLevelCodeDecl *TLCD) {
@@ -3926,7 +3958,7 @@ void TypeChecker::checkParameterList(ParameterList *params,
     // If we have a noimplicitcopy parameter, make sure that the underlying type
     // is not move only. It is redundant.
     if (auto attr = param->getAttrs().getAttribute<NoImplicitCopyAttr>()) {
-      if (auto *nom = param->getType()->getCanonicalType()->getNominalOrBoundGenericNominal()) {
+      if (auto *nom = param->getInterfaceType()->getNominalOrBoundGenericNominal()) {
         if (nom->isMoveOnly()) {
           param->diagnose(diag::noimplicitcopy_attr_not_allowed_on_moveonlytype)
             .fixItRemove(attr->getRange());

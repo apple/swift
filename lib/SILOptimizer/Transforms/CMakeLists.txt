@@ -26,7 +26,6 @@ target_sources(swiftSILOptimizer PRIVATE
   PerformanceInliner.cpp
   PhiArgumentOptimizations.cpp
   PruneVTables.cpp
-  RedundantLoadElimination.cpp
   RedundantOverflowCheckRemoval.cpp
   SILCodeMotion.cpp
   SILLowerAggregateInstrs.cpp

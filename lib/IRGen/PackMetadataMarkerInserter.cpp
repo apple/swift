@@ -91,7 +91,7 @@ Inserter::shouldInsertMarkersForInstruction(SILInstruction *inst) {
             BuiltinValueKind::StartAsyncLetWithLocalBuffer ||
         bi->getBuiltinKind() == BuiltinValueKind::StartAsyncLet)
       return Inserter::FindResult::Unhandleable;
-    return Inserter::FindResult::None;
+    LLVM_FALLTHROUGH;
   }
   default:
     return inst->mayRequirePackMetadata() ? FindResult::Some : FindResult::None;

@@ -1083,7 +1083,7 @@ namespace {
 
         const auto calleeParam = calleeParams[idx];
         const auto calleeParamType = calleeParam.getParameterType();
-        const auto thunkParamType = thunkParamDecl->getType();
+        const auto thunkParamType = thunkParamDecl->getTypeInContext();
 
         Expr *paramRef = new (ctx)
             DeclRefExpr(thunkParamDecl, DeclNameLoc(), /*implicit*/ true);
@@ -1647,7 +1647,7 @@ namespace {
                   Swift3ObjCInferenceWarnings::Minimal) {
             context.Diags.diagnose(
                 memberLoc, diag::expr_dynamic_lookup_swift3_objc_inference,
-                member->getDescriptiveKind(), member->getName(),
+                member,
                 member->getDeclContext()->getSelfNominalTypeDecl()->getName());
             context.Diags
                 .diagnose(member, diag::make_decl_objc,
@@ -3283,11 +3283,11 @@ namespace {
     void
     diagnoseDeprecatedConditionalConformanceOuterAccess(UnresolvedDotExpr *UDE,
                                                         ValueDecl *choice) {
-      auto getBaseName = [](DeclContext *context) -> DeclName {
+      auto getValueDecl = [](DeclContext *context) -> ValueDecl * {
         if (auto generic = context->getSelfNominalTypeDecl()) {
-          return generic->getName();
+          return generic;
         } else if (context->isModuleScopeContext())
-          return context->getParentModule()->getName();
+          return context->getParentModule();
         else
           llvm_unreachable("Unsupported base");
       };
@@ -3299,31 +3299,25 @@ namespace {
       auto exampleInner = result.front();
       auto innerChoice = exampleInner.getValueDecl();
       auto innerDC = exampleInner.getDeclContext()->getInnermostTypeContext();
-      auto innerParentDecl = innerDC->getSelfNominalTypeDecl();
-      auto innerBaseName = getBaseName(innerDC);
+      auto innerParentDecl = getValueDecl(innerDC);
 
-      auto choiceKind = choice->getDescriptiveKind();
       auto choiceDC = choice->getDeclContext();
-      auto choiceBaseName = getBaseName(choiceDC);
-      auto choiceParentDecl = choiceDC->getAsDecl();
-      auto choiceParentKind = choiceParentDecl
-                                  ? choiceParentDecl->getDescriptiveKind()
-                                  : DescriptiveDeclKind::Module;
+      auto choiceParentDecl = getValueDecl(choiceDC);
 
       auto &DE = cs.getASTContext().Diags;
       DE.diagnose(UDE->getLoc(),
                   diag::warn_deprecated_conditional_conformance_outer_access,
-                  UDE->getName(), choiceKind, choiceParentKind, choiceBaseName,
-                  innerChoice->getDescriptiveKind(),
-                  innerParentDecl->getDescriptiveKind(), innerBaseName);
+                  UDE->getName(),
+                  choice->getDescriptiveKind(), choiceParentDecl,
+                  innerChoice->getDescriptiveKind(), innerParentDecl);
 
-      auto name = choiceBaseName.getBaseIdentifier();
+      auto name = choiceParentDecl->getName().getBaseIdentifier();
       SmallString<32> namePlusDot = name.str();
       namePlusDot.push_back('.');
 
       DE.diagnose(UDE->getLoc(),
                   diag::fix_deprecated_conditional_conformance_outer_access,
-                  namePlusDot, choiceKind, name)
+                  namePlusDot, choice->getDescriptiveKind())
           .fixItInsert(UDE->getStartLoc(), namePlusDot);
     }
 
@@ -3858,10 +3852,9 @@ namespace {
       if (auto *packRefExpr = expr->getPackRefExpr()) {
         packRefExpr = cs.coerceToRValue(packRefExpr);
         auto packRefType = cs.getType(packRefExpr);
-        if (auto *tuple = packRefType->getRValueType()->getAs<TupleType>();
-            tuple && tuple->isSingleUnlabeledPackExpansion()) {
-          auto patternType =
-              getPatternTypeOfSingleUnlabeledPackExpansionTuple(tuple);
+        if (auto patternType =
+                getPatternTypeOfSingleUnlabeledPackExpansionTuple(
+                    packRefType)) {
           auto *materializedPackExpr = MaterializePackExpr::create(
               cs.getASTContext(), packRefExpr, packRefExpr->getLoc(),
               patternType, /*implicit*/ true);
@@ -3986,7 +3979,7 @@ namespace {
             // initializer failable.
             de.diagnose(otherCtorRef->getLoc(),
                         diag::delegate_chain_nonoptional_to_optional,
-                        isChaining, otherCtor->getName());
+                        isChaining, otherCtor);
             de.diagnose(otherCtorRef->getLoc(), diag::init_force_unwrap)
                 .fixItInsertAfter(expr->getEndLoc(), "!");
             de.diagnose(inCtor->getLoc(), diag::init_propagate_failure)
@@ -4826,9 +4819,9 @@ namespace {
         if (!func->getDeclContext()->isTypeContext()) {
           de.diagnose(E->getLoc(), diag::expr_selector_not_method,
                       func->getDeclContext()->isModuleScopeContext(),
-                      func->getName())
+                      func)
               .highlight(subExpr->getSourceRange());
-          de.diagnose(func, diag::decl_declared_here, func->getName());
+          de.diagnose(func, diag::decl_declared_here, func);
           return E;
         }
 
@@ -4844,7 +4837,7 @@ namespace {
           de.diagnose(E->getModifierLoc(),
                       diag::expr_selector_expected_property,
                       E->getSelectorKind() == ObjCSelectorExpr::Setter,
-                      foundDecl->getDescriptiveKind(), foundDecl->getName())
+                      foundDecl)
               .fixItRemoveChars(E->getModifierLoc(),
                                 E->getSubExpr()->getStartLoc());
 
@@ -4861,9 +4854,9 @@ namespace {
         // If this isn't a property on a type, complain.
         if (!var->getDeclContext()->isTypeContext()) {
           de.diagnose(E->getLoc(), diag::expr_selector_not_property,
-                      isa<ParamDecl>(var), var->getName())
+                      isa<ParamDecl>(var), var)
               .highlight(subExpr->getSourceRange());
-          de.diagnose(var, diag::decl_declared_here, var->getName());
+          de.diagnose(var, diag::decl_declared_here, var);
           return E;
         }
 
@@ -4874,7 +4867,7 @@ namespace {
             var->isSetterAccessibleFrom(dc);
           auto primaryDiag =
               de.diagnose(E->getLoc(), diag::expr_selector_expected_method,
-                          isSettable, var->getName());
+                          isSettable, var);
           primaryDiag.highlight(subExpr->getSourceRange());
 
           // The point at which we will insert the modifier.
@@ -4888,10 +4881,10 @@ namespace {
 
             // Add notes for the getter and setter, respectively.
             de.diagnose(modifierLoc, diag::expr_selector_add_modifier, false,
-                        var->getName())
+                        var)
                 .fixItInsert(modifierLoc, "getter: ");
             de.diagnose(modifierLoc, diag::expr_selector_add_modifier, true,
-                        var->getName())
+                        var)
                 .fixItInsert(modifierLoc, "setter: ");
 
             // Bail out now. We don't know what the user wanted, so
@@ -4914,17 +4907,16 @@ namespace {
           // Make sure we actually have a setter.
           if (!var->isSettable(dc)) {
             de.diagnose(E->getLoc(), diag::expr_selector_property_not_settable,
-                        var->getDescriptiveKind(), var->getName());
-            de.diagnose(var, diag::decl_declared_here, var->getName());
+                        var);
+            de.diagnose(var, diag::decl_declared_here, var);
             return E;
           }
 
           // Make sure the setter is accessible.
           if (!var->isSetterAccessibleFrom(dc)) {
             de.diagnose(E->getLoc(),
-                        diag::expr_selector_property_setter_inaccessible,
-                        var->getDescriptiveKind(), var->getName());
-            de.diagnose(var, diag::decl_declared_here, var->getName());
+                        diag::expr_selector_property_setter_inaccessible, var);
+            de.diagnose(var, diag::decl_declared_here, var);
             return E;
           }
 
@@ -4935,8 +4927,7 @@ namespace {
         // Cannot reference with #selector.
         de.diagnose(E->getLoc(), diag::expr_selector_no_declaration)
             .highlight(subExpr->getSourceRange());
-        de.diagnose(foundDecl, diag::decl_declared_here,
-                    foundDecl->getName());
+        de.diagnose(foundDecl, diag::decl_declared_here, foundDecl);
         return E;
       }
       assert(method && "Didn't find a method?");
@@ -4950,12 +4941,11 @@ namespace {
         // problems.
         if (auto protocolDecl = dyn_cast<ProtocolDecl>(foundDecl->getDeclContext())) {
           de.diagnose(E->getLoc(), diag::expr_selector_cannot_be_used,
-                      foundDecl->getBaseName(), protocolDecl->getName());
+                      foundDecl, protocolDecl);
           return E;
         }
 
-        de.diagnose(E->getLoc(), diag::expr_selector_not_objc,
-                    foundDecl->getDescriptiveKind(), foundDecl->getName())
+        de.diagnose(E->getLoc(), diag::expr_selector_not_objc, foundDecl)
             .highlight(subExpr->getSourceRange());
         de.diagnose(foundDecl, diag::make_decl_objc,
                     foundDecl->getDescriptiveKind())
@@ -4968,10 +4958,8 @@ namespace {
             cs.getASTContext().LangOpts.WarnSwift3ObjCInference ==
                 Swift3ObjCInferenceWarnings::Minimal) {
           de.diagnose(E->getLoc(), diag::expr_selector_swift3_objc_inference,
-                      foundDecl->getDescriptiveKind(), foundDecl->getName(),
-                      foundDecl->getDeclContext()
-                          ->getSelfNominalTypeDecl()
-                          ->getName())
+                      foundDecl, foundDecl->getDeclContext()
+                                    ->getSelfNominalTypeDecl())
               .highlight(subExpr->getSourceRange());
           de.diagnose(foundDecl, diag::make_decl_objc,
                       foundDecl->getDescriptiveKind())
@@ -6374,7 +6362,7 @@ maybeDiagnoseUnsupportedDifferentiableConversion(ConstraintSystem &cs,
           ctx.Diags.diagnose(
               expr->getLoc(),
               diag::invalid_differentiable_function_conversion_expr);
-          if (paramDecl->getType()->is<AnyFunctionType>()) {
+          if (paramDecl->getInterfaceType()->is<AnyFunctionType>()) {
             auto *typeRepr = paramDecl->getTypeRepr();
             while (auto *attributed = dyn_cast<AttributedTypeRepr>(typeRepr))
               typeRepr = attributed->getTypeRepr();

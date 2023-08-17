@@ -19,6 +19,7 @@
 #include "llvm/CAS/CASReference.h"
 
 #include "swift/Basic/BridgedSwiftObject.h"
+#include "swift/Basic/Nullability.h"
 #include "swift/Basic/SourceLoc.h"
 #include <stddef.h>
 

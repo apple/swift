@@ -31,11 +31,15 @@
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILModule.h"
+#include "swift/SIL/StackList.h"
 #include "swift/SIL/TypeLowering.h"
+#include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
+#include "swift/SILOptimizer/Utils/CanonicalizeBorrowScope.h"
+#include "swift/SILOptimizer/Utils/CanonicalizeOSSALifetime.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 #include "swift/SILOptimizer/Utils/ScopeOptUtils.h"
@@ -55,6 +59,10 @@ using namespace swift::siloptimizer;
 STATISTIC(NumAllocStackFound,    "Number of AllocStack found");
 STATISTIC(NumAllocStackCaptured, "Number of AllocStack captured");
 STATISTIC(NumInstRemoved,        "Number of Instructions removed");
+
+llvm::cl::opt<bool> Mem2RegDisableLifetimeCanonicalization(
+    "sil-mem2reg-disable-lifetime-canonicalization", llvm::cl::init(false),
+    llvm::cl::desc("Don't canonicalize any lifetimes during Mem2Reg."));
 
 static bool lexicalLifetimeEnsured(AllocStackInst *asi);
 static bool isGuaranteedLexicalValue(SILValue src);
@@ -847,7 +855,6 @@ namespace {
 
 /// Promotes a single AllocStackInst into registers..
 class StackAllocationPromoter {
-  using BlockSetVector = BasicBlockSetVector;
   using BlockToInstMap = llvm::DenseMap<SILBasicBlock *, SILInstruction *>;
 
   // Use a priority queue keyed on dominator tree level so that inserted nodes
@@ -951,60 +958,62 @@ public:
   }
 
   /// Promote the Allocation.
-  void run();
+  void run(BasicBlockSetVector &livePhiBlocks);
 
 private:
   /// Promote AllocStacks into SSA.
-  void promoteAllocationToPhi(BlockSetVector &livePhiBlocks);
+  void promoteAllocationToPhi(BasicBlockSetVector &livePhiBlocks);
 
   /// Replace the dummy nodes with new block arguments.
-  void addBlockArguments(BlockSetVector &phiBlocks);
+  void addBlockArguments(BasicBlockSetVector &phiBlocks);
 
   /// Check if \p phi is a proactively added phi by SILMem2Reg
-  bool isProactivePhi(SILPhiArgument *phi, const BlockSetVector &phiBlocks);
+  bool isProactivePhi(SILPhiArgument *phi,
+                      const BasicBlockSetVector &phiBlocks);
 
   /// Check if \p proactivePhi is live.
   bool isNecessaryProactivePhi(SILPhiArgument *proactivePhi,
-                               const BlockSetVector &phiBlocks);
+                               const BasicBlockSetVector &phiBlocks);
 
   /// Given a \p proactivePhi that is live, backward propagate liveness to
   /// other proactivePhis.
   void propagateLiveness(SILPhiArgument *proactivePhi,
-                         const BlockSetVector &phiBlocks,
+                         const BasicBlockSetVector &phiBlocks,
                          SmallPtrSetImpl<SILPhiArgument *> &livePhis);
 
   /// End the lexical borrow scope that is introduced for lexical alloc_stack
   /// instructions.
-  void endLexicalLifetime(BlockSetVector &phiBlocks);
+  void endLexicalLifetime(BasicBlockSetVector &phiBlocks);
 
   /// Fix all of the branch instructions and the uses to use
   /// the AllocStack definitions (which include stores and Phis).
-  void fixBranchesAndUses(BlockSetVector &blocks, BlockSetVector &liveBlocks);
+  void fixBranchesAndUses(BasicBlockSetVector &blocks,
+                          BasicBlockSetVector &liveBlocks);
 
   /// update the branch instructions with the new Phi argument.
   /// The blocks in \p PhiBlocks are blocks that define a value, \p Dest is
   /// the branch destination, and \p Pred is the predecessors who's branch we
   /// modify.
-  void fixPhiPredBlock(BlockSetVector &phiBlocks, SILBasicBlock *dest,
+  void fixPhiPredBlock(BasicBlockSetVector &phiBlocks, SILBasicBlock *dest,
                        SILBasicBlock *pred);
 
   /// Get the values for this AllocStack variable that are flowing out of
   /// StartBB.
-  llvm::Optional<LiveValues> getLiveOutValues(BlockSetVector &phiBlocks,
+  llvm::Optional<LiveValues> getLiveOutValues(BasicBlockSetVector &phiBlocks,
                                               SILBasicBlock *startBlock);
 
   /// Get the values for this AllocStack variable that are flowing out of
   /// StartBB or undef if there are none.
-  LiveValues getEffectiveLiveOutValues(BlockSetVector &phiBlocks,
+  LiveValues getEffectiveLiveOutValues(BasicBlockSetVector &phiBlocks,
                                        SILBasicBlock *startBlock);
 
   /// Get the values for this AllocStack variable that are flowing into block.
-  llvm::Optional<LiveValues> getLiveInValues(BlockSetVector &phiBlocks,
+  llvm::Optional<LiveValues> getLiveInValues(BasicBlockSetVector &phiBlocks,
                                              SILBasicBlock *block);
 
   /// Get the values for this AllocStack variable that are flowing into block or
   /// undef if there are none.
-  LiveValues getEffectiveLiveInValues(BlockSetVector &phiBlocks,
+  LiveValues getEffectiveLiveInValues(BasicBlockSetVector &phiBlocks,
                                       SILBasicBlock *block);
 
   /// Prune AllocStacks usage in the function. Scan the function
@@ -1256,7 +1265,8 @@ SILInstruction *StackAllocationPromoter::promoteAllocationInBlock(
   return nullptr;
 }
 
-void StackAllocationPromoter::addBlockArguments(BlockSetVector &phiBlocks) {
+void StackAllocationPromoter::addBlockArguments(
+    BasicBlockSetVector &phiBlocks) {
   LLVM_DEBUG(llvm::dbgs() << "*** Adding new block arguments.\n");
 
   for (auto *block : phiBlocks) {
@@ -1266,7 +1276,7 @@ void StackAllocationPromoter::addBlockArguments(BlockSetVector &phiBlocks) {
 }
 
 llvm::Optional<LiveValues>
-StackAllocationPromoter::getLiveOutValues(BlockSetVector &phiBlocks,
+StackAllocationPromoter::getLiveOutValues(BasicBlockSetVector &phiBlocks,
                                           SILBasicBlock *startBlock) {
   LLVM_DEBUG(llvm::dbgs() << "*** Searching for a value definition.\n");
   // Walk the Dom tree in search of a defining value:
@@ -1301,9 +1311,8 @@ StackAllocationPromoter::getLiveOutValues(BlockSetVector &phiBlocks,
   return llvm::None;
 }
 
-LiveValues
-StackAllocationPromoter::getEffectiveLiveOutValues(BlockSetVector &phiBlocks,
-                                                   SILBasicBlock *startBlock) {
+LiveValues StackAllocationPromoter::getEffectiveLiveOutValues(
+    BasicBlockSetVector &phiBlocks, SILBasicBlock *startBlock) {
   if (auto values = getLiveOutValues(phiBlocks, startBlock)) {
     return *values;
   }
@@ -1312,7 +1321,7 @@ StackAllocationPromoter::getEffectiveLiveOutValues(BlockSetVector &phiBlocks,
 }
 
 llvm::Optional<LiveValues>
-StackAllocationPromoter::getLiveInValues(BlockSetVector &phiBlocks,
+StackAllocationPromoter::getLiveInValues(BasicBlockSetVector &phiBlocks,
                                          SILBasicBlock *block) {
   // First, check if there is a Phi value in the current block. We know that
   // our loads happen before stores, so we need to first check for Phi nodes
@@ -1337,9 +1346,8 @@ StackAllocationPromoter::getLiveInValues(BlockSetVector &phiBlocks,
   return getLiveOutValues(phiBlocks, iDom->getBlock());
 }
 
-LiveValues
-StackAllocationPromoter::getEffectiveLiveInValues(BlockSetVector &phiBlocks,
-                                                  SILBasicBlock *block) {
+LiveValues StackAllocationPromoter::getEffectiveLiveInValues(
+    BasicBlockSetVector &phiBlocks, SILBasicBlock *block) {
   if (auto values = getLiveInValues(phiBlocks, block)) {
     return *values;
   }
@@ -1348,7 +1356,7 @@ StackAllocationPromoter::getEffectiveLiveInValues(BlockSetVector &phiBlocks,
   return LiveValues::forOwned(undef, undef);
 }
 
-void StackAllocationPromoter::fixPhiPredBlock(BlockSetVector &phiBlocks,
+void StackAllocationPromoter::fixPhiPredBlock(BasicBlockSetVector &phiBlocks,
                                               SILBasicBlock *destBlock,
                                               SILBasicBlock *predBlock) {
   TermInst *ti = predBlock->getTerminator();
@@ -1366,15 +1374,15 @@ void StackAllocationPromoter::fixPhiPredBlock(BlockSetVector &phiBlocks,
   deleter.forceDelete(ti);
 }
 
-bool StackAllocationPromoter::isProactivePhi(SILPhiArgument *phi,
-                                             const BlockSetVector &phiBlocks) {
+bool StackAllocationPromoter::isProactivePhi(
+    SILPhiArgument *phi, const BasicBlockSetVector &phiBlocks) {
   auto *phiBlock = phi->getParentBlock();
   return phiBlocks.contains(phiBlock) &&
          phi == phiBlock->getArgument(phiBlock->getNumArguments() - 1);
 }
 
 bool StackAllocationPromoter::isNecessaryProactivePhi(
-    SILPhiArgument *proactivePhi, const BlockSetVector &phiBlocks) {
+    SILPhiArgument *proactivePhi, const BasicBlockSetVector &phiBlocks) {
   assert(isProactivePhi(proactivePhi, phiBlocks));
   for (auto *use : proactivePhi->getUses()) {
     auto *branch = dyn_cast<BranchInst>(use->getUser());
@@ -1392,7 +1400,7 @@ bool StackAllocationPromoter::isNecessaryProactivePhi(
 }
 
 void StackAllocationPromoter::propagateLiveness(
-    SILPhiArgument *proactivePhi, const BlockSetVector &phiBlocks,
+    SILPhiArgument *proactivePhi, const BasicBlockSetVector &phiBlocks,
     SmallPtrSetImpl<SILPhiArgument *> &livePhis) {
   assert(isProactivePhi(proactivePhi, phiBlocks));
   if (livePhis.contains(proactivePhi))
@@ -1412,8 +1420,8 @@ void StackAllocationPromoter::propagateLiveness(
   }
 }
 
-void StackAllocationPromoter::fixBranchesAndUses(BlockSetVector &phiBlocks,
-                                                 BlockSetVector &phiBlocksOut) {
+void StackAllocationPromoter::fixBranchesAndUses(
+    BasicBlockSetVector &phiBlocks, BasicBlockSetVector &phiBlocksOut) {
   // First update uses of the value.
   SmallVector<SILInstruction *, 4> collectedLoads;
   // Collect all alloc_stack uses.
@@ -1565,7 +1573,8 @@ void StackAllocationPromoter::fixBranchesAndUses(BlockSetVector &phiBlocks,
 ///
 ///       This can only happen if the successor is a CFG merge and all paths
 ///       from here lead to unreachable.
-void StackAllocationPromoter::endLexicalLifetime(BlockSetVector &phiBlocks) {
+void StackAllocationPromoter::endLexicalLifetime(
+    BasicBlockSetVector &phiBlocks) {
   if (!lexicalLifetimeEnsured(asi))
     return;
 
@@ -1679,7 +1688,7 @@ void StackAllocationPromoter::endLexicalLifetime(BlockSetVector &phiBlocks) {
 
 void StackAllocationPromoter::pruneAllocStackUsage() {
   LLVM_DEBUG(llvm::dbgs() << "*** Pruning : " << *asi);
-  BlockSetVector functionBlocks(asi->getFunction());
+  BasicBlockSetVector functionBlocks(asi->getFunction());
 
   // Insert all of the blocks that asi is live in.
   for (auto *use : asi->getUses())
@@ -1703,11 +1712,11 @@ void StackAllocationPromoter::pruneAllocStackUsage() {
 }
 
 void StackAllocationPromoter::promoteAllocationToPhi(
-    BlockSetVector &livePhiBlocks) {
+    BasicBlockSetVector &livePhiBlocks) {
   LLVM_DEBUG(llvm::dbgs() << "*** Placing Phis for : " << *asi);
 
   // A list of blocks that will require new Phi values.
-  BlockSetVector phiBlocks(asi->getFunction());
+  BasicBlockSetVector phiBlocks(asi->getFunction());
 
   // The "piggy-bank" data-structure that we use for processing the dom-tree
   // bottom-up.
@@ -1807,18 +1816,13 @@ void StackAllocationPromoter::promoteAllocationToPhi(
   LLVM_DEBUG(llvm::dbgs() << "*** Finished placing Phis ***\n");
 }
 
-void StackAllocationPromoter::run() {
+void StackAllocationPromoter::run(BasicBlockSetVector &livePhiBlocks) {
   auto *function = asi->getFunction();
 
   // Reduce the number of load/stores in the function to minimum.
   // After this phase we are left with up to one load and store
   // per block and the last store is recorded.
   pruneAllocStackUsage();
-
-  // The blocks which still have new phis after fixBranchesAndUses runs.  These
-  // are not necessarily the same as phiBlocks because fixBranchesAndUses
-  // removes superfluous proactive phis.
-  BlockSetVector livePhiBlocks(asi->getFunction());
 
   // Replace AllocStacks with Phi-nodes.
   promoteAllocationToPhi(livePhiBlocks);
@@ -1885,6 +1889,10 @@ class MemoryToRegisters {
   /// Dominators.
   DominanceInfo *domInfo;
 
+  NonLocalAccessBlockAnalysis *accessBlockAnalysis;
+
+  BasicCalleeAnalysis *calleeAnalysis;
+
   /// The builder context used when creating new instructions during register
   /// promotion.
   SILBuilderContext ctx;
@@ -1918,21 +1926,39 @@ class MemoryToRegisters {
     return *domTreeLevels;
   }
 
-  /// Promote all of the AllocStacks in a single basic block in one
-  /// linear scan. Note: This function deletes all of the users of the
-  /// AllocStackInst, including the DeallocStackInst but it does not remove the
-  /// AllocStackInst itself!
+  /// Promote the specified stack location whose uses are all within a single
+  /// block.
+  ///
+  /// Note: Deletes all of the users of the alloc_stack, including the
+  ///       dealloc_stack but it does not remove the alloc_stack itself.
   void removeSingleBlockAllocation(AllocStackInst *asi);
 
-  /// Attempt to promote the specified stack allocation, returning true if so
-  /// or false if not.  On success, all uses of the AllocStackInst have been
-  /// removed, but the ASI itself is still in the program.
-  bool promoteSingleAllocation(AllocStackInst *asi);
+  /// Attempt to promote the specified stack allocation.  Its uses may be in a
+  /// single block or in multiple blocks.
+  ///
+  /// Note: Populates instructionsToDelete with the instructions the caller is
+  ///       responsible for deleting.
+  bool promoteAllocation(AllocStackInst *asi,
+                         BasicBlockSetVector &livePhiBlocks);
+
+  /// Record all the values stored and store_borrow'd into the address so that
+  /// they can be canonicalized if promotion succeeds.
+  void collectStoredValues(AllocStackInst *asi, StackList<SILValue> &owned,
+                           StackList<SILValue> &guaranteed);
+
+  /// Canonicalize the lifetimes of the specified owned and guaranteed values.
+  void canonicalizeValueLifetimes(StackList<SILValue> &owned,
+                                  StackList<SILValue> &guaranteed,
+                                  BasicBlockSetVector &livePhiBlocks);
 
 public:
   /// C'tor
-  MemoryToRegisters(SILFunction &inputFunc, DominanceInfo *inputDomInfo)
-      : f(inputFunc), domInfo(inputDomInfo), ctx(inputFunc.getModule()) {}
+  MemoryToRegisters(SILFunction &inputFunc, DominanceInfo *inputDomInfo,
+                    NonLocalAccessBlockAnalysis *accessBlockAnalysis,
+                    BasicCalleeAnalysis *calleeAnalysis)
+      : f(inputFunc), domInfo(inputDomInfo),
+        accessBlockAnalysis(accessBlockAnalysis),
+        calleeAnalysis(calleeAnalysis), ctx(inputFunc.getModule()) {}
 
   /// Promote memory to registers. Return True on change.
   bool run();
@@ -2124,11 +2150,83 @@ void MemoryToRegisters::removeSingleBlockAllocation(AllocStackInst *asi) {
   }
 }
 
+void MemoryToRegisters::collectStoredValues(AllocStackInst *asi,
+                                            StackList<SILValue> &owned,
+                                            StackList<SILValue> &guaranteed) {
+  if (!f.hasOwnership())
+    return;
+  for (auto *use : asi->getUses()) {
+    auto *user = use->getUser();
+    if (auto *si = dyn_cast<StoreInst>(user)) {
+      owned.push_back(si->getSrc());
+    } else if (auto *sbi = dyn_cast<StoreBorrowInst>(user)) {
+      guaranteed.push_back(sbi->getSrc());
+    }
+  }
+}
+
+void MemoryToRegisters::canonicalizeValueLifetimes(
+    StackList<SILValue> &owned, StackList<SILValue> &guaranteed,
+    BasicBlockSetVector &livePhiBlocks) {
+  if (!f.hasOwnership())
+    return;
+  if (Mem2RegDisableLifetimeCanonicalization)
+    return;
+
+  for (auto *block : livePhiBlocks) {
+    // When a single alloc_stack is promoted, any block gains at most a single
+    // new phi, which appears at the end of its argument list.  The collection
+    // \p livePhiBlocks consists of exactly those blocks which gained such a
+    // new phi.
+    SILPhiArgument *argument =
+        cast<SILPhiArgument>(block->getArgument(block->getNumArguments() - 1));
+    switch (argument->getOwnershipKind()) {
+    case OwnershipKind::Owned:
+      owned.push_back(argument);
+      break;
+    case OwnershipKind::Guaranteed:
+      guaranteed.push_back(argument);
+      break;
+    default:
+      break;
+    }
+  }
+  CanonicalizeOSSALifetime canonicalizer(
+      /*pruneDebug=*/true, /*maximizeLifetime=*/!f.shouldOptimize(), &f,
+      accessBlockAnalysis, domInfo, calleeAnalysis, deleter);
+  for (auto value : owned) {
+    if (isa<SILUndef>(value) || value->isMarkedAsDeleted())
+      continue;
+    auto root = CanonicalizeOSSALifetime::getCanonicalCopiedDef(value);
+    if (auto *copy = dyn_cast<CopyValueInst>(root)) {
+      if (SILValue borrowDef = CanonicalizeBorrowScope::getCanonicalBorrowedDef(
+              copy->getOperand())) {
+        guaranteed.push_back(copy);
+        continue;
+      }
+    }
+    canonicalizer.canonicalizeValueLifetime(root);
+  }
+  CanonicalizeBorrowScope borrowCanonicalizer(&f, deleter);
+  for (auto value : guaranteed) {
+    if (isa<SILUndef>(value) || value->isMarkedAsDeleted())
+      continue;
+    auto borrowee = CanonicalizeBorrowScope::getCanonicalBorrowedDef(value);
+    if (!borrowee)
+      continue;
+    BorrowedValue borrow(borrowee);
+    if (borrow.kind != BorrowedValueKind::SILFunctionArgument)
+      continue;
+    borrowCanonicalizer.canonicalizeBorrowScope(borrow);
+  }
+}
+
 /// Attempt to promote the specified stack allocation, returning true if so
 /// or false if not.  On success, this returns true and usually drops all of the
 /// uses of the AllocStackInst, but never deletes the ASI itself.  Callers
 /// should check to see if the ASI is dead after this and remove it if so.
-bool MemoryToRegisters::promoteSingleAllocation(AllocStackInst *alloc) {
+bool MemoryToRegisters::promoteAllocation(AllocStackInst *alloc,
+                                          BasicBlockSetVector &livePhiBlocks) {
   LLVM_DEBUG(llvm::dbgs() << "*** Memory to register looking at: " << *alloc);
   ++NumAllocStackFound;
 
@@ -2170,7 +2268,8 @@ bool MemoryToRegisters::promoteSingleAllocation(AllocStackInst *alloc) {
   auto &domTreeLevels = getDomTreeLevels();
   StackAllocationPromoter(alloc, domInfo, domTreeLevels, ctx, deleter,
                           instructionsToDelete)
-      .run();
+      .run(livePhiBlocks);
+
   return true;
 }
 
@@ -2190,12 +2289,25 @@ bool MemoryToRegisters::run() {
       if (!asi)
         continue;
 
-      if (promoteSingleAllocation(asi)) {
+      // Record stored values because promoting a store eliminates a consuming
+      // use of the stored value. If promotion succeeds, these values'
+      // lifetimes are canonicalized, eliminating unnecessary copies.
+      StackList<SILValue> ownedValues(&f);
+      StackList<SILValue> guaranteedValues(&f);
+      collectStoredValues(asi, ownedValues, guaranteedValues);
+
+      // The blocks which still have new phis after fixBranchesAndUses runs.
+      // These are not necessarily the same as phiBlocks because
+      // fixBranchesAndUses removes superfluous proactive phis.
+      BasicBlockSetVector livePhiBlocks(asi->getFunction());
+      if (promoteAllocation(asi, livePhiBlocks)) {
         for (auto *inst : instructionsToDelete) {
           deleter.forceDelete(inst);
         }
         instructionsToDelete.clear();
         ++NumInstRemoved;
+        canonicalizeValueLifetimes(ownedValues, guaranteedValues,
+                                   livePhiBlocks);
         madeChange = true;
       }
     }
@@ -2216,9 +2328,13 @@ class SILMem2Reg : public SILFunctionTransform {
     LLVM_DEBUG(llvm::dbgs()
                << "** Mem2Reg on function: " << f->getName() << " **\n");
 
-    auto *da = PM->getAnalysis<DominanceAnalysis>();
+    auto *da = getAnalysis<DominanceAnalysis>();
+    auto *calleeAnalysis = getAnalysis<BasicCalleeAnalysis>();
+    auto *accessBlockAnalysis = getAnalysis<NonLocalAccessBlockAnalysis>();
 
-    bool madeChange = MemoryToRegisters(*f, da->get(f)).run();
+    bool madeChange =
+        MemoryToRegisters(*f, da->get(f), accessBlockAnalysis, calleeAnalysis)
+            .run();
     if (madeChange)
       invalidateAnalysis(SILAnalysis::InvalidationKind::Instructions);
   }

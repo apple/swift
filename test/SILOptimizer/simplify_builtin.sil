@@ -274,6 +274,8 @@ bb0:
   %1 = global_addr @g : $*Int32
   %2 = integer_literal $Builtin.Int32, 10
   %3 = struct $Int32 (%2 : $Builtin.Int32)
+  debug_step
+  debug_value %1 : $*Int32
   %6 = tuple ()
   return %6 : $()
 }

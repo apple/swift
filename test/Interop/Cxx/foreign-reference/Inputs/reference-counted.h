@@ -2,10 +2,9 @@
 #define TEST_INTEROP_CXX_FOREIGN_REFERENCE_INPUTS_REFERENCE_COUNTED_H
 
 #include <stdlib.h>
+#include <new>
 
 #include "visibility.h"
-
-inline void *operator new(size_t, void *p) { return p; }
 
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
 

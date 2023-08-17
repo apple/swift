@@ -60,7 +60,8 @@ extern "C" void swift_ASTGen_renderQueuedDiagnostics(
 extern "C" void *swift_ASTGen_parseSourceFile(const char *buffer,
                                               size_t bufferLength,
                                               const char *moduleName,
-                                              const char *filename);
+                                              const char *filename,
+                                              void *_Nullable ctx);
 extern "C" void swift_ASTGen_destroySourceFile(void *sourceFile);
 
 namespace {
@@ -1047,7 +1048,7 @@ void PrintingDiagnosticConsumer::queueBuffer(
   auto bufferContents = sourceMgr.getEntireTextForBuffer(bufferID);
   auto sourceFile = swift_ASTGen_parseSourceFile(
       bufferContents.data(), bufferContents.size(),
-      "module", "file.swift");
+      "module", "file.swift", /*ctx*/ nullptr);
 
   // Find the parent and position in parent, if there is one.
   int parentID = -1;

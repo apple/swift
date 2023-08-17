@@ -1538,7 +1538,7 @@ struct DwarfReader<S: DwarfSource> {
 
     var cursor = ImageSourceCursor(source: infoSection,
                                    offset: abstractOrigin)
-    let abbrev = try cursor.readULEB128()
+    var abbrev = try cursor.readULEB128()
     if abbrev == 0 {
       return
     }
@@ -1553,12 +1553,38 @@ struct DwarfReader<S: DwarfSource> {
       return
     }
 
-    let refAttrs = try readDieAttributes(
+    var refAttrs = try readDieAttributes(
       at: &cursor,
       unit: unit,
       abbrevInfo: abbrevInfo,
       shouldFetchIndirect: true
     )
+
+    if let specificationVal = refAttrs[.DW_AT_specification],
+       case let .reference(specification) = specificationVal {
+      cursor = ImageSourceCursor(source: infoSection,
+                                 offset: specification)
+      abbrev = try cursor.readULEB128()
+      if abbrev == 0 {
+        return
+      }
+
+      guard let abbrevInfo = unit.abbrevs[abbrev] else {
+        throw DwarfError.missingAbbrev(abbrev)
+      }
+
+      let tag = abbrevInfo.tag
+      if tag != .DW_TAG_subprogram {
+        return
+      }
+      
+      refAttrs = try readDieAttributes(
+        at: &cursor,
+        unit: unit,
+        abbrevInfo: abbrevInfo,
+        shouldFetchIndirect: true
+      )
+    }
 
     var name: String? = nil
     var rawName: String? = nil

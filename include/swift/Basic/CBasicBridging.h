@@ -14,28 +14,12 @@
 #define SWIFT_C_BASIC_BASICBRIDGING_H
 
 #include "swift/Basic/Compiler.h"
+#include "swift/Basic/Nullability.h"
 
 // NOTE: DO NOT #include any stdlib headers here. e.g. <stdint.h>. Those are
 // part of "Darwin"/"Glibc" module, so when a Swift file imports this header,
 // it causes importing the "Darwin"/"Glibc" overlay module. That violates
 // layering. i.e. Darwin overlay is created by Swift compiler.
-
-#if __clang__
-// Provide macros to temporarily suppress warning about the use of
-// _Nullable and _Nonnull.
-#define SWIFT_BEGIN_NULLABILITY_ANNOTATIONS                                    \
-  _Pragma("clang diagnostic push")                                             \
-      _Pragma("clang diagnostic ignored \"-Wnullability-extension\"")          \
-          _Pragma("clang assume_nonnull begin")
-
-#define SWIFT_END_NULLABILITY_ANNOTATIONS                                      \
-  _Pragma("clang diagnostic pop") _Pragma("clang assume_nonnull end")
-#else
-#define SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
-#define SWIFT_END_NULLABILITY_ANNOTATIONS
-#define _Nullable
-#define _Nonnull
-#endif
 
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
 
@@ -45,6 +29,14 @@ extern "C" {
 #define _Bool bool
 
 #endif
+
+typedef enum ENUM_EXTENSIBILITY_ATTR(open) BridgedFeature {
+#define LANGUAGE_FEATURE(FeatureName, SENumber, Description, Option) \
+FeatureName,
+#include "swift/Basic/Features.def"
+} BridgedFeature;
+
+SWIFT_BEGIN_ASSUME_NONNULL
 
 typedef struct BridgedData {
   const char *_Nullable baseAddress;
@@ -119,9 +111,7 @@ void *JSON_array_pushNewValue(void *arrayPtr);
 }
 #endif
 
+SWIFT_END_ASSUME_NONNULL
 SWIFT_END_NULLABILITY_ANNOTATIONS
-
-#undef SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
-#undef SWIFT_END_NULLABILITY_ANNOTATIONS
 
 #endif // SWIFT_C_BASIC_BASICBRIDGING_H

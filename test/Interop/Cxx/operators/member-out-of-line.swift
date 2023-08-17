@@ -11,7 +11,6 @@ import StdlibUnittest
 
 var OperatorsTestSuite = TestSuite("Operators")
 
-#if !os(Windows)    // https://github.com/apple/swift/issues/55575
 OperatorsTestSuite.test("LoadableIntWrapper.plus (out-of-line)") {
   let lhs = LoadableIntWrapper(value: 42)
   let rhs = LoadableIntWrapper(value: 23)
@@ -20,7 +19,6 @@ OperatorsTestSuite.test("LoadableIntWrapper.plus (out-of-line)") {
 
   expectEqual(65, result.value)
 }
-#endif
 
 OperatorsTestSuite.test("LoadableIntWrapper.call (out-of-line)") {
   let wrapper = LoadableIntWrapper(value: 42)

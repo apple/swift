@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -41,13 +41,18 @@ private:
   std::mt19937_64 &RNG;
   unsigned &TmpNameIndex;
   bool HighPerformance;
+  bool ExtendedCallbacks;
 
   DeclNameRef DebugPrintName;
   DeclNameRef PrintName;
   DeclNameRef PostPrintName;
+  DeclNameRef PostPrintExtendedName;
   DeclNameRef LogWithIDName;
+  DeclNameRef LogWithIDExtendedName;
   DeclNameRef LogScopeExitName;
+  DeclNameRef LogScopeExitExtendedName;
   DeclNameRef LogScopeEntryName;
+  DeclNameRef LogScopeEntryExtendedName;
   DeclNameRef SendDataName;
 
   struct BracePair {
@@ -126,12 +131,17 @@ public:
                unsigned &TmpNameIndex)
       : InstrumenterBase(C, DC), RNG(RNG), TmpNameIndex(TmpNameIndex),
         HighPerformance(HP),
+        ExtendedCallbacks(C.LangOpts.hasFeature(Feature::PlaygroundExtendedCallbacks)),
         DebugPrintName(C.getIdentifier("__builtin_debugPrint")),
         PrintName(C.getIdentifier("__builtin_print")),
         PostPrintName(C.getIdentifier("__builtin_postPrint")),
+        PostPrintExtendedName(C.getIdentifier("__builtin_postPrint_extended")),
         LogWithIDName(C.getIdentifier("__builtin_log_with_id")),
+        LogWithIDExtendedName(C.getIdentifier("__builtin_log_with_id_extended")),
         LogScopeExitName(C.getIdentifier("__builtin_log_scope_exit")),
+        LogScopeExitExtendedName(C.getIdentifier("__builtin_log_scope_exit_extended")),
         LogScopeEntryName(C.getIdentifier("__builtin_log_scope_entry")),
+        LogScopeEntryExtendedName(C.getIdentifier("__builtin_log_scope_entry_extended")),
         SendDataName(C.getIdentifier("__builtin_send_data")) { }
 
   Stmt *transformStmt(Stmt *S) {
@@ -606,7 +616,7 @@ public:
           DeclBaseName Name = PD->getName();
           Expr *PVVarRef = new (Context)
               DeclRefExpr(PD, DeclNameLoc(), /*implicit=*/true,
-                          AccessSemantics::Ordinary, PD->getType());
+                          AccessSemantics::Ordinary, PD->getTypeInContext());
           Added<Stmt *> Log(buildLoggerCall(PVVarRef, PD->getSourceRange(),
                                             Name.getIdentifier().str()));
           if (*Log) {
@@ -736,7 +746,7 @@ public:
   }
 
   Added<Stmt *> logPostPrint(SourceRange SR) {
-    return buildLoggerCallWithArgs(PostPrintName, {}, SR);
+    return buildLoggerCallWithArgs(ExtendedCallbacks ? PostPrintExtendedName : PostPrintName, {}, SR);
   }
 
   std::pair<PatternBindingDecl *, VarDecl *>
@@ -760,7 +770,7 @@ public:
     VD->setInterfaceType(MaybeLoadInitExpr->getType()->mapTypeOutOfContext());
     VD->setImplicit();
 
-    NamedPattern *NP = NamedPattern::createImplicit(Context, VD, VD->getType());
+    NamedPattern *NP = NamedPattern::createImplicit(Context, VD, VD->getTypeInContext());
     PatternBindingDecl *PBD = PatternBindingDecl::createImplicit(
         Context, StaticSpellingKind::None, NP, MaybeLoadInitExpr, TypeCheckDC);
 
@@ -776,15 +786,15 @@ public:
     const unsigned id_num = Distribution(RNG);
     Expr *IDExpr = IntegerLiteralExpr::createFromUnsigned(Context, id_num, SourceLoc());
 
-    return buildLoggerCallWithArgs(LogWithIDName, { *E, NameExpr, IDExpr }, SR);
+    return buildLoggerCallWithArgs(ExtendedCallbacks ? LogWithIDExtendedName : LogWithIDName, { *E, NameExpr, IDExpr }, SR);
   }
 
   Added<Stmt *> buildScopeEntry(SourceRange SR) {
-    return buildLoggerCallWithArgs(LogScopeEntryName, {}, SR);
+    return buildLoggerCallWithArgs(ExtendedCallbacks ? LogScopeEntryExtendedName : LogScopeEntryName, {}, SR);
   }
 
   Added<Stmt *> buildScopeExit(SourceRange SR) {
-    return buildLoggerCallWithArgs(LogScopeExitName, {}, SR);
+    return buildLoggerCallWithArgs(ExtendedCallbacks ? LogScopeExitExtendedName : LogScopeExitName, {}, SR);
   }
 
   Added<Stmt *> buildLoggerCallWithArgs(DeclNameRef LoggerName,
@@ -813,13 +823,27 @@ public:
 
     llvm::SmallVector<Expr *, 6> ArgsWithSourceRange(Args.begin(), Args.end());
 
-    ArgsWithSourceRange.append(
-        {StartLine, EndLine, StartColumn, EndColumn, ModuleExpr, FileExpr});
-
     UnresolvedDeclRefExpr *LoggerRef = new (Context)
         UnresolvedDeclRefExpr(LoggerName, DeclRefKind::Ordinary,
                               DeclNameLoc(SR.End));
     LoggerRef->setImplicit(true);
+
+    if (ExtendedCallbacks) {
+      StringRef filePath = Context.SourceMgr.getDisplayNameForLoc(SR.Start);
+
+      Expr *FilePathExpr = new (Context) StringLiteralExpr(
+          Context.AllocateCopy(filePath), SourceRange(), /*implicit=*/true);
+
+      std::string moduleName = std::string(TypeCheckDC->getParentModule()->getName());
+      Expr *ModuleNameExpr = new (Context) StringLiteralExpr(
+          Context.AllocateCopy(moduleName), SourceRange(), /*implicit=*/true);
+
+      ArgsWithSourceRange.append(
+          {StartLine, EndLine, StartColumn, EndColumn, ModuleNameExpr, FilePathExpr});
+    } else {
+      ArgsWithSourceRange.append(
+          {StartLine, EndLine, StartColumn, EndColumn, ModuleExpr, FileExpr});
+    }
 
     auto *ArgList =
         ArgumentList::forImplicitUnlabeled(Context, ArgsWithSourceRange);

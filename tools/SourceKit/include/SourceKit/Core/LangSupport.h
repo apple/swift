@@ -685,6 +685,11 @@ struct CursorInfoData {
   /// \c CursorInfoData.
   llvm::BumpPtrAllocator Allocator;
 
+  bool isEmpty() const {
+    return InternalDiagnostic.empty() && Symbols.empty() &&
+           AvailableActions.empty();
+  }
+
   void print(llvm::raw_ostream &OS, std::string Indentation) const {
     OS << Indentation << "CursorInfoData" << '\n';
     OS << Indentation << "  Symbols:" << '\n';

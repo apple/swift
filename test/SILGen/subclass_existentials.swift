@@ -288,7 +288,7 @@ func downcasts(
   derivedType: Derived.Type) {
   // CHECK: bb0([[ARG0:%.*]] : @guaranteed $any Base<Int> & P, [[ARG1:%.*]] : @guaranteed $Derived, [[ARG2:%.*]] : $@thick any (Base<Int> & P).Type, [[ARG3:%.*]] : $@thick Derived.Type):
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG0]] : $any Base<Int> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<Int> & P to Derived
+  // CHECK-NEXT: checked_cast_br any Base<Int> & P in [[COPIED]] : $any Base<Int> & P to Derived
   let _ = baseAndP as? Derived
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG0]] : $any Base<Int> & P
@@ -296,26 +296,26 @@ func downcasts(
   let _ = baseAndP as! Derived
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG0]] : $any Base<Int> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<Int> & P to any Derived & R
+  // CHECK-NEXT: checked_cast_br any Base<Int> & P in [[COPIED]] : $any Base<Int> & P to any Derived & R
   let _ = baseAndP as? (Derived & R)
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG0]] : $any Base<Int> & P
   // CHECK-NEXT: unconditional_checked_cast [[COPIED]] : $any Base<Int> & P to any Derived & R
   let _ = baseAndP as! (Derived & R)
 
-  // CHECK:      checked_cast_br %3 : $@thick Derived.Type to any (Derived & R).Type
+  // CHECK:      checked_cast_br Derived.Type in %3 : $@thick Derived.Type to any (Derived & R).Type
   let _ = derivedType as? (Derived & R).Type
 
   // CHECK:      unconditional_checked_cast %3 : $@thick Derived.Type to any (Derived & R).Type
   let _ = derivedType as! (Derived & R).Type
 
-  // CHECK:      checked_cast_br %2 : $@thick any (Base<Int> & P).Type to Derived.Type
+  // CHECK:      checked_cast_br any (Base<Int> & P).Type in %2 : $@thick any (Base<Int> & P).Type to Derived.Type
   let _ = baseAndPType as? Derived.Type
 
   // CHECK:      unconditional_checked_cast %2 : $@thick any (Base<Int> & P).Type to Derived.Type
   let _ = baseAndPType as! Derived.Type
 
-  // CHECK:      checked_cast_br %2 : $@thick any (Base<Int> & P).Type to any (Derived & R).Type
+  // CHECK:      checked_cast_br any (Base<Int> & P).Type in %2 : $@thick any (Base<Int> & P).Type to any (Derived & R).Type
   let _ = baseAndPType as? (Derived & R).Type
 
   // CHECK:      unconditional_checked_cast %2 : $@thick any (Base<Int> & P).Type to any (Derived & R).Type
@@ -400,7 +400,7 @@ func archetypeDowncasts<S,
   let _ = s as! (Base<Int> & P)
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG5]] : $BaseTAndP
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $BaseTAndP to any Derived & R
+  // CHECK-NEXT: checked_cast_br BaseTAndP in [[COPIED]] : $BaseTAndP to any Derived & R
   let _ = baseTAndP_archetype as? (Derived & R)
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG5]] : $BaseTAndP
@@ -423,7 +423,7 @@ func archetypeDowncasts<S,
   let _ = baseTAndP_concrete as! S
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG9]] : $any Base<T> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<T> & P to BaseT
+  // CHECK-NEXT: checked_cast_br any Base<T> & P in [[COPIED]] : $any Base<T> & P to BaseT
   let _ = baseTAndP_concrete as? BaseT
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG9]] : $any Base<T> & P
@@ -431,7 +431,7 @@ func archetypeDowncasts<S,
   let _ = baseTAndP_concrete as! BaseT
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG9]] : $any Base<T> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<T> & P to BaseInt
+  // CHECK-NEXT: checked_cast_br any Base<T> & P in [[COPIED]] : $any Base<T> & P to BaseInt
   let _ = baseTAndP_concrete as? BaseInt
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG9]] : $any Base<T> & P
@@ -439,7 +439,7 @@ func archetypeDowncasts<S,
   let _ = baseTAndP_concrete as! BaseInt
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG9]] : $any Base<T> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<T> & P to BaseTAndP
+  // CHECK-NEXT: checked_cast_br any Base<T> & P in [[COPIED]] : $any Base<T> & P to BaseTAndP
   let _ = baseTAndP_concrete as? BaseTAndP
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG9]] : $any Base<T> & P
@@ -447,7 +447,7 @@ func archetypeDowncasts<S,
   let _ = baseTAndP_concrete as! BaseTAndP
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG6]] : $BaseIntAndP
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $BaseIntAndP to any Derived & R
+  // CHECK-NEXT: checked_cast_br BaseIntAndP in [[COPIED]] : $BaseIntAndP to any Derived & R
   let _ = baseIntAndP_archetype as? (Derived & R)
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG6]] : $BaseIntAndP
@@ -470,7 +470,7 @@ func archetypeDowncasts<S,
   let _ = baseIntAndP_concrete as! S
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<Int> & P to DerivedT
+  // CHECK-NEXT: checked_cast_br any Base<Int> & P in [[COPIED]] : $any Base<Int> & P to DerivedT
   let _ = baseIntAndP_concrete as? DerivedT
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
@@ -478,7 +478,7 @@ func archetypeDowncasts<S,
   let _ = baseIntAndP_concrete as! DerivedT
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<Int> & P to BaseT
+  // CHECK-NEXT: checked_cast_br any Base<Int> & P in [[COPIED]] : $any Base<Int> & P to BaseT
   let _ = baseIntAndP_concrete as? BaseT
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
@@ -486,7 +486,7 @@ func archetypeDowncasts<S,
   let _ = baseIntAndP_concrete as! BaseT
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<Int> & P to BaseInt
+  // CHECK-NEXT: checked_cast_br any Base<Int> & P in [[COPIED]] : $any Base<Int> & P to BaseInt
   let _ = baseIntAndP_concrete as? BaseInt
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
@@ -494,7 +494,7 @@ func archetypeDowncasts<S,
   let _ = baseIntAndP_concrete as! BaseInt
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P
-  // CHECK-NEXT: checked_cast_br [[COPIED]] : $any Base<Int> & P to BaseTAndP
+  // CHECK-NEXT: checked_cast_br any Base<Int> & P in [[COPIED]] : $any Base<Int> & P to BaseTAndP
   let _ = baseIntAndP_concrete as? BaseTAndP
 
   // CHECK: [[COPIED:%.*]] = copy_value [[ARG10]] : $any Base<Int> & P

@@ -249,7 +249,7 @@ void ArgumentTypeCheckCompletionCallback::sawSolutionImpl(const Solution &S) {
         } else if (const ParamDecl *DeclParam =
                        getParameterAt(Info.ValueRef, Idx)) {
           Optional |= DeclParam->isDefaultArgument();
-          Optional |= DeclParam->getType()->is<PackExpansionType>();
+          Optional |= DeclParam->getInterfaceType()->is<PackExpansionType>();
         }
       }
       const AnyFunctionType::Param *TypeParam = &ParamsToPass[Idx];

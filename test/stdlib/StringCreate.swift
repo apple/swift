@@ -70,6 +70,9 @@ if #available(SwiftStdlib 5.3, *) {
     func test(bufferSize: Int, input: [UInt8], expected: String) {
       let strs = (0..<100).map { _ in
         String(unsafeUninitializedCapacity: bufferSize) { buffer in
+          if #available(SwiftStdlib 5.10, *) {
+            expectEqual(bufferSize, buffer.count)
+          }
           _ = buffer.initialize(from: input)
           return input.count
         }

@@ -12,7 +12,7 @@ protocol Protocol: Differentiable {
   @differentiable(reverse)
   var property: Float { get set }
 
-  @differentiable(reverse, wrt: x)
+  @differentiable(reverse, wrt: (self, x))
   subscript(_ x: Float, _ y: Float) -> Float { get set }
 }
 
@@ -82,22 +82,22 @@ struct Struct: Protocol {
   // CHECK: apply [[VJP_FN]]
   // CHECK: }
 
-  @differentiable(reverse, wrt: x)
+  @differentiable(reverse, wrt: (self, x))
   subscript(_ x: Float, _ y: Float) -> Float {
     get { x }
     set {}
   }
 
-  // CHECK-LABEL: sil private [transparent] [thunk] [ossa] @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_jvp_SUU : $@convention(witness_method: Protocol) (Float, Float, @in_guaranteed Struct) -> (Float, @owned @callee_guaranteed (Float) -> Float) {
+  // CHECK-LABEL: sil private [transparent] [thunk] [ossa] @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_jvp_SUS : $@convention(witness_method: Protocol) (Float, Float, @in_guaranteed Struct) -> (Float, @owned @callee_guaranteed @substituted <τ_0_0> (Float, @in_guaranteed τ_0_0) -> Float for <DummyTangentVector>)
   // CHECK: [[ORIG_FN:%.*]] = function_ref @$s13witness_table6StructVyS2f_Sftcig : $@convention(method) (Float, Float, Struct) -> Float
-  // CHECK: [[DIFF_FN:%.*]] = differentiable_function [parameters 0] [results 0] [[ORIG_FN]]
+  // CHECK: [[DIFF_FN:%.*]] = differentiable_function [parameters 0 2] [results 0] [[ORIG_FN]]
   // CHECK: [[JVP_FN:%.*]] = differentiable_function_extract [jvp] [[DIFF_FN]]
   // CHECK: apply [[JVP_FN]]
   // CHECK: }
 
-  // CHECK-LABEL: sil private [transparent] [thunk] [ossa] @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_vjp_SUU : $@convention(witness_method: Protocol) (Float, Float, @in_guaranteed Struct) -> (Float, @owned @callee_guaranteed (Float) -> Float) {
+  // CHECK-LABEL: sil private [transparent] [thunk] [ossa] @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_vjp_SUS : $@convention(witness_method: Protocol) (Float, Float, @in_guaranteed Struct) -> (Float, @owned @callee_guaranteed @substituted <τ_0_0> (Float) -> (Float, @out τ_0_0) for <DummyTangentVector>)
   // CHECK: [[ORIG_FN:%.*]] = function_ref @$s13witness_table6StructVyS2f_Sftcig : $@convention(method) (Float, Float, Struct) -> Float
-  // CHECK: [[DIFF_FN:%.*]] = differentiable_function [parameters 0] [results 0] [[ORIG_FN]]
+  // CHECK: [[DIFF_FN:%.*]] = differentiable_function [parameters 0 2] [results 0] [[ORIG_FN]]
   // CHECK: [[VJP_FN:%.*]] = differentiable_function_extract [vjp] [[DIFF_FN]]
   // CHECK: apply [[VJP_FN]]
   // CHECK: }
@@ -118,10 +118,10 @@ struct Struct: Protocol {
 // CHECK-NEXT:   method #Protocol.property!setter.vjp.SS.<Self where Self : Protocol>: <Self where Self : Protocol> (inout Self) -> (Float) -> () : @AD__$s13witness_table6StructVAA8ProtocolA2aDP8propertySfvsTW_vjp_SS
 // CHECK-NEXT:   method #Protocol.property!modify: <Self where Self : Protocol> (inout Self) -> () -> () : @$s13witness_table6StructVAA8ProtocolA2aDP8propertySfvMTW
 // CHECK-NEXT:   method #Protocol.subscript!getter: <Self where Self : Protocol> (Self) -> (Float, Float) -> Float : @$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW
-// CHECK-NEXT:   method #Protocol.subscript!getter.jvp.SUU.<Self where Self : Protocol>: <Self where Self : Protocol> (Self) -> (Float, Float) -> Float : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_jvp_SU
-// CHECK-NEXT:   method #Protocol.subscript!getter.vjp.SUU.<Self where Self : Protocol>: <Self where Self : Protocol> (Self) -> (Float, Float) -> Float : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_vjp_SUU
+// CHECK-NEXT:   method #Protocol.subscript!getter.jvp.SUS.<Self where Self : Protocol>: <Self where Self : Protocol> (Self) -> (Float, Float) -> Float : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_jvp_SUS
+// CHECK-NEXT:   method #Protocol.subscript!getter.vjp.SUS.<Self where Self : Protocol>: <Self where Self : Protocol> (Self) -> (Float, Float) -> Float : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcigTW_vjp_SUS
 // CHECK-NEXT:   method #Protocol.subscript!setter: <Self where Self : Protocol> (inout Self) -> (Float, Float, Float) -> () : @$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcisTW
-// CHECK-NEXT:   method #Protocol.subscript!setter.jvp.USUU.<Self where Self : Protocol>: <Self where Self : Protocol> (inout Self) -> (Float, Float, Float) -> () : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcisTW_jvp_USUU
-// CHECK-NEXT:   method #Protocol.subscript!setter.vjp.USUU.<Self where Self : Protocol>: <Self where Self : Protocol> (inout Self) -> (Float, Float, Float) -> () : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcisTW_vjp_USUU
+// CHECK-NEXT:   method #Protocol.subscript!setter.jvp.USUS.<Self where Self : Protocol>: <Self where Self : Protocol> (inout Self) -> (Float, Float, Float) -> () : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcisTW_jvp_USUS
+// CHECK-NEXT:   method #Protocol.subscript!setter.vjp.USUS.<Self where Self : Protocol>: <Self where Self : Protocol> (inout Self) -> (Float, Float, Float) -> () : @AD__$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftcisTW_vjp_USUS
 // CHECK-NEXT:   method #Protocol.subscript!modify: <Self where Self : Protocol> (inout Self) -> (Float, Float) -> () : @$s13witness_table6StructVAA8ProtocolA2aDPyS2f_SftciMTW
 // CHECK: }

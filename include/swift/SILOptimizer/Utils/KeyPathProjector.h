@@ -64,7 +64,7 @@ public:
   /// \param accessType The access type of the projected address.
   /// \param callback A callback to invoke with the projected address.
   ///     The projected address is only valid from within \p callback.
-  ///     If accessType is Get or Modify, the projected addres is an
+  ///     If accessType is Get or Modify, the projected address is an
   ///     initialized address type. If accessType is set, the projected
   ///     address points to uninitialized memory.
   virtual void project(AccessType accessType,

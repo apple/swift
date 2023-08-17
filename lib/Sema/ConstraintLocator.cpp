@@ -634,20 +634,50 @@ bool ConstraintLocator::isForMacroExpansion() const {
   return directlyAt<MacroExpansionExpr>();
 }
 
-bool ConstraintLocator::isForSingleValueStmtConjunction() const {
-  auto *SVE = getAsExpr<SingleValueStmtExpr>(getAnchor());
+static bool isForSingleValueStmtConjunction(ASTNode anchor,
+                                            ArrayRef<LocatorPathElt> path) {
+  auto *SVE = getAsExpr<SingleValueStmtExpr>(anchor);
   if (!SVE)
     return false;
 
-  // Ignore a trailing SyntacticElement path element for the statement.
-  auto path = getPath();
-  if (auto elt = getLastElementAs<LocatorPathElt::SyntacticElement>()) {
-    if (elt->getElement() == ASTNode(SVE->getStmt()))
-      path = path.drop_back();
+  if (!path.empty()) {
+    // Ignore a trailing SyntacticElement path element for the statement.
+    if (auto elt = path.back().getAs<LocatorPathElt::SyntacticElement>()) {
+      if (elt->getElement() == ASTNode(SVE->getStmt()))
+        path = path.drop_back();
+    }
   }
 
   // Other than the trailing SyntaticElement, we must be at the anchor.
   return path.empty();
+}
+
+bool ConstraintLocator::isForSingleValueStmtConjunction() const {
+  return ::isForSingleValueStmtConjunction(getAnchor(), getPath());
+}
+
+bool ConstraintLocator::isForSingleValueStmtConjunctionOrBrace() const {
+  if (!isExpr<SingleValueStmtExpr>(getAnchor()))
+    return false;
+
+  auto path = getPath();
+  while (!path.empty()) {
+    // Ignore a trailing TernaryBranch locator, which is used for if statements.
+    if (path.back().is<LocatorPathElt::TernaryBranch>()) {
+      path = path.drop_back();
+      continue;
+    }
+
+    // Ignore a SyntaticElement path element for a case statement of a switch.
+    if (auto elt = path.back().getAs<LocatorPathElt::SyntacticElement>()) {
+      if (elt->getElement().isStmt(StmtKind::Case)) {
+        path = path.drop_back();
+        continue;
+      }
+    }
+    break;
+  }
+  return ::isForSingleValueStmtConjunction(getAnchor(), path);
 }
 
 llvm::Optional<SingleValueStmtBranchKind>

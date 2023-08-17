@@ -449,6 +449,12 @@ module WinSDK [system] {
     }
   }
 
+  module URLMonikers {
+    header "urlmon.h"
+    export *
+    link "Urlmon.Lib"
+  }
+
   module User {
     header "WinUser.h"
     export *

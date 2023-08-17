@@ -1,5 +1,7 @@
 // RUN: %target-swift-frontend -parse-as-library -O -module-name=test %s -emit-sil | %FileCheck %s
 
+// REQUIRES: swift_in_compiler
+
 var gg: Int = {
   print("gg init")
   return 27

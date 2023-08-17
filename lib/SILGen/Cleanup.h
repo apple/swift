@@ -294,6 +294,8 @@ private:
   // cleanup at \p depth. If
   std::tuple<Cleanup::Flags, llvm::Optional<SILValue>>
   getFlagsAndWritebackBuffer(CleanupHandle depth);
+
+  bool isFormalAccessCleanup(CleanupHandle depth);
 };
 
 /// An RAII object that allows the state of a cleanup to be

@@ -3,8 +3,6 @@
 
 // RUN: %target-swift-ide-test -swift-version 5 -print-module -module-to-print=IncludesCxxStdlib -I %t/Inputs -source-filename=test.swift -enable-experimental-cxx-interop -tools-directory=%llvm_obj_root/bin -module-cache-path %t/cache | %FileCheck %s
 
-// REQUIRES: OS=macosx || OS=linux-gnu
-
 //--- Inputs/module.modulemap
 module IncludesCxxStdlib {
     header "header.h"

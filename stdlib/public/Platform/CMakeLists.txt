@@ -42,8 +42,8 @@ set(swiftDarwin_common_options
       DEPENDS ${darwin_depends})
 
 
-if(${BOOTSTRAPPING_MODE} STREQUAL "BOOTSTRAPPING" AND
-   ${SWIFT_HOST_VARIANT_SDK} IN_LIST SWIFT_DARWIN_PLATFORMS)
+if(BOOTSTRAPPING_MODE STREQUAL "BOOTSTRAPPING" AND
+   SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
 
   set(swiftDarwin_common_bootstrapping_options
       ${swiftDarwin_common_options}
@@ -196,7 +196,7 @@ foreach(sdk ${SWIFT_SDKS})
     # with its own native sysroot, create a native modulemap without a sysroot
     # prefix. This is the one we'll install instead.
     if(NOT "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_ARCH_${arch}_PATH}" STREQUAL "/" AND
-       NOT (${sdk} STREQUAL ANDROID AND NOT "${SWIFT_ANDROID_NATIVE_SYSROOT}" STREQUAL ""))
+       NOT (sdk STREQUAL "ANDROID" AND NOT "${SWIFT_ANDROID_NATIVE_SYSROOT}" STREQUAL ""))
       set(glibc_sysroot_relative_modulemap_out "${module_dir}/sysroot-relative-modulemaps/glibc.modulemap")
 
       handle_gyb_source_single(glibc_modulemap_native_target

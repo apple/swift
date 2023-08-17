@@ -104,7 +104,7 @@ deriveBodyActor_unownedExecutor(AbstractFunctionDecl *getter, void *) {
   };
 
   // Build a reference to self.
-  Type selfType = getter->getImplicitSelfDecl()->getType();
+  Type selfType = getter->getImplicitSelfDecl()->getTypeInContext();
   Expr *selfArg = DerivedConformance::createSelfDeclRef(getter);
   selfArg->setType(selfType);
 

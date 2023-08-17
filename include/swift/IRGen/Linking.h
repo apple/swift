@@ -342,11 +342,6 @@ class LinkEntity {
     /// the metadata cache once.
     CanonicalPrespecializedGenericTypeCachingOnceToken,
 
-    /// The record that describes an attribute that could be looked
-    /// up at runtime together with all types it's attached to and
-    /// generator functions.
-    RuntimeDiscoverableAttributeRecord,
-
     /// The same as AsyncFunctionPointer but with a different stored value, for
     /// use by TBDGen.
     /// The pointer is an AbstractFunctionDecl*.
@@ -680,7 +675,7 @@ class LinkEntity {
     Data = LINKENTITY_SET_FIELD(Kind, unsigned(kind));
   }
 
-  LinkEntity() = default;
+  LinkEntity() : Pointer(nullptr), SecondaryPointer(nullptr), Data(0) {}
 
   static bool isValidResilientMethodRef(SILDeclRef declRef) {
     if (declRef.isForeign)
@@ -1382,12 +1377,6 @@ public:
         LINKENTITY_SET_FIELD(Kind, unsigned(Kind::ExtendedExistentialTypeShape))
       | LINKENTITY_SET_FIELD(ExtendedExistentialIsUnique, unsigned(isUnique))
       | LINKENTITY_SET_FIELD(ExtendedExistentialIsShared, unsigned(isShared));
-    return entity;
-  }
-
-  static LinkEntity forRuntimeDiscoverableAttributeRecord(NominalTypeDecl *attr) {
-    LinkEntity entity;
-    entity.setForDecl(Kind::RuntimeDiscoverableAttributeRecord, attr);
     return entity;
   }
 

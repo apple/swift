@@ -110,10 +110,15 @@ extension MutatingContext {
   }
 
   func inlineFunction(apply: FullApplySite, mandatoryInline: Bool) {
+    // This is only a best-effort attempt to notity the new cloned instructions as changed.
+    // TODO: get a list of cloned instructions from the `inlineFunction`
     let instAfterInling: Instruction?
     switch apply {
-    case is ApplyInst, is BeginApplyInst:
+    case is ApplyInst:
       instAfterInling = apply.next
+    case let beginApply as BeginApplyInst:
+      let next = beginApply.next!
+      instAfterInling = (next is EndApplyInst ? nil : next)
     case is TryApplyInst:
       instAfterInling = apply.parentBlock.next?.instructions.first
     default:
@@ -145,17 +150,15 @@ extension MutatingContext {
     SubstitutionMap(_bridged.getContextSubstitutionMap(type.bridged))
   }
 
-  // Private utilities
-
-  fileprivate func notifyInstructionsChanged() {
+  func notifyInstructionsChanged() {
     _bridged.asNotificationHandler().notifyChanges(.instructionsChanged)
   }
 
-  fileprivate func notifyCallsChanged() {
+  func notifyCallsChanged() {
     _bridged.asNotificationHandler().notifyChanges(.callsChanged)
   }
 
-  fileprivate func notifyBranchesChanged() {
+  func notifyBranchesChanged() {
     _bridged.asNotificationHandler().notifyChanges(.branchesChanged)
   }
 }
@@ -193,6 +196,10 @@ struct FunctionPassContext : MutatingContext {
   var postDominatorTree: PostDominatorTree {
     let bridgedPDT = _bridged.getPostDomTree()
     return PostDominatorTree(bridged: bridgedPDT)
+  }
+
+  var swiftArrayDecl: NominalTypeDecl {
+    NominalTypeDecl(_bridged: _bridged.getSwiftArrayDecl())
   }
 
   func loadFunction(name: StaticString, loadCalleesRecursively: Bool) -> Function? {
@@ -275,6 +282,23 @@ struct SimplifyContext : MutatingContext {
   let _bridged: BridgedPassContext
   let notifyInstructionChanged: (Instruction) -> ()
   let preserveDebugInfo: Bool
+}
+
+extension Type {
+  func getStaticSize(context: SimplifyContext) -> Int? {
+    let v = context._bridged.getStaticSize(self.bridged)
+    return v == -1 ? nil : v
+  }
+  
+  func getStaticAlignment(context: SimplifyContext) -> Int? {
+    let v = context._bridged.getStaticAlignment(self.bridged)
+    return v == -1 ? nil : v
+  }
+  
+  func getStaticStride(context: SimplifyContext) -> Int? {
+    let v = context._bridged.getStaticStride(self.bridged)
+    return v == -1 ? nil : v
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -442,6 +466,14 @@ extension GlobalValueInst {
   func setIsBare(_ context: some MutatingContext) {
     context.notifyInstructionsChanged()
     bridged.GlobalValueInst_setIsBare()
+    context.notifyInstructionChanged(self)
+  }
+}
+
+extension LoadInst {
+  func set(ownership: LoadInst.LoadOwnership, _ context: some MutatingContext) {
+    context.notifyInstructionsChanged()
+    bridged.LoadInst_setOwnership(ownership.rawValue)
     context.notifyInstructionChanged(self)
   }
 }

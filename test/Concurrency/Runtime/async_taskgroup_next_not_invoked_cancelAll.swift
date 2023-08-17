@@ -14,14 +14,14 @@ import Dispatch
 func test_skipCallingNext_butInvokeCancelAll() async {
   let numbers = [1, 1]
 
-  let result = try! await withTaskGroup(of: Int.self) { (group) async -> Int in
+  let result = await withTaskGroup(of: Int.self) { (group) async -> Int in
     for n in numbers {
-      print("group.spawn { \(n) }")
-      group.spawn { [group] () async -> Int in
+      print("group.addTask { \(n) }")
+      group.addTask { [group] () async -> Int in
         await Task.sleep(1_000_000_000)
-        print("  inside group.spawn { \(n) }")
-        print("  inside group.spawn { \(n) } (group cancelled: \(group.isCancelled))")
-        print("  inside group.spawn { \(n) } (group child task cancelled: \(Task.isCancelled))")
+        print("  inside group.addTask { \(n) }")
+        print("  inside group.addTask { \(n) } (group cancelled: \(group.isCancelled))")
+        print("  inside group.addTask { \(n) } (group child task cancelled: \(Task.isCancelled))")
         return n
       }
     }
@@ -34,13 +34,13 @@ func test_skipCallingNext_butInvokeCancelAll() async {
     return 0
   }
 
-  // CHECK: group.spawn { 1 }
+  // CHECK: group.addTask { 1 }
   //
   // CHECK: return immediately 0 (group cancelled: true)
   // CHECK: return immediately 0 (task cancelled: false)
   //
-  // CHECK: inside group.spawn { 1 } (group cancelled: true)
-  // CHECK: inside group.spawn { 1 } (group child task cancelled: true)
+  // CHECK: inside group.addTask { 1 } (group cancelled: true)
+  // CHECK: inside group.addTask { 1 } (group child task cancelled: true)
 
   // CHECK: result: 0
   print("result: \(result)")

@@ -56,6 +56,9 @@ enum NLOptions : unsigned {
   /// Exclude names introduced by macro expansions in the top-level module.
   NL_ExcludeMacroExpansions = 1 << 7,
 
+  /// This lookup should only return macro declarations.
+  NL_OnlyMacros = 1 << 8,
+
   /// The default set of options used for qualified name lookup.
   ///
   /// FIXME: Eventually, add NL_ProtocolMembers to this, once all of the

@@ -26,7 +26,7 @@ macro freestandingDecl<T>(arg: T) = #externalMacro(module: "IndexMacros", type: 
 macro Accessor() = #externalMacro(module: "IndexMacros", type: "SomeAccessorMacro")
 // CHECK: [[@LINE-1]]:7 | macro/Swift | Accessor() |  [[ACCESSOR_USR:.*]] | Def
 
-@attached(conformance)
+@attached(extension, conformances: TestProto)
 macro Conformance() = #externalMacro(module: "IndexMacros", type: "SomeConformanceMacro")
 // CHECK: [[@LINE-1]]:7 | macro/Swift | Conformance() |  [[CONFORMANCE_USR:.*]] | Def
 
@@ -207,14 +207,16 @@ public struct SomeAccessorMacro: AccessorMacro {
   }
 }
 
-public struct SomeConformanceMacro: ConformanceMacro {
+public struct SomeConformanceMacro: ExtensionMacro {
   public static func expansion(
     of node: AttributeSyntax,
-    providingConformancesOf decl: some DeclGroupSyntax,
+    attachedTo: some DeclGroupSyntax,
+    providingExtensionsOf type: some TypeSyntaxProtocol,
+    conformingTo protocols: [TypeSyntax],
     in context: some MacroExpansionContext
-  ) throws -> [(TypeSyntax, GenericWhereClauseSyntax?)] {
-    let protocolName: TypeSyntax = "TestProto"
-    return [(protocolName, nil)]
+  ) throws -> [ExtensionDeclSyntax] {
+    let ext: DeclSyntax = "extension \(type.trimmed): TestProto {}"
+    return [ext.cast(ExtensionDeclSyntax.self)]
   }
 }
 

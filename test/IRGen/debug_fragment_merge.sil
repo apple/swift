@@ -3,7 +3,7 @@
 // Checking the below on 32 bit architectures would be cumbersome: each
 // fragment is 32 bits long, which changes the number of checks as well as the
 // arithmethic on the bounds of each fragment.
-// UNSUPPORTED: OS=watchos
+// REQUIRES: CPU=arm64 || CPU=x86_64 || CPU=arm64e
 
 // CHECK-DAG: llvm.dbg.value{{.*}} metadata ![[VAR:[0-9]+]], metadata !DIExpression(DW_OP_LLVM_fragment, 192, 64){{.*}} !dbg ![[LOC1:[0-9]+]]
 // CHECK-DAG: llvm.dbg.value{{.*}} metadata ![[VAR]], metadata !DIExpression(DW_OP_LLVM_fragment, 128, 64){{.*}} !dbg ![[LOC1]]

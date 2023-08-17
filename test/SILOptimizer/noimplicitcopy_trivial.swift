@@ -1078,3 +1078,23 @@ public func noImplicitCopyReturnUse(_ x: Int) -> Int {
     let _ = z
     return y // expected-note {{consumed again here}}
 }
+
+func takeClosure(_ f: ()->Int) -> Int { f() }
+
+public func test1(i: consuming Int) -> Int {
+  takeClosure { [i = copy i] in i }
+}
+
+public func test2(i: borrowing Int) -> Int {
+  takeClosure { [i = copy i] in i }
+}
+
+public func test3(i: consuming Int) -> Int {
+  takeClosure { i }
+}
+
+// TODO: incorrect diagnostic:
+//       error: 'i' cannot be captured by an escaping closure since it is a borrowed parameter
+// public func test4(i: borrowing Int) -> Int {
+//  takeClosure { i }
+// }

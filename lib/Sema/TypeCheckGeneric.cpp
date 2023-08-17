@@ -299,9 +299,7 @@ void TypeChecker::checkProtocolSelfRequirements(ValueDecl *decl) {
           req.getFirstType()->is<GenericTypeParamType>())
         continue;
 
-      ctx.Diags.diagnose(decl,
-                         diag::requirement_restricts_self,
-                         decl->getDescriptiveKind(), decl->getName(),
+      ctx.Diags.diagnose(decl, diag::requirement_restricts_self, decl,
                          req.getFirstType().getString(),
                          static_cast<unsigned>(req.getKind()),
                          req.getSecondType().getString());
@@ -343,6 +341,25 @@ void TypeChecker::checkReferencedGenericParams(GenericContext *dc) {
         ReferencedGenericParams.insert(ty->getCanonicalType());
         return Action::SkipChildren;
       }
+
+      // Skip the count type, which is always a generic parameter;
+      // we don't consider it a reference because it only binds the
+      // shape and not the metadata.
+      if (auto *expansionTy = ty->getAs<PackExpansionType>()) {
+        expansionTy->getPatternType().walk(*this);
+        return Action::SkipChildren;
+      }
+
+      // Don't walk into generic type alias substitutions. This does
+      // not constrain `T`:
+      //
+      //   typealias Foo<T> = Int
+      //   func foo<T>(_: Foo<T>) {}
+      if (auto *aliasTy = dyn_cast<TypeAliasType>(ty.getPointer())) {
+        Type(aliasTy->getSinglyDesugaredType()).walk(*this);
+        return Action::SkipChildren;
+      }
+
       return Action::Continue;
     }
 
@@ -525,18 +542,16 @@ void TypeChecker::checkShadowedGenericParams(GenericContext *dc) {
       auto *existingParamDecl = found->second;
 
       if (existingParamDecl->getDeclContext() == dc) {
-        genericParamDecl->diagnose(
-            diag::invalid_redecl,
-            genericParamDecl->getName());
+        genericParamDecl->diagnose(diag::invalid_redecl, genericParamDecl);
       } else {
         genericParamDecl->diagnose(
             diag::shadowed_generic_param,
-            genericParamDecl->getName()).warnUntilSwiftVersion(6);
+            genericParamDecl).warnUntilSwiftVersion(6);
       }
 
       if (existingParamDecl->getLoc()) {
         existingParamDecl->diagnose(diag::invalid_redecl_prev,
-                                    existingParamDecl->getName());
+                                    existingParamDecl);
       }
 
       continue;

@@ -12,7 +12,7 @@ macro accessViaStorage() = #externalMacro(module: "MacroDefinition", type: "Acce
 
 @attached(
   member,
-  names: named(`init`), named(Storage), named(storage), named(getStorage()), named(method)
+  names: named(init), named(Storage), named(storage), named(getStorage()), named(method)
 )
 macro addMembers() = #externalMacro(module: "MacroDefinition", type: "AddMembers")
 

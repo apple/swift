@@ -2485,6 +2485,106 @@ public:
   }
 };
 
+/// Specifies the raw storage used by a type.
+class RawLayoutAttr final : public DeclAttribute {
+  /// The element type to share size and alignment with, if any.
+  TypeRepr *LikeType;
+  /// The number of elements in an array to share stride and alignment with,
+  /// or zero if no such size was specified. If `LikeType` is null, this is
+  /// the size in bytes of the raw storage.
+  unsigned SizeOrCount;
+  /// If `LikeType` is null, the alignment in bytes to use for the raw storage.
+  unsigned Alignment;
+  /// The resolved like type.
+  mutable Type CachedResolvedLikeType = Type();
+
+  friend class ResolveRawLayoutLikeTypeRequest;
+
+public:
+  /// Construct a `@_rawLayout(like: T)` attribute.
+  RawLayoutAttr(TypeRepr *LikeType,
+                SourceLoc AtLoc,
+                SourceRange Range)
+    : DeclAttribute(DAK_RawLayout, AtLoc, Range, /*implicit*/false),
+      LikeType(LikeType), SizeOrCount(0), Alignment(~0u)
+  {}
+  
+  /// Construct a `@_rawLayout(likeArrayOf: T, count: N)` attribute.
+  RawLayoutAttr(TypeRepr *LikeType, unsigned Count,
+                SourceLoc AtLoc,
+                SourceRange Range)
+    : DeclAttribute(DAK_RawLayout, AtLoc, Range, /*implicit*/false),
+      LikeType(LikeType), SizeOrCount(Count), Alignment(0)
+  {}
+  
+  /// Construct a `@_rawLayout(size: N, alignment: M)` attribute.
+  RawLayoutAttr(unsigned Size, unsigned Alignment,
+                SourceLoc AtLoc,
+                SourceRange Range)
+    : DeclAttribute(DAK_RawLayout, AtLoc, Range, /*implicit*/false),
+      LikeType(nullptr), SizeOrCount(Size), Alignment(Alignment)
+  {}
+  
+  /// Return the type whose single-element layout the attribute type should get
+  /// its layout from. Returns null if the attribute specifies an array or manual
+  /// layout.
+  TypeRepr *getScalarLikeType() const {
+    if (!LikeType)
+      return nullptr;
+    if (Alignment != ~0u)
+      return nullptr;
+    return LikeType;
+  }
+  
+  /// Return the type whose array layout the attribute type should get its
+  /// layout from, along with the size of that array. Returns None if the
+  /// attribute specifies scalar or manual layout.
+  llvm::Optional<std::pair<TypeRepr *, unsigned>> getArrayLikeTypeAndCount() const {
+    if (!LikeType)
+      return llvm::None;
+    if (Alignment == ~0u)
+      return llvm::None;
+    return std::make_pair(LikeType, SizeOrCount);
+  }
+  
+  /// Return the size and alignment of the attributed type. Returns
+  /// None if the attribute specifies layout like some other type.
+  llvm::Optional<std::pair<unsigned, unsigned>> getSizeAndAlignment() const {
+    if (LikeType)
+      return llvm::None;
+    return std::make_pair(SizeOrCount, Alignment);
+  }
+  
+  Type getResolvedLikeType(StructDecl *sd) const;
+
+  /// Return the type whose single-element layout the attribute type should get
+  /// its layout from. Returns None if the attribute specifies an array or manual
+  /// layout.
+  llvm::Optional<Type> getResolvedScalarLikeType(StructDecl *sd) const {
+    if (!LikeType)
+      return llvm::None;
+    if (Alignment != ~0u)
+      return llvm::None;
+    return getResolvedLikeType(sd);
+  }
+  
+  /// Return the type whose array layout the attribute type should get its
+  /// layout from, along with the size of that array. Returns None if the
+  /// attribute specifies scalar or manual layout.
+  llvm::Optional<std::pair<Type, unsigned>>
+  getResolvedArrayLikeTypeAndCount(StructDecl *sd) const {
+    if (!LikeType)
+      return llvm::None;
+    if (Alignment == ~0u)
+      return llvm::None;
+    return std::make_pair(getResolvedLikeType(sd), SizeOrCount);
+  }
+  
+  static bool classof(const DeclAttribute *DA) {
+    return DA->getKind() == DAK_RawLayout;
+  }
+};
+
 /// Predicate used to filter MatchingAttributeRange.
 template <typename ATTR, bool AllowInvalid> struct ToAttributeKind {
   ToAttributeKind() {}

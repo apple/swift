@@ -24,7 +24,7 @@ import SIL
 /// ```
 /// are computed.
 ///
-let computeSideEffects = FunctionPass(name: "compute-side-effects", {
+let computeSideEffects = FunctionPass(name: "compute-side-effects") {
   (function: Function, context: FunctionPassContext) in
 
   if function.isAvailableExternally {
@@ -71,7 +71,7 @@ let computeSideEffects = FunctionPass(name: "compute-side-effects", {
   context.modifyEffects(in: function) { (effects: inout FunctionEffects) in
     effects.sideEffects = SideEffects(arguments: collectedEffects.argumentEffects, global: collectedEffects.globalEffects)
   }
-})
+}
 
 /// The collected argument and global side effects of the function.
 private struct CollectedEffects {
@@ -141,6 +141,24 @@ private struct CollectedEffects {
         // we have to consider side-effects within the closure.
         handleApply(pa)
         checkedIfDeinitBarrier = true
+      }
+      // In addition to the effects of the apply, also consider the
+      // effects of the capture, which reads the captured value in
+      // order to move it into the context. This only applies to
+      // addressible values, because capturing does not dereference
+      // any class objects.
+      //
+      // Ignore captures for on-stack partial applies. They only
+      // bitwise-move or capture by address, so the call to
+      // handleApply above is sufficient. And, if they are not applied
+      // in this function, then they are never applied.
+      if !pa.isOnStack {
+        // the callee and its arguments are all captured...
+        for operand in pa.operands {
+          if operand.value.type.isAddress {
+            addEffects(.read, to: operand.value)
+          }
+        }
       }
 
     case let fl as FixLifetimeInst:

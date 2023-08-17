@@ -13,7 +13,9 @@
 #ifndef SWIFT_SERIALIZATION_VALIDATION_H
 #define SWIFT_SERIALIZATION_VALIDATION_H
 
+#include "swift/AST/Identifier.h"
 #include "swift/Basic/LLVM.h"
+#include "swift/Basic/Version.h"
 #include "swift/Serialization/SerializationOptions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -82,6 +84,9 @@ enum class Status {
   /// to build the client.
   SDKMismatch
 };
+
+/// Returns the string for the Status enum.
+std::string StatusToString(Status S);
 
 /// Returns true if the data looks like it contains a serialized AST.
 bool isSerializedAST(StringRef data);

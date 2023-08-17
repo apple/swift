@@ -464,6 +464,37 @@ func testContainsSinglePayloadSimpleClassEnumEmpty() {
 
 testContainsSinglePayloadSimpleClassEnumEmpty()
 
+func testSinglePayloadAnyHashableEnum() {
+    let ptr = UnsafeMutablePointer<SinglePayloadAnyHashableEnum>.allocate(capacity: 1)
+
+    do {
+        let x = SinglePayloadAnyHashableEnum.empty0
+        testInit(ptr, to: x)
+    }
+
+    do {
+        // CHECK: empty0
+        if case .empty0 = ptr.pointee {
+            print("empty0")
+        }
+
+        let y = SinglePayloadAnyHashableEnum.empty0
+
+        testAssign(ptr, from: y)
+    }
+
+    // CHECK-NEXT: empty0
+    if case .empty0 = ptr.pointee {
+        print("empty0")
+    }
+
+    testDestroy(ptr)
+
+    ptr.deallocate()
+}
+
+testSinglePayloadAnyHashableEnum()
+
 func testMultiPayloadEnum() {
     let ptr = UnsafeMutablePointer<MultiPayloadEnumWrapper>.allocate(capacity: 1)
 

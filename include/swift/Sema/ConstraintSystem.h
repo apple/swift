@@ -486,6 +486,10 @@ public:
   /// a type of a key path expression.
   bool isKeyPathType() const;
 
+  /// Determine whether this type variable represents a value type of a key path
+  /// expression.
+  bool isKeyPathValue() const;
+
   /// Determine whether this type variable represents a subscript result type.
   bool isSubscriptResultType() const;
 
@@ -3014,6 +3018,34 @@ public:
     return nullptr;
   }
 
+  TypeVariableType *getKeyPathValueType(const KeyPathExpr *keyPath) const {
+    auto result = getKeyPathValueTypeIfAvailable(keyPath);
+    assert(result);
+    return result;
+  }
+
+  TypeVariableType *
+  getKeyPathValueTypeIfAvailable(const KeyPathExpr *keyPath) const {
+    auto result = KeyPaths.find(keyPath);
+    if (result != KeyPaths.end())
+      return std::get<1>(result->second);
+    return nullptr;
+  }
+  
+  TypeVariableType *getKeyPathRootType(const KeyPathExpr *keyPath) const {
+    auto result = getKeyPathRootTypeIfAvailable(keyPath);
+    assert(result);
+    return result;
+  }
+
+  TypeVariableType *
+  getKeyPathRootTypeIfAvailable(const KeyPathExpr *keyPath) const {
+    auto result = KeyPaths.find(keyPath);
+    if (result != KeyPaths.end())
+      return std::get<0>(result->second);
+    return nullptr;
+  }
+
   TypeBase* getFavoredType(Expr *E) {
     assert(E != nullptr);
     return this->FavoredTypes[E];
@@ -3114,12 +3146,11 @@ public:
     return E;
   }
 
-  void setContextualType(ASTNode node, TypeLoc T,
-                         ContextualTypePurpose purpose) {
+  void setContextualInfo(ASTNode node, ContextualTypeInfo info) {
     assert(bool(node) && "Expected non-null expression!");
     assert(contextualTypes.count(node) == 0 &&
            "Already set this contextual type");
-    contextualTypes[node] = {{T, purpose}, Type()};
+    contextualTypes[node] = {info, Type()};
   }
 
   llvm::Optional<ContextualTypeInfo> getContextualTypeInfo(ASTNode node) const {
@@ -3966,6 +3997,20 @@ public:
   /// \returns `true` if it was possible to generate constraints for
   /// the body and assign fixed type to the closure, `false` otherwise.
   bool resolveClosure(TypeVariableType *typeVar, Type contextualType,
+                      ConstraintLocatorBuilder locator);
+
+  /// Given the fact a contextual type is now available for the type
+  /// variable representing one of the key path expressions, let's set a
+  /// pre-determined key path expression type.
+  ///
+  /// \param typeVar The type variable representing a key path expression.
+  /// \param contextualType The contextual type this key path would be
+  /// converted to.
+  /// \param locator The locator associated with contextual type.
+  ///
+  /// \returns `true` if it was possible to generate constraints for
+  /// the keyPath expression, `false` otherwise.
+  bool resolveKeyPath(TypeVariableType *typeVar, Type contextualType,
                       ConstraintLocatorBuilder locator);
 
   /// Given the fact that contextual type is now available for the type
@@ -6193,6 +6238,39 @@ public:
   }
 };
 
+/// Find any references to not yet resolved outer VarDecls (including closure
+/// parameters) used in the body of a conjunction element (e.g closures, taps,
+/// if/switch expressions). This is required because isolated conjunctions, just
+/// like single-expression closures, have to be connected to type variables they
+/// are going to use, otherwise they'll get placed in a separate solver
+/// component and would never produce a solution.
+class VarRefCollector : public ASTWalker {
+  ConstraintSystem &CS;
+  llvm::SmallSetVector<TypeVariableType *, 4> TypeVars;
+
+public:
+  VarRefCollector(ConstraintSystem &cs) : CS(cs) {}
+
+  /// Infer the referenced type variables from a given decl.
+  void inferTypeVars(Decl *D);
+
+  MacroWalking getMacroWalkingBehavior() const override {
+    return MacroWalking::Arguments;
+  }
+
+  PreWalkResult<Expr *> walkToExprPre(Expr *expr) override;
+
+  PreWalkAction walkToDeclPre(Decl *D) override {
+    // We only need to walk into PatternBindingDecls, other kinds of decls
+    // cannot reference outer vars.
+    return Action::VisitChildrenIf(isa<PatternBindingDecl>(D));
+  }
+
+  ArrayRef<TypeVariableType *> getTypeVars() const {
+    return TypeVars.getArrayRef();
+  }
+};
+
 /// Determine whether given type is a known one
 /// for a key path `{Writable, ReferenceWritable}KeyPath`.
 bool isKnownKeyPathType(Type type);
@@ -6235,7 +6313,15 @@ Type isPlaceholderVar(PatternBindingDecl *PB);
 /// Dump an anchor node for a constraint locator or contextual type.
 void dumpAnchor(ASTNode anchor, SourceManager *SM, raw_ostream &out);
 
+bool isPackExpansionType(Type type);
+
+/// Check whether the type is a tuple consisting of a single unlabeled element
+/// of \c PackExpansionType or a type variable that represents a pack expansion
+/// type.
 bool isSingleUnlabeledPackExpansionTuple(Type type);
+
+bool containsPackExpansionType(ArrayRef<AnyFunctionType::Param> params);
+bool containsPackExpansionType(TupleType *tuple);
 
 /// \returns null if \c type is not a single unlabeled pack expansion tuple.
 Type getPatternTypeOfSingleUnlabeledPackExpansionTuple(Type type);

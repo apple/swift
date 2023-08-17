@@ -434,7 +434,7 @@ void MemoryLifetimeVerifier::initDataflowInBlock(SILBasicBlock *block,
         ApplySite AS(&I);
         for (Operand &op : I.getAllOperands()) {
           if (AS.isArgumentOperand(op)) {
-            setFuncOperandBits(state, op, AS.getArgumentOperandConvention(op),
+            setFuncOperandBits(state, op, AS.getCaptureConvention(op),
                               isa<TryApplyInst>(&I));
           }
         }
@@ -771,7 +771,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
         ApplySite AS(&I);
         for (Operand &op : I.getAllOperands()) {
           if (AS.isArgumentOperand(op))
-            checkFuncArgument(bits, op, AS.getArgumentOperandConvention(op), &I);
+            checkFuncArgument(bits, op, AS.getCaptureConvention(op), &I);
         }
         break;
       }

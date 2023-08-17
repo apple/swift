@@ -3862,6 +3862,22 @@ func blackHoleKlassTestCase2(_ k: consuming Klass) {
     // expected-note @-1 {{consumed again here}}
 }
 
+// rdar://109908383
+struct NonCopyableStruct: ~Copyable {}
+var globFn: () -> () = {}
+func forceEscaping(_ esc: @escaping () -> ()) {
+    globFn = esc
+}
+func closureDiagnosticsSimple() {
+    var s = NonCopyableStruct()
+    let f = {
+        _ = consume s  // expected-error {{missing reinitialization of closure capture 's' after consume}} // expected-note {{consumed here}}
+        s = NonCopyableStruct()
+    }
+    forceEscaping(f)
+    f()
+}
+
 ///////////////////////////////////////
 // Copyable Type in a Move Only Type //
 ///////////////////////////////////////

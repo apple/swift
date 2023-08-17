@@ -106,6 +106,7 @@ namespace {
     
     const Options options;
     const bool isOriginallyTypeLookup;
+    const bool isOriginallyMacroLookup;
     const NLOptions baseNLOptions;
 
     // Outputs
@@ -167,7 +168,8 @@ namespace {
 #pragma mark common helper declarations
     static NLOptions
     computeBaseNLOptions(const UnqualifiedLookupOptions options,
-                         const bool isOriginallyTypeLookup);
+                         const bool isOriginallyTypeLookup,
+                         const bool isOriginallyMacroLookup);
 
     void findResultsAndSaveUnavailables(
         const DeclContext *lookupContextForThisContext,
@@ -260,7 +262,10 @@ UnqualifiedLookupFactory::UnqualifiedLookupFactory(
   DebugClient(M.getDebugClient()),
   options(options),
   isOriginallyTypeLookup(options.contains(Flags::TypeLookup)),
-  baseNLOptions(computeBaseNLOptions(options, isOriginallyTypeLookup)),
+  isOriginallyMacroLookup(options.contains(Flags::MacroLookup)),
+  baseNLOptions(
+      computeBaseNLOptions(
+        options, isOriginallyTypeLookup, isOriginallyMacroLookup)),
   Results(Results),
   IndexOfFirstOuterResult(IndexOfFirstOuterResult)
 {}
@@ -525,7 +530,8 @@ void UnqualifiedLookupFactory::addImportedResults(const DeclContext *const dc) {
   using namespace namelookup;
   SmallVector<ValueDecl *, 8> CurModuleResults;
   auto resolutionKind = isOriginallyTypeLookup ? ResolutionKind::TypesOnly
-                                               : ResolutionKind::Overloadable;
+                      : isOriginallyMacroLookup ? ResolutionKind::MacrosOnly
+                      : ResolutionKind::Overloadable;
   auto nlOptions = NL_UnqualifiedDefault;
   if (options.contains(Flags::IncludeUsableFromInline))
     nlOptions |= NL_IncludeUsableFromInline;
@@ -619,12 +625,15 @@ void UnqualifiedLookupFactory::findResultsAndSaveUnavailables(
 
 NLOptions UnqualifiedLookupFactory::computeBaseNLOptions(
     const UnqualifiedLookupOptions options,
-    const bool isOriginallyTypeLookup) {
+    const bool isOriginallyTypeLookup,
+    const bool isOriginallyMacroLookup) {
   NLOptions baseNLOptions = NL_UnqualifiedDefault;
   if (options.contains(Flags::AllowProtocolMembers))
     baseNLOptions |= NL_ProtocolMembers;
   if (isOriginallyTypeLookup)
     baseNLOptions |= NL_OnlyTypes;
+  if (isOriginallyMacroLookup)
+    baseNLOptions |= NL_OnlyMacros;
   if (options.contains(Flags::IgnoreAccessControl))
     baseNLOptions |= NL_IgnoreAccessControl;
   return baseNLOptions;

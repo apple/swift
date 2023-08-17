@@ -8,6 +8,8 @@ import Builtin
 import Swift
 import SwiftShims
 
+sil_global [let] @g1 : $Int32
+sil_global [let] @g2 : $Int32
 
 sil @paable : $@convention(thin) (Builtin.Int64) -> ()
 sil @moved_pai_callee : $@convention(thin) (@inout_aliasable Builtin.Int64) -> ()
@@ -128,5 +130,81 @@ bb0(%0 : $*Int, %1 : $*Int, %2 : $@thick Int.Type):
 sil_witness_table public_external [serialized] Int: Comparable module Swift {
   base_protocol Equatable: Int: Equatable module Swift
   method #Comparable."<": <Self where Self : Comparable> (Self.Type) -> (Self, Self) -> Bool : @$sSiSLsSL1loiySbx_xtFZTW
+}
+
+sil @get_int_value : $@convention(thin) () -> Int32 {
+bb0:
+  %0 = integer_literal $Builtin.Int32, 10
+  %1 = struct $Int32 (%0 : $Builtin.Int32)
+  return %1 : $Int32
+}
+
+// CHECK-LABEL: sil [global_init_once_fn] [no_locks] @globalinit_inline_into_init :
+// CHECK-NOT:     apply
+// CHECK:       } // end sil function 'globalinit_inline_into_init'
+sil [global_init_once_fn] [no_locks] @globalinit_inline_into_init : $@convention(c) () -> () {
+bb0:
+  alloc_global @g1
+  %1 = global_addr @g1 : $*Int32
+  %2 = function_ref @get_int_value : $@convention(thin) () -> Int32
+  %3 = apply %2() : $@convention(thin) () -> Int32
+  store %3 to %1 : $*Int32
+  %6 = tuple ()
+  return %6 : $()
+}
+
+// CHECK-LABEL: sil [serialized] [global_init_once_fn] [no_locks] @globalinit_dont_inline_non_inlinable_into_inlinable :
+// CHECK:         apply
+// CHECK:       } // end sil function 'globalinit_dont_inline_non_inlinable_into_inlinable'
+sil [serialized] [global_init_once_fn] [no_locks] @globalinit_dont_inline_non_inlinable_into_inlinable : $@convention(c) () -> () {
+bb0:
+  alloc_global @g2
+  %1 = global_addr @g2 : $*Int32
+  %2 = function_ref @get_int_value : $@convention(thin) () -> Int32
+  %3 = apply %2() : $@convention(thin) () -> Int32
+  store %3 to %1 : $*Int32
+  %6 = tuple ()
+  return %6 : $()
+}
+
+sil @yield_int_value : $@convention(thin) @yield_once () -> (@yields Int32) {
+bb0:
+  %0 = integer_literal $Builtin.Int32, 10
+  %1 = struct $Int32 (%0 : $Builtin.Int32)
+  yield %1 : $Int32, resume bb1, unwind bb2
+bb1:
+  %3 = tuple ()
+  return %3 : $()
+bb2:
+  unwind
+}
+
+// CHECK-LABEL: sil [no_locks] @inline_begin_apply :
+// CHECK-NOT:     begin_apply
+// CHECK:       } // end sil function 'inline_begin_apply'
+sil [no_locks] @inline_begin_apply : $@convention(thin) () -> Int32 {
+bb0:
+  %0 = function_ref @yield_int_value : $@convention(thin) @yield_once () -> (@yields Int32)
+  (%1, %2) = begin_apply %0() : $@convention(thin) @yield_once () -> (@yields Int32)
+  end_apply %2
+  return %1 : $Int32
+}
+
+// CHECK-LABEL: sil [no_locks] @dont_inline_begin_apply :
+// CHECK:         begin_apply
+// CHECK:       } // end sil function 'dont_inline_begin_apply'
+sil [no_locks] @dont_inline_begin_apply : $@convention(thin) () -> Int32 {
+bb0:
+  %0 = function_ref @yield_int_value : $@convention(thin) @yield_once () -> (@yields Int32)
+  (%1, %2) = begin_apply %0() : $@convention(thin) @yield_once () -> (@yields Int32)
+  cond_br undef, bb1, bb2
+bb1:
+  end_apply %2
+  br bb3
+bb2:
+  end_apply %2
+  br bb3
+bb3:
+  return %1 : $Int32
 }
 

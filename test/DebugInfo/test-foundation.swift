@@ -27,9 +27,8 @@ class MyObject : NSObject {
   // IMPORT-CHECK-DAG: !DIImportedEntity(tag: DW_TAG_imported_module, {{.*}}entity: ![[OVERLAY]]
 
   // ALLOCCTOR-CHECK: ![[F:.*]] = !DIFile(filename: "<compiler-generated>",
-  // ALLOCCTOR-CHECK: distinct !DISubprogram(name: "init",
-  // ALLOCCTOR-CHECK-SAME:                   linkageName: "$sSo7NSArrayCABycfC",
-  // ALLOCCTOR-CHECK-SAME:                   file: ![[F]],
+  // ALLOCCTOR-CHECK: distinct !DISubprogram(name: "init", linkageName: "$sSo7NSArrayCABycfC"
+  // ALLOCCTOR-CHECK-SAME: file: ![[F]],
   @objc func foo(_ obj: MyObject) {
     return obj.foo(obj)
   }

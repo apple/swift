@@ -25,22 +25,23 @@ using namespace constraints;
 #define DEBUG_TYPE "SyntacticElementTarget"
 
 SyntacticElementTarget::SyntacticElementTarget(
-    Expr *expr, DeclContext *dc, ContextualTypePurpose contextualPurpose,
-    TypeLoc convertType, ConstraintLocator *convertTypeLocator,
+    Expr *expr, DeclContext *dc, ContextualTypeInfo contextualInfo,
     bool isDiscarded) {
+  auto contextualPurpose = contextualInfo.purpose;
+
   // Verify that a purpose was specified if a convertType was.  Note that it is
   // ok to have a purpose without a convertType (which is used for call
   // return types).
-  assert((!convertType.getType() || contextualPurpose != CTP_Unused) &&
+  assert((!contextualInfo.getType() || contextualPurpose != CTP_Unused) &&
          "Purpose for conversion type was not specified");
 
   // Take a look at the conversion type to check to make sure it is sensible.
-  if (auto type = convertType.getType()) {
+  if (auto type = contextualInfo.getType()) {
     // If we're asked to convert to an UnresolvedType, then ignore the request.
     // This happens when CSDiags nukes a type.
     if (type->is<UnresolvedType>() ||
         (type->is<MetatypeType>() && type->hasUnresolvedType())) {
-      convertType = TypeLoc();
+      contextualInfo.typeLoc = TypeLoc();
       contextualPurpose = CTP_Unused;
     }
   }
@@ -48,9 +49,7 @@ SyntacticElementTarget::SyntacticElementTarget(
   kind = Kind::expression;
   expression.expression = expr;
   expression.dc = dc;
-  expression.contextualPurpose = contextualPurpose;
-  expression.convertType = convertType;
-  expression.convertTypeLocator = convertTypeLocator;
+  expression.contextualInfo = contextualInfo;
   expression.pattern = nullptr;
   expression.propertyWrapper.wrappedVar = nullptr;
   expression.propertyWrapper.innermostWrappedValueInit = nullptr;
@@ -62,8 +61,7 @@ SyntacticElementTarget::SyntacticElementTarget(
 }
 
 void SyntacticElementTarget::maybeApplyPropertyWrapper() {
-  assert(kind == Kind::expression);
-  assert(expression.contextualPurpose == CTP_Initialization);
+  assert(getExprContextualTypePurpose() == CTP_Initialization);
 
   VarDecl *singleVar;
   if (auto *pattern = expression.pattern) {
@@ -130,8 +128,8 @@ void SyntacticElementTarget::maybeApplyPropertyWrapper() {
   // the initializer type later.
   expression.propertyWrapper.wrappedVar = singleVar;
   expression.expression = backingInitializer;
-  expression.convertType = {outermostWrapperAttr->getTypeRepr(),
-                            outermostWrapperAttr->getType()};
+  expression.contextualInfo.typeLoc = {outermostWrapperAttr->getTypeRepr(),
+                                       outermostWrapperAttr->getType()};
 }
 
 SyntacticElementTarget
@@ -157,9 +155,9 @@ SyntacticElementTarget::forInitialization(Expr *initializer, DeclContext *dc,
     }
   }
 
-  SyntacticElementTarget target(
-      initializer, dc, CTP_Initialization, contextualType,
-      /*convertTypeLocator*/ nullptr, /*isDiscarded=*/false);
+  ContextualTypeInfo contextInfo(contextualType, CTP_Initialization);
+  SyntacticElementTarget target(initializer, dc, contextInfo,
+                                /*isDiscarded=*/false);
   target.expression.pattern = pattern;
   target.expression.bindPatternVarsOneWay = bindPatternVarsOneWay;
   target.maybeApplyPropertyWrapper();
@@ -189,7 +187,7 @@ SyntacticElementTarget::forForEachStmt(ForEachStmt *stmt, DeclContext *dc,
 SyntacticElementTarget SyntacticElementTarget::forPropertyWrapperInitializer(
     VarDecl *wrappedVar, DeclContext *dc, Expr *initializer) {
   SyntacticElementTarget target(initializer, dc, CTP_Initialization,
-                                wrappedVar->getType(),
+                                wrappedVar->getTypeInContext(),
                                 /*isDiscarded=*/false);
   target.expression.propertyWrapper.wrappedVar = wrappedVar;
   if (auto *patternBinding = wrappedVar->getParentPatternBinding()) {
@@ -226,10 +224,10 @@ ContextualPattern SyntacticElementTarget::getContextualPattern() const {
                                             forEachStmt.dc);
   }
 
-  assert(kind == Kind::expression);
-  assert(expression.contextualPurpose == CTP_Initialization);
-  if (expression.contextualPurpose == CTP_Initialization &&
-      expression.initialization.patternBinding) {
+  auto ctp = getExprContextualTypePurpose();
+  assert(ctp == CTP_Initialization);
+
+  if (ctp == CTP_Initialization && expression.initialization.patternBinding) {
     return ContextualPattern::forPatternBindingDecl(
         expression.initialization.patternBinding,
         expression.initialization.patternBindingIndex);
@@ -239,12 +237,11 @@ ContextualPattern SyntacticElementTarget::getContextualPattern() const {
 }
 
 bool SyntacticElementTarget::infersOpaqueReturnType() const {
-  assert(kind == Kind::expression);
-  switch (expression.contextualPurpose) {
+  switch (getExprContextualTypePurpose()) {
   case CTP_Initialization:
   case CTP_ReturnStmt:
   case CTP_ReturnSingleExpr:
-    if (Type convertType = expression.convertType.getType())
+    if (Type convertType = getExprContextualType())
       return convertType->hasOpaqueArchetype();
     return false;
   default:
@@ -253,8 +250,7 @@ bool SyntacticElementTarget::infersOpaqueReturnType() const {
 }
 
 bool SyntacticElementTarget::contextualTypeIsOnlyAHint() const {
-  assert(kind == Kind::expression);
-  switch (expression.contextualPurpose) {
+  switch (getExprContextualTypePurpose()) {
   case CTP_Initialization:
     return !infersOpaqueReturnType() && !isOptionalSomePatternInit();
   case CTP_ForEachStmt:
