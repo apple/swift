@@ -1,4 +1,4 @@
-// RUN: %swift-frontend %s -enable-import-ptrauth-field-function-pointers -emit-silgen -target arm64e-apple-ios13.0 -I %S/Inputs/ | %FileCheck %s
+// RUN: %swift-frontend %s -emit-silgen -target arm64e-apple-ios13.0 -I %S/Inputs/ | %FileCheck %s
 
 // REQUIRES: CPU=arm64e
 // REQUIRES: OS=ios
