@@ -842,10 +842,6 @@ int swift::compareDependentTypes(Type type1, Type type2) {
   // Fast-path check for equality.
   if (type1->isEqual(type2)) return 0;
 
-  // Packs are always ordered after scalar type parameters.
-  if (type1->isParameterPack() != type2->isParameterPack())
-    return type2->isParameterPack() ? -1 : +1;
-
   // Ordering is as follows:
   // - Generic params
   auto gp1 = type1->getAs<GenericTypeParamType>();
@@ -990,7 +986,12 @@ void GenericSignature::verify(ArrayRef<Requirement> reqts) const {
           llvm::errs() << "\n";
           abort();
         }
-        if (compareDependentTypes(firstType, secondType) >= 0) {
+        // FIXME: Same-element rewrite rules are of the form [element].T => U,
+        // which turns into a same-type requirement repeat U == each T. The
+        // pack element must always be on the left side of the rule, so type
+        // parameters can appear out of order in the final same-type requirement.
+        if (firstType->isParameterPack() == secondType->isParameterPack() &&
+            compareDependentTypes(firstType, secondType) >= 0) {
           llvm::errs() << "Out-of-order type parameters: ";
           reqt.dump(llvm::errs());
           llvm::errs() << "\n";

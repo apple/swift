@@ -135,29 +135,16 @@ static llvm::Optional<int> shortlexCompare(const Symbol *lhsBegin,
                                            RewriteContext &ctx) {
   // First, compare the number of name and pack element symbols.
   unsigned lhsNameCount = 0;
-  unsigned lhsPackElementCount = 0;
   for (auto *iter = lhsBegin; iter != lhsEnd; ++iter) {
     if (iter->getKind() == Symbol::Kind::Name)
       ++lhsNameCount;
-
-    if (iter->getKind() == Symbol::Kind::PackElement)
-      ++lhsPackElementCount;
   }
 
   unsigned rhsNameCount = 0;
-  unsigned rhsPackElementCount = 0;
   for (auto *iter = rhsBegin; iter != rhsEnd; ++iter) {
     if (iter->getKind() == Symbol::Kind::Name)
       ++rhsNameCount;
-
-    if (iter->getKind() == Symbol::Kind::PackElement)
-      ++rhsPackElementCount;
   }
-
-  // A term with more pack element symbols orders after a term with
-  // fewer pack element symbols.
-  if (lhsPackElementCount != rhsPackElementCount)
-    return lhsPackElementCount > rhsPackElementCount ? 1 : -1;
 
   // A term with more name symbols orders after a term with fewer name symbols.
   if (lhsNameCount != rhsNameCount)

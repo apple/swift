@@ -154,7 +154,7 @@ func dependentSameElementConcrete<each C: Collection>(
 ) where repeat (each C).Element == Int {}
 
 // CHECK-LABEL: dependentSameElementGeneric
-// CHECK-NEXT: Generic signature: <each C, Element where repeat Element == (each C).[Sequence]Element, repeat each C : Collection>
+// CHECK-NEXT: Generic signature: <each C, Element where repeat each C : Collection, repeat Element == (each C).[Sequence]Element>
 func dependentSameElementGeneric<each C: Collection, Element>(
   _: repeat each C
 ) where repeat (each C).Element == Element {}
