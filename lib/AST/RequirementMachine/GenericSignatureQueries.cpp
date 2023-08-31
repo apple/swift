@@ -308,20 +308,6 @@ bool RequirementMachine::isReducedType(Type type) const {
       if (!component->hasTypeParameter())
         return Action::SkipChildren;
 
-      if (auto *expansion = component->getAs<PackExpansionType>()) {
-        auto pattern = expansion->getPatternType();
-        auto shape = expansion->getCountType();
-        if (!Self.isReducedType(pattern))
-          return Action::Stop;
-
-        auto reducedShape =
-            Self.getReducedShape(shape, Self.getGenericParams());
-        if (reducedShape->getCanonicalType() != CanType(shape))
-          return Action::Stop;
-
-        return Action::SkipChildren;
-      }
-
       if (!component->isTypeParameter())
         return Action::Continue;
 
