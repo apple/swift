@@ -63,8 +63,7 @@ func outerArchetype<each T, U>(t: repeat each T, u: U) where repeat each T: P {
 }
 
 func sameElement<each T, U>(t: repeat each T, u: U) where repeat each T: P, repeat each T == U {
-  // FIXME
-//  let _: (repeat each T) = (repeat (each t).f(u))
+  let _ = (repeat (each t).f(u))
 }
 
 func forEachEach<each C, U>(c: repeat each C, function: (U) -> Void)
