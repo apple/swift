@@ -1,8 +1,12 @@
-// RUN: %target-swift-frontend -typecheck %s -debug-generic-signatures -disable-availability-checking 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -typecheck %s -debug-generic-signatures -disable-availability-checking -enable-experimental-feature SameElementRequirements 2>&1 | %FileCheck %s
+
+// REQUIRES: asserts
 
 protocol P {
   associatedtype A: P
   associatedtype B
+
+  func f(_ self: Self) -> Self
 }
 
 // CHECK-LABEL: inferSameShape(ts:us:)
@@ -158,3 +162,24 @@ func dependentSameElementConcrete<each C: Collection>(
 func dependentSameElementGeneric<each C: Collection, Element>(
   _: repeat each C
 ) where repeat (each C).Element == Element {}
+
+// FIXME: Either 'repeat each T: P' or 'U: P' should be redundant.
+// CHECK-LABEL: sameElementRedundantConformance
+// CHECK-NEXT: Generic signature: <each T, U where repeat each T : P, U : P, repeat U == each T>
+func sameElementRedundantConformance<each T, U>(
+  t: repeat each T,
+  u: U
+) where repeat each T: P,
+        repeat each T == U {
+  let _ = (repeat (each t).f(u))
+}
+
+// CHECK-LABEL: forEachEach
+// CHECK-NEXT: Generic signature: <each C, U where repeat each C : Collection, repeat U == (each C).[Sequence]Element>
+func forEachEach<each C, U>(
+  c: repeat each C,
+  function: (U) -> Void
+) where repeat each C: Collection,
+        repeat (each C).Element == U {
+  repeat (each c).forEach(function)
+}

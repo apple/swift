@@ -136,6 +136,7 @@ EXPERIMENTAL_FEATURE(FlowSensitiveConcurrencyCaptures, false)
 EXPERIMENTAL_FEATURE(CodeItemMacros, false)
 EXPERIMENTAL_FEATURE(BodyMacros, true)
 EXPERIMENTAL_FEATURE(TupleConformances, false)
+EXPERIMENTAL_FEATURE(SameElementRequirements, false)
 
 // Whether to enable @_used and @_section attributes
 EXPERIMENTAL_FEATURE(SymbolLinkageMarkers, true)
