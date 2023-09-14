@@ -314,7 +314,7 @@ bb0:
   store %3 to %1 : $*Int64
   %5 = function_ref @$testbeginapplybas : $@yield_once @convention(thin) (@guaranteed { var Int64 }) -> @yields ()
   (%addr, %token) = begin_apply %5(%0) : $@yield_once @convention(thin) (@guaranteed { var Int64 }) -> @yields ()
-  end_apply %token
+  end_apply %token as $()
   strong_release %0 : ${ var Int64 }
   %8 = tuple ()
   return %8 : $()

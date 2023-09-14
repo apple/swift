@@ -923,7 +923,7 @@ entry(%instance : @owned $C, %input : $S):
     %modify_s = function_ref @modify_s : $@yield_once @convention(thin) () -> @yields @inout S
     (%addr, %continuation) = begin_apply %modify_s() : $@yield_once @convention(thin) () -> @yields @inout S
     store %input to [trivial] %addr : $*S
-    end_apply %continuation
+    end_apply %continuation as $()
     end_borrow %lifetime : $C
     destroy_value %instance : $C
     %retval = tuple ()
@@ -952,7 +952,7 @@ entry(%instance : @owned $C, %input : $S):
     try_apply %failable() : $@convention(thin) () -> @error Error, normal success, error failure
 success(%retval : $()):
     store %input to [trivial] %addr : $*S
-    end_apply %continuation
+    end_apply %continuation as $()
     end_borrow %lifetime : $C
     destroy_value %instance : $C
     return %retval : $()

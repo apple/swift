@@ -234,7 +234,7 @@ bb0(%0 : $*S, %1 : $Int):
   %f = function_ref @coro : $@yield_once @convention(thin) (@in S) -> @yields @inout Int
   (%i, %t) = begin_apply %f(%0) : $@yield_once @convention(thin) (@in S) -> @yields @inout Int
   store %1 to [trivial] %i : $*Int
-  end_apply %t
+  end_apply %t as $()
   br bb1
 bb1:
   destroy_addr %0 : $*S

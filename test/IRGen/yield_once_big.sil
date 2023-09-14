@@ -72,20 +72,24 @@ resume:
   %2000 = integer_literal $Builtin.Int32, 2000
   apply %marker(%2000) : $@convention(thin) (Builtin.Int32) -> ()
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
-  // CHECK-NEXT:    br label %coro.end
+  // CHECK-NEXT:    br label %coro.end.normal
   %ret = tuple ()
   return %ret : $()
+
+  // CHECK:       coro.end.normal:
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token none)
+  // CHECK-NEXT:    unreachable
 
 unwind:
   // CHECK:         call swiftcc void @marker(i32 3000)
   %3000 = integer_literal $Builtin.Int32, 3000
   apply %marker(%3000) : $@convention(thin) (Builtin.Int32) -> ()
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
-  // CHECK-NEXT:    br label %coro.end
+  // CHECK-NEXT:    br label %coro.end.unwind
   unwind
 
-  // CHECK:       coro.end:
-  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false)
+  // CHECK:       coro.end.unwind:
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 true, token none)
   // CHECK-NEXT:    unreachable
 }
 
@@ -139,7 +143,7 @@ yes:
   // CHECK-64-ptrauth-NEXT: ptrauth.blend
   // CHECK:    call swiftcc void [[CONTINUATION]](ptr noalias dereferenceable([[BUFFER_SIZE]]) [[BUFFER]], i1 false)
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 [[BUFFER_SIZE]], ptr [[BUFFER]])
-  end_apply %token
+  end_apply %token as $()
 
   // CHECK-NEXT:    br label
   br cont
@@ -219,9 +223,13 @@ resume:
   %2000 = integer_literal $Builtin.Int32, 2000
   apply %marker(%2000) : $@convention(thin) (Builtin.Int32) -> ()
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
-  // CHECK-NEXT:    br label %coro.end
+  // CHECK-NEXT:    br label %coro.end.normal
   %ret = tuple ()
   return %ret : $()
+
+  // CHECK:       coro.end.normal:
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token none)
+  // CHECK-NEXT:    unreachable
 
 unwind:
   end_borrow %value : $BigWrapper<C>
@@ -229,10 +237,10 @@ unwind:
   %3000 = integer_literal $Builtin.Int32, 3000
   apply %marker(%3000) : $@convention(thin) (Builtin.Int32) -> ()
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
-  // CHECK-NEXT:    br label %coro.end
+  // CHECK-NEXT:    br label %coro.end.unwind
   unwind
 
-  // CHECK:       coro.end:
-  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false)
+  // CHECK:       coro.end.unwind:
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 true, token none)
   // CHECK-NEXT:    unreachable
 }

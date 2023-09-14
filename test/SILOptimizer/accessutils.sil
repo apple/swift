@@ -358,7 +358,7 @@ bb0:
   (%1, %2, %3) = begin_apply %0() : $@yield_once @convention(thin) () -> (@yields @in_guaranteed String, @yields @in_guaranteed Int64)
   %4 = load %1 : $*String
   %5 = load %2 : $*Int64
-  end_apply %3
+  end_apply %3 as $()
   %7 = tuple ()
   return %7 : $()
 }
@@ -409,9 +409,9 @@ bb0(%inoutArg : $*Int64, %aliasableArg1 : $*Int64, %aliasableArg2 : $*Int64, %3 
 
   %50 = function_ref @coro : $@yield_once @convention(thin) () -> @yields @inout Int64
   (%yield1, %52) = begin_apply %50() : $@yield_once @convention(thin) () -> @yields @inout Int64
-  end_apply %52
+  end_apply %52 as $()
   (%yield2, %55) = begin_apply %50() : $@yield_once @convention(thin) () -> @yields @inout Int64
-  end_apply %55
+  end_apply %55 as $()
 
   %isDistinct = function_ref @_isDistinct : $@convention(thin) <τ_0_0, τ_0_1> (@inout τ_0_0, @inout τ_0_1) -> ()
   %isNotDistinct = function_ref @_isNotDistinct : $@convention(thin) <τ_0_0, τ_0_1> (@inout τ_0_0, @inout τ_0_1) -> ()

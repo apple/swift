@@ -656,9 +656,6 @@ namespace {
 }
 
 void SignatureExpansion::expandCoroutineResult(bool forContinuation) {
-  assert(FnType->getNumResults() == 0 &&
-         "having both normal and yield results is currently unsupported");
-
   // The return type may be different for the ramp function vs. the
   // continuations.
   if (forContinuation) {
@@ -666,14 +663,27 @@ void SignatureExpansion::expandCoroutineResult(bool forContinuation) {
     case SILCoroutineKind::None:
       llvm_unreachable("should have been filtered out before here");
 
-    // Yield-once coroutines just return void from the continuation.
-    case SILCoroutineKind::YieldOnce:
-      ResultIRType = IGM.VoidTy;
+    // Yield-once coroutines may optionaly return a value from the continuation.
+    case SILCoroutineKind::YieldOnce: {
+      auto fnConv = getSILFuncConventions();
+
+      assert(fnConv.getNumIndirectSILResults() == 0);
+      // Ensure that no parameters were added before to correctly record their ABI
+      // details.
+      assert(ParamIRTypes.empty());
+
+      // Expand the direct result.
+      const TypeInfo *directResultTypeInfo;
+      std::tie(ResultIRType, directResultTypeInfo) = expandDirectResult();
+
       return;
+    }
 
     // Yield-many coroutines yield the same types from the continuation
     // as they do from the ramp function.
     case SILCoroutineKind::YieldMany:
+      assert(FnType->getNumResults() == 0 &&
+             "having both normal and yield results is currently unsupported");
       break;
     }
   }
@@ -5812,6 +5822,53 @@ void irgen::emitAsyncReturn(IRGenFunction &IGF, AsyncContextLayout &asyncLayout,
     nativeResults = nativeResultsStorage;
   }
   emitAsyncReturn(IGF, asyncLayout, fnType, nativeResults);
+}
+
+void irgen::emitYieldOnceCoroutineResult(IRGenFunction &IGF, Explosion &result,
+                                         SILType funcResultType, SILType returnResultType) {
+  auto &Builder = IGF.Builder;
+  auto &IGM = IGF.IGM;
+
+  // Create coroutine exit block and branch to it.
+  auto coroEndBB = IGF.createBasicBlock("coro.end.normal");
+  IGF.setCoroutineExitBlock(coroEndBB);
+  Builder.CreateBr(coroEndBB);
+
+  // Emit the block.
+  Builder.emitBlock(coroEndBB);
+  auto handle = IGF.getCoroutineHandle();
+
+  llvm::Value *resultToken = nullptr;
+  if (result.empty()) {
+    assert(IGM.getTypeInfo(returnResultType)
+               .nativeReturnValueSchema(IGM)
+               .empty() &&
+           "Empty explosion must match the native calling convention");
+    // No results: just use none token
+    resultToken = llvm::ConstantTokenNone::get(Builder.getContext());
+  } else {
+    // Capture results via `coro_end_results` intrinsic
+    result = IGF.coerceValueTo(returnResultType, result, funcResultType);
+    auto &nativeSchema =
+      IGM.getTypeInfo(funcResultType).nativeReturnValueSchema(IGM);
+    assert(!nativeSchema.requiresIndirect());
+
+    Explosion native = nativeSchema.mapIntoNative(IGM, IGF, result,
+                                                  funcResultType,
+                                                  false /* isOutlined */);
+    SmallVector<llvm::Value *, 1> args;
+    for (unsigned i = 0, e = native.size(); i != e; ++i)
+      args.push_back(native.claimNext());
+
+    resultToken =
+      Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, args);
+  }
+
+  Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
+                              {handle,
+                               /*is unwind*/ Builder.getFalse(),
+                               resultToken});
+  Builder.CreateUnreachable();
 }
 
 FunctionPointer

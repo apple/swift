@@ -332,7 +332,7 @@ bb0(%0 : $Builtin.Word):
   %bridge = ref_to_bridge_object %c : $C, %0 : $Builtin.Word
   cond_br undef, bb1, bb2
 bb1:
-  end_apply %t
+  end_apply %t as $()
   %r = tuple ()
   return %r : $()
 bb2:

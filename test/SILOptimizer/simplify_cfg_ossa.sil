@@ -1696,7 +1696,7 @@ bb4:
 bb5:
   br bb6
 bb6:
-  end_apply %token
+  end_apply %token as $()
   %rv = tuple ()
   return %rv : $()
 }

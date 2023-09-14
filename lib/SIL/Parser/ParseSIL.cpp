@@ -2621,8 +2621,7 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
     if (parseCallInstruction(InstLoc, Opcode, B, ResultVal))
       return true;
     break;
-  case SILInstructionKind::AbortApplyInst:
-  case SILInstructionKind::EndApplyInst: {
+  case SILInstructionKind::AbortApplyInst: {
     UnresolvedValueName argName;
     if (parseValueName(argName))
       return true;
@@ -2632,12 +2631,31 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
 
     SILType expectedTy = SILType::getSILTokenType(P.Context);
     SILValue op = getLocalValue(argName, expectedTy, InstLoc, B);
+    ResultVal = B.createAbortApply(InstLoc, op);
+    break;
+  }
+  case SILInstructionKind::EndApplyInst: {
+    UnresolvedValueName argName;
+    if (parseValueName(argName))
+      return true;
 
-    if (Opcode == SILInstructionKind::AbortApplyInst) {
-      ResultVal = B.createAbortApply(InstLoc, op);
-    } else {
-      ResultVal = B.createEndApply(InstLoc, op);
+    if (P.Tok.getKind() != tok::kw_as) {
+      P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "as");
+      return true;
     }
+    P.consumeToken(tok::kw_as);
+
+    SILType ResultTy;
+    if (parseSILType(ResultTy))
+      return true;
+
+    if (parseSILDebugLocation(InstLoc, B))
+      return true;
+
+    SILType expectedTy = SILType::getSILTokenType(P.Context);
+    SILValue op = getLocalValue(argName, expectedTy, InstLoc, B);
+
+    ResultVal = B.createEndApply(InstLoc, op, ResultTy);
     break;
   }
   case SILInstructionKind::IntegerLiteralInst: {

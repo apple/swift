@@ -77,7 +77,7 @@ sil @test_generic_return : $@convention(thin) <T : F> (@guaranteed T) -> ()  {
 bb0(%0 : $T):
   %1 = function_ref @generic_return : $@convention(thin) @yield_once <T : F> (@guaranteed T) -> (@yields @guaranteed T)
   (%value, %token) = begin_apply %1<T>(%0) : $@convention(thin) @yield_once <T : F> (@guaranteed T) -> (@yields @guaranteed T)
-  end_apply %token
+  end_apply %token as $()
   %ret = tuple ()
   return %ret : $()
 }

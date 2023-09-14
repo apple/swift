@@ -106,7 +106,7 @@ sil [ossa] @test_hop_to_executor : $@convention(thin) () -> () {
   (%a, %token) = begin_apply %borrowA() : $@yield_once @convention(thin) () -> @yields @guaranteed A
   specify_test "is-deinit-barrier @instruction"
   hop_to_executor %a : $A
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }

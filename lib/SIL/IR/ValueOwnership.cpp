@@ -373,6 +373,33 @@ ValueOwnershipKind ValueOwnershipKindClassifier::visitApplyInst(ApplyInst *ai) {
   return mergedOwnershipKind;
 }
 
+ValueOwnershipKind ValueOwnershipKindClassifier::visitEndApplyInst(EndApplyInst *eai) {
+  auto *bai = eai->getBeginApply();
+  auto *f = bai->getFunction();
+  bool isTrivial = eai->getType().isTrivial(*f);
+  // Quick is trivial check.
+  if (isTrivial)
+    return OwnershipKind::None;
+
+  SILFunctionConventions fnConv(bai->getSubstCalleeType(), f->getModule());
+  auto results = fnConv.getDirectSILResults();
+  // No results => None.
+  if (results.empty())
+    return OwnershipKind::None;
+
+  // Otherwise, map our results to their ownership kinds and then merge them!
+  auto resultOwnershipKinds =
+      makeTransformRange(results, [&](const SILResultInfo &info) {
+        return info.getOwnershipKind(*f, bai->getSubstCalleeType());
+      });
+  auto mergedOwnershipKind = ValueOwnershipKind::merge(resultOwnershipKinds);
+  if (!mergedOwnershipKind) {
+    llvm_unreachable("Forwarding inst with mismatching ownership kinds?!");
+  }
+
+  return mergedOwnershipKind;
+}
+
 ValueOwnershipKind ValueOwnershipKindClassifier::visitLoadInst(LoadInst *LI) {
   switch (LI->getOwnershipQualifier()) {
   case LoadOwnershipQualifier::Take:

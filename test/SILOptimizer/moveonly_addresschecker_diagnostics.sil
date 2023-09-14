@@ -408,7 +408,7 @@ bb0(%0 : @owned $NonTrivialStruct):
   (%9, %10) = begin_apply %8(%6) : $@yield_once @convention(thin) (@guaranteed @callee_guaranteed () -> ()) -> @yields ()
   %11 = load [copy] %2 : $*NonTrivialStruct // expected-note {{consumed here}}
   %12 = apply %7(%11) : $@convention(thin) (@owned NonTrivialStruct) -> ()
-  end_apply %10 // expected-note {{used here}}
+  end_apply %10 as $() // expected-note {{used here}}
   destroy_value %6 : $@callee_guaranteed () -> ()
   destroy_addr %2 : $*NonTrivialStruct
   dealloc_stack %1 : $*NonTrivialStruct
@@ -496,7 +496,7 @@ bb1:
 bb2:
   %16 = load [copy] %2 : $*NonTrivialStruct // expected-note {{consumed here}}
   %17 = apply %7(%16) : $@convention(thin) (@owned NonTrivialStruct) -> ()
-  end_apply %10 // expected-note {{used here}}
+  end_apply %10 as $() // expected-note {{used here}}
   br bb3
 
 bb3:

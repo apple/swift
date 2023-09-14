@@ -1585,7 +1585,7 @@ sil hidden [ossa] @testBeginApply1DeadYield : $@convention(thin) <T> (@guarantee
 bb0(%0 : @guaranteed $TestGeneric<T>):
   %2 = class_method %0 : $TestGeneric<T>, #TestGeneric.borrowedGeneric!read : <T> (TestGeneric<T>) -> () -> (), $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
   (%3, %4) = begin_apply %2<T>(%0) : $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
-  end_apply %4
+  end_apply %4 as $()
   %10 = tuple ()
   return %10 : $()
 }
@@ -1596,7 +1596,7 @@ bb0(%0 : @guaranteed $TestGeneric<T>):
 // CHECK:   [[METH:%.*]] = class_method %0 : $TestGeneric<Klass>, #TestGeneric.borrowedGeneric!read : <T> (TestGeneric<T>) -> () -> (), $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
 // CHECK:   ([[Y:%.*]], [[TOK:%.*]]) = begin_apply [[METH]]<Klass>(%0) : $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
 // CHECK:   copy_addr [[Y]] to [init] [[STK]] : $*Klass
-// CHECK:   end_apply [[TOK]]
+// CHECK:   end_apply [[TOK]] as $()
 // CHECK:   destroy_addr [[STK]] : $*Klass
 // CHECK-LABEL: }
 sil hidden [ossa] @testBeginApply2LoadableYieldWithIndirectConv : $@convention(thin) <Klass> (@guaranteed TestGeneric<Klass>) -> () {
@@ -1604,7 +1604,7 @@ bb0(%0 : @guaranteed $TestGeneric<Klass>):
   %2 = class_method %0 : $TestGeneric<Klass>, #TestGeneric.borrowedGeneric!read : <Klass> (TestGeneric<Klass>) -> () -> (), $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
   (%3, %4) = begin_apply %2<Klass>(%0) : $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
   %5 = copy_value %3 : $Klass
-  end_apply %4
+  end_apply %4 as $()
   destroy_value %5 : $Klass
   %10 = tuple ()
   return %10 : $()
@@ -1616,7 +1616,7 @@ bb0(%0 : @guaranteed $TestGeneric<Klass>):
 // CHECK:   [[M:%.*]] = class_method %0 : $TestGeneric<T>, #TestGeneric.borrowedGeneric!read : <T> (TestGeneric<T>) -> () -> (), $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
 // CHECK:   ([[Y:%.*]], [[TOK:%.*]]) = begin_apply %2<T>(%0) : $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
 // CHECK:   copy_addr [[Y]] to [init] [[STK]] : $*T
-// CHECK:   end_apply [[TOK]]
+// CHECK:   end_apply [[TOK]] as $()
 // CHECK:   destroy_addr [[STK]] : $*T
 // CHECK-LABEL: } // end sil function 'testBeginApply3OpaqueYield'
 sil hidden [ossa] @testBeginApply3OpaqueYield : $@convention(thin) <T> (@guaranteed TestGeneric<T>) -> () {
@@ -1624,7 +1624,7 @@ bb0(%0 : @guaranteed $TestGeneric<T>):
   %2 = class_method %0 : $TestGeneric<T>, #TestGeneric.borrowedGeneric!read : <T> (TestGeneric<T>) -> () -> (), $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
   (%3, %4) = begin_apply %2<T>(%0) : $@yield_once @convention(method) <τ_0_0> (@guaranteed TestGeneric<τ_0_0>) -> @yields @in_guaranteed τ_0_0
   %5 = copy_value %3 : $T
-  end_apply %4
+  end_apply %4 as $()
   destroy_value %5 : $T
   %10 = tuple ()
   return %10 : $()
@@ -1639,7 +1639,7 @@ sil [ossa] @testBeginApply4YieldLoadableTrivial : $@convention(thin) () -> I {
 entry:
   (%instance, %token) = begin_apply undef<LoadableTrivialExtractable>() : $@yield_once @convention(thin) <U> () -> @yields @in_guaranteed U
   %extract = struct_extract %instance : $LoadableTrivialExtractable, #LoadableTrivialExtractable.i
-  end_apply %token
+  end_apply %token as $()
   return %extract : $I
 }
 
@@ -1655,7 +1655,7 @@ entry:
   (%instance_1, %instance_2, %token) = begin_apply undef<LoadableTrivialExtractable>() : $@yield_once @convention(thin) <U> () -> (@yields @in_guaranteed U, @yields @in_guaranteed U)
   %i_1 = struct_extract %instance_1 : $LoadableTrivialExtractable, #LoadableTrivialExtractable.i
   %i_2 = struct_extract %instance_2 : $LoadableTrivialExtractable, #LoadableTrivialExtractable.i
-  end_apply %token
+  end_apply %token as $()
   %tuple = tuple (%i_1 : $I, %i_2 : $I)
   return %tuple : $(I, I)
 }
@@ -1673,7 +1673,7 @@ entry:
   (%instance_1, %instance_2, %token) = begin_apply undef<LoadableTrivialExtractable, T>() : $@yield_once @convention(thin) <U, T> () -> (@yields @in_guaranteed U, @yields @in_guaranteed T)
   %copy = copy_value %instance_2 : $T
   %i = struct_extract %instance_1 : $LoadableTrivialExtractable, #LoadableTrivialExtractable.i
-  end_apply %token
+  end_apply %token as $()
   %tuple = tuple (%i : $I, %copy : $T)
   return %tuple : $(I, T)
 }
@@ -1688,7 +1688,7 @@ entry:
   (%instance, %token) = begin_apply undef<LoadableNontrivial>() : $@yield_once @convention(thin) <U> () -> @yields @in_guaranteed U
   %extract = struct_extract %instance : $LoadableNontrivial, #LoadableNontrivial.x
   %retval = copy_value %extract : $Klass
-  end_apply %token
+  end_apply %token as $()
   return %retval : $Klass
 }
 
@@ -1708,7 +1708,7 @@ entry:
   %extract_2 = struct_extract %instance_2 : $LoadableNontrivial, #LoadableNontrivial.x
   %copy_1 = copy_value %extract_1 : $Klass
   %copy_2 = copy_value %extract_2 : $Klass
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple (%copy_1 : $Klass, %copy_2 : $Klass)
   return %retval : $(Klass, Klass)
 }
@@ -1727,7 +1727,7 @@ entry:
   %extract_1 = struct_extract %instance_1 : $LoadableNontrivial, #LoadableNontrivial.x
   %copy_1 = copy_value %extract_1 : $Klass
   %copy_2 = copy_value %instance_2 : $T
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple (%copy_1 : $Klass, %copy_2 : $T)
   return %retval : $(Klass, T)
 }
@@ -1742,7 +1742,7 @@ entry:
 sil [ossa] @testBeginApplyAYieldLoadableNontrivialOwned : $@convention(thin) () -> @owned Klass {
 entry:
   (%instance, %token) = begin_apply undef<LoadableNontrivial>() : $@yield_once @convention(thin) <U> () -> @yields @in U
-  end_apply %token
+  end_apply %token as $()
   %borrow = begin_borrow %instance : $LoadableNontrivial
   %extract = struct_extract %borrow : $LoadableNontrivial, #LoadableNontrivial.x
   %retval = copy_value %extract : $Klass
@@ -1761,7 +1761,7 @@ entry:
 sil [ossa] @testBeginApplyBYield2LoadableNontrivialOwned : $@convention(thin) () -> @owned (Klass, Klass) {
 entry:
   (%instance_1, %instance_2, %token) = begin_apply undef<LoadableNontrivial>() : $@yield_once @convention(thin) <U> () -> (@yields @in U, @yields @in U)
-  end_apply %token
+  end_apply %token as $()
   %borrow_1 = begin_borrow %instance_1 : $LoadableNontrivial
   %extract_1 = struct_extract %borrow_1 : $LoadableNontrivial, #LoadableNontrivial.x
   %copy_1 = copy_value %extract_1 : $Klass
@@ -1791,7 +1791,7 @@ entry:
   %copy_1 = copy_value %extract_1 : $Klass
   end_borrow %borrow_1 : $LoadableNontrivial
   destroy_value %instance_1 : $LoadableNontrivial
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple (%copy_1 : $Klass, %instance_2 : $T)
   return %retval : $(Klass, T)
 }
@@ -1802,7 +1802,7 @@ entry:
 sil [ossa] @testBeginApplyDYieldOpaqueInout : $@yield_once @convention(thin) <T> () -> () {
 entry:
   (%addr, %token) = begin_apply undef<T>() : $@yield_once @convention(method) <U> () -> @yields @inout U
-  end_apply %token
+  end_apply %token as $()
   %8 = tuple ()
   return %8 : $()
 }
@@ -1817,7 +1817,7 @@ entry:
   yield %addr : $*T, resume bb1, unwind bb2
 
 bb1:
-  end_apply %token
+  end_apply %token as $()
   %8 = tuple ()
   return %8 : $()
 
@@ -1831,14 +1831,14 @@ bb2:
 // CHECK:         ([[OWNED_INSTANCE:%[^,]+]], [[ADDR:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply
 // CHECK:         destroy_value [[OWNED_INSTANCE]]
 // CHECK:         copy_addr [[ADDR]] to [init] [[OUT_ADDR]]
-// CHECK:         end_apply [[TOKEN]]
+// CHECK:         end_apply [[TOKEN]] as $()
 // CHECK-LABEL: } // end sil function 'testBeginApplyFYieldDirectOwnedAndAddressOnlyGuaranteed'
 sil [ossa] @testBeginApplyFYieldDirectOwnedAndAddressOnlyGuaranteed : $@convention(thin) <T> () -> @out T {
 entry:
   (%klass, %instance, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <T> () -> (@yields @owned Klass, @yields @in_guaranteed T)
   destroy_value %klass : $Klass
   %retval = copy_value %instance : $T
-  end_apply %token
+  end_apply %token as $()
   return %retval : $T
 }
 
@@ -1848,7 +1848,7 @@ entry:
 // CHECK:         [[COPY_STORAGE:%[^,]+]] = alloc_stack $T                             
 // CHECK:         ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply
 // CHECK:         copy_addr [[YIELD_STORAGE]] to [init] [[COPY_STORAGE]]
-// CHECK:         end_apply [[TOKEN]]                                    
+// CHECK:         end_apply [[TOKEN]] as $()
 // CHECK:         apply undef<T>([[COPY_STORAGE]])
 // CHECK:         dealloc_stack [[COPY_STORAGE]]
 // CHECK-LABEL: } // end sil function 'testBeginApplyGCopyConsumeInGuaranteedValue'
@@ -1856,7 +1856,7 @@ sil [ossa] @testBeginApplyGCopyConsumeInGuaranteedValue : $@convention(thin) <T>
 entry:
   (%yield, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <τ_0_0> () -> @yields @in_guaranteed τ_0_0
   %copy = copy_value %yield : $T
-  end_apply %token
+  end_apply %token as $()
   apply undef<T>(%copy) : $@convention(thin) <T> (@in T) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -1868,7 +1868,7 @@ entry:
 // CHECK:         [[COPY_STORAGE:%[^,]+]] = alloc_stack $T
 // CHECK:         ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply
 // CHECK:         copy_addr [[YIELD_STORAGE]] to [init] [[COPY_STORAGE]]
-// CHECK:         end_apply [[TOKEN]]
+// CHECK:         end_apply [[TOKEN]] as $()
 // CHECK:         [[PTR:%[^,]+]] = apply undef
 // CHECK:         [[ADDR:%[^,]+]] = pointer_to_address [[PTR:%[^,]+]]
 // CHECK:         copy_addr [take] [[COPY_STORAGE]] to [[ADDR]]
@@ -1877,7 +1877,7 @@ sil [ossa] @testBeginApplyH1CopyStoreInGuaranteedValue : $@convention(thin) <T> 
 entry:
   (%yield, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <τ_0_0> () -> @yields @in_guaranteed τ_0_0
   %copy = copy_value %yield : $T
-  end_apply %token
+  end_apply %token as $()
   %ptr = apply undef<T>() : $@convention(method) <τ_0_0> () -> Builtin.RawPointer
   %addr = pointer_to_address %ptr : $Builtin.RawPointer to [strict] $*T
   store %copy to [assign] %addr : $*T
@@ -1892,7 +1892,7 @@ entry:
 // CHECK:         [[COPY_STORAGE:%[^,]+]] = alloc_stack $T
 // CHECK:         ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply undef
 // CHECK:         copy_addr [[YIELD_STORAGE]] to [init] [[COPY_STORAGE]] : $*T
-// CHECK:         end_apply [[TOKEN]]
+// CHECK:         end_apply [[TOKEN]] as $()
 // CHECK:         [[PTR:%[^,]+]] = apply undef
 // CHECK:         [[ADDR:%[^,]+]] = pointer_to_address [[PTR]]
 // CHECK:         copy_addr [take] [[COPY_STORAGE]] to [[ADDR]]
@@ -1904,7 +1904,7 @@ entry:
   apply undef<T>(%borrow) : $@convention(thin) <τ> (@in_guaranteed τ) -> ()
   %copy = copy_value %borrow : $T
   end_borrow %borrow : $T
-  end_apply %token
+  end_apply %token as $()
   %ptr = apply undef<T>() : $@convention(method) <τ_0_0> () -> Builtin.RawPointer
   %addr = pointer_to_address %ptr : $Builtin.RawPointer to [strict] $*T
   store %copy to [assign] %addr : $*T
@@ -1917,13 +1917,13 @@ entry:
 //   [[IN_STORAGE:%[^,]+]] = alloc_stack $T
 //   ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply undef<T>()
 //   copy_addr [take] [[YIELD_STORAGE]] to [init] [[IN_STORAGE]]
-//   end_apply [[TOKEN]]
+//   end_apply [[TOKEN]] as $()
 //   apply undef<T>([[IN_STORAGE]])
 // } // end sil function 'testBeginApplyIConsumeInValue'
 sil [ossa] @testBeginApplyIConsumeInValue : $@convention(thin) <T> () -> () {
 entry:
   (%yield, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <τ_0_0> () -> @yields @in τ_0_0
-  end_apply %token
+  end_apply %token as $()
   apply undef<T>(%yield) : $@convention(thin) <T> (@in T) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -1933,7 +1933,7 @@ entry:
 //   [[IN_STORAGE:%[^,]+]] = alloc_stack $T
 //   ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply
 //   copy_addr [take] [[YIELD_STORAGE]] to [init] [[IN_STORAGE]]
-//   end_apply [[TOKEN]]
+//   end_apply [[TOKEN]] as $()
 //   [[PTR:%[^,]+]] = apply
 //   [[ADDR:%[^,]+]] = pointer_to_address [[PTR:%[^,]+]]
 //   copy_addr [take] [[IN_STORAGE]] to [[ADDR]]
@@ -1941,7 +1941,7 @@ entry:
 sil [ossa] @testBeginApplyJStoreInValue : $@convention(thin) <T> () -> () {
 entry:
   (%yield, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <τ_0_0> () -> @yields @in τ_0_0
-  end_apply %token
+  end_apply %token as $()
   %ptr = apply undef<T>() : $@convention(method) <τ_0_0> () -> Builtin.RawPointer
   %addr = pointer_to_address %ptr : $Builtin.RawPointer to [strict] $*T
   store %yield to [assign] %addr : $*T
@@ -1954,13 +1954,13 @@ entry:
 //   [[IN_CONSTANT_STORAGE:%[^,]+]] = alloc_stack $T
 //   ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply undef<T>()
 //   copy_addr [take] [[YIELD_STORAGE]] to [init] [[IN_CONSTANT_STORAGE]]
-//   end_apply [[TOKEN]]
+//   end_apply [[TOKEN]] as $()
 //   apply undef<T>([[IN_CONSTANT_STORAGE]])
 // } // end sil function 'testBeginApplyKConsumeInConstantValue'
 sil [ossa] @testBeginApplyKConsumeInConstantValue : $@convention(thin) <T> () -> () {
 entry:
   (%yield, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <τ_0_0> () -> @yields @in_constant τ_0_0
-  end_apply %token
+  end_apply %token as $()
   apply undef<T>(%yield) : $@convention(thin) <T> (@in_constant T) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -1970,7 +1970,7 @@ entry:
 //   [[IN_CONSTANT_STORAGE:%[^,]+]] = alloc_stack $T
 //   ([[YIELD_STORAGE:%[^,]+]], [[TOKEN:%[^,]+]]) = begin_apply
 //   copy_addr [take] [[YIELD_STORAGE]] to [init] [[IN_CONSTANT_STORAGE]]
-//   end_apply [[TOKEN]]
+//   end_apply [[TOKEN]] as $()
 //   [[PTR:%[^,]+]] = apply
 //   [[ADDR:%[^,]+]] = pointer_to_address [[PTR:%[^,]+]]
 //   copy_addr [take] [[IN_CONSTANT_STORAGE]] to [[ADDR]]
@@ -1978,7 +1978,7 @@ entry:
 sil [ossa] @testBeginApplyLStoreInConstantValue : $@convention(thin) <T> () -> () {
 entry:
   (%yield, %token) = begin_apply undef<T>() : $@yield_once @convention(thin) <τ_0_0> () -> @yields @in_constant τ_0_0
-  end_apply %token
+  end_apply %token as $()
   %ptr = apply undef<T>() : $@convention(method) <τ_0_0> () -> Builtin.RawPointer
   %addr = pointer_to_address %ptr : $Builtin.RawPointer to [strict] $*T
   store %yield to [assign] %addr : $*T
@@ -3070,7 +3070,7 @@ entry:
   yield %instance : $AnyObject, resume resumebb, unwind unwindbb
 
 resumebb:
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 
@@ -3311,7 +3311,7 @@ entry:
   yield (%instance_1 : $AnyObject, %instance_2 : $T), resume resumebb, unwind unwindbb
 
 resumebb:
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 
@@ -3336,7 +3336,7 @@ bb0:
   yield %3 : $LoadableNontrivialGeneric<T>, resume bb1, unwind bb2
 
 bb1:
-  end_apply %4
+  end_apply %4 as $()
   %7 = tuple ()
   return %7 : $()
 

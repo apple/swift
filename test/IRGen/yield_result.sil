@@ -1,0 +1,52 @@
+// RUN: %target-swift-frontend -emit-irgen %s | %FileCheck %s
+
+import Builtin
+
+sil @marker : $(Builtin.Int64) -> ()
+
+sil @coro_ret : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64)
+sil @coro_ret_pair : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64, Builtin.Int64)
+
+// CHECK-LABEL: test_coro_ret
+sil @test_coro_ret : $() -> (Builtin.Int64, Builtin.Int64, Builtin.Int64) {
+entry:
+  %marker = function_ref @marker : $@convention(thin) (Builtin.Int64) -> ()
+
+  %coro1 = function_ref @coro_ret : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64)
+  (%first, %token1) = begin_apply %coro1() : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64)
+
+// CHECK: [[T0:%.*]] = alloca {{\[}}[[BUFFER_SIZE1:.*]] x i8
+// CHECK: [[T1:%.*]] = alloca {{\[}}[[BUFFER_SIZE2:.*]] x i8
+// CHECK: [[BUFFER1:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE1]] x i8], ptr [[T0]], i32 0, i32 0
+// CHECK: [[CORO1:%.*]] = call ptr @llvm.coro.prepare.retcon(ptr @coro_ret)
+// CHECK: [[FRAME1:%.*]] = call swiftcc { ptr, i64 } [[CORO1]](ptr noalias dereferenceable([[BUFFER_SIZE1]]) [[BUFFER1]]
+// CHECK: [[CONT1:%.*]]  = extractvalue { ptr, i64 } [[FRAME1]], 0
+  
+  apply %marker(%first) : $@convention(thin) (Builtin.Int64) -> ()
+
+  %ret = end_apply %token1 as $Builtin.Int64
+
+// CHECK: call swiftcc i64 [[CONT1]](ptr noalias dereferenceable([[BUFFER_SIZE1]]) [[BUFFER1]], i1 false)
+  
+  apply %marker(%ret) : $@convention(thin) (Builtin.Int64) -> ()
+
+  %coro2 = function_ref @coro_ret_pair : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64, Builtin.Int64)
+  (%second, %token2) = begin_apply %coro2() : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64, Builtin.Int64)
+
+// CHECK: [[BUFFER2:%.*]] = getelementptr inbounds {{\[}}[[BUFFER_SIZE2]] x i8], ptr [[T1]], i32 0, i32 0
+// CHECK: [[CORO2:%.*]] = call ptr @llvm.coro.prepare.retcon(ptr @coro_ret_pair)
+// CHECK: [[FRAME2:%.*]] = call swiftcc { ptr, i64 } [[CORO2]](ptr noalias dereferenceable([[BUFFER_SIZE2]]) [[BUFFER2]]
+// CHECK: [[CONT2:%.*]]  = extractvalue { ptr, i64 } [[FRAME2]], 0
+
+  %ret2 = end_apply %token2 as $(Builtin.Int64, Builtin.Int64)
+
+// CHECK: call swiftcc { i64, i64 } [[CONT2]](ptr noalias dereferenceable([[BUFFER_SIZE2]]) [[BUFFER2]], i1 false)
+  
+  %ret2_1 = tuple_extract %ret2 : $(Builtin.Int64, Builtin.Int64), 0 
+  %ret2_2 = tuple_extract %ret2 : $(Builtin.Int64, Builtin.Int64), 1
+
+  apply %marker(%second) : $@convention(thin) (Builtin.Int64) -> ()
+
+  %retf = tuple (%ret : $Builtin.Int64, %ret2_1 : $Builtin.Int64, %ret2_2 : $Builtin.Int64)
+  return %retf : $(Builtin.Int64, Builtin.Int64, Builtin.Int64)
+}

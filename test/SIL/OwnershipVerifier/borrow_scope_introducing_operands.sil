@@ -39,7 +39,7 @@ bb0(%0 : @owned $Builtin.NativeObject):
 // CHECK: Found outside of lifetime use?!
 // CHECK: Value: %0 = argument of bb0 : $Builtin.NativeObject
 // CHECK: Consuming User:   destroy_value %0 : $Builtin.NativeObject
-// CHECK: Non Consuming User:   end_apply %2
+// CHECK: Non Consuming User: %4 = end_apply %2 as $()
 // CHECK: Block: bb0
 // CHECK: Error#: 0. End Error in Function: 'destroy_value_before_end_borrow_coroutine'
 //
@@ -49,7 +49,7 @@ bb0(%0 : @owned $Builtin.NativeObject):
   %coro = function_ref @coroutine_callee : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   %token = begin_apply %coro(%0) : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   destroy_value %0 : $Builtin.NativeObject
-  end_apply %token
+  end_apply %token as $()
   %r = tuple ()
   return %r : $()
 }
@@ -94,7 +94,7 @@ bb1:
   br bb3
 
 bb2:
-  end_apply %token
+  end_apply %token as $()
   destroy_value %0 : $Builtin.NativeObject
   br bb3
 
@@ -107,7 +107,7 @@ bb3:
 // CHECK: Found outside of lifetime use?!
 // CHECK: Value: %1 = begin_borrow %0 : $Builtin.NativeObject
 // CHECK: Consuming User:   end_borrow %1 : $Builtin.NativeObject
-// CHECK: Non Consuming User:   end_apply %3
+// CHECK: Non Consuming User: %5 = end_apply %3 as $()
 // CHECK: Block: bb0
 // CHECK: Error#: 0. End Error in Function: 'parent_borrow_scope_end_before_end_borrow_coroutine'
 //
@@ -118,7 +118,7 @@ bb0(%0 : @owned $Builtin.NativeObject):
   %coro = function_ref @coroutine_callee : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   %token = begin_apply %coro(%1) : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   end_borrow %1 : $Builtin.NativeObject
-  end_apply %token
+  end_apply %token as $()
   destroy_value %0 : $Builtin.NativeObject
   %r = tuple ()
   return %r : $()
@@ -167,7 +167,7 @@ bb1:
   br bb3
 
 bb2:
-  end_apply %token
+  end_apply %token as $()
   end_borrow %1 : $Builtin.NativeObject
   br bb3
 

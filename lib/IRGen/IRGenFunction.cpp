@@ -709,7 +709,7 @@ void IRGenFunction::emitAwaitAsyncContinuation(
       // because the continuation result is not available yet. When the
       // continuation is later resumed, the task will get scheduled
       // starting from the suspension point.
-      emitCoroutineOrAsyncExit();
+      emitCoroutineOrAsyncExit(false);
     }
 
     Builder.emitBlock(contBB);

@@ -36,7 +36,7 @@ sil [ossa] @destroy_value_before_end_borrow_coroutine : $@convention(thin) (@own
 bb0(%0 : @owned $Builtin.NativeObject):
   %coro = function_ref @coroutine_callee : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   %token = begin_apply %coro(%0) : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
-  end_apply %token
+  end_apply %token as $()
   destroy_value %0 : $Builtin.NativeObject
   %r = tuple ()
   return %r : $()
@@ -46,7 +46,7 @@ sil [ossa] @destroy_value_before_end_borrow_coroutine_1a : $@convention(thin) (@
 bb0(%0 : @owned $Builtin.NativeObject):
   %coro = function_ref @coroutine_callee : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   %token = begin_apply %coro(%0) : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
-  end_apply %token
+  end_apply %token as $()
   br bb1
 
 bb1:
@@ -90,7 +90,7 @@ bb1:
   br bb3
 
 bb2:
-  end_apply %token
+  end_apply %token as $()
   destroy_value %0 : $Builtin.NativeObject
   br bb3
 
@@ -104,7 +104,7 @@ bb0(%0 : @owned $Builtin.NativeObject):
   %1 = begin_borrow %0 : $Builtin.NativeObject
   %coro = function_ref @coroutine_callee : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   %token = begin_apply %coro(%1) : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
-  end_apply %token
+  end_apply %token as $()
   end_borrow %1 : $Builtin.NativeObject
   destroy_value %0 : $Builtin.NativeObject
   %r = tuple ()
@@ -116,7 +116,7 @@ bb0(%0 : @owned $Builtin.NativeObject):
   %1 = begin_borrow %0 : $Builtin.NativeObject
   %coro = function_ref @coroutine_callee : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
   %token = begin_apply %coro(%1) : $@yield_once @convention(thin) (@guaranteed Builtin.NativeObject) -> ()
-  end_apply %token
+  end_apply %token as $()
   br bb1
 
 bb1:
@@ -167,7 +167,7 @@ bb1:
   br bb3
 
 bb2:
-  end_apply %token
+  end_apply %token as $()
   end_borrow %1 : $Builtin.NativeObject
   destroy_value %0 : $Builtin.NativeObject
   br bb3
