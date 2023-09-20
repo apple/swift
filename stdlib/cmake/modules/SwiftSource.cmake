@@ -914,7 +914,11 @@ function(_compile_swift_files
   # Windows doesn't support long command line paths, of 8191 chars or over. We
   # need to work around this by avoiding long command line arguments. This can
   # be achieved by writing the list of file paths to a file, then reading that
-  # list in the Python script.
+  # list in the Python script. Note that we write the list into a file with a
+  # file name that is a SHA1 hash of its own content, which means we don't need
+  # to specify the list as a dependency on commands that use it (because its
+  # content is immutable) and that also helps avoid unneccessary recompilations
+  # because the list gets a timestamp bump every time a CMake configure happens.
   string(REPLACE ";" "'\n'" source_files_quoted "${source_files}")
   string(SHA1 file_name "'${source_files_quoted}'")
   set(file_path "${CMAKE_CURRENT_BINARY_DIR}/${file_name}.txt")
@@ -950,7 +954,6 @@ function(_compile_swift_files
       OUTPUT ${standard_outputs}
       DEPENDS
         "${line_directive_tool}"
-        "${file_path}"
         ${swift_compiler_tool_dep}
         ${source_files} ${SWIFTFILE_DEPENDS}
         ${swift_ide_test_dependency}
@@ -993,7 +996,6 @@ function(_compile_swift_files
         OUTPUT ${module_outputs}
         DEPENDS
           "${line_directive_tool}"
-          "${file_path}"
           ${swift_compiler_tool_dep}
           ${source_files} ${SWIFTFILE_DEPENDS}
           ${swift_ide_test_dependency}
@@ -1063,7 +1065,6 @@ function(_compile_swift_files
           ${maccatalyst_module_outputs}
         DEPENDS
           "${line_directive_tool}"
-          "${file_path}"
           ${swift_compiler_tool_dep}
           ${source_files}
           ${SWIFTFILE_DEPENDS}
@@ -1093,7 +1094,6 @@ function(_compile_swift_files
         OUTPUT ${sib_outputs}
         DEPENDS
           "${line_directive_tool}"
-          "${file_path}"
           ${swift_compiler_tool_dep}
           ${source_files} ${SWIFTFILE_DEPENDS}
           ${copy_legacy_layouts_dep}
@@ -1113,7 +1113,6 @@ function(_compile_swift_files
         OUTPUT ${sibopt_outputs}
         DEPENDS
           "${line_directive_tool}"
-          "${file_path}"
           ${swift_compiler_tool_dep}
           ${source_files} ${SWIFTFILE_DEPENDS}
           ${copy_legacy_layouts_dep}
@@ -1134,7 +1133,6 @@ function(_compile_swift_files
         OUTPUT ${sibgen_outputs}
         DEPENDS
           "${line_directive_tool}"
-          "${file_path}"
           ${swift_compiler_tool_dep}
           ${source_files} ${SWIFTFILE_DEPENDS}
           ${copy_legacy_layouts_dep}
