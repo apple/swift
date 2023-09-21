@@ -1863,6 +1863,12 @@ ManglingError Remangler::mangleImplPatternSubstitutions(Node *node,
   return MANGLING_ERROR(ManglingError::UnsupportedNodeKind, node);
 }
 
+ManglingError Remangler::mangleImplCoroutineKind(Node *node,
+                                                 unsigned depth) {
+  // handled inline
+  return MANGLING_ERROR(ManglingError::UnsupportedNodeKind, node);
+}
+
 ManglingError Remangler::mangleImplFunctionType(Node *node, unsigned depth) {
   const char *PseudoGeneric = "";
   Node *GenSig = nullptr;
@@ -1956,10 +1962,21 @@ ManglingError Remangler::mangleImplFunctionType(Node *node, unsigned depth) {
         RETURN_IF_ERROR(mangleImplFunctionConvention(Child, depth + 1));
         break;
       }
+      case Node::Kind::ImplCoroutineKind: {
+        char CoroAttr = llvm::StringSwitch<char>(Child->getText())
+                        .Case("yield_once", 'A')
+                        .Case("yield_many", 'G')
+                        .Default(0);
+
+        if (!CoroAttr) {
+          return MANGLING_ERROR(ManglingError::InvalidImplCoroutineKind,
+                                Child);
+        }
+        Buffer << CoroAttr;
+        break;
+      }
       case Node::Kind::ImplFunctionAttribute: {
         char FuncAttr = llvm::StringSwitch<char>(Child->getText())
-                        .Case("@yield_once", 'A')
-                        .Case("@yield_many", 'G')
                         .Case("@Sendable", 'h')
                         .Case("@async", 'H')
                         .Default(0);
