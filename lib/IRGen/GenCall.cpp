@@ -3387,7 +3387,8 @@ void CallEmission::emitYieldsToExplosion(Explosion &out) {
 
       // If it's formally indirect, then we should just add that pointer
       // to the output.
-      if (schema.isFormalIndirect()) {
+      if (schema.isFormalIndirect() ||
+          !isa<LoadableTypeInfo>(schema.getTypeInfo())) {
         out.add(pointer);
         continue;
       }
@@ -4127,6 +4128,12 @@ bool irgen::addNativeArgument(IRGenFunction &IGF,
   }
   auto paramType = IGF.IGM.silConv.getSILType(
       origParamInfo, fnTy, IGF.IGM.getMaximalTypeExpansionContext());
+
+  if (!isa<LoadableTypeInfo>(IGF.getTypeInfo(paramType))) {
+    out.add(in.claimNext());
+    return false;
+  }
+
   auto &ti = cast<LoadableTypeInfo>(IGF.getTypeInfo(paramType));
   auto schema = ti.getSchema();
   auto &nativeSchema = ti.nativeParameterValueSchema(IGF.IGM);
