@@ -90,6 +90,7 @@
 #include "llvm/Support/Debug.h"
 
 #include "BitPatternBuilder.h"
+#include "CallEmission.h"
 #include "Callee.h"
 #include "ConstantBuilder.h"
 #include "EnumPayload.h"
@@ -108,11 +109,11 @@
 #include "HeapTypeInfo.h"
 #include "IRGenDebugInfo.h"
 #include "IRGenFunction.h"
+#include "IRGenMangler.h"
 #include "IRGenModule.h"
 #include "IndirectTypeInfo.h"
 #include "ScalarPairTypeInfo.h"
 #include "Signature.h"
-#include "IRGenMangler.h"
 
 using namespace swift;
 using namespace irgen;
@@ -1117,11 +1118,11 @@ public:
   virtual void addDynamicFunctionContext(Explosion &explosion) = 0;
   virtual void addDynamicFunctionPointer(Explosion &explosion) = 0;
 
-  void addSelf(Explosion &explosion) { addArgument(explosion); }
-  void addWitnessSelfMetadata(llvm::Value *value) {
+  virtual void addSelf(Explosion &explosion) { addArgument(explosion); }
+  virtual void addWitnessSelfMetadata(llvm::Value *value) {
     addArgument(value);
   }
-  void addWitnessSelfWitnessTable(llvm::Value *value) {
+  virtual void addWitnessSelfWitnessTable(llvm::Value *value) {
     addArgument(value);
   }
   virtual void forwardErrorResult() = 0;
@@ -1134,6 +1135,14 @@ public:
   virtual void end(){};
   virtual ~PartialApplicationForwarderEmission() {}
 };
+
+static Size getYieldOnceCoroutineBufferSize(IRGenModule &IGM) {
+  return NumWords_YieldOnceBuffer * IGM.getPointerSize();
+}
+static Alignment getYieldOnceCoroutineBufferAlignment(IRGenModule &IGM) {
+  return IGM.getPointerAlignment();
+}
+
 class SyncPartialApplicationForwarderEmission
     : public PartialApplicationForwarderEmission {
   using super = PartialApplicationForwarderEmission;
@@ -1396,6 +1405,239 @@ public:
     super::end();
   }
 };
+
+class CoroPartialApplicationForwarderEmission
+    : public PartialApplicationForwarderEmission {
+  using super = PartialApplicationForwarderEmission;
+
+private:
+  llvm::Value *Self;
+  llvm::Value *FirstData;
+  llvm::Value *SecondData;
+  WitnessMetadata Witness;
+
+public:
+  CoroPartialApplicationForwarderEmission(
+      IRGenModule &IGM, IRGenFunction &subIGF, llvm::Function *fwd,
+      const std::optional<FunctionPointer> &staticFnPtr, bool calleeHasContext,
+      const Signature &origSig, CanSILFunctionType origType,
+      CanSILFunctionType substType, CanSILFunctionType outType,
+      SubstitutionMap subs, HeapLayout const *layout,
+      ArrayRef<ParameterConvention> conventions)
+      : PartialApplicationForwarderEmission(
+            IGM, subIGF, fwd, staticFnPtr, calleeHasContext, origSig, origType,
+            substType, outType, subs, layout, conventions),
+        Self(nullptr), FirstData(nullptr), SecondData(nullptr) {}
+
+  void begin() override {
+    auto prototype = subIGF.IGM.getOpaquePtr(
+        subIGF.IGM.getAddrOfContinuationPrototype(origType));
+
+    // Use malloc and free as our allocator.
+    auto allocFn = subIGF.IGM.getOpaquePtr(subIGF.IGM.getMallocFn());
+    auto deallocFn = subIGF.IGM.getOpaquePtr(subIGF.IGM.getFreeFn());
+
+    // Call the right 'llvm.coro.id.retcon' variant.
+    llvm::Value *buffer = origParams.claimNext();
+    llvm::Value *id = subIGF.Builder.CreateIntrinsicCall(
+        llvm::Intrinsic::coro_id_retcon_once,
+        {llvm::ConstantInt::get(
+             subIGF.IGM.Int32Ty,
+             getYieldOnceCoroutineBufferSize(subIGF.IGM).getValue()),
+         llvm::ConstantInt::get(
+             subIGF.IGM.Int32Ty,
+             getYieldOnceCoroutineBufferAlignment(subIGF.IGM).getValue()),
+         buffer, prototype, allocFn, deallocFn});
+
+    // Call 'llvm.coro.begin', just for consistency with the normal pattern.
+    // This serves as a handle that we can pass around to other intrinsics.
+    auto hdl = subIGF.Builder.CreateIntrinsicCall(
+        llvm::Intrinsic::coro_begin,
+        {id, llvm::ConstantPointerNull::get(subIGF.IGM.Int8PtrTy)});
+
+    // Set the coroutine handle; this also flags that is a coroutine so that
+    // e.g. dynamic allocas use the right code generation.
+    subIGF.setCoroutineHandle(hdl);
+
+    auto *pt = subIGF.Builder.IRBuilderBase::CreateAlloca(
+        subIGF.IGM.Int1Ty,
+        /*array size*/ nullptr, "earliest insert point");
+    subIGF.setEarliestInsertionPoint(pt);
+  }
+
+  void gatherArgumentsFromApply() override {
+    super::gatherArgumentsFromApply(false);
+  }
+  llvm::Value *getDynamicFunctionPointer() override {
+    llvm::Value *Ret = SecondData;
+    SecondData = nullptr;
+    return Ret;
+  }
+  llvm::Value *getDynamicFunctionContext() override {
+    llvm::Value *Ret = FirstData;
+    FirstData = nullptr;
+    return Ret;
+  }
+  void addDynamicFunctionContext(Explosion &explosion) override {
+    assert(!Self && "context value overrides 'self'");
+    FirstData = explosion.claimNext();
+  }
+  void addDynamicFunctionPointer(Explosion &explosion) override {
+    SecondData = explosion.claimNext();
+  }
+  void addSelf(Explosion &explosion) override {
+    assert(!FirstData && "'self' overrides another context value");
+    if (!hasSelfContextParameter(origType)) {
+      // witness methods can be declared on types that are not classes. Pass
+      // such "self" argument as a plain argument.
+      addArgument(explosion);
+      return;
+    }
+    Self = explosion.claimNext();
+    FirstData = Self;
+  }
+
+  void addWitnessSelfMetadata(llvm::Value *value) override {
+    Witness.SelfMetadata = value;
+  }
+
+  void addWitnessSelfWitnessTable(llvm::Value *value) override {
+    Witness.SelfWitnessTable = value;
+  }
+
+  void forwardErrorResult() override {
+    bool isTypedError = origConv.isTypedError();
+    SILType origErrorTy =
+        origConv.getSILErrorType(subIGF.IGM.getMaximalTypeExpansionContext());
+    auto errorAlignment =
+        isTypedError ? subIGF.IGM.getPointerAlignment()
+                     : cast<FixedTypeInfo>(subIGF.getTypeInfo(origErrorTy))
+                           .getFixedAlignment();
+    auto errorStorageType =
+        isTypedError ? IGM.Int8PtrTy
+                     : cast<FixedTypeInfo>(subIGF.getTypeInfo(origErrorTy))
+                           .getStorageType();
+    llvm::Value *errorResultPtr = origParams.claimNext();
+    subIGF.setCallerErrorResultSlot(
+        Address(errorResultPtr, errorStorageType, errorAlignment));
+  }
+
+  Explosion callCoroutine(FunctionPointer &fnPtr) {
+    Callee callee({origType, substType, subs}, fnPtr, FirstData, SecondData);
+
+    std::unique_ptr<CallEmission> emitSuspend =
+        getCallEmission(subIGF, Self, std::move(callee));
+
+    emitSuspend->begin();
+    emitSuspend->setArgs(args, /*isOutlined=*/false, &Witness);
+    Explosion yieldedValues;
+    emitSuspend->emitToExplosion(yieldedValues, /*isOutlined=*/false);
+    emitSuspend->end();
+    emitSuspend->claimTemporaries().destroyAll(subIGF);
+
+    if (origConv.getSILResultType(subIGF.IGM.getMaximalTypeExpansionContext())
+            .hasTypeParameter()) {
+
+      ArrayRef<llvm::Value *> yieldValues = yieldedValues.claimAll();
+      ArrayRef<llvm::Type *> retTypes =
+          cast<llvm::StructType>(fwd->getReturnType())->elements();
+      Explosion yieldCoerced;
+      assert(yieldValues.size() == retTypes.size() &&
+             "mismatch between return types of the wrapper and the callee");
+      for (unsigned i = 0; i < yieldValues.size(); ++i) {
+        llvm::Value *v = yieldValues[i];
+        if (v->getType() != retTypes[i]) {
+          v = subIGF.coerceValue(v, retTypes[i], subIGF.IGM.DataLayout);
+        }
+        yieldCoerced.add(v);
+      }
+      return yieldCoerced;
+    }
+
+    return yieldedValues;
+  }
+
+  llvm::CallInst *createCall(FunctionPointer &fnPtr) override {
+    /// Call the wrapped coroutine
+    ///
+    Address calleeBuf = emitAllocYieldOnceCoroutineBuffer(subIGF);
+    llvm::Value *calleeHandle = calleeBuf.getAddress();
+    args.insert(0, calleeHandle);
+    Explosion yieldedValues = callCoroutine(fnPtr);
+
+    /// Get the continuation function pointer
+    ///
+    PointerAuthInfo newAuthInfo =
+        fnPtr.getAuthInfo().getCorrespondingCodeAuthInfo();
+    FunctionPointer contFn = FunctionPointer::createSigned(
+        FunctionPointer::Kind::Function, yieldedValues.claimNext(), newAuthInfo,
+        Signature::forCoroutineContinuation(subIGF.IGM, origType));
+
+    /// Forward the remaining yields of the wrapped coroutine
+    ///
+    llvm::Value *condUnwind = emitYield(subIGF, substType, yieldedValues);
+
+    llvm::BasicBlock *unwindBB = subIGF.createBasicBlock("unwind");
+    llvm::BasicBlock *resumeBB = subIGF.createBasicBlock("resume");
+    llvm::BasicBlock *cleanupBB = subIGF.createBasicBlock("cleanup");
+    subIGF.CurFn->insert(subIGF.CurFn->end(), unwindBB);
+    subIGF.CurFn->insert(subIGF.CurFn->end(), resumeBB);
+    subIGF.CurFn->insert(subIGF.CurFn->end(), cleanupBB);
+    subIGF.Builder.CreateCondBr(condUnwind, unwindBB, resumeBB);
+
+    /// Call for the results
+    ///
+    subIGF.Builder.SetInsertPoint(resumeBB);
+
+    auto isResume = llvm::ConstantInt::get(IGM.Int1Ty, /*isAbort*/ false);
+    auto *call = subIGF.Builder.CreateCall(contFn, {calleeHandle, isResume});
+
+    /// Emit coro_end for results and forward them
+    ///
+    llvm::Type *callTy = call->getType();
+    llvm::Value *noneToken =
+        llvm::ConstantTokenNone::get(subIGF.Builder.getContext());
+    llvm::Value *resultToken = nullptr;
+    if (callTy->isVoidTy()) {
+      resultToken = noneToken;
+    } else if (llvm::StructType *sty = dyn_cast<llvm::StructType>(callTy)) {
+      Explosion splitCall;
+      subIGF.emitAllExtractValues(call, sty, splitCall);
+      resultToken = subIGF.Builder.CreateIntrinsicCall(
+          llvm::Intrinsic::coro_end_results, splitCall.claimAll());
+    } else {
+      resultToken = subIGF.Builder.CreateIntrinsicCall(
+          llvm::Intrinsic::coro_end_results, call);
+    }
+
+    llvm::Value *fwdHandle = subIGF.getCoroutineHandle();
+    subIGF.Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
+                                       {fwdHandle, isResume, resultToken});
+    subIGF.Builder.CreateBr(cleanupBB);
+
+    /// Emit coro_end for unwind
+    ///
+    subIGF.Builder.SetInsertPoint(unwindBB);
+    auto isUnwind = llvm::ConstantInt::get(IGM.Int1Ty, /*isAbort*/ true);
+    subIGF.Builder.CreateCall(contFn, {calleeHandle, isUnwind});
+    subIGF.Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
+                                       {fwdHandle, isUnwind, noneToken});
+    subIGF.Builder.CreateBr(cleanupBB);
+
+    subIGF.Builder.SetInsertPoint(cleanupBB);
+    emitDeallocYieldOnceCoroutineBuffer(subIGF, calleeBuf);
+    llvm::Instruction *cleanupPt = subIGF.Builder.CreateUnreachable();
+    subIGF.Builder.SetInsertPoint(cleanupPt);
+
+    return nullptr;
+  }
+
+  void createReturn(llvm::CallInst *call) override {
+    // Do nothing, yield/return/unwind blocks are already created in createCall.
+  }
+  void end() override { super::end(); }
+};
+
 std::unique_ptr<PartialApplicationForwarderEmission>
 getPartialApplicationForwarderEmission(
     IRGenModule &IGM, IRGenFunction &subIGF, llvm::Function *fwd,
@@ -1408,6 +1650,11 @@ getPartialApplicationForwarderEmission(
     return std::make_unique<AsyncPartialApplicationForwarderEmission>(
         IGM, subIGF, fwd, staticFnPtr, calleeHasContext, origSig, origType,
         substType, outType, subs, layout, conventions);
+  } else if (origType->isCoroutine()) {
+    return std::make_unique<CoroPartialApplicationForwarderEmission>(
+        IGM, subIGF, fwd, staticFnPtr, calleeHasContext, origSig, origType,
+        substType, outType, subs, layout, conventions);
+
   } else {
     return std::make_unique<SyncPartialApplicationForwarderEmission>(
         IGM, subIGF, fwd, staticFnPtr, calleeHasContext, origSig, origType,
@@ -1584,8 +1831,6 @@ static llvm::Value *emitPartialApplicationForwarder(
           ti.isSingleSwiftRetainablePointer(ResilienceExpansion::Maximal))
         ref = subIGF.coerceValue(rawData, ti.getStorageType(),
                                  subIGF.IGM.DataLayout);
-      else
-        ref = subIGF.Builder.CreateBitCast(rawData, ti.getStorageType());
       param.add(ref);
       bindPolymorphicParameter(subIGF, origType, substType, param, paramI);
       (void)param.claimAll();
@@ -1659,7 +1904,7 @@ static llvm::Value *emitPartialApplicationForwarder(
     auto argIndex = emission->getCurrentArgumentIndex();
     if (haveContextArgument)
       argIndex += polyArgs.size();
-    if (origType->isAsync())
+    if (origType->isAsync() || origType->isCoroutine())
       argIndex += 1;
 
     llvm::Type *expectedArgTy = origSig.getType()->getParamType(argIndex);
@@ -1684,10 +1929,15 @@ static llvm::Value *emitPartialApplicationForwarder(
     } else {
       argValue = subIGF.Builder.CreateBitCast(rawData, expectedArgTy);
     }
-    emission->addArgument(argValue);
+    if (haveContextArgument) {
+      Explosion e;
+      e.add(argValue);
+      emission->addDynamicFunctionContext(e);
+    } else
+      emission->addArgument(argValue);
 
-  // If there's a data pointer required, grab it and load out the
-  // extra, previously-curried parameters.
+    // If there's a data pointer required, grab it and load out the
+    // extra, previously-curried parameters.
   } else {
     unsigned origParamI = outType->getParameters().size();
     unsigned extraFieldIndex = 0;
@@ -1946,8 +2196,8 @@ static llvm::Value *emitPartialApplicationForwarder(
 
   llvm::CallInst *call = emission->createCall(fnPtr);
 
-  if (!origType->isAsync() && addressesToDeallocate.empty() && !needsAllocas &&
-      (!consumesContext || !dependsOnContextLifetime))
+  if (call && !origType->isAsync() && addressesToDeallocate.empty() &&
+      !needsAllocas && (!consumesContext || !dependsOnContextLifetime))
     call->setTailCall();
 
   // Deallocate everything we allocated above.
@@ -1987,6 +2237,8 @@ std::optional<StackAddress> irgen::emitFunctionPartialApplication(
   SmallVector<SILType, 4> argValTypes;
   SmallVector<ParameterConvention, 4> argConventions;
 
+  GenericContextScope scope(IGF.IGM, origType->getInvocationGenericSignature());
+
   // A context's HeapLayout stores all of the partially applied args.
   // A HeapLayout is "fixed" if all of its fields have a fixed layout.
   // Otherwise the HeapLayout is "non-fixed".
@@ -2004,8 +2256,12 @@ std::optional<StackAddress> irgen::emitFunctionPartialApplication(
         param, origType, IGF.IGM.getMaximalTypeExpansionContext());
     auto argLoweringTy = getArgumentLoweringType(argType.getASTType(), param,
                                                  outType->isNoEscape());
-    auto &ti = IGF.getTypeInfoForLowered(argLoweringTy);
 
+    if (!argLoweringTy->isLegalSILType()) {
+      argLoweringTy = argLoweringTy.subst(subs)->getCanonicalType();
+    }
+
+    auto &ti = IGF.getTypeInfoForLowered(argLoweringTy);
     if (!isa<FixedTypeInfo>(ti)) {
       considerParameterSources = false;
       break;
@@ -2019,12 +2275,19 @@ std::optional<StackAddress> irgen::emitFunctionPartialApplication(
     auto argLoweringTy = getArgumentLoweringType(argType.getASTType(), param,
                                                  outType->isNoEscape());
 
+    if (!argLoweringTy->isLegalSILType()) {
+      argLoweringTy = argLoweringTy.subst(subs)->getCanonicalType();
+    }
+
     auto &ti = IGF.getTypeInfoForLowered(argLoweringTy);
 
     // Empty values don't matter.
     auto schema = ti.getSchema();
     if (schema.empty() && !param.isFormalIndirect())
       return;
+
+    if (argType.hasTypeParameter())
+      argType = argType.subst(IGF.IGM.getSILTypes(), subs);
 
     argValTypes.push_back(argType);
     argConventions.push_back(param.getConvention());
