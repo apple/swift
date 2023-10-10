@@ -5187,7 +5187,7 @@ private:
   /// Pick a disjunction from the InactiveConstraints list.
   ///
   /// \returns The selected disjunction and a set of it's favored choices.
-  Optional<std::pair<Constraint *, llvm::TinyPtrVector<Constraint *>>>
+  llvm::Optional<std::pair<Constraint *, llvm::TinyPtrVector<Constraint *>>>
   selectDisjunction();
 
   /// Pick a conjunction from the InactiveConstraints list.
