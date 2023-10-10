@@ -10964,33 +10964,49 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyMemberConstraint(
       if (result.ViableCandidates.empty() && result.UnviableCandidates.empty())
         return fixMissingMember(origBaseTy, memberTy, locator);
 
-      // The result of the member access can either be the expected member type
-      // (for '!' or optional members with '?'), or the original member type
-      // with one extra level of optionality ('?' with non-optional members).
-      auto innerTV = createTypeVariable(locator,
-                                        TVO_CanBindToLValue |
-                                        TVO_CanBindToNoEscape);
-      Type optTy = TypeChecker::getOptionalType(SourceLoc(), innerTV);
-      assert(!optTy->hasError());
-      SmallVector<Constraint *, 2> optionalities;
-      auto nonoptionalResult = Constraint::createFixed(
-          *this, ConstraintKind::Bind,
-          UnwrapOptionalBase::create(*this, member, baseObjTy, locator),
-          memberTy, innerTV, locator);
-      auto optionalResult = Constraint::createFixed(
-          *this, ConstraintKind::Bind,
-          UnwrapOptionalBase::createWithOptionalResult(*this, member,
-                                                       baseObjTy, locator),
-          optTy, memberTy, locator);
-      optionalities.push_back(nonoptionalResult);
-      optionalities.push_back(optionalResult);
-      addDisjunctionConstraint(optionalities, locator);
+      auto *origBaseTV = origBaseTy->getRValueType()->getAs<TypeVariableType>();
+      if (locator->isForKeyPathComponent() &&
+          origBaseTV->getImpl().getLocator()->isKeyPathRoot()) {
+        // Key path member optionality can be resolved without creating a
+        // disjuction comparing an optional type with its nonoptional result.
+        if (recordFix(
+                UnwrapOptionalBase::create(*this, member, baseObjTy, locator)))
+          return SolutionKind::Error;
 
-      // Look through one level of optional.
-      addValueMemberConstraint(baseObjTy->getOptionalObjectType(), member,
-                               innerTV, useDC, functionRefKind,
-                               outerAlternatives, locator);
-      return SolutionKind::Solved;
+        // Look through one level of optional.
+        addValueMemberConstraint(baseObjTy->getOptionalObjectType(), member,
+                                 memberTy, useDC, functionRefKind,
+                                 outerAlternatives, locator);
+        return SolutionKind::Solved;
+      } else {
+        // The result of the member access can either be the expected member
+        // type (for '!' or optional members with '?'), or the original member
+        // type with one extra level of optionality ('?' with non-optional
+        // members).
+        auto innerTV = createTypeVariable(locator, TVO_CanBindToLValue |
+                                                       TVO_CanBindToNoEscape);
+        Type optTy = TypeChecker::getOptionalType(SourceLoc(), innerTV);
+        assert(!optTy->hasError());
+        SmallVector<Constraint *, 2> optionalities;
+        auto nonoptionalResult = Constraint::createFixed(
+            *this, ConstraintKind::Bind,
+            UnwrapOptionalBase::create(*this, member, baseObjTy, locator),
+            memberTy, innerTV, locator);
+        auto optionalResult = Constraint::createFixed(
+            *this, ConstraintKind::Bind,
+            UnwrapOptionalBase::createWithOptionalResult(*this, member,
+                                                         baseObjTy, locator),
+            optTy, memberTy, locator);
+        optionalities.push_back(nonoptionalResult);
+        optionalities.push_back(optionalResult);
+        addDisjunctionConstraint(optionalities, locator);
+
+        // Look through one level of optional.
+        addValueMemberConstraint(baseObjTy->getOptionalObjectType(), member,
+                                 innerTV, useDC, functionRefKind,
+                                 outerAlternatives, locator);
+        return SolutionKind::Solved;
+      }
     }
 
     auto solveWithNewBaseOrName = [&](Type baseType,
@@ -12316,10 +12332,7 @@ ConstraintSystem::simplifyKeyPathConstraint(
             auto *componentLoc =
                 getConstraintLocator(locator->getAnchor(), path.drop_back());
 
-            if (hasFixFor(componentLoc, FixKind::DefineMemberBasedOnUse) ||
-                hasFixFor(componentLoc, FixKind::UnwrapOptionalBase) ||
-                hasFixFor(componentLoc,
-                          FixKind::UnwrapOptionalBaseWithOptionalResult))
+            if (hasFixFor(componentLoc, FixKind::DefineMemberBasedOnUse))
               return true;
           }
 

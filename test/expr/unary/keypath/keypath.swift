@@ -967,6 +967,7 @@ func testMemberAccessOnOptionalKeyPathComponent() {
   _ = \S1a.b_opt?.c.d
   // expected-error@-1 {{value of optional type 'S1c?' must be unwrapped to refer to member 'd' of wrapped base type 'S1c'}}
   // expected-note@-2 {{chain the optional using '?' to access member 'd' only for non-'nil' base values}} {{20-20=?}}
+  // expected-note@-3 {{force-unwrap using '!' to abort execution if the optional value contains 'nil'}}
 
   _ = \S1a.b.c.d
   // expected-error@-1 {{value of optional type 'S1c?' must be unwrapped to refer to member 'd' of wrapped base type 'S1c'}}
@@ -1067,8 +1068,10 @@ func f_56996() {
 // https://github.com/apple/swift/issues/55805
 // Key-path missing optional crashes compiler: Inactive constraints left over?
 func f_55805() {
-  let _: KeyPath<String?, Int?> = \.utf8.count // expected-error {{value of optional type 'String.UTF8View?' must be unwrapped to refer to member 'count' of wrapped base type 'String.UTF8View'}}
-  // expected-note@-1 {{chain the optional using '?' to access member 'count' only for non-'nil' base values}}
+  let _: KeyPath<String?, Int?> = \.utf8.count // expected-error {{key path value type 'Int' cannot be converted to contextual type 'Int?'}}
+  // expected-error@-1 {{key path root inferred as optional type 'String?' must be unwrapped to refer to member 'utf8' of unwrapped type 'String'}}
+  // expected-note@-2 {{chain the optional using '?.' to access unwrapped type member 'utf8'}}
+  // expected-note@-3 {{unwrap the optional using '!.' to access unwrapped type member 'utf8'}}
 }
 
 // rdar://74711236 - crash due to incorrect member access in key path

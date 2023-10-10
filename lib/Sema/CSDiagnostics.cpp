@@ -1493,10 +1493,10 @@ bool MemberAccessOnOptionalBaseFailure::diagnoseAsError() {
     } else {
       emitDiagnostic(diag::invalid_optional_inferred_keypath_root, baseType,
                      Member, unwrappedBaseType);
-      emitDiagnostic(diag::optional_key_path_root_base_chain, Member)
-          .fixItInsert(sourceRange.End, "?.");
-      emitDiagnostic(diag::optional_key_path_root_base_unwrap, Member)
-          .fixItInsert(sourceRange.End, "!.");
+//      emitDiagnostic(diag::optional_key_path_root_base_chain, Member)
+//          .fixItInsert(sourceRange.End, "?.");
+//      emitDiagnostic(diag::optional_key_path_root_base_unwrap, Member)
+//          .fixItInsert(sourceRange.End, "!.");
     }
   } else {
     // Check whether or not the base of this optional unwrap is implicit self
