@@ -4,9 +4,6 @@ if (SWIFT_BUILD_SWIFT_SYNTAX)
   add_swift_host_library(_swiftCSwiftPluginServer OBJECT
     Sources/CSwiftPluginServer/PluginServer.cpp
   )
-  target_link_libraries(_swiftCSwiftPluginServer PRIVATE
-    swiftDemangling
-  )
   target_include_directories(_swiftCSwiftPluginServer PUBLIC
     Sources/CSwiftPluginServer/include
   )
@@ -14,7 +11,6 @@ if (SWIFT_BUILD_SWIFT_SYNTAX)
   add_pure_swift_host_tool(swift-plugin-server
     Sources/swift-plugin-server/swift-plugin-server.swift
     DEPENDENCIES
-      swiftDemangling
       $<TARGET_OBJECTS:_swiftCSwiftPluginServer>
     SWIFT_COMPONENT
       compiler
