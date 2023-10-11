@@ -329,3 +329,49 @@ enum I60954 {
   }
   init?<S>(_ string: S) where S: StringProtocol {} // expected-note{{where 'S' = 'I60954'}}
 }
+
+infix operator <<<>>> : DefaultPrecedence
+
+protocol P5 {
+}
+
+struct Expr : P6 {}
+
+protocol P6: P5 {
+}
+
+extension P6 {
+  public static func <<<>>> (lhs: Self, rhs: (any P5)?) -> Expr { Expr() }
+  public static func <<<>>> (lhs: (any P5)?, rhs: Self) -> Expr { Expr() }
+  public static func <<<>>> (lhs: Self, rhs: some P6) -> Expr { Expr() }
+
+  public static prefix func ! (value: Self) -> Expr {
+    Expr()
+  }
+}
+
+extension P6 {
+  public static func != (lhs: Self, rhs: some P6) -> Expr {
+    !(lhs <<<>>> rhs) // Ok
+  }
+}
+
+do {
+  struct Value : P6 {
+  }
+
+  struct Column: P6 {
+  }
+
+  func test(col: Column, val: Value) -> Expr {
+    col <<<>>> val // Ok
+  }
+
+  func test(col: Column, val: some P6) -> Expr {
+    col <<<>>> val // Ok
+  }
+
+  func test(col: some P6, val: Value) -> Expr {
+    col <<<>>> val // Ok
+  }
+}

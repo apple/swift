@@ -314,8 +314,14 @@ static void determineBestChoicesInContext(
 
         if (llvm::all_of(protocolRequirements, [&](ProtocolDecl *protocol) {
               return bool(cs.lookupConformance(candidateType, protocol));
-            }))
+            })) {
+          if (auto *GP = paramType->getAs<GenericTypeParamType>()) {
+            auto *paramDecl = GP->getDecl();
+            if (paramDecl && paramDecl->isOpaqueType())
+              return 1.0;
+          }
           return 0.7;
+        }
       }
 
       // Parameter is generic, let's check whether top-level
