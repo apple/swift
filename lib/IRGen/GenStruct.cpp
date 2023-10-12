@@ -1697,8 +1697,8 @@ const TypeInfo *TypeConverter::convertStructType(TypeBase *key, CanType type,
   // be concretized.
   if (IGM.isResilient(D, ResilienceExpansion::Maximal)
       || IGM.getSILTypes().getTypeLowering(SILType::getPrimitiveAddressType(type),
-                                            TypeExpansionContext::minimal())
-            .getRecursiveProperties().isInfinite()) {
+                                           TypeExpansionContext::minimal())
+          .getLayoutInfo().isInfinite()) {
     auto copyable = D->isMoveOnly()
       ? IsNotCopyable : IsCopyable;
     auto structAccessible =

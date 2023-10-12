@@ -171,7 +171,7 @@ CaptureKind TypeConverter::getDeclCaptureKind(CapturedValue capture,
           : CaptureKind::Box);
 }
 
-using RecursiveProperties = TypeLowering::RecursiveProperties;
+using RecursiveProperties = TypeLayoutInfo;
 
 static RecursiveProperties
 classifyType(AbstractionPattern origType, CanType type,
@@ -890,7 +890,7 @@ namespace {
     handleClassificationFromLowering(CanType type, const TypeLowering &lowering,
                                      IsTypeExpansionSensitive_t isSensitive) {
       return handle(type, mergeIsTypeExpansionSensitive(
-                              isSensitive, lowering.getRecursiveProperties()));
+                              isSensitive, lowering.getLayoutInfo()));
     }
   };
 } // end anonymous namespace
@@ -2255,7 +2255,7 @@ namespace {
         auto &eltLowering =
           TC.getTypeLowering(packType->getSILElementType(i),
                              Expansion);
-        properties.addSubobject(eltLowering.getRecursiveProperties());
+        properties.addSubobject(eltLowering.getLayoutInfo());
       }
       properties = mergeIsTypeExpansionSensitive(isSensitive, properties);
 
@@ -2271,7 +2271,7 @@ namespace {
         TC.getTypeLowering(origType.getPackExpansionPatternType(),
                            packExpansionType.getPatternType(),
                            Expansion);
-      properties.addSubobject(patternLowering.getRecursiveProperties());
+      properties.addSubobject(patternLowering.getLayoutInfo());
       properties = mergeIsTypeExpansionSensitive(isSensitive, properties);
 
       return handleAddressOnly(packExpansionType, properties);
@@ -2893,7 +2893,7 @@ void TypeConverter::verifyLowering(const TypeLowering &lowering,
   // Non-trivial lowerings should always be lexical unless all non-trivial
   // fields are eager move.
   if (!lowering.isTrivial() && !lowering.isLexical()) {
-    if (lowering.getRecursiveProperties().isInfinite())
+    if (lowering.getLayoutInfo().isInfinite())
       return;
     auto getLifetimeAnnotation = [](CanType ty) -> LifetimeAnnotation {
       NominalTypeDecl *nominal;
@@ -4623,16 +4623,16 @@ void TypeLowering::print(llvm::raw_ostream &os) const {
   };
   os << "Type Lowering for lowered type: " << LoweredType << ".\n"
      << "Expansion: " << getResilienceExpansion() << "\n"
-     << "isTrivial: " << BOOL(Properties.isTrivial()) << ".\n"
-     << "isFixedABI: " << BOOL(Properties.isFixedABI()) << ".\n"
-     << "isAddressOnly: " << BOOL(Properties.isAddressOnly()) << ".\n"
-     << "isResilient: " << BOOL(Properties.isResilient()) << ".\n"
+     << "isTrivial: " << BOOL(Layout.isTrivial()) << ".\n"
+     << "isFixedABI: " << BOOL(Layout.isFixedABI()) << ".\n"
+     << "isAddressOnly: " << BOOL(Layout.isAddressOnly()) << ".\n"
+     << "isResilient: " << BOOL(Layout.isResilient()) << ".\n"
      << "isTypeExpansionSensitive: "
-     << BOOL(Properties.isTypeExpansionSensitive()) << ".\n"
-     << "isInfinite: " << BOOL(Properties.isInfinite()) << ".\n"
-     << "isOrContainsRawPointer: " << BOOL(Properties.isOrContainsRawPointer())
+     << BOOL(Layout.isTypeExpansionSensitive()) << ".\n"
+     << "isInfinite: " << BOOL(Layout.isInfinite()) << ".\n"
+     << "isOrContainsRawPointer: " << BOOL(Layout.isOrContainsRawPointer())
      << ".\n"
-     << "isLexical: " << BOOL(Properties.isLexical()) << ".\n"
+     << "isLexical: " << BOOL(Layout.isLexical()) << ".\n"
      << "\n";
 }
 

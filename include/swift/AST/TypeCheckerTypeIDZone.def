@@ -506,6 +506,9 @@ SWIFT_REQUEST(TypeChecker, InitAccessorReferencedVariablesRequest,
               ArrayRef<VarDecl *>(DeclAttribute *, AccessorDecl *,
                                   ArrayRef<Identifier>),
               Cached, NoLocationInfo)
+SWIFT_REQUEST(TypeChecker, TypeLayoutInfoRequest,
+              Lowering::TypeLayoutInfo(CanType),
+              Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, ExpandChildTypeRefinementContextsRequest,
               bool(Decl *, TypeRefinementContext *),
               Cached, NoLocationInfo)

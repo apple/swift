@@ -16,6 +16,7 @@
 #include "swift/ABI/ProtocolDispatchStrategy.h"
 #include "swift/AST/CaptureInfo.h"
 #include "swift/AST/Module.h"
+#include "swift/AST/TypeLayoutInfo.h"
 #include "swift/SIL/AbstractionPattern.h"
 #include "swift/SIL/SILDeclRef.h"
 #include "swift/SIL/SILInstruction.h"
@@ -92,201 +93,8 @@ adjustFunctionType(CanSILFunctionType t, SILFunctionType::Representation rep,
                             witnessMethodConformance);
 }
 
-/// Is a lowered SIL type trivial?  That is, are copies ultimately just
-/// bit-copies, and it takes no work to destroy a value?
-enum IsTrivial_t : bool {
-  IsNotTrivial = false,
-  IsTrivial = true
-};
-
-/// Is a lowered SIL type the Builtin.RawPointer or a struct/tuple/enum which
-/// contains a Builtin.RawPointer?
-/// HasRawPointer is true only for types that are known to contain
-/// Builtin.RawPointer. It is not assumed true for generic or resilient types.
-enum HasRawPointer_t : bool {
-  DoesNotHaveRawPointer = false,
-  HasRawPointer = true
-};
-
-/// Is a lowered SIL type fixed-ABI?  That is, can the current context
-/// assign it a fixed size and alignment and perform value operations on it
-/// (such as copies, destroys, constructions, and projections) without
-/// metadata?
-///
-/// Note that a fully concrete type can be non-fixed-ABI without being
-/// itself resilient if it contains a subobject which is not fixed-ABI.
-///
-/// Also note that we're only concerned with the external value ABI here:
-/// resilient class types are still fixed-ABI, indirect enum cases do not
-/// affect the fixed-ABI-ness of the enum, and so on.
-enum IsFixedABI_t : bool {
-  IsNotFixedABI = false,
-  IsFixedABI = true
-};
-
-/// Is a lowered SIL type address-only?  That is, is the current context
-/// required to keep the value in memory for some reason?
-///
-/// A type might be address-only because:
-///
-///   - it is not fixed-size (e.g. because it is a resilient type) and
-///     therefore cannot be loaded into a statically-boundable set of
-///     registers; or
-///
-///   - it is semantically bound to memory, either because its storage
-///     address is used by the language runtime to implement its semantics
-///     (as with a weak reference) or because its representation is somehow
-///     address-dependent (as with something like a relative pointer).
-///
-/// An address-only type can be fixed-layout and/or trivial.
-/// A non-fixed-layout type is always address-only.
-enum IsAddressOnly_t : bool {
-  IsNotAddressOnly = false,
-  IsAddressOnly = true
-};
-
-/// Is this type somewhat like a reference-counted type?
-enum IsReferenceCounted_t : bool {
-  IsNotReferenceCounted = false,
-  IsReferenceCounted = true
-};
-
-/// Is this type address only because it's resilient?
-enum IsResilient_t : bool {
-  IsNotResilient = false,
-  IsResilient = true
-};
-
-/// Does this type contain an opaque result type that affects type lowering?
-enum IsTypeExpansionSensitive_t : bool {
-  IsNotTypeExpansionSensitive = false,
-  IsTypeExpansionSensitive = true
-};
-
-/// Is the type infinitely defined in terms of itself? (Such types can never
-/// be concretely instantiated, but may still arise from generic specialization.)
-enum IsInfiniteType_t : bool {
-  IsNotInfiniteType = false,
-  IsInfiniteType = true,
-};
-
-/// Does this type contain at least one non-trivial, non-eager-move type?
-enum IsLexical_t : bool {
-  IsNotLexical = false,
-  IsLexical = true,
-};
-
 /// Extended type information used by SIL.
 class TypeLowering {
-public:
-  class RecursiveProperties {
-    // These are chosen so that bitwise-or merges the flags properly.
-    //
-    // clang-format off
-    enum : unsigned {
-      NonTrivialFlag             = 1 << 0,
-      NonFixedABIFlag            = 1 << 1,
-      AddressOnlyFlag            = 1 << 2,
-      ResilientFlag              = 1 << 3,
-      TypeExpansionSensitiveFlag = 1 << 4,
-      InfiniteFlag               = 1 << 5,
-      HasRawPointerFlag          = 1 << 6,
-      LexicalFlag                = 1 << 7,
-    };
-    // clang-format on
-
-    uint8_t Flags;
-  public:
-    /// Construct a default RecursiveProperties, which corresponds to
-    /// a trivial, loadable, fixed-layout type.
-    constexpr RecursiveProperties() : Flags(0) {}
-
-    constexpr RecursiveProperties(
-        IsTrivial_t isTrivial, IsFixedABI_t isFixedABI,
-        IsAddressOnly_t isAddressOnly, IsResilient_t isResilient,
-        IsTypeExpansionSensitive_t isTypeExpansionSensitive =
-            IsNotTypeExpansionSensitive,
-        HasRawPointer_t hasRawPointer = DoesNotHaveRawPointer,
-        IsLexical_t isLexical = IsNotLexical)
-        : Flags((isTrivial ? 0U : NonTrivialFlag) |
-                (isFixedABI ? 0U : NonFixedABIFlag) |
-                (isAddressOnly ? AddressOnlyFlag : 0U) |
-                (isResilient ? ResilientFlag : 0U) |
-                (isTypeExpansionSensitive ? TypeExpansionSensitiveFlag : 0U) |
-                (hasRawPointer ? HasRawPointerFlag : 0U) |
-                (isLexical ? LexicalFlag : 0U)) {}
-
-    constexpr bool operator==(RecursiveProperties p) const {
-      return Flags == p.Flags;
-    }
-
-    static constexpr RecursiveProperties forTrivial() {
-      return {IsTrivial, IsFixedABI, IsNotAddressOnly, IsNotResilient};
-    }
-
-    static constexpr RecursiveProperties forRawPointer() {
-      return {IsTrivial, IsFixedABI, IsNotAddressOnly, IsNotResilient,
-              IsNotTypeExpansionSensitive, HasRawPointer};
-    }
-
-    static constexpr RecursiveProperties forReference() {
-      return {IsNotTrivial, IsFixedABI, IsNotAddressOnly, IsNotResilient,
-              IsNotTypeExpansionSensitive, DoesNotHaveRawPointer, IsLexical};
-    }
-
-    static constexpr RecursiveProperties forOpaque() {
-      return {IsNotTrivial, IsNotFixedABI, IsAddressOnly, IsNotResilient,
-              IsNotTypeExpansionSensitive, DoesNotHaveRawPointer, IsLexical};
-    }
-
-    static constexpr RecursiveProperties forResilient() {
-      return {IsTrivial, IsFixedABI, IsNotAddressOnly, IsResilient};
-    }
-
-    void addSubobject(RecursiveProperties other) {
-      Flags |= other.Flags;
-    }
-
-    IsTrivial_t isTrivial() const {
-      return IsTrivial_t((Flags & NonTrivialFlag) == 0);
-    }
-    HasRawPointer_t isOrContainsRawPointer() const {
-      return HasRawPointer_t((Flags & HasRawPointerFlag) != 0);
-    }
-    IsFixedABI_t isFixedABI() const {
-      return IsFixedABI_t((Flags & NonFixedABIFlag) == 0);
-    }
-    IsAddressOnly_t isAddressOnly() const {
-      return IsAddressOnly_t((Flags & AddressOnlyFlag) != 0);
-    }
-    IsResilient_t isResilient() const {
-      return IsResilient_t((Flags & ResilientFlag) != 0);
-    }
-    IsTypeExpansionSensitive_t isTypeExpansionSensitive() const {
-      return IsTypeExpansionSensitive_t(
-          (Flags & TypeExpansionSensitiveFlag) != 0);
-    }
-    IsInfiniteType_t isInfinite() const {
-      return IsInfiniteType_t((Flags & InfiniteFlag) != 0);
-    }
-    IsLexical_t isLexical() const {
-      return IsLexical_t((Flags & LexicalFlag) != 0);
-    }
-
-    void setNonTrivial() { Flags |= NonTrivialFlag; }
-    void setNonFixedABI() { Flags |= NonFixedABIFlag; }
-    void setAddressOnly() { Flags |= AddressOnlyFlag; }
-    void setTypeExpansionSensitive(
-        IsTypeExpansionSensitive_t isTypeExpansionSensitive) {
-      Flags = (Flags & ~TypeExpansionSensitiveFlag) |
-              (isTypeExpansionSensitive ? TypeExpansionSensitiveFlag : 0);
-    }
-    void setInfinite() { Flags |= InfiniteFlag; }
-    void setLexical(IsLexical_t isLexical) {
-      Flags = (Flags & ~LexicalFlag) | (isLexical ? LexicalFlag : 0);
-    }
-  };
-
 private:
   friend class TypeConverter;
 
@@ -297,7 +105,7 @@ protected:
   mutable SILType LoweredType;
 
 private:
-  RecursiveProperties Properties;
+  TypeLayoutInfo Layout;
 
   /// The resilience expansion for this type lowering.
   /// If the type is not resilient at all, this is always Minimal.
@@ -310,10 +118,10 @@ private:
   mutable const TypeLowering *NextExpansion = nullptr;
 
 protected:
-  TypeLowering(SILType type, RecursiveProperties properties,
+  TypeLowering(SILType type, TypeLayoutInfo properties,
                IsReferenceCounted_t isRefCounted,
                TypeExpansionContext expansionContext)
-      : LoweredType(type), Properties(properties),
+      : LoweredType(type), Layout(properties),
         expansionContext(expansionContext), ReferenceCounted(isRefCounted) {}
 
 public:
@@ -328,8 +136,8 @@ public:
   /// Dump out the internal state of this type lowering to llvm::dbgs().
   SWIFT_DEBUG_DUMP;
 
-  RecursiveProperties getRecursiveProperties() const {
-    return Properties;
+  TypeLayoutInfo getLayoutInfo() const {
+    return Layout;
   }
 
   /// isAddressOnly - Returns true if the type is an address-only type. A type
@@ -337,7 +145,7 @@ public:
   /// value type with a resilient member. In either case, the full layout of
   /// values of the type is unavailable to the compiler.
   bool isAddressOnly() const {
-    return Properties.isAddressOnly();
+    return Layout.isAddressOnly();
   }
   /// isLoadable - Returns true if the type is loadable, in other words, its
   /// full layout is available to the compiler. This is the inverse of
@@ -350,17 +158,17 @@ public:
   /// If this is true, value operations on the type can be performed even if
   /// the type is inaccessible.
   bool isFixedABI() const {
-    return Properties.isFixedABI();
+    return Layout.isFixedABI();
   }
   
   /// Returns true if the type is trivial, meaning it is a loadable
   /// value type with no reference type members that require releasing.
   bool isTrivial() const {
-    return Properties.isTrivial();
+    return Layout.isTrivial();
   }
   
   bool isOrContainsRawPointer() const {
-    return Properties.isOrContainsRawPointer();
+    return Layout.isOrContainsRawPointer();
   }
   
   /// Returns true if the type is a scalar reference-counted reference, which
@@ -381,18 +189,18 @@ public:
   }
 
   bool isResilient() const {
-    return Properties.isResilient();
+    return Layout.isResilient();
   }
 
   /// Does this type contain an opaque result type that could influence how the
   /// type is lowered if we could look through to the underlying type.
   bool isTypeExpansionSensitive() const {
-    return Properties.isTypeExpansionSensitive();
+    return Layout.isTypeExpansionSensitive();
   }
 
   /// Should a value of this type have its lifetime tied to its lexical scope?
   bool isLexical() const {
-    return Properties.isLexical();
+    return Layout.isLexical();
   }
 
   ResilienceExpansion getResilienceExpansion() const {

@@ -31,6 +31,7 @@
 #include "swift/AST/SimpleRequest.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeResolutionStage.h"
+#include "swift/AST/TypeLayoutInfo.h"
 #include "swift/Basic/Statistic.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/STLExtras.h"
@@ -4455,6 +4456,26 @@ private:
                                ArrayRef<Identifier>) const;
 
 public:
+  bool isCached() const { return true; }
+};
+
+/// For an AST type, computes the type layout information used to lower the
+/// type to a SIL type.
+class TypeLayoutInfoRequest :
+    public SimpleRequest<TypeLayoutInfoRequest,
+                         Lowering::TypeLayoutInfo(CanType),
+                         RequestFlags::Cached> {
+public:
+  using SimpleRequest::SimpleRequest;
+
+private:
+  friend SimpleRequest;
+
+  // Evaluation.
+  Lowering::TypeLayoutInfo evaluate(Evaluator &evaluator, CanType type) const;
+
+public:
+  // Caching.
   bool isCached() const { return true; }
 };
 

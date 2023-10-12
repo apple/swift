@@ -26,7 +26,7 @@ namespace swift {
 /// aggressively its destroys may be hoisted.
 ///
 /// By default, types have lifetimes inferred from their structure, see
-/// TypeLowering::RecursiveProperties::isLexical.  It can be overridden both on
+/// TypeLayoutInfo::isLexical.  It can be overridden both on
 /// the type level and the value level via attributes.
 struct Lifetime {
   enum Storage : uint8_t {

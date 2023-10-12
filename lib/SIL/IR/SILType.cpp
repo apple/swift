@@ -130,7 +130,7 @@ bool SILType::isNonTrivialOrContainsRawPointer(const SILFunction *f) const {
 
 bool SILType::isEmpty(const SILFunction &F) const {
   // Infinite types are never empty.
-  if (F.getTypeLowering(*this).getRecursiveProperties().isInfinite()) {
+  if (F.getTypeLowering(*this).getLayoutInfo().isInfinite()) {
     return false;
   }
   
@@ -178,7 +178,7 @@ bool SILType::isNoReturnFunction(SILModule &M,
 Lifetime SILType::getLifetime(const SILFunction &F) const {
   auto contextType = hasTypeParameter() ? F.mapTypeIntoContext(*this) : *this;
   const auto &lowering = F.getTypeLowering(contextType);
-  auto properties = lowering.getRecursiveProperties();
+  auto properties = lowering.getLayoutInfo();
   if (properties.isTrivial())
     return Lifetime::None;
   return properties.isLexical() ? Lifetime::Lexical : Lifetime::EagerMove;
