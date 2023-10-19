@@ -13,6 +13,7 @@
 #ifndef SWIFT_BASIC_FEATURES_H
 #define SWIFT_BASIC_FEATURES_H
 
+#include "swift/Basic/FixedBitSet.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -36,6 +37,9 @@ FeatureName,
   };
   return NumFeatures;
 }
+
+// A handy set datatype for all your feature-tracking needs!
+using BasicFeatureSet = FixedBitSet<numFeatures(), Feature>;
 
 /// Determine whether the given feature is suppressible.
 bool isSuppressibleFeature(Feature feature);

@@ -30,8 +30,29 @@
 
 using namespace swift;
 
+static void
+insertDefaultEnabledFeatures(decltype(LangOptions::Features) &Features) {
+  // Default-on any full-fledged language features
+#define LANGUAGE_FEATURE(FeatureName, SENumber, Description, Option)           \
+  if (Option)                                                                  \
+    Features.insert(Feature::FeatureName);
+
+  // Don't default-on any other features.
+#define UPCOMING_FEATURE(FeatureName, SENumber, Version)
+#define SUPPRESSIBLE_LANGUAGE_FEATURE(FeatureName, SENumber, Description,      \
+                                      Option)
+#define EXPERIMENTAL_FEATURE(FeatureName, AvailableInProd)
+#include "swift/Basic/Features.def"
+#undef LANGUAGE_FEATURE
+#undef UPCOMING_FEATURE
+#undef SUPPRESSIBLE_LANGUAGE_FEATURE
+#undef EXPERIMENTAL_LANGUAGE_FEATURE
+}
+
 LangOptions::LangOptions() {
-  // Note: Introduce default-on language options here.
+  insertDefaultEnabledFeatures(Features);
+
+  // Features default-on only in asserts builds.
 #ifndef NDEBUG
   Features.insert(Feature::ParserRoundTrip);
   Features.insert(Feature::ParserValidation);

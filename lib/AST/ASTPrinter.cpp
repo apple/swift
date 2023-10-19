@@ -3605,7 +3605,6 @@ static void suppressingFeature(PrintOptions &options, Feature feature,
   llvm_unreachable("exhaustive switch");
 }
 
-using BasicFeatureSet = FixedBitSet<numFeatures(), Feature>;
 
 class FeatureSet {
   BasicFeatureSet required;
