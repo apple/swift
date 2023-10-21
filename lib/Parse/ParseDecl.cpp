@@ -6802,11 +6802,9 @@ Parser::parseDeclExtension(ParseDeclOptions Flags, DeclAttributes &Attributes) {
     status |= whereStatus;
   }
 
-  ExtensionDecl *ext = ExtensionDecl::create(Context, ExtensionLoc,
-                                             extendedType.getPtrOrNull(),
-                                             Context.AllocateCopy(Inherited),
-                                             CurDeclContext,
-                                             trailingWhereClause);
+  auto *ext = ExtensionDecl::createParsed(
+      Context, ExtensionLoc, extendedType.getPtrOrNull(),
+      llvm::makeArrayRef(Inherited), trailingWhereClause, CurDeclContext);
   ext->getAttrs() = Attributes;
   if (trailingWhereHadCodeCompletion && CodeCompletionCallbacks)
     CodeCompletionCallbacks->setParsedDecl(ext);
@@ -7258,11 +7256,9 @@ ParserResult<TypeDecl> Parser::parseDeclAssociatedType(Parser::ParseDeclOptions 
   }
 
   auto assocType = AssociatedTypeDecl::createParsed(
-      Context, CurDeclContext, AssociatedTypeLoc, Id, IdLoc,
-      UnderlyingTy.getPtrOrNull(), TrailingWhere);
+      Context, AssociatedTypeLoc, Id, IdLoc, llvm::makeArrayRef(Inherited),
+      UnderlyingTy.getPtrOrNull(), TrailingWhere, CurDeclContext);
   assocType->getAttrs() = Attributes;
-  if (!Inherited.empty())
-    assocType->setInherited(Context.AllocateCopy(Inherited));
   return makeParserResult(Status, assocType);
 }
 
@@ -9142,7 +9138,7 @@ Parser::parseDeclEnumCase(ParseDeclOptions Flags,
   }
 
   // Create and insert the EnumCaseDecl containing all the elements.
-  auto TheCase = EnumCaseDecl::create(CaseLoc, Elements, CurDeclContext);
+  auto TheCase = EnumCaseDecl::createParsed(CaseLoc, Elements, CurDeclContext);
   Decls.push_back(TheCase);
   
   // Insert the element decls.
@@ -9859,7 +9855,8 @@ parseDeclDeinit(ParseDeclOptions Flags, DeclAttributes &Attributes) {
     }
   }
 
-  auto *DD = new (Context) DestructorDecl(DestructorLoc, CurDeclContext);
+  auto *DD =
+      DestructorDecl::createParsed(&Context, DestructorLoc, CurDeclContext);
   parseAbstractFunctionBody(DD);
 
   DD->getAttrs() = Attributes;

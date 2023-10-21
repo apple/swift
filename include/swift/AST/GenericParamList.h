@@ -22,6 +22,8 @@
 #include "swift/Basic/SourceLoc.h"
 #include "llvm/ADT/StringRef.h"
 
+#include <swift/bridging>
+
 namespace swift {
 
 class ASTPrinter;
@@ -95,6 +97,7 @@ public:
   /// this requirement was implied.
   /// \param Constraint The protocol or protocol composition to which the
   /// subject must conform, or superclass from which the subject must inherit.
+  SWIFT_NAME(getTypeConstraint(subject:colonLoc:constraint:isExpansionPattern:))
   static RequirementRepr getTypeConstraint(TypeRepr *Subject,
                                            SourceLoc ColonLoc,
                                            TypeRepr *Constraint,
@@ -109,6 +112,7 @@ public:
   /// \param EqualLoc The location of the '==' in the same-type constraint, or
   /// an invalid location if this requirement was implied.
   /// \param SecondType The second type.
+  SWIFT_NAME(getSameType(first:equalLoc:second:isExpansionPattern:))
   static RequirementRepr getSameType(TypeRepr *FirstType,
                                      SourceLoc EqualLoc,
                                      TypeRepr *SecondType,
@@ -380,6 +384,10 @@ public:
   /// Create a new trailing where clause with the given set of requirements.
   static TrailingWhereClause *create(ASTContext &ctx,
                                      SourceLoc whereLoc, SourceLoc endLoc,
+                                     ArrayRef<RequirementRepr> requirements);
+
+  /// Create a new trailing where clause with the given set of requirements.
+  static TrailingWhereClause *create(ASTContext &ctx, SourceLoc whereLoc,
                                      ArrayRef<RequirementRepr> requirements);
 
   /// Retrieve the location of the 'where' keyword.

@@ -11,6 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+// To successfully build, you'll need to create a couple of symlinks to an
+// existing Ninja build:
+//
+// ln -s <project-root>/build/<Ninja-Build>/llvm-<os+arch> <project-root>/build/Default/llvm
+// ln -s <project-root>/build/<Ninja-Build>/swift-<os+arch> <project-root>/build/Default/swift
+//
+// where <project-root> is the parent directory of the swift repository.
+//
+// FIXME: We may want to consider generating Package.swift as a part of the
+// build.
+
 import PackageDescription
 
 private extension Target {
@@ -30,9 +41,13 @@ private extension Target {
           .interoperabilityMode(.Cxx),
           .unsafeFlags([
             "-static",
+            "-Xcc", "-UIBOutlet", "-Xcc", "-UIBAction", "-Xcc", "-UIBInspectable",
             "-Xcc", "-I../include",
             "-Xcc", "-I../../llvm-project/llvm/include",
             "-Xcc", "-I../../llvm-project/clang/include",
+            "-Xcc", "-I../../build/Default/swift/include",
+            "-Xcc", "-I../../build/Default/llvm/include",
+            "-Xcc", "-I../../build/Default/llvm/tools/clang/include",
             "-cross-module-optimization",
           ]),
         ] + swiftSettings)
@@ -42,7 +57,7 @@ private extension Target {
 let package = Package(
   name: "SwiftCompilerSources",
   platforms: [
-    .macOS("10.9"),
+    .macOS(.v13),
   ],
   products: [
     .library(

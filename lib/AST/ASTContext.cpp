@@ -5169,11 +5169,11 @@ void DeclName::initialize(ASTContext &C, DeclBaseName baseName,
 
 /// Build a compound value name given a base name and a set of argument names
 /// extracted from a parameter list.
-DeclName::DeclName(ASTContext &C, DeclBaseName baseName,
-                   ParameterList *paramList) {
+DeclName::DeclName(BridgableASTContext C, DeclBaseName baseName,
+                   BridgableParameterList paramList) {
   SmallVector<Identifier, 4> names;
-  
-  for (auto P : *paramList)
+
+  for (auto P : *paramList.Ptr)
     names.push_back(P->getArgumentName());
   initialize(C, baseName, names);
 }

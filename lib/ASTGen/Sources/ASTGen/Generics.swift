@@ -3,20 +3,20 @@ import CBasicBridging
 import SwiftSyntax
 
 extension ASTGenVisitor {
-  func generate(_ node: GenericParameterClauseSyntax) -> ASTNode {
-    .misc(
-      GenericParamList_create(
-        astContext: self.ctx,
-        leftAngleLoc: node.leftAngle.bridgedSourceLoc(in: self),
-        parameters: node.parameters.lazy.map { self.generate($0).rawValue }.bridgedArray(in: self),
-        genericWhereClause: self.generate(node.genericWhereClause)?.rawValue,
-        rightAngleLoc: node.rightAngle.bridgedSourceLoc(in: self)
-      )
+  func generate(_ node: GenericParameterClauseSyntax) -> swift.BridgableGenericParamList {
+    let whereClause = node.genericWhereClause
+    return .createParsed(
+      self.ctx,
+      lAngleLoc: node.leftAngle.sourceLoc(in: self),
+      params: .init(from: node.parameters.lazy.map(self.generate), in: self),
+      whereLoc: (whereClause?.whereKeyword).sourceLoc(in: self),
+      requirements: .init(from: whereClause?.requirements.lazy.map(self.generate), in: self),
+      rAngleLoc: node.rightAngle.sourceLoc(in: self)
     )
   }
 
-  func generate(_ node: GenericParameterSyntax) -> ASTNode {
-    let (name, nameLoc) = node.name.bridgedIdentifierAndSourceLoc(in: self)
+  func generate(_ node: GenericParameterSyntax) -> swift.BridgableGenericTypeParamDecl {
+    let (name, nameLoc) = node.name.identifierAndSourceLoc(in: self)
 
     var genericParameterIndex: Int?
     for (index, sibling) in (node.parent?.as(GenericParameterListSyntax.self) ?? []).enumerated() {
@@ -29,48 +29,41 @@ extension ASTGenVisitor {
       preconditionFailure("Node not part of the parent?")
     }
 
-    return .decl(
-      GenericTypeParamDecl_create(
-        astContext: self.ctx,
-        declContext: self.declContext,
-        eachKeywordLoc: node.eachKeyword.bridgedSourceLoc(in: self),
-        name: name,
-        nameLoc: nameLoc,
-        inheritedType: self.generate(node.inheritedType)?.rawValue,
-        index: genericParameterIndex
-      )
+    return .createParsed(
+      declContext: declContext, name: name, nameLoc: nameLoc,
+      eachLoc: node.eachKeyword.sourceLoc(in: self),
+      index: UInt32(genericParameterIndex),
+      inherited: self.generate(node.inheritedType)
     )
   }
 
-  func generate(_ node: GenericWhereClauseSyntax) -> ASTNode {
-    let requirements = node.requirements.lazy.map {
-      switch $0.requirement {
-      case .conformanceRequirement(let conformance):
-        return BridgedRequirementRepr(
-          SeparatorLoc: conformance.colon.bridgedSourceLoc(in: self),
-          Kind: .typeConstraint,
-          FirstType: self.generate(conformance.leftType).rawValue,
-          SecondType: self.generate(conformance.rightType).rawValue
-        )
-      case .sameTypeRequirement(let sameType):
-        return BridgedRequirementRepr(
-          SeparatorLoc: sameType.equal.bridgedSourceLoc(in: self),
-          Kind: .sameType,
-          FirstType: self.generate(sameType.leftType).rawValue,
-          SecondType: self.generate(sameType.rightType).rawValue
-        )
-      case .layoutRequirement(_):
-        // FIXME: Implement layout requirement translation.
-        fatalError("Translation of layout requirements not implemented!")
-      }
-    }
-
-    return .misc(
-      TrailingWhereClause_create(
-        astContext: self.ctx,
-        whereKeywordLoc: node.whereKeyword.bridgedSourceLoc(in: self),
-        requirements: requirements.bridgedArray(in: self)
+  func generate(_ node: GenericRequirementSyntax) -> swift.RequirementRepr {
+    switch node.requirement {
+    case .conformanceRequirement(let conformance):
+      return .getTypeConstraint(
+        subject: self.generate(conformance.leftType),
+        colonLoc: conformance.colon.sourceLoc(in: self),
+        constraint: self.generate(conformance.rightType),
+        isExpansionPattern: false
       )
+    case .sameTypeRequirement(let sameType):
+      return .getSameType(
+        first: self.generate(sameType.leftType),
+        equalLoc: sameType.equal.sourceLoc(in: self),
+        second: self.generate(sameType.rightType),
+        isExpansionPattern: false
+      )
+    case .layoutRequirement(_):
+      // FIXME: Implement layout requirement translation.
+      fatalError("Translation of layout requirements not implemented!")
+    }
+  }
+
+  func generate(_ node: GenericWhereClauseSyntax) -> swift.BridgableTrailingWhereClause {
+    .create(
+      self.ctx,
+      whereLoc: node.whereKeyword.sourceLoc(in: self),
+      requirements: .init(from: node.requirements.lazy.map(self.generate), in: self)
     )
   }
 }

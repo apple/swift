@@ -11,6 +11,7 @@ add_swift_host_library(swiftAST STATIC
   AccessRequests.cpp
   ArgumentList.cpp
   ASTBridging.cpp
+  ASTGenBridging.cpp
   ASTContext.cpp
   ASTDemangler.cpp
   ASTDumper.cpp

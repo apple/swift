@@ -138,8 +138,13 @@ enum class AccessSemantics : uint8_t {
 
 /// Expr - Base class for all expressions in swift.
 class alignas(8) Expr : public ASTAllocated<Expr> {
+  // HACK: When building for Swift with C++ interop, we can't currently handle
+  // move-only types. We don't ever try and copy from Swift, so we can define
+  // these out in that case.
+#ifndef IMPORTING_INTO_SWIFT
   Expr(const Expr&) = delete;
   void operator=(const Expr&) = delete;
+#endif
 
 protected:
   // clang-format off

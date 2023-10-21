@@ -1,5 +1,6 @@
 import CASTBridging
 import CBasicBridging
+import ASTGenBridging
 
 // Needed to use BumpPtrAllocator
 @_spi(BumpPtrAllocator)
@@ -13,7 +14,7 @@ extension UnsafePointer {
 }
 
 enum ASTNode {
-  case decl(UnsafeMutableRawPointer)
+  case decl(UnsafeMutablePointer<swift.Decl>)
   case stmt(UnsafeMutableRawPointer)
   case expr(UnsafeMutableRawPointer)
   case type(UnsafeMutableRawPointer)
@@ -22,7 +23,7 @@ enum ASTNode {
   var rawValue: UnsafeMutableRawPointer {
     switch self {
     case .decl(let ptr):
-      return ptr
+      return UnsafeMutableRawPointer(ptr)
     case .stmt(let ptr):
       return ptr
     case .expr(let ptr):
@@ -32,6 +33,13 @@ enum ASTNode {
     case .misc(let ptr):
       return ptr
     }
+  }
+
+  var expr: UnsafeMutablePointer<swift.Expr> {
+    guard case .expr(let expr) = self else {
+      fatalError("Expected expr")
+    }
+    return expr.assumingMemoryBound(to: swift.Expr.self)
   }
 
   var bridged: BridgedASTNode {
@@ -66,17 +74,17 @@ struct ASTGenVisitor {
 
   let base: UnsafeBufferPointer<UInt8>
 
-  @Boxed private(set) var declContext: BridgedDeclContext
+  @Boxed private(set) var declContext: UnsafeMutablePointer<swift.DeclContext>
 
-  let ctx: BridgedASTContext
+  let ctx: swift.BridgableASTContext
 
   fileprivate let allocator: SwiftSyntax.BumpPtrAllocator = .init(slabSize: 256)
 
   init(
     diagnosticEngine: BridgedDiagnosticEngine,
     sourceBuffer: UnsafeBufferPointer<UInt8>,
-    declContext: BridgedDeclContext,
-    astContext: BridgedASTContext
+    declContext: UnsafeMutablePointer<swift.DeclContext>,
+    astContext: swift.BridgableASTContext
   ) {
     self.diagnosticEngine = diagnosticEngine
     self.base = sourceBuffer
@@ -94,9 +102,9 @@ struct ASTGenVisitor {
       case .decl(let d):
         out.append(d)
       case .stmt(let s):
-        out.append(TopLevelCodeDecl_createStmt(astContext: self.ctx, declContext: self.declContext, startLoc: loc, statement: s, endLoc: loc))
+        out.append(TopLevelCodeDecl_createStmt(astContext: self.ctx.bridged, declContext: self.declContext.bridged, startLoc: loc, statement: s, endLoc: loc))
       case .expr(let e):
-        out.append(TopLevelCodeDecl_createExpr(astContext: self.ctx, declContext: self.declContext, startLoc: loc, expression: e, endLoc: loc))
+        out.append(TopLevelCodeDecl_createExpr(astContext: self.ctx.bridged, declContext: self.declContext.bridged, startLoc: loc, expression: e, endLoc: loc))
       default:
         fatalError("Top level nodes must be decls, stmts, or exprs.")
       }
@@ -107,9 +115,21 @@ struct ASTGenVisitor {
 }
 
 extension ASTGenVisitor {
+  var bufferStartLoc: swift.SourceLoc {
+    .fromPointer(base.baseAddress!)
+  }
+}
+
+extension ASTGenVisitor {
   /// Replaces the current declaration context with `declContext` for the duration of its execution, and calls `body`.
   @inline(__always)
   func withDeclContext(_ declContext: BridgedDeclContext, _ body: () -> Void) {
+    withDeclContext(declContext.raw.assumingMemoryBound(to: swift.DeclContext.self), body)
+  }
+
+  /// Replaces the current declaration context with `declContext` for the duration of its execution, and calls `body`.
+  @inline(__always)
+  func withDeclContext(_ declContext: UnsafeMutablePointer<swift.DeclContext>, _ body: () -> Void) {
     let oldDeclContext = self.declContext
     self.declContext = declContext
     body()
@@ -192,11 +212,7 @@ extension ASTGenVisitor {
     case .enumCaseDecl(let node):
       return generate(node)
     case .enumCaseElement(let node):
-      return generate(node)
-    case .enumCaseParameter(let node):
-      return generate(node)
-    case .enumCaseParameterClause(let node):
-      return generate(node)
+      return .decl(generate(node).pointee.asDecl())
     case .enumDecl(let node):
       return generate(node)
     case .expressionStmt(let node):
@@ -207,17 +223,7 @@ extension ASTGenVisitor {
       return generate(node)
     case .functionDecl(let node):
       return generate(node)
-    case .functionParameter(let node):
-      return generate(node)
-    case .functionParameterClause(let node):
-      return generate(node)
     case .functionType(let node):
-      return generate(node)
-    case .genericParameter(let node):
-      return generate(node)
-    case .genericParameterClause(let node):
-      return generate(node)
-    case .genericWhereClause(let node):
       return generate(node)
     case .identifierPattern(let node):
       return generate(node)
@@ -314,12 +320,17 @@ extension ASTGenVisitor {
 // 'self.visit(<expr>)' recursion pattern between optional and non-optional inputs.
 extension ASTGenVisitor {
   @inline(__always)
-  func generate(_ node: TypeSyntax?) -> ASTNode? {
+  func _generate(_ node: TypeSyntax?) -> ASTNode? {
     guard let node else {
       return nil
     }
 
     return self.generate(node)
+  }
+
+  @inline(__always)
+  func generate(_ node: TypeSyntax?) -> UnsafeMutablePointer<swift.TypeRepr>? {
+    self._generate(node)?.rawValue.assumingMemoryBound(to: swift.TypeRepr.self)
   }
 
   @inline(__always)
@@ -342,36 +353,45 @@ extension ASTGenVisitor {
   }
 
   @inline(__always)
-  func generate(_ node: GenericParameterClauseSyntax?) -> ASTNode? {
-    guard let node else {
-      return nil
-    }
+  func _generate(_ node: GenericParameterClauseSyntax?) -> ASTNode? {
+    guard let node else { return nil }
+    return .misc(UnsafeMutableRawPointer(generate(node).Ptr!))
+  }
 
+  @inline(__always)
+  func generate(_ node: GenericParameterClauseSyntax?) -> swift.BridgableGenericParamList {
+    guard let node else { return .init(nil) }
     return self.generate(node)
   }
 
   @inline(__always)
-  func generate(_ node: GenericWhereClauseSyntax?) -> ASTNode? {
-    guard let node else {
-      return nil
-    }
+  func _generate(_ node: GenericWhereClauseSyntax?) -> ASTNode? {
+    guard let node else { return nil }
+    return .misc(UnsafeMutableRawPointer(generate(node).Ptr!))
+  }
 
+  @inline(__always)
+  func generate(_ node: GenericWhereClauseSyntax?) -> swift.BridgableTrailingWhereClause {
+    guard let node else { return .init(nil) }
     return self.generate(node)
   }
 
   @inline(__always)
-  func generate(_ node: EnumCaseParameterClauseSyntax?) -> ASTNode? {
-    guard let node else {
-      return nil
-    }
-
+  func generate(_ node: EnumCaseParameterClauseSyntax?) -> swift.BridgableParameterList {
+    guard let node else { return .init(nil) }
     return self.generate(node)
+  }
+
+  @inline(__always)
+  func _generate(_ node: EnumCaseParameterClauseSyntax?) -> ASTNode? {
+    guard let node else { return nil }
+    return .misc(UnsafeMutableRawPointer(generate(node).Ptr!))
   }
 
   @inline(__always)
   func generate(_ node: InheritedTypeListSyntax?) -> BridgedArrayRef {
     guard let node else {
-      return .init()
+      return .init(data: nil, numElements: 0)
     }
 
     return self.generate(node)
@@ -380,7 +400,7 @@ extension ASTGenVisitor {
   @inline(__always)
   func generate(_ node: PrecedenceGroupNameListSyntax?) -> BridgedArrayRef {
     guard let node else {
-      return .init()
+      return .init(data: nil, numElements: 0)
     }
 
     return self.generate(node)
@@ -394,7 +414,7 @@ extension Collection {
   ///   on a ``LazyFilterSequence`` due to the `count` access.
   func compactMap<T>(in astgen: ASTGenVisitor, _ transform: (Element) -> T?) -> BridgedArrayRef {
     if self.isEmpty {
-      return .init()
+      return .init(data: nil, numElements: 0)
     }
 
     let baseAddress = astgen.allocator.allocate(T.self, count: self.count).baseAddress!
@@ -420,13 +440,27 @@ extension LazyCollectionProtocol {
   /// Returns a copy of the collection's elements as a `BridgedArrayRef` with a lifetime tied to that of `astgen`.
   func bridgedArray(in astgen: ASTGenVisitor) -> BridgedArrayRef {
     if self.isEmpty {
-      return .init()
+      return .init(data: nil, numElements: 0)
     }
 
     let buffer = astgen.allocator.allocate(Element.self, count: self.count)
     _ = buffer.initialize(from: self)
 
     return .init(data: buffer.baseAddress, numElements: self.count)
+  }
+}
+
+extension BridgableArrayRefProtocol {
+  init<C: Collection>(from collection: C?, in astgen: ASTGenVisitor) where C.Element == Element {
+    guard let collection = collection, !collection.isEmpty else {
+      self.init(nil, 0)
+      return
+    }
+
+    let buffer = astgen.allocator.allocate(Element.self, count: collection.count)
+    _ = buffer.initialize(from: collection)
+
+    self.init(buffer.baseAddress, collection.count)
   }
 }
 
@@ -446,7 +480,7 @@ extension Optional where Wrapped: LazyCollectionProtocol {
   @inline(__always)
   func bridgedArray(in astgen: ASTGenVisitor) -> BridgedArrayRef {
     guard let self else {
-      return .init()
+      return .init(data: nil, numElements: 0)
     }
 
     return self.bridgedArray(in: astgen)
@@ -467,8 +501,8 @@ public func buildTopLevelASTNodes(
     ASTGenVisitor(
       diagnosticEngine: .init(raw: diagEnginePtr),
       sourceBuffer: sourceFile.pointee.buffer,
-      declContext: BridgedDeclContext(raw: dc),
-      astContext: BridgedASTContext(raw: ctx)
+      declContext: dc.assumingMemoryBound(to: swift.DeclContext.self),
+      astContext: .init(OpaquePointer(ctx))
     )
     .generate(sourceFile.pointee.syntax)
     .forEach { callback($0, outputContext) }

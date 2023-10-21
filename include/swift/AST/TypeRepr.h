@@ -56,8 +56,14 @@ using CollectedOpaqueReprs = SmallVector<TypeRepr *, 2>;
 /// Representation of a type as written in source.
 class alignas(1 << TypeReprAlignInBits) TypeRepr
     : public ASTAllocated<TypeRepr> {
+
+// HACK: When building for Swift with C++ interop, we can't currently handle
+// move-only types. We don't ever try and copy from Swift, so we can define
+// these out in that case.
+#ifndef IMPORTING_INTO_SWIFT
   TypeRepr(const TypeRepr&) = delete;
   void operator=(const TypeRepr&) = delete;
+#endif
 
 protected:
   // clang-format off

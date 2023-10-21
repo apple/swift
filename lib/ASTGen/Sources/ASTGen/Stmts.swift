@@ -5,7 +5,7 @@ extension ASTGenVisitor {
   public func generate(_ node: CodeBlockSyntax) -> ASTNode {
     .stmt(
       BraceStmt_create(
-        self.ctx,
+        self.ctx.bridged,
         node.leftBrace.bridgedSourceLoc(in: self),
         self.generate(node.statements),
         node.rightBrace.bridgedSourceLoc(in: self)
@@ -19,7 +19,7 @@ extension ASTGenVisitor {
 
     return .stmt(
       IfStmt_create(
-        self.ctx,
+        self.ctx.bridged,
         node.ifKeyword.bridgedSourceLoc(in: self),
         conditions.first!,
         self.generate(node.body).rawValue,
@@ -41,7 +41,7 @@ extension ASTGenVisitor {
   public func generate(_ node: ReturnStmtSyntax) -> ASTNode {
     .stmt(
       ReturnStmt_create(
-        self.ctx,
+        self.ctx.bridged,
         node.returnKeyword.bridgedSourceLoc(in: self),
         self.generate(node.expression)?.rawValue
       )

@@ -5017,7 +5017,7 @@ public:
     if (declOrOffset.isComplete())
       return declOrOffset;
 
-    auto dtor = MF.createDecl<DestructorDecl>(SourceLoc(), DC);
+    auto dtor = DestructorDecl::createDeserialized(ctx, SourceLoc(), DC);
     declOrOffset = dtor;
 
     if (auto bodyText = MF.maybeReadInlinableBodyText())

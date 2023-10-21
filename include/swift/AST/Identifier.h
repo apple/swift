@@ -17,13 +17,16 @@
 #ifndef SWIFT_AST_IDENTIFIER_H
 #define SWIFT_AST_IDENTIFIER_H
 
-#include "swift/Basic/EditorPlaceholder.h"
+#include "swift/AST/ASTGenBridgingWrappers.h"
 #include "swift/Basic/Debug.h"
+#include "swift/Basic/EditorPlaceholder.h"
 #include "swift/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/Support/TrailingObjects.h"
+
+#include <swift/bridging>
 
 namespace llvm {
   class raw_ostream;
@@ -480,9 +483,18 @@ public:
     initialize(C, baseName, argumentNames);
   }
 
+  /// Build a compound value name given a base name and a set of argument names.
+  SWIFT_NAME(init(_:base:argumentLabels:))
+  DeclName(BridgableASTContext C, DeclBaseName baseName,
+           BridgableArrayRef<Identifier> argumentNames) {
+    initialize(C, baseName, argumentNames);
+  }
+
   /// Build a compound value name given a base name and a set of argument names
   /// extracted from a parameter list.
-  DeclName(ASTContext &C, DeclBaseName baseName, ParameterList *paramList);
+  SWIFT_NAME(init(_:base:params:))
+  DeclName(BridgableASTContext C, DeclBaseName baseName,
+           BridgableParameterList paramList);
 
   /// Retrieve the 'base' name, i.e., the name that follows the introducer,
   /// such as the 'foo' in 'func foo(x:Int, y:Int)' or the 'bar' in

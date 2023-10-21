@@ -93,7 +93,7 @@ Parser::parseGenericParametersBeforeWhere(SourceLoc LAngleLoc,
     }
 
     // Parse the ':' followed by a type.
-    SmallVector<InheritedEntry, 1> Inherited;
+    TypeRepr *Inherited = nullptr;
     if (Tok.is(tok::colon)) {
       (void)consumeToken();
       ParserResult<TypeRepr> Ty;
@@ -116,15 +116,12 @@ Parser::parseGenericParametersBeforeWhere(SourceLoc LAngleLoc,
         return makeParserCodeCompletionStatus();
 
       if (Ty.isNonNull())
-        Inherited.push_back({Ty.get()});
+        Inherited = Ty.get();
     }
 
-    const bool isParameterPack = EachLoc.isValid();
     auto *Param = GenericTypeParamDecl::createParsed(
         CurDeclContext, Name, NameLoc, EachLoc,
-        /*index*/ GenericParams.size(), isParameterPack);
-    if (!Inherited.empty())
-      Param->setInherited(Context.AllocateCopy(Inherited));
+        /*index*/ GenericParams.size(), Inherited);
     GenericParams.push_back(Param);
 
     // Attach attributes.

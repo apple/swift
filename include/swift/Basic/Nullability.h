@@ -24,6 +24,13 @@
       _Pragma("clang diagnostic ignored \"-Wnullability-extension\"")
 #define SWIFT_END_NULLABILITY_ANNOTATIONS _Pragma("clang diagnostic pop")
 
+/// Similar to 'SWIFT_BEGIN_NULLABILITY_ANNOTATIONS', but suppresses warnings
+/// that nullability annotations must be present on all decls.
+#define SWIFT_BEGIN_NULLABILITY_ANNOTATIONS_INCOMPLETE                         \
+  _Pragma("clang diagnostic push")                                             \
+      _Pragma("clang diagnostic ignored \"-Wnullability-extension\"")          \
+          _Pragma("clang diagnostic ignored \"-Wnullability-completeness\"")
+
 #define SWIFT_BEGIN_ASSUME_NONNULL _Pragma("clang assume_nonnull begin")
 #define SWIFT_END_ASSUME_NONNULL _Pragma("clang assume_nonnull end")
 #else

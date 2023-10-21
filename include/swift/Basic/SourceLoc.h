@@ -17,6 +17,7 @@
 #ifndef SWIFT_BASIC_SOURCELOC_H
 #define SWIFT_BASIC_SOURCELOC_H
 
+#include "swift/Basic/Compiler.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/LLVM.h"
 #include "llvm/ADT/DenseMapInfo.h"
@@ -25,6 +26,8 @@
 #include "llvm/Support/SMLoc.h"
 #include <assert.h>
 #include <functional>
+
+#include <swift/bridging>
 
 namespace swift {
   class SourceManager;
@@ -46,6 +49,11 @@ public:
   
   bool isValid() const { return Value.isValid(); }
   bool isInvalid() const { return !isValid(); }
+
+  SWIFT_NAME(fromPointer(_:))
+  static SourceLoc __bridging_fromPointer(const char *ptr) {
+    return SourceLoc(llvm::SMLoc::getFromPointer(ptr));
+  }
 
   /// An explicit bool operator so one can check if a SourceLoc is valid in an
   /// if statement:

@@ -127,3 +127,12 @@ TrailingWhereClause *TrailingWhereClause::create(
   void *mem = ctx.Allocate(size, alignof(TrailingWhereClause));
   return new (mem) TrailingWhereClause(whereLoc, endLoc, requirements);
 }
+
+TrailingWhereClause *
+TrailingWhereClause::create(ASTContext &ctx, SourceLoc whereLoc,
+                            ArrayRef<RequirementRepr> requirements) {
+  SourceLoc endLoc = requirements.empty()
+                         ? whereLoc
+                         : requirements.back().getSourceRange().End;
+  return create(ctx, whereLoc, endLoc, requirements);
+}

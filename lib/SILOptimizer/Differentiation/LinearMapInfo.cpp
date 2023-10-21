@@ -156,9 +156,8 @@ void LinearMapInfo::populateBranchingTraceDecl(SILBasicBlock *originalBB,
         /*IdentifierLoc*/ loc, DeclName(astCtx.getIdentifier(bbId)), paramList,
         loc, /*RawValueExpr*/ nullptr, branchingTraceDecl);
     enumEltDecl->setImplicit();
-    auto *enumCaseDecl = EnumCaseDecl::create(
+    auto *enumCaseDecl = EnumCaseDecl::createImplicit(
         /*CaseLoc*/ loc, {enumEltDecl}, branchingTraceDecl);
-    enumCaseDecl->setImplicit();
     branchingTraceDecl->addMember(enumEltDecl);
     branchingTraceDecl->addMember(enumCaseDecl);
     // Record enum element declaration.

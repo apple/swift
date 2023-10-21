@@ -17,6 +17,7 @@
 #ifndef SWIFT_DECL_H
 #define SWIFT_DECL_H
 
+#include "swift/AST/ASTGenBridgingWrappers.h"
 #include "swift/AST/AccessScope.h"
 #include "swift/AST/Attr.h"
 #include "swift/AST/Availability.h"
@@ -53,7 +54,10 @@
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/TrailingObjects.h"
 #include <map>
+#include <swift/bridging>
 #include <type_traits>
+
+SWIFT_BEGIN_NULLABILITY_ANNOTATIONS_INCOMPLETE
 
 namespace clang {
 class PointerAuthQualifier;
@@ -813,8 +817,14 @@ private:
   /// computed.
   Decl *CachedObjCImplementationDecl;
 
+  // HACK: When building for Swift with C++ interop, we can't currently handle
+  // move-only types. We don't ever try and copy from Swift, so we can define
+  // these out in that case.
+#ifndef IMPORTING_INTO_SWIFT
   Decl(const Decl&) = delete;
   void operator=(const Decl&) = delete;
+#endif
+
   SourceLoc getLocFromSource() const;
 
   /// Returns the serialized locations of this declaration from the
@@ -893,7 +903,9 @@ public:
   /// Retrieve the innermost declaration context corresponding to this
   /// declaration, which will either be the declaration itself (if it's
   /// also a declaration context) or its declaration context.
-  DeclContext *getInnermostDeclContext() const;
+  /// NOTE: Currently needs to be marked SWIFT_MUTATING to be called using
+  /// C++ interop since we bridge AST nodes as structs.
+  DeclContext *_Nonnull getInnermostDeclContext() const SWIFT_MUTATING;
 
   /// Retrieve the module in which this declaration resides.
   LLVM_READONLY
@@ -1708,6 +1720,19 @@ public:
                                DeclContext *parent,
                                TrailingWhereClause *trailingWhereClause,
                                ClangNode clangNode = ClangNode());
+
+  SWIFT_NAME(createParsed(_:extensionKeywordLoc:type:inherited:whereClause:declContext:))
+  static ExtensionDecl *_Nonnull createParsed(
+      BridgableASTContext ctx, SourceLoc extensionLoc,
+      TypeRepr *_Nullable extendedType,
+      BridgableArrayRef<InheritedEntry> inherited,
+      BridgableTrailingWhereClause trailingWhereClause,
+      DeclContext *_Nonnull parent);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
 
   SourceLoc getStartLoc() const { return ExtensionLoc; }
   SourceLoc getLocFromSource() const { return ExtensionLoc; }
@@ -3430,6 +3455,18 @@ public:
                 SourceLoc NameLoc, GenericParamList *GenericParams,
                 DeclContext *DC);
 
+  SWIFT_NAME(createParsed(_:keywordLoc:name:nameLoc:equalLoc:underlyingType:genericParams:whereClause:declContext:))
+  static TypeAliasDecl *_Nonnull createParsed(
+      BridgableASTContext Ctx, SourceLoc TypeAliasLoc, Identifier Name,
+      SourceLoc NameLoc, SourceLoc EqualLoc, TypeRepr *_Nullable UnderlyingType,
+      BridgableGenericParamList GenericParams,
+      BridgableTrailingWhereClause WhereClause, DeclContext *_Nonnull DC);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
+
   SourceLoc getStartLoc() const { return TypeAliasLoc; }
   SourceRange getSourceRange() const;
 
@@ -3628,13 +3665,12 @@ public:
   /// \param eachLoc The location of the 'each' keyword for a type parameter
   ///                pack.
   /// \param index The index of the parameter in the generic signature.
-  /// \param isParameterPack Whether the generic parameter is for a type
-  ///                        parameter pack, denoted by \c <each T>.
+  /// \param inherited The inherited TypeRepr, if any.
   ///
   static GenericTypeParamDecl *createParsed(DeclContext *dc, Identifier name,
                                             SourceLoc nameLoc,
                                             SourceLoc eachLoc, unsigned index,
-                                            bool isParameterPack);
+                                            TypeRepr *inherited);
 
   /// Construct a new implicit generic type parameter.
   ///
@@ -3775,11 +3811,17 @@ class AssociatedTypeDecl : public TypeDecl {
                      TrailingWhereClause *trailingWhere);
 
 public:
-  static AssociatedTypeDecl *createParsed(ASTContext &ctx, DeclContext *dc,
-                                          SourceLoc keywordLoc, Identifier name,
-                                          SourceLoc nameLoc,
-                                          TypeRepr *defaultDefinition,
-                                          TrailingWhereClause *trailingWhere);
+  SWIFT_NAME(createParsed(_:keywordLoc:name:nameLoc:inherited:defaultType:whereClause:declContext:))
+  static AssociatedTypeDecl *_Nonnull createParsed(
+      BridgableASTContext ctx, SourceLoc keywordLoc, Identifier name,
+      SourceLoc nameLoc, BridgableArrayRef<InheritedEntry> inherited,
+      TypeRepr *_Nullable defaultDefinition,
+      BridgableTrailingWhereClause trailingWhere, DeclContext *dc);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
 
   static AssociatedTypeDecl *createDeserialized(
       ASTContext &ctx, DeclContext *dc, SourceLoc keywordLoc, Identifier name,
@@ -4337,6 +4379,18 @@ public:
   EnumDecl(SourceLoc EnumLoc, Identifier Name, SourceLoc NameLoc,
             ArrayRef<InheritedEntry> Inherited,
             GenericParamList *GenericParams, DeclContext *DC);
+
+  SWIFT_NAME(createParsed(_:keywordLoc:name:nameLoc:genericParams:inherited:whereClause:declContext:))
+  static EnumDecl *_Nonnull createParsed(
+      BridgableASTContext Ctx, SourceLoc EnumLoc, Identifier Name,
+      SourceLoc NameLoc, BridgableGenericParamList GenericParams,
+      BridgableArrayRef<InheritedEntry> Inherited,
+      BridgableTrailingWhereClause WhereClause, DeclContext *_Nonnull DC);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
 
   SourceLoc getStartLoc() const { return EnumLoc; }
   SourceRange getSourceRange() const {
@@ -6389,6 +6443,14 @@ public:
   /// Create a an identical copy of this ParamDecl.
   static ParamDecl *clone(const ASTContext &Ctx, ParamDecl *PD);
 
+  SWIFT_NAME(createParsed(_:specifierLoc:argumentNameLoc:argumentName:parameterNameLoc:parameterName:typeRepr:defaultValue:declContext:))
+  static ParamDecl *_Nonnull createParsed(
+      BridgableASTContext ctx, SourceLoc specifierLoc,
+      SourceLoc argumentNameLoc, Identifier argumentName,
+      SourceLoc parameterNameLoc, Identifier parameterName,
+      TypeRepr *_Nullable typeRepr, Expr *_Nullable defaultValue,
+      DeclContext *_Nonnull dc);
+
   static ParamDecl *
   createImplicit(ASTContext &Context, SourceLoc specifierLoc,
                  SourceLoc argumentNameLoc, Identifier argumentName,
@@ -7423,6 +7485,8 @@ public:
     return Bits.AbstractFunctionDecl.HasImplicitSelfDecl;
   }
 
+// FIXME: Importing these currently causes a request cycle (rdar://116426238)
+#ifndef IMPORTING_INTO_SWIFT
   ParamDecl **getImplicitSelfDeclStorage();
 
   /// Retrieve the implicit 'self' parameter for methods. Returns nullptr for
@@ -7432,6 +7496,7 @@ public:
         ->getImplicitSelfDecl(createIfNeeded);
   }
   ParamDecl *getImplicitSelfDecl(bool createIfNeeded=true);
+#endif
 
   /// Retrieve the declaration that this method overrides, if any.
   AbstractFunctionDecl *getOverriddenDecl() const {
@@ -7604,6 +7669,15 @@ public:
                           ParameterList *BodyParams, TypeRepr *ResultTyR,
                           DeclContext *Parent);
 
+  static FuncDecl *
+  createParsed(ASTContext &Context, SourceLoc StaticLoc,
+               StaticSpellingKind StaticSpelling, SourceLoc FuncLoc,
+               DeclName Name, SourceLoc NameLoc,
+               GenericParamList *GenericParams, ParameterList *BodyParams,
+               SourceLoc AsyncLoc, SourceLoc ThrowsLoc, TypeRepr *ThrownTyR,
+               TypeRepr *ResultTyR, TrailingWhereClause *WhereClause,
+               DeclContext *Parent);
+
   static FuncDecl *createImplicit(ASTContext &Context,
                                   StaticSpellingKind StaticSpelling,
                                   DeclName Name, SourceLoc NameLoc, bool Async,
@@ -7693,7 +7767,10 @@ public:
     return getCaptureInfo().getLocalCaptures(Result);
   }
 
+// FIXME: Importing this currently causes a request cycle (rdar://116426238)
+#ifndef IMPORTING_INTO_SWIFT
   ParamDecl **getImplicitSelfDeclStorage();
+#endif
 
   /// Get the supertype method this method overrides, if any.
   FuncDecl *getOverriddenDecl() const {
@@ -7922,10 +7999,14 @@ class EnumCaseDecl final : public Decl,
   SourceLoc getLocFromSource() const { return CaseLoc; }
 
 public:
-  static EnumCaseDecl *create(SourceLoc CaseLoc,
-                              ArrayRef<EnumElementDecl*> Elements,
-                              DeclContext *DC);
-  
+  static EnumCaseDecl *createParsed(SourceLoc CaseLoc,
+                                    ArrayRef<EnumElementDecl *> Elements,
+                                    DeclContext *DC);
+
+  static EnumCaseDecl *createImplicit(SourceLoc CaseLoc,
+                                      ArrayRef<EnumElementDecl *> Elements,
+                                      DeclContext *DC);
+
   /// Get the list of elements declared in this case.
   ArrayRef<EnumElementDecl *> getElements() const {
     return {getTrailingObjects<EnumElementDecl *>(),
@@ -7982,6 +8063,20 @@ public:
                   SourceLoc EqualsLoc,
                   LiteralExpr *RawValueExpr,
                   DeclContext *DC);
+
+  SWIFT_NAME(createParsed(_:nameLoc:name:params:equalsLoc:rawValue:declContext:))
+  static EnumElementDecl *_Nonnull
+  createParsed(BridgableASTContext Ctx, SourceLoc IdentifierLoc, 
+               DeclName Name,
+               BridgableParameterList Params,
+               SourceLoc EqualsLoc,
+               LiteralExpr *_Nullable RawValueExpr,
+               DeclContext *_Nonnull DC);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
 
   /// Returns the string for the base name, or "_" if this is unnamed.
   StringRef getNameStr() const {
@@ -8151,22 +8246,31 @@ class ConstructorDecl : public AbstractFunctionDecl {
   Expr *CallToSuperInit = nullptr;
 
 public:
-  ConstructorDecl(DeclName Name, SourceLoc ConstructorLoc, 
-                  bool Failable, SourceLoc FailabilityLoc,
-                  bool Async, SourceLoc AsyncLoc,
-                  bool Throws, SourceLoc ThrowsLoc,
-                  TypeLoc thrownTy,
-                  ParameterList *BodyParams,
-                  GenericParamList *GenericParams, 
+  ConstructorDecl(DeclName Name, SourceLoc ConstructorLoc, bool Failable,
+                  SourceLoc FailabilityLoc, bool Async, SourceLoc AsyncLoc,
+                  bool Throws, SourceLoc ThrowsLoc, TypeLoc thrownTy,
+                  ParameterList *BodyParams, GenericParamList *GenericParams,
                   DeclContext *Parent);
+
+  SWIFT_NAME(createParsed(_:name:constructorLoc:failabilityLoc:isIUO:asyncLoc:throwsLoc:thrownType:bodyParams:genericParams:whereClause:declContext:))
+  static ConstructorDecl *_Nonnull createParsed(
+      BridgableASTContext Ctx, DeclName Name, SourceLoc ConstructorLoc,
+      SourceLoc FailabilityLoc, bool isIUO, SourceLoc AsyncLoc,
+      SourceLoc ThrowsLoc, TypeRepr *_Nullable ThrownTy,
+      BridgableParameterList BodyParams,
+      BridgableGenericParamList GenericParams,
+      BridgableTrailingWhereClause WhereClause, DeclContext *_Nonnull Parent);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
 
   static ConstructorDecl *
   createImported(ASTContext &ctx, ClangNode clangNode, DeclName name,
-                 SourceLoc constructorLoc, 
-                 bool failable, SourceLoc failabilityLoc, 
-                 bool async, SourceLoc asyncLoc,
-                 bool throws, SourceLoc throwsLoc,
-                 Type thrownTy,
+                 SourceLoc constructorLoc, bool failable,
+                 SourceLoc failabilityLoc, bool async, SourceLoc asyncLoc,
+                 bool throws, SourceLoc throwsLoc, Type thrownTy,
                  ParameterList *bodyParams, GenericParamList *genericParams,
                  DeclContext *parent);
 
@@ -8302,8 +8406,23 @@ public:
 class DestructorDecl : public AbstractFunctionDecl {
   ParamDecl *SelfDecl;
 
-public:
   DestructorDecl(SourceLoc DestructorLoc, DeclContext *Parent);
+
+public:
+  SWIFT_NAME(createParsed(_:destructorLoc:declContext:))
+  static DestructorDecl *_Nonnull createParsed(BridgableASTContext ctx,
+                                               SourceLoc destructorLoc,
+                                               DeclContext *_Nonnull dc);
+
+  static DestructorDecl *
+  createImplicit(ASTContext &ctx, SourceLoc destructorLoc, DeclContext *dc);
+  static DestructorDecl *
+  createDeserialized(ASTContext &ctx, SourceLoc destructorLoc, DeclContext *dc);
+
+  // FIXME: We ought to be able to define this on Decl, but C++ interop in 5.9
+  // fails with that. It works in 5.10 though.
+  SWIFT_NAME(asDecl())
+  Decl *_Nonnull __bridging_asDecl() { return this; }
 
   ParamDecl **getImplicitSelfDeclStorage() { return &SelfDecl; }
 
@@ -8986,6 +9105,8 @@ AbstractStorageDecl::overwriteSetterAccess(AccessLevel accessLevel) {
     mutableAddressor->overwriteAccess(accessLevel);
 }
 
+// FIXME: Importing these currently causes a request cycle (rdar://116426238)
+#ifndef IMPORTING_INTO_SWIFT
 /// Constructors and destructors always have a 'self' parameter,
 /// which is stored in an instance member. Functions only have a
 /// 'self' if they are declared inside of a nominal type or extension,
@@ -9013,6 +9134,7 @@ inline ParamDecl **FuncDecl::getImplicitSelfDeclStorage() {
   }
   return reinterpret_cast<ParamDecl **>(static_cast<AccessorDecl*>(this)+1);
 }
+#endif // #ifndef IMPORTING_INTO_SWIFT
 
 inline DeclIterator &DeclIterator::operator++() {
   Current = Current->NextDecl;
@@ -9218,5 +9340,7 @@ inline SourceLoc extractNearestSourceLoc(const AbstractFunctionDecl *func) {
 }
 
 } // end namespace swift
+
+SWIFT_END_NULLABILITY_ANNOTATIONS
 
 #endif

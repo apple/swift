@@ -1689,13 +1689,21 @@ ExtensionDecl *ExtensionDecl::create(ASTContext &ctx, SourceLoc extensionLoc,
                                                        !clangNode.isNull());
 
   // Construct the extension.
-  auto result = ::new (declPtr) ExtensionDecl(extensionLoc, extendedType,
-                                              inherited, parent,
-                                              trailingWhereClause);
+  auto result = ::new (declPtr)
+      ExtensionDecl(extensionLoc, extendedType, ctx.AllocateCopy(inherited),
+                    parent, trailingWhereClause);
   if (clangNode)
     result->setClangNode(clangNode);
 
   return result;
+}
+
+ExtensionDecl *ExtensionDecl::createParsed(
+    BridgableASTContext ctx, SourceLoc extensionLoc, TypeRepr *extendedType,
+    BridgableArrayRef<InheritedEntry> inherited,
+    BridgableTrailingWhereClause trailingWhereClause, DeclContext *parent) {
+  return ExtensionDecl::create(ctx, extensionLoc, extendedType, inherited,
+                               parent, trailingWhereClause);
 }
 
 void ExtensionDecl::setConformanceLoader(LazyMemberLoader *lazyLoader,
@@ -5222,6 +5230,18 @@ TypeAliasDecl::TypeAliasDecl(SourceLoc TypeAliasLoc, SourceLoc EqualLoc,
   Bits.TypeAliasDecl.IsDebuggerAlias = false;
 }
 
+TypeAliasDecl *TypeAliasDecl::createParsed(
+    BridgableASTContext Ctx, SourceLoc TypeAliasLoc, Identifier Name,
+    SourceLoc NameLoc, SourceLoc EqualLoc, TypeRepr *UnderlyingType,
+    BridgableGenericParamList GenericParams,
+    BridgableTrailingWhereClause WhereClause, DeclContext *DC) {
+  auto *TAD = new (Ctx)
+      TypeAliasDecl(TypeAliasLoc, EqualLoc, Name, NameLoc, GenericParams, DC);
+  TAD->setUnderlyingTypeRepr(UnderlyingType);
+  TAD->setTrailingWhereClause(WhereClause);
+  return TAD;
+}
+
 SourceRange TypeAliasDecl::getSourceRange() const {
   auto TrailingWhereClauseSourceRange = getGenericTrailingWhereClauseSourceRange();
   if (TrailingWhereClauseSourceRange.isValid())
@@ -5332,13 +5352,20 @@ GenericTypeParamDecl *GenericTypeParamDecl::createDeserialized(
 GenericTypeParamDecl *
 GenericTypeParamDecl::createParsed(DeclContext *dc, Identifier name,
                                    SourceLoc nameLoc, SourceLoc eachLoc,
-                                   unsigned index, bool isParameterPack) {
+                                   unsigned index, TypeRepr *inherited) {
   // We always create generic type parameters with an invalid depth.
   // Semantic analysis fills in the depth when it processes the generic
   // parameter list.
-  return GenericTypeParamDecl::create(
+  auto &ctx = dc->getASTContext();
+  auto *genericParam = GenericTypeParamDecl::create(
       dc, name, nameLoc, eachLoc, GenericTypeParamDecl::InvalidDepth, index,
-      isParameterPack, /*isOpaqueType*/ false, /*opaqueTypeRepr*/ nullptr);
+      /*isParameterPack*/ eachLoc.isValid(), /*isOpaqueType*/ false,
+      /*opaqueTypeRepr*/ nullptr);
+  if (inherited) {
+    auto entries = llvm::makeArrayRef(InheritedEntry(inherited));
+    genericParam->setInherited(ctx.AllocateCopy(entries));
+  }
+  return genericParam;
 }
 
 GenericTypeParamDecl *GenericTypeParamDecl::createImplicit(
@@ -5375,13 +5402,14 @@ AssociatedTypeDecl::AssociatedTypeDecl(DeclContext *dc, SourceLoc keywordLoc,
   Bits.AssociatedTypeDecl.IsDefaultDefinitionTypeComputed = false;
 }
 
-AssociatedTypeDecl *
-AssociatedTypeDecl::createParsed(ASTContext &ctx, DeclContext *dc,
-                                 SourceLoc keywordLoc, Identifier name,
-                                 SourceLoc nameLoc, TypeRepr *defaultDefinition,
-                                 TrailingWhereClause *trailingWhere) {
+AssociatedTypeDecl *AssociatedTypeDecl::createParsed(
+    BridgableASTContext ctx, SourceLoc keywordLoc, Identifier name,
+    SourceLoc nameLoc, BridgableArrayRef<InheritedEntry> inherited,
+    TypeRepr *defaultDefinition, BridgableTrailingWhereClause trailingWhere,
+    DeclContext *dc) {
   auto *decl = new (ctx) AssociatedTypeDecl(dc, keywordLoc, name, nameLoc,
                                             defaultDefinition, trailingWhere);
+  decl->setInherited(ctx.Ctx->AllocateCopy(inherited.get()));
 
   // Sort out this trivial case now to enable the AST dumper to differentiate
   // between a nonexistent and null default type without having to trigger a
@@ -5510,6 +5538,19 @@ EnumDecl::EnumDecl(SourceLoc EnumLoc,
     = static_cast<unsigned>(AssociatedValueCheck::Unchecked);
   Bits.EnumDecl.HasAnyUnavailableValues
     = false;
+}
+
+EnumDecl *EnumDecl::createParsed(BridgableASTContext Ctx, SourceLoc EnumLoc,
+                                 Identifier Name, SourceLoc NameLoc,
+                                 BridgableGenericParamList GenericParams,
+                                 BridgableArrayRef<InheritedEntry> Inherited,
+                                 BridgableTrailingWhereClause WhereClause,
+                                 DeclContext *DC) {
+  auto *ED = new (Ctx)
+      EnumDecl(EnumLoc, Name, NameLoc, Ctx.Ctx->AllocateCopy(Inherited.get()),
+               GenericParams, DC);
+  ED->setTrailingWhereClause(WhereClause);
+  return ED;
 }
 
 Type EnumDecl::getRawType() const {
@@ -5833,9 +5874,8 @@ GetDestructorRequest::evaluate(Evaluator &evaluator, ClassDecl *CD) const {
   auto dc = CD->getImplementationContext();
 
   auto &ctx = CD->getASTContext();
-  auto *DD = new (ctx) DestructorDecl(CD->getLoc(), dc->getAsGenericContext());
-
-  DD->setImplicit();
+  auto *DD = DestructorDecl::createImplicit(ctx, CD->getLoc(),
+                                            dc->getAsGenericContext());
 
   // Synthesize an empty body for the destructor as needed.
   DD->setBodySynthesizer(synthesizeEmptyFunctionBody);
@@ -6170,12 +6210,20 @@ ReferenceCounting ClassDecl::getObjectModel() const {
   return ReferenceCounting::Native;
 }
 
-EnumCaseDecl *EnumCaseDecl::create(SourceLoc CaseLoc,
-                                   ArrayRef<EnumElementDecl *> Elements,
-                                   DeclContext *DC) {
+EnumCaseDecl *EnumCaseDecl::createParsed(SourceLoc CaseLoc,
+                                         ArrayRef<EnumElementDecl *> Elements,
+                                         DeclContext *DC) {
   size_t bytes = totalSizeToAlloc<EnumElementDecl *>(Elements.size());
   void *buf = DC->getASTContext().Allocate(bytes, alignof(EnumCaseDecl));
   return ::new (buf) EnumCaseDecl(CaseLoc, Elements, DC);
+}
+
+EnumCaseDecl *EnumCaseDecl::createImplicit(SourceLoc CaseLoc,
+                                           ArrayRef<EnumElementDecl *> Elements,
+                                           DeclContext *DC) {
+  auto *ECD = EnumCaseDecl::createParsed(CaseLoc, Elements, DC);
+  ECD->setImplicit();
+  return ECD;
 }
 
 bool EnumDecl::hasPotentiallyUnavailableCaseValue() const {
@@ -8059,6 +8107,31 @@ ParamDecl *ParamDecl::clone(const ASTContext &Ctx, ParamDecl *PD) {
   return Clone;
 }
 
+ParamDecl *ParamDecl::createParsed(BridgableASTContext ctx,
+                                   SourceLoc specifierLoc,
+                                   SourceLoc argumentNameLoc,
+                                   Identifier argumentName,
+                                   SourceLoc parameterNameLoc,
+                                   Identifier parameterName, TypeRepr *typeRepr,
+                                   Expr *defaultValue, DeclContext *dc) {
+  auto *PD = new (ctx) ParamDecl(specifierLoc, argumentNameLoc, argumentName,
+                                 parameterNameLoc, parameterName, dc);
+
+  // TODO: Probably ought to be moved into ASTGen.
+  DefaultArgumentKind defaultArgumentKind;
+  if (dc->getParentSourceFile()->Kind == SourceFileKind::Interface &&
+      isa<SuperRefExpr>(defaultValue)) {
+    defaultValue = nullptr;
+    defaultArgumentKind = DefaultArgumentKind::Inherited;
+  } else {
+    defaultArgumentKind = getDefaultArgKind(defaultValue);
+  }
+  PD->setTypeRepr(typeRepr);
+  PD->setDefaultExpr(defaultValue, /*isTypeChecked*/ false);
+  PD->setDefaultArgumentKind(defaultArgumentKind);
+  return PD;
+}
+
 ParamDecl *
 ParamDecl::createImplicit(ASTContext &Context, SourceLoc specifierLoc,
                           SourceLoc argumentNameLoc, Identifier argumentName,
@@ -9725,6 +9798,21 @@ FuncDecl *FuncDecl::create(ASTContext &Context, SourceLoc StaticLoc,
   return FD;
 }
 
+FuncDecl *FuncDecl::createParsed(
+    ASTContext &Context, SourceLoc StaticLoc, StaticSpellingKind StaticSpelling,
+    SourceLoc FuncLoc, DeclName Name, SourceLoc NameLoc,
+    GenericParamList *GenericParams, ParameterList *BodyParams,
+    SourceLoc AsyncLoc, SourceLoc ThrowsLoc, TypeRepr *ThrownTyR,
+    TypeRepr *ResultTyR, TrailingWhereClause *WhereClause,
+    DeclContext *Parent) {
+  auto *FD = FuncDecl::create(
+      Context, StaticLoc, StaticSpelling, FuncLoc, Name, NameLoc,
+      /*Async*/ AsyncLoc.isValid(), AsyncLoc, /*Throws*/ ThrowsLoc.isValid(),
+      ThrowsLoc, ThrownTyR, GenericParams, BodyParams, ResultTyR, Parent);
+  FD->setTrailingWhereClause(WhereClause);
+  return FD;
+}
+
 FuncDecl *FuncDecl::createImplicit(ASTContext &Context,
                                    StaticSpellingKind StaticSpelling,
                                    DeclName Name, SourceLoc NameLoc, bool Async,
@@ -9997,6 +10085,22 @@ ConstructorDecl::ConstructorDecl(DeclName Name, SourceLoc ConstructorLoc,
   assert(Name.getBaseName() == DeclBaseName::createConstructor());
 }
 
+ConstructorDecl *ConstructorDecl::createParsed(
+    BridgableASTContext Ctx, DeclName Name, SourceLoc ConstructorLoc,
+    SourceLoc FailabilityLoc, bool isIUO, SourceLoc AsyncLoc,
+    SourceLoc ThrowsLoc, TypeRepr *ThrownTy, BridgableParameterList BodyParams,
+    BridgableGenericParamList GenericParams,
+    BridgableTrailingWhereClause WhereClause, DeclContext *Parent) {
+  auto *CD = new (Ctx) ConstructorDecl(
+      Name, ConstructorLoc, FailabilityLoc.isValid(), FailabilityLoc,
+      AsyncLoc.isValid(), AsyncLoc, ThrowsLoc.isValid(), ThrowsLoc, ThrownTy,
+      BodyParams, GenericParams, Parent);
+
+  CD->setTrailingWhereClause(WhereClause);
+  CD->setImplicitlyUnwrappedOptional(isIUO);
+  return CD;
+}
+
 ConstructorDecl *ConstructorDecl::createImported(
     ASTContext &ctx, ClangNode clangNode, DeclName name,
     SourceLoc constructorLoc, bool failable, SourceLoc failabilityLoc,
@@ -10039,6 +10143,26 @@ DestructorDecl::DestructorDecl(SourceLoc DestructorLoc, DeclContext *Parent)
                          /*GenericParams=*/nullptr),
     SelfDecl(nullptr) {
   setParameters(ParameterList::createEmpty(Parent->getASTContext()));
+}
+
+DestructorDecl *DestructorDecl::createParsed(BridgableASTContext ctx,
+                                             SourceLoc destructorLoc,
+                                             DeclContext *dc) {
+  return new (ctx) DestructorDecl(destructorLoc, dc);
+}
+
+DestructorDecl *DestructorDecl::createImplicit(ASTContext &ctx,
+                                               SourceLoc destructorLoc,
+                                               DeclContext *dc) {
+  auto *DD = new (ctx) DestructorDecl(destructorLoc, dc);
+  DD->setImplicit();
+  return DD;
+}
+
+DestructorDecl *DestructorDecl::createDeserialized(ASTContext &ctx,
+                                                   SourceLoc destructorLoc,
+                                                   DeclContext *dc) {
+  return new (ctx) DestructorDecl(destructorLoc, dc);
 }
 
 ObjCSelector DestructorDecl::getObjCSelector() const {
@@ -10097,6 +10221,17 @@ EnumElementDecl::EnumElementDecl(SourceLoc IdentifierLoc, DeclName Name,
     EqualsLoc(EqualsLoc),
     RawValueExpr(RawValueExpr) {
   setParameterList(Params);
+}
+
+EnumElementDecl *
+EnumElementDecl::createParsed(BridgableASTContext Ctx, SourceLoc IdentifierLoc,
+                              DeclName Name,
+                              BridgableParameterList Params,
+                              SourceLoc EqualsLoc,
+                              LiteralExpr *RawValueExpr,
+                              DeclContext *DC) {
+  return new (Ctx) EnumElementDecl(IdentifierLoc, Name, Params, EqualsLoc,
+                                   RawValueExpr, DC);
 }
 
 SourceRange EnumElementDecl::getSourceRange() const {

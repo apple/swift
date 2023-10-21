@@ -8,6 +8,12 @@ module CBasicBridging {
   header "swift/Basic/CBasicBridging.h"
 }
 
+module ASTGenBridging {
+  header "swift/AST/ASTGenBridging.h"
+  requires cplusplus
+  export *
+}
+
 module ASTBridging {
   header "swift/AST/ASTBridging.h"
   requires cplusplus

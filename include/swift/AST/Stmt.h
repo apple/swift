@@ -61,8 +61,13 @@ enum : unsigned { NumStmtKindBits =
 
 /// Stmt - Base class for all statements in swift.
 class alignas(8) Stmt : public ASTAllocated<Stmt> {
+  // HACK: When building for Swift with C++ interop, we can't currently handle
+  // move-only types. We don't ever try and copy from Swift, so we can define
+  // these out in that case.
+#ifndef IMPORTING_INTO_SWIFT
   Stmt(const Stmt&) = delete;
   Stmt& operator=(const Stmt&) = delete;
+#endif
 
 protected:
   // clang-format off

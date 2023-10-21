@@ -9,7 +9,7 @@ extension ASTGenVisitor {
     var segment = node.segments.first!.as(StringSegmentSyntax.self)!.content.text
     return .expr(
       segment.withBridgedString { bridgedSegment in
-        return StringLiteralExpr_create(self.ctx, bridgedSegment, openDelimiterOrQuoteLoc)
+        return StringLiteralExpr_create(self.ctx.bridged, bridgedSegment, openDelimiterOrQuoteLoc)
       }
     )
   }
@@ -18,14 +18,14 @@ extension ASTGenVisitor {
     var segment = node.literal.text
     return .expr(
       segment.withBridgedString { bridgedSegment in
-        return IntegerLiteralExpr_create(ctx, bridgedSegment, node.literal.bridgedSourceLoc(in: self))
+        return IntegerLiteralExpr_create(ctx.bridged, bridgedSegment, node.literal.bridgedSourceLoc(in: self))
       }
     )
   }
 
   public func generate(_ node: BooleanLiteralExprSyntax) -> ASTNode {
     let value = node.literal.tokenKind == .keyword(.true)
-    return .expr(BooleanLiteralExpr_create(ctx, value, node.literal.bridgedSourceLoc(in: self)))
+    return .expr(BooleanLiteralExpr_create(ctx.bridged, value, node.literal.bridgedSourceLoc(in: self)))
   }
 
   public func generate(_ node: ArrayExprSyntax) -> ASTNode {
@@ -39,7 +39,7 @@ extension ASTGenVisitor {
 
     return .expr(
       ArrayExpr_create(
-        self.ctx,
+        self.ctx.bridged,
         node.leftSquare.bridgedSourceLoc(in: self),
         expressions.bridgedArray(in: self),
         commaLocations,
@@ -49,6 +49,6 @@ extension ASTGenVisitor {
   }
 
   func generate(_ node: NilLiteralExprSyntax) -> ASTNode {
-    .expr(NilLiteralExpr_create(astContext: self.ctx, nilKeywordLoc: node.nilKeyword.bridgedSourceLoc(in: self)))
+    .expr(NilLiteralExpr_create(astContext: self.ctx.bridged, nilKeywordLoc: node.nilKeyword.bridgedSourceLoc(in: self)))
   }
 }

@@ -5,14 +5,14 @@ import SwiftDiagnostics
 extension ASTGenVisitor {
   public func generate(_ node: ClosureExprSyntax) -> ASTNode {
     let body = BraceStmt_create(
-      self.ctx,
+      self.ctx.bridged,
       node.leftBrace.bridgedSourceLoc(in: self),
       self.generate(node.statements),
       node.rightBrace.bridgedSourceLoc(in: self)
     )
 
     // FIXME: Translate the signature, capture list, 'in' location, etc.
-    return .expr(ClosureExpr_create(self.ctx, body, self.declContext))
+    return .expr(ClosureExpr_create(self.ctx.bridged, body, self.declContext.bridged))
   }
 
   public func generate(_ node: FunctionCallExprSyntax) -> ASTNode {
@@ -40,19 +40,19 @@ extension ASTGenVisitor {
       .rawValue
     let callee = generate(node.calledExpression).rawValue
 
-    return .expr(FunctionCallExpr_create(self.ctx, callee, argumentTuple))
+    return .expr(FunctionCallExpr_create(self.ctx.bridged, callee, argumentTuple))
   }
 
   public func generate(_ node: DeclReferenceExprSyntax) -> ASTNode {
     let (name, nameLoc) = node.baseName.bridgedIdentifierAndSourceLoc(in: self)
 
-    return .expr(IdentifierExpr_create(self.ctx, name, nameLoc))
+    return .expr(IdentifierExpr_create(self.ctx.bridged, name, nameLoc))
   }
 
   public func generate(_ node: IdentifierPatternSyntax) -> ASTNode {
     let (name, nameLoc) = node.identifier.bridgedIdentifierAndSourceLoc(in: self)
 
-    return .expr(IdentifierExpr_create(self.ctx, name, nameLoc))
+    return .expr(IdentifierExpr_create(self.ctx.bridged, name, nameLoc))
   }
 
   public func generate(_ node: MemberAccessExprSyntax) -> ASTNode {
@@ -60,7 +60,7 @@ extension ASTGenVisitor {
     let base = generate(node.base!).rawValue
     let name = node.declName.baseName.bridgedIdentifier(in: self)
 
-    return .expr(UnresolvedDotExpr_create(ctx, base, loc, name, loc))
+    return .expr(UnresolvedDotExpr_create(ctx.bridged, base, loc, name, loc))
   }
 
   public func generate(_ node: IfExprSyntax) -> ASTNode {
@@ -68,7 +68,7 @@ extension ASTGenVisitor {
 
     // Wrap in a SingleValueStmtExpr to embed as an expression.
     let sve = SingleValueStmtExpr_createWithWrappedBranches(
-      ctx, stmt, declContext, /*mustBeExpr*/ true)
+      ctx.bridged, stmt, declContext.bridged, /*mustBeExpr*/ true)
     return .expr(sve)
   }
 
@@ -96,7 +96,7 @@ extension ASTGenVisitor {
 
     return .expr(
       TupleExpr_create(
-        self.ctx,
+        self.ctx.bridged,
         leftParen.bridgedSourceLoc(in: self),
         expressions.bridgedArray(in: self),
         labels.bridgedArray(in: self),

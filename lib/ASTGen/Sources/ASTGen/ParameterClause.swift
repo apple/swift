@@ -54,73 +54,72 @@ extension EnumCaseParameterSyntax: ValueParameterSyntax {
 }
 
 extension ASTGenVisitor {
-  func generate(_ node: FunctionParameterSyntax) -> ASTNode {
-    self.makeParamDecl(node)
-  }
-
-  func generate(_ node: EnumCaseParameterSyntax) -> ASTNode {
-    self.makeParamDecl(node)
-  }
-
-  private func makeParamDecl(_ node: some ValueParameterSyntax) -> ASTNode {
-    // FIXME: This location should be derived from the type repr.
-    let specifierLoc: BridgedSourceLoc = nil
-
-    let firstName: BridgedIdentifier
-    if node.optionalFirstName?.tokenKind == .wildcard {
+  private func getArgumentLabel(_ token: TokenSyntax?) -> (swift.Identifier, swift.SourceLoc) {
+    guard let token = token else { return (.init(), .init()) }
+    let loc = token.sourceLoc(in: self)
+    if token.tokenKind == .wildcard {
       // Swift AST represents "_" as a null identifier.
-      firstName = nil
+      return (.init(), loc)
     } else {
-      firstName = node.optionalFirstName.bridgedIdentifier(in: self)
+      return (token.identifier(in: self), loc)
+    }
+  }
+
+  private func makeParamDecl(_ node: some ValueParameterSyntax) -> UnsafeMutablePointer<swift.ParamDecl> {
+    // FIXME: This location should be derived from the type repr.
+    let specifierLoc: swift.SourceLoc = .init()
+
+    let (firstName, firstNameLoc) = getArgumentLabel(node.optionalFirstName)
+
+    let secondName: swift.Identifier
+    let secondNameLoc: swift.SourceLoc
+    if let secondNameToken = node.secondName {
+      (secondName, secondNameLoc) = getArgumentLabel(secondNameToken)
+    } else {
+      secondName = firstName
+      secondNameLoc = firstNameLoc
     }
 
-    let (secondName, secondNameLoc) = node.secondName.bridgedIdentifierAndSourceLoc(in: self)
-
-    return .decl(
-      ParamDecl_create(
-        astContext: self.ctx,
-        declContext: self.declContext,
-        specifierLoc: specifierLoc,
-        firstName: firstName,
-        firstNameLoc: node.optionalFirstName.bridgedSourceLoc(in: self),
-        secondName: secondName,
-        secondNameLoc: secondNameLoc,
-        type: self.generate(node.optionalType)?.rawValue,
-        defaultValue: self.generate(node.defaultValue?.value)?.rawValue
-      )
+    return swift.ParamDecl.createParsed(
+      self.ctx,
+      specifierLoc: specifierLoc,
+      argumentNameLoc: firstNameLoc,
+      argumentName: firstName,
+      parameterNameLoc: secondNameLoc,
+      parameterName: secondName,
+      typeRepr: self.generate(node.optionalType),
+      defaultValue: self.generate(node.defaultValue?.value)?.expr,
+      declContext: self.declContext
     )
+  }
+
+  func generate(_ node: FunctionParameterSyntax) -> UnsafeMutablePointer<swift.ParamDecl> {
+    self.makeParamDecl(node)
+  }
+
+  func generate(_ node: EnumCaseParameterSyntax) -> UnsafeMutablePointer<swift.ParamDecl> {
+    self.makeParamDecl(node)
   }
 }
 
 // MARK: - ParameterList
 
 extension ASTGenVisitor {
-  func generate(_ node: FunctionParameterClauseSyntax) -> ASTNode {
-    .misc(
-      ParameterList_create(
-        astContext: self.ctx,
-        leftParenLoc: node.leftParen.bridgedSourceLoc(in: self),
-        parameters: self.generate(node.parameters),
-        rightParenLoc: node.rightParen.bridgedSourceLoc(in: self)
-      )
+  func generate(_ node: FunctionParameterClauseSyntax) -> swift.BridgableParameterList {
+    .createParsed(
+      ctx,
+      lParenLoc: node.leftParen.sourceLoc(in: self),
+      params: .init(from: node.parameters.lazy.map(self.generate), in: self),
+      rParenLoc: node.rightParen.sourceLoc(in: self)
     )
   }
 
-  func generate(_ node: EnumCaseParameterClauseSyntax) -> ASTNode {
-    .misc(
-      ParameterList_create(
-        astContext: self.ctx,
-        leftParenLoc: node.leftParen.bridgedSourceLoc(in: self),
-        parameters: node.parameters.lazy.map { self.generate($0).rawValue }.bridgedArray(in: self),
-        rightParenLoc: node.rightParen.bridgedSourceLoc(in: self)
-      )
+  func generate(_ node: EnumCaseParameterClauseSyntax) -> swift.BridgableParameterList {
+    .createParsed(
+      ctx,
+      lParenLoc: node.leftParen.sourceLoc(in: self),
+      params: .init(from: node.parameters.lazy.map(self.generate), in: self),
+      rParenLoc: node.rightParen.sourceLoc(in: self)
     )
-  }
-}
-
-extension ASTGenVisitor {
-  @inline(__always)
-  func generate(_ node: FunctionParameterListSyntax) -> BridgedArrayRef {
-    node.lazy.map { self.generate($0).rawValue }.bridgedArray(in: self)
   }
 }
