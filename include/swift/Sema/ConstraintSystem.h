@@ -3042,6 +3042,19 @@ public:
     return nullptr;
   }
 
+  DeclContext *getKeyPathDC(const KeyPathExpr *keyPath) const {
+    auto result = getKeyPathDCIfAvailable(keyPath);
+    assert(result);
+    return result;
+  }
+
+  DeclContext *getKeyPathDCIfAvailable(const KeyPathExpr *keyPath) const {
+    auto result = KeyPaths.find(keyPath);
+    if (result != KeyPaths.end())
+      return std::get<2>(result->second);
+    return nullptr;
+  }
+
   TypeBase* getFavoredType(Expr *E) {
     assert(E != nullptr);
     return this->FavoredTypes[E];

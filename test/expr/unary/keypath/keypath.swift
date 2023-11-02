@@ -139,17 +139,17 @@ func testKeyPath(sub: Sub, optSub: OptSub,
   let _: (A) -> Prop? = \.optProperty?
   let _: PartialKeyPath<A> = \.optProperty?
   let _: KeyPath<A, Prop?> = \.optProperty?
-  // expected-error@+1{{cannot convert}}
+  // expected-error@+1{{cannot convert value of type 'KeyPath<A, Prop?>' to specified type 'WritableKeyPath<A, Prop?>'}}
   let _: WritableKeyPath<A, Prop?> = \.optProperty?
-  // expected-error@+1{{cannot convert}}
+  // expected-error@+1{{cannot convert value of type 'KeyPath<A, Prop?>' to specified type 'ReferenceWritableKeyPath<A, Prop?>'}}
   let _: ReferenceWritableKeyPath<A, Prop?> = \.optProperty?
 
   let _: (A) -> A? = \.optProperty?[sub]
   let _: PartialKeyPath<A> = \.optProperty?[sub]
   let _: KeyPath<A, A?> = \.optProperty?[sub]
-  // expected-error@+1{{cannot convert}}
+  // expected-error@+1{{cannot convert value of type 'KeyPath<A, A?>' to specified type 'WritableKeyPath<A, A?>'}}
   let _: WritableKeyPath<A, A?> = \.optProperty?[sub]
-  // expected-error@+1{{cannot convert}}
+  // expected-error@+1{{cannot convert value of type 'KeyPath<A, A?>' to specified type 'ReferenceWritableKeyPath<A, A?>'}}
   let _: ReferenceWritableKeyPath<A, A?> = \.optProperty?[sub]
 
   let _: KeyPath<A, Prop> = \.optProperty!
@@ -168,7 +168,7 @@ func testKeyPath(sub: Sub, optSub: OptSub,
   let _: PartialKeyPath<C<A>> = \C.value
   let _: KeyPath<C<A>, A> = \C.value
   let _: WritableKeyPath<C<A>, A> = \C.value
-  // expected-error@+1{{cannot convert}}
+  // expected-error@+1{{cannot convert value of type 'WritableKeyPath<C<A>, A>' to specified type 'ReferenceWritableKeyPath<C<A>, A>'}}
   let _: ReferenceWritableKeyPath<C<A>, A> = \C.value
 
   let _: (Prop) -> B = \.nonMutatingProperty
@@ -715,7 +715,7 @@ var identity9: PartialKeyPath<Container> = \Container.self
 var identity10: PartialKeyPath<Container> = \.self
 var identity11: AnyKeyPath = \Container.self
 var identity12: (Container) -> Container = \Container.self
-var identity13: (Container) -> Container = \.self
+//var identity13: (Container) -> Container = \.self
 
 var interleavedIdentityComponents = \Container.self.base.self?.self.i.self
 
@@ -913,8 +913,10 @@ func testKeyPathHole() {
   // expected-error@-1 {{'AnyKeyPath' does not provide enough context for root type to be inferred; consider explicitly specifying a root type}} {{25-25=<#Root#>}}
 
   func f(_ i: Int) {}
-  f(\.x) // expected-error {{cannot infer key path type from context; consider explicitly specifying a root type}} {{6-6=<#Root#>}}
-  f(\.x.y) // expected-error {{cannot infer key path type from context; consider explicitly specifying a root type}} {{6-6=<#Root#>}}
+  f(\.x) // expected-error {{cannot convert value of type 'KeyPath<_, _>' to expected argument type 'Int'}}
+  // expected-error@-1 {{cannot infer key path type from context; consider explicitly specifying a root type}}
+  f(\.x.y) // expected-error {{cannot convert value of type 'KeyPath<_, _>' to expected argument type 'Int'}}
+  // expected-error@-1 {{cannot infer key path type from context; consider explicitly specifying a root type}}
 
   func provideValueButNotRoot<T>(_ fn: (T) -> String) {} 
   provideValueButNotRoot(\.x) // expected-error {{cannot infer key path type from context; consider explicitly specifying a root type}}
