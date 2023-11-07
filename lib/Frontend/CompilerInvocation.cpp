@@ -509,6 +509,9 @@ validateCxxInteropCompatibilityMode(StringRef mode) {
   // Swift 5 is the default language version.
   if (mode == "swift-5.9")
     return {CxxCompatMode::enabled, version::Version({5})};
+  // Note: If this is updated, corresponding code in
+  // InterfaceSubContextDelegateImpl::InterfaceSubContextDelegateImpl needs
+  // to be updated also.
   return {CxxCompatMode::invalid, {}};
 }
 

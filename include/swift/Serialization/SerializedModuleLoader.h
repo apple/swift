@@ -177,7 +177,7 @@ protected:
     std::string headerImport;
   };
 
-  static llvm::ErrorOr<BinaryModuleImports>
+  llvm::ErrorOr<BinaryModuleImports>
   getImportsOfModule(Twine modulePath,
                      ModuleLoadingBehavior transitiveBehavior,
                      bool isFramework,
