@@ -151,6 +151,9 @@ endif()
 if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB)
   set(EMBEDDED_STDLIB_TARGET_TRIPLES
     # arch    module_name               target triple
+    "armv6    armv6-none-none-eabi      armv6-none-none-eabi"
+    "armv7    armv7-none-none-eabi      armv7-none-none-eabi"
+    "armv6    armv6-apple-none-macho    armv6-apple-none-macho"
     "armv7    armv7-apple-none-macho    armv7-apple-none-macho"
     "arm64    arm64-apple-none-macho    arm64-apple-none-macho"
     "x86_64   x86_64-apple-macos        x86_64-apple-macos10.13"

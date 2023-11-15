@@ -262,6 +262,7 @@ class StdlibDeploymentTarget(object):
     # to build the stdlib as standalone and/or statically linked.
     Freestanding = Platform("freestanding", archs=[
         "i386", "x86_64",
+        "armv6", "armv6m",
         "armv7", "armv7s", "armv7k", "armv7m", "armv7em",
         "arm64", "arm64e", "arm64_32"])
 

@@ -276,6 +276,15 @@ toolchains::GenericUnix::constructInvocation(const DynamicLinkJobAction &job,
   SmallString<128> SharedResourceDirPath;
   getResourceDirPath(SharedResourceDirPath, context.Args, /*Shared=*/true);
 
+  bool embeddedEnabled = false;
+  for (const Arg *A : context.Args.filtered(options::OPT_enable_experimental_feature)) {
+    StringRef value = A->getValue();
+    if (value == "Embedded") {
+      embeddedEnabled = true;
+      break;
+    }
+  }
+
   SmallString<128> swiftrtPath = SharedResourceDirPath;
   llvm::sys::path::append(swiftrtPath,
                           swift::getMajorArchitectureName(getTriple()));
@@ -340,6 +349,8 @@ toolchains::GenericUnix::constructInvocation(const DynamicLinkJobAction &job,
     llvm::sys::path::append(linkFilePath, "static-executable-args.lnk");
   } else if (staticStdlib) {
     llvm::sys::path::append(linkFilePath, "static-stdlib-args.lnk");
+  } else if (embeddedEnabled) {
+    linkFilePath.clear();
   } else {
     linkFilePath.clear();
     Arguments.push_back("-lswiftCore");
