@@ -6317,6 +6317,7 @@ public:
 
     struct BBState {
       std::vector<SingleValueInstruction*> Stack;
+      std::vector<BeginApplyInst *> Coroutines;
 
       /// Contents: BeginAccessInst*, BeginApplyInst*.
       std::set<SILInstruction*> ActiveOps;
@@ -6361,7 +6362,30 @@ public:
                     "cannot suspend async task while unawaited continuation is active");
           }
         }
-          
+        if (auto *bai = dyn_cast<BeginApplyInst>(&i)) {
+          state.Coroutines.push_back(bai);
+        } else {
+          SILValue token;
+          if (auto *eai = dyn_cast<EndApplyInst>(&i)) {
+            token = eai->getToken();
+          } else if (auto *aai = dyn_cast<AbortApplyInst>(&i)) {
+            token = aai->getToken();
+          }
+          if (token) {
+            require(!state.Coroutines.empty(),
+                    "coroutine end without active coroutine");
+            auto activeToken = state.Coroutines.back()->getTokenResult();
+            state.Coroutines.pop_back();
+            if (token != activeToken) {
+              llvm::errs() << "Recent begin_apply: " << *activeToken;
+              llvm::errs() << "Matching begin_apply: " << *token;
+            }
+            require(token == activeToken,
+                    getSILInstructionName(i.getKind()) +
+                        " does not match most recent begin_apply");
+          }
+        }
+
         if (i.isAllocatingStack()) {
           state.Stack.push_back(cast<SingleValueInstruction>(&i));
 

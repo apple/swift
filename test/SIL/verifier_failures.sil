@@ -42,3 +42,25 @@ sil @dealloc_pack_metadata_with_bad_operand : $@convention(thin) <each T> () -> 
   %retval = tuple ()
   return %retval : $()
 }
+
+sil @c : $@yield_once @convention(thin) () -> @yields @inout ()
+
+// CHECK:       Recent begin_apply: (%3, **%4**) = begin_apply %0()
+// CHECK:       Matching begin_apply: (%1, **%2**) = begin_apply %0()
+// CHECK-LABEL: Begin Error in function unnested_coroutines
+// CHECK:       SIL verification failed: end_apply does not match most recent begin_apply
+// CHECK-LABEL: End Error in function unnested_coroutines
+// CHECK:       Recent begin_apply: (%1, **%2**) = begin_apply %0()
+// CHECK:       Matching begin_apply: (%3, **%4**) = begin_apply %0()
+// CHECK-LABEL: Begin Error in function unnested_coroutines
+// CHECK:       SIL verification failed: end_apply does not match most recent begin_apply
+// CHECK-LABEL: End Error in function unnested_coroutines
+sil [ossa] @unnested_coroutines : $@convention(thin) () -> () {
+  %coro = function_ref @c : $@yield_once @convention(thin) () -> @yields @inout ()
+  (%t1, %r1) = begin_apply %coro() : $@yield_once @convention(thin) () -> @yields @inout ()
+  (%t2, %r2) = begin_apply %coro() : $@yield_once @convention(thin) () -> @yields @inout ()
+  end_apply %r1
+  end_apply %r2
+  %retval = tuple ()
+  return %retval : $()
+}
