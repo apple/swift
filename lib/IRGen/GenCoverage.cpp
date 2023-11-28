@@ -220,6 +220,9 @@ void IRGenModule::emitCoverageMaps(ArrayRef<const SILCoverageMap *> Mappings) {
 }
 
 void IRGenerator::emitCoverageMapping() {
+  if (!SIL.getOptions().EmitProfileCoverageMapping)
+    return;
+
   if (SIL.getCoverageMaps().empty())
     return;
 
