@@ -1205,11 +1205,6 @@ TreatKeyPathSubscriptIndexAsHashable::create(ConstraintSystem &cs, Type type,
 bool AllowInvalidRefInKeyPath::diagnose(const Solution &solution,
                                         bool asNote) const {
   switch (Kind) {
-  case RefKind::StaticMember: {
-    InvalidStaticMemberRefInKeyPath failure(solution, Member, getLocator());
-    return failure.diagnose(asNote);
-  }
-
   case RefKind::EnumCase: {
     InvalidEnumCaseRefInKeyPath failure(solution, Member, getLocator());
     return failure.diagnose(asNote);
@@ -1272,11 +1267,6 @@ AllowInvalidRefInKeyPath::forRef(ConstraintSystem &cs, ValueDecl *member,
   if (isa<ConstructorDecl>(member))
     return AllowInvalidRefInKeyPath::create(cs, RefKind::Initializer,
                                             member, locator);
-
-  // Referencing static members in key path is not currently allowed.
-  if (member->isStatic())
-    return AllowInvalidRefInKeyPath::create(cs, RefKind::StaticMember, member,
-                                            locator);
 
   if (auto *storage = dyn_cast<AbstractStorageDecl>(member)) {
     // Referencing members with mutating getters in key path is not
