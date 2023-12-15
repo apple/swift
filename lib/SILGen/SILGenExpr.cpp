@@ -3182,6 +3182,11 @@ emitKeyPathRValueBase(SILGenFunction &subSGF,
   auto paramSubstValue = subSGF.emitOrigToSubstValue(loc, paramOrigValue,
                                              AbstractionPattern::getOpaque(),
                                              baseType);
+
+  // If base is a metatype, it cannot be opened as an existential or upcasted
+  // from a class.
+  if (baseType->is<MetatypeType>())
+    return paramSubstValue;
   
   // Pop open an existential container base.
   if (baseType->isAnyExistentialType()) {

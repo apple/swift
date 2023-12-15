@@ -1862,9 +1862,10 @@ SILGenModule::canStorageUseStoredKeyPathComponent(AbstractStorageDecl *decl,
                                           expansion);
   switch (strategy.getKind()) {
   case AccessStrategy::Storage: {
-    // Keypaths rely on accessors to handle the special behavior of weak or
-    // unowned properties.
-    if (decl->getInterfaceType()->is<ReferenceStorageType>())
+    // Keypaths rely on accessors to handle the special behavior of weak,
+    // unowned, or static properties.
+    if (decl->getInterfaceType()->is<ReferenceStorageType>() ||
+        decl->isStatic())
       return false;
 
     // If the field offset depends on the generic instantiation, we have to
@@ -1962,10 +1963,7 @@ void SILGenModule::tryEmitPropertyDescriptor(AbstractStorageDecl *decl) {
 
   Type baseTy;
   if (decl->getDeclContext()->isTypeContext()) {
-    // TODO: Static properties should eventually be referenceable as
-    // keypaths from T.Type -> Element, viz `baseTy = MetatypeType::get(baseTy)`
-    assert(!decl->isStatic());
-    
+
     baseTy = decl->getDeclContext()->getSelfInterfaceType()
                  ->getReducedType(decl->getInnermostDeclContext()
                                       ->getGenericSignatureOfContext());
