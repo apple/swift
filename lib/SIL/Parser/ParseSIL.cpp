@@ -2636,20 +2636,10 @@ bool SILParser::parseSpecificSILInstruction(SILBuilder &B,
   }
   case SILInstructionKind::EndApplyInst: {
     UnresolvedValueName argName;
-    if (parseValueName(argName))
-      return true;
-
-    if (P.Tok.getKind() != tok::kw_as) {
-      P.diagnose(P.Tok, diag::expected_tok_in_sil_instr, "as");
-      return true;
-    }
-    P.consumeToken(tok::kw_as);
-
     SILType ResultTy;
-    if (parseSILType(ResultTy))
-      return true;
 
-    if (parseSILDebugLocation(InstLoc, B))
+    if (parseValueName(argName) || parseVerbatim("as") ||
+        parseSILType(ResultTy) || parseSILDebugLocation(InstLoc, B))
       return true;
 
     SILType expectedTy = SILType::getSILTokenType(P.Context);

@@ -6138,8 +6138,8 @@ when the coroutine reaches a ``return`` instruction.
 The operand must always be the token result of a ``begin_apply``
 instruction, which is why it need not specify a type.
 
-If a coroutine produces normal results on ``resume`` path, they
-will be produced by ``end_apply``.
+The result of ``end_apply`` is the normal result of the coroutine function (the
+operand of the ``return`` instruction)."
 
 When throwing coroutines are supported, there will need to be a
 ``try_end_apply`` instruction.

@@ -1951,34 +1951,11 @@ public:
             "operand of end_apply must be a begin_apply");
 
     BeginApplyInst *bai = AI->getBeginApply();
-    
     SILFunctionConventions calleeConv(bai->getSubstCalleeType(), F.getModule());
-    auto calleeResults = calleeConv.getResults();
-    auto results = AI->getResults();
 
-    require(results.size() == 1,
-            "end_apply must have a single result");
-
-    if (auto tupleTy = results[0]->getType().getAs<TupleType>()) {
-      require(tupleTy.getElementTypes().size() == calleeResults.size(),
-              "length mismatch in callee results vs. end_apply results");
-
-      for (auto typeAndIdx : llvm::enumerate(tupleTy->getElementTypes())) {
-        SILType elTy = SILType::getPrimitiveObjectType(typeAndIdx.value()->getCanonicalType());
-        requireSameType(
-          elTy,
-          calleeConv.getSILType(calleeResults[typeAndIdx.index()], F.getTypeExpansionContext()),
-          "callee result type does not match end_apply result type");
-      }
-    } else {
-      require(calleeResults.size() == 1,
-              "callee must have a single result");
-
-      requireSameType(
-        results[0]->getType(),
-        calleeConv.getSILType(calleeResults[0], F.getTypeExpansionContext()),
-        "callee result type does not match end_apply result type");
-    }
+    requireSameType(
+      AI->getType(), calleeConv.getSILResultType(F.getTypeExpansionContext()),
+      "callee result type does not match end_apply result type");
   }
 
   void verifyLLVMIntrinsic(BuiltinInst *BI, llvm::Intrinsic::ID ID) {
