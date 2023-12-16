@@ -335,11 +335,23 @@ public class KeyPath<Root, Value>: PartialKeyPath<Root> {
         return Builtin.reinterpretCast(root)
       }
 
+      if _fastPath(buffer.isSingleComponent) {
+        var isBreak = false
+        let (rawComponent, _) = buffer.next()
+
+        return rawComponent._projectReadOnly(
+          root,
+          to: Value.self,
+          endingWith: Value.self,
+          &isBreak
+        )
+      }
+
       let bufferPtr = buffer.data.baseAddress._unsafelyUnwrappedUnchecked
-      let endOfBuffer = bufferPtr + buffer.data.count
-      let maxSize = Int(truncatingIfNeeded:
-        endOfBuffer.load(as: UInt32.self)
+      let endOfBuffer = MemoryLayout<Int>._roundingUpToAlignment(
+        bufferPtr + buffer.data.count
       )
+      let maxSize = endOfBuffer.load(as: Int.self)
       let roundedMaxSize = 1 &<< (Int.bitWidth &- maxSize.leadingZeroBitCount)
 
       // 16 is the max alignment allowed on practically every platform we deploy
@@ -358,16 +370,15 @@ public class KeyPath<Root, Value>: PartialKeyPath<Root> {
           let (rawComponent, optNextType) = buffer.next()
           let newType = optNextType ?? valueType
           let isLast = optNextType == nil
+          var isBreak = false
 
-          func projectCurrent<Current>(_: Current.Type) -> Value {
-            func projectNew<New>(_: New) -> Value {
-              var isBreak = false
-
+          func projectCurrent<Current>(_: Current.Type) {
+            func projectNew<New>(_: New.Type) {
               let newBase = currentValueBuffer.withMemoryRebound(
                 to: Current.self
               ) {
                 return rawComponent._projectReadOnly(
-                  $0[0],
+                  $0.moveElement(from: 0),
                   to: New.self,
                   endingWith: Value.self,
                   &isBreak
@@ -383,20 +394,11 @@ public class KeyPath<Root, Value>: PartialKeyPath<Root> {
                 let tag: UInt32 = 1
                 Builtin.injectEnumTag(&value, tag._value)
 
-                return value
-              }
+                currentValueBuffer.withMemoryRebound(to: Value.self) {
+                  $0.initializeElement(at: 0, to: value)
+                }
 
-              if isLast {
-                _internalInvariant(
-                  New.self == Value.self,
-                  "key path does not terminate in correct type"
-                )
-
-                return Builtin.reinterpretCast(newBase) as Value
-              }
-
-              currentValueBuffer.withMemoryRebound(to: Current.self) {
-                $0.deinitializeElement(at: 0)
+                return
               }
 
               currentValueBuffer.withMemoryRebound(to: New.self) {
@@ -404,16 +406,24 @@ public class KeyPath<Root, Value>: PartialKeyPath<Root> {
               }
 
               currentType = newType
-              return Builtin.reinterpretCast(newBase) as Value
+
+              if isLast {
+                _internalInvariant(
+                  New.self == Value.self,
+                  "key path does not terminate in correct type"
+                )
+              }
             }
 
-            return _openExistential(newType, do: projectNew(_:))
+            _openExistential(newType, do: projectNew(_:))
           }
 
-          let result = _openExistential(currentType, do: projectCurrent(_:))
+          _openExistential(currentType, do: projectCurrent(_:))
 
-          if isLast {
-            return result
+          if isLast || isBreak {
+            return currentValueBuffer.withMemoryRebound(to: Value.self) {
+              $0.moveElement(from: 0)
+            }
           }
         }
       }
@@ -512,10 +522,10 @@ public class ReferenceWritableKeyPath<
       // Project out the reference prefix.
 
       let bufferPtr = buffer.data.baseAddress._unsafelyUnwrappedUnchecked
-      let endOfBuffer = bufferPtr + buffer.data.count
-      let maxSize = Int(truncatingIfNeeded:
-        endOfBuffer.load(as: UInt32.self)
+      let endOfBuffer = MemoryLayout<Int>._roundingUpToAlignment(
+        bufferPtr + buffer.data.count
       )
+      let maxSize = endOfBuffer.load(as: Int.self)
       let roundedMaxSize = 1 &<< (Int.bitWidth &- maxSize.leadingZeroBitCount)
 
       // 16 is the max alignment allowed on practically every platform we deploy
@@ -545,7 +555,7 @@ public class ReferenceWritableKeyPath<
                 to: Current.self
               ) {
                 return rawComponent._projectReadOnly(
-                  $0[0],
+                  $0.moveElement(from: 0),
                   to: New.self,
                   endingWith: Value.self,
                   &isBreak
@@ -553,11 +563,7 @@ public class ReferenceWritableKeyPath<
               }
 
               guard _fastPath(!isBreak) else {
-                _internalInvariantFailure("should not have stopped key path projection")
-              }
-
-              currentValueBuffer.withMemoryRebound(to: Current.self) {
-                $0.deinitializeElement(at: 0)
+                _preconditionFailure("should not have stopped key path projection")
               }
 
               currentValueBuffer.withMemoryRebound(to: New.self) {
@@ -575,7 +581,7 @@ public class ReferenceWritableKeyPath<
 
         func projectCurrent<Current>(_: Current.Type) -> Any {
           return currentValueBuffer.withMemoryRebound(to: Current.self) {
-            $0[0]
+            $0.moveElement(from: 0)
           }
         }
 
@@ -1854,13 +1860,18 @@ internal struct RawKeyPathComponent {
         return Builtin.reinterpretCast(base)
       }
 
-      _internalInvariantFailure("unwrapped nil optional")
+      _preconditionFailure("unwrapped nil optional")
 
     case .optionalWrap:
       _internalInvariant(NewValue.self == Optional<CurValue>.self,
                    "should be wrapping optional value")
 
-      return Builtin.reinterpretCast(base)
+      var new: NewValue = Builtin.reinterpretCast(base)
+
+      let tag: UInt32 = 0
+      Builtin.injectEnumTag(&new, tag._value)
+
+      return new
     }
   }
 
@@ -1975,6 +1986,7 @@ internal struct KeyPathBuffer {
   internal var data: UnsafeRawBufferPointer
   internal var trivial: Bool
   internal var hasReferencePrefix: Bool
+  internal var isSingleComponent: Bool
 
   internal init(base: UnsafeRawPointer) {
     let header = base.load(as: Header.self)
@@ -1983,14 +1995,17 @@ internal struct KeyPathBuffer {
       count: header.size)
     trivial = header.trivial
     hasReferencePrefix = header.hasReferencePrefix
+    isSingleComponent = header.isSingleComponent
   }
 
   internal init(partialData: UnsafeRawBufferPointer,
                 trivial: Bool = false,
-                hasReferencePrefix: Bool = false) {
+                hasReferencePrefix: Bool = false,
+                isSingleComponent: Bool = false) {
     self.data = partialData
     self.trivial = trivial
     self.hasReferencePrefix = hasReferencePrefix
+    self.isSingleComponent = isSingleComponent
   }
 
   internal var mutableData: UnsafeMutableRawBufferPointer {
@@ -2034,11 +2049,17 @@ internal struct KeyPathBuffer {
   internal struct Header {
     internal var _value: UInt32
 
-    internal init(size: Int, trivial: Bool, hasReferencePrefix: Bool) {
+    internal init(
+      size: Int,
+      trivial: Bool,
+      hasReferencePrefix: Bool,
+      isSingleComponent: Bool
+    ) {
       _internalInvariant(size <= Int(Header.sizeMask), "key path too big")
       _value = UInt32(size)
         | (trivial ? Header.trivialFlag : 0)
         | (hasReferencePrefix ? Header.hasReferencePrefixFlag : 0)
+        | (isSingleComponent ? Header.isSingleComponentFlag : 0)
     }
 
     internal static var sizeMask: UInt32 {
@@ -2053,6 +2074,9 @@ internal struct KeyPathBuffer {
     internal static var hasReferencePrefixFlag: UInt32 {
       return _SwiftKeyPathBufferHeader_HasReferencePrefixFlag
     }
+    internal static var isSingleComponentFlag: UInt32 {
+      return _SwiftKeyPathBufferHeader_IsSingleComponentFlag
+    }
 
     internal var size: Int { return Int(_value & Header.sizeMask) }
     internal var trivial: Bool { return _value & Header.trivialFlag != 0 }
@@ -2065,6 +2089,19 @@ internal struct KeyPathBuffer {
           _value |= Header.hasReferencePrefixFlag
         } else {
           _value &= ~Header.hasReferencePrefixFlag
+        }
+      }
+    }
+    internal var isSingleComponent: Bool {
+      get {
+        return _value & Header.isSingleComponentFlag != 0
+      }
+
+      set {
+        if newValue {
+          _value |= Header.isSingleComponentFlag
+        } else {
+          _value &= ~Header.isSingleComponentFlag
         }
       }
     }
@@ -2537,7 +2574,7 @@ internal func _appendingKeyPaths<
   leaf: KeyPath<Value, AppendedValue>
 ) -> Result {
   let resultTy = type(of: root).appendedType(with: type(of: leaf))
-    var returnValue: AnyKeyPath = root.withBuffer {
+  var returnValue: AnyKeyPath = root.withBuffer {
     var rootBuffer = $0
     return leaf.withBuffer {
       var leafBuffer = $0
@@ -2572,9 +2609,13 @@ internal func _appendingKeyPaths<
       // header, plus space for the middle type.
       // Align up the root so that we can put the component type after it.
       let rootSize = MemoryLayout<Int>._roundingUpToAlignment(rootBuffer.data.count)
-      let resultSize = rootSize + leafBuffer.data.count
+      var resultSize = rootSize + leafBuffer.data.count
         + 2 * MemoryLayout<Int>.size
-      // Tail-allocate space for the KVC string.
+      let componentSize = resultSize
+      // The first tail allocated member is the maxSize of the keypath.
+      resultSize = MemoryLayout<Int>._roundingUpToAlignment(resultSize)
+      resultSize += MemoryLayout<Int>.size
+      // Immediately following is the tail-allocated space for the KVC string.
       let totalResultSize = MemoryLayout<Int32>
         ._roundingUpToAlignment(resultSize + appendedKVCLength)
 
@@ -2597,16 +2638,23 @@ internal func _appendingKeyPaths<
         // Save space for the header.
         let leafIsReferenceWritable = type(of: leaf).kind == .reference
         destBuilder.pushHeader(KeyPathBuffer.Header(
-          size: resultSize - MemoryLayout<Int>.size,
+          size: componentSize - MemoryLayout<Int>.size,
           trivial: rootBuffer.trivial && leafBuffer.trivial,
           hasReferencePrefix: rootBuffer.hasReferencePrefix
-                              || leafIsReferenceWritable
+                              || leafIsReferenceWritable,
+          isSingleComponent: rootBuffer.isSingleComponent !=
+                             leafBuffer.isSingleComponent
         ))
         
         let leafHasReferencePrefix = leafBuffer.hasReferencePrefix
-        
+
+        let rootBufferPtr = rootBuffer.data.baseAddress._unsafelyUnwrappedUnchecked
+        let rootEndOfBuffer = MemoryLayout<Int>._roundingUpToAlignment(
+          rootBufferPtr + rootBuffer.data.count
+        )
+        let rootMaxSize = rootEndOfBuffer.load(as: Int.self)
+
         // Clone the root components into the buffer.
-        
         while true {
           let (component, type) = rootBuffer.next()
           let isLast = type == nil
@@ -2632,7 +2680,13 @@ internal func _appendingKeyPaths<
             break
           }
         }
-        
+
+        let leafBufferPtr = leafBuffer.data.baseAddress._unsafelyUnwrappedUnchecked
+        let leafEndOfBuffer = MemoryLayout<Int>._roundingUpToAlignment(
+          leafBufferPtr + leafBuffer.data.count
+        )
+        let leafMaxSize = leafEndOfBuffer.load(as: Int.self)
+
         // Clone the leaf components into the buffer.
         while true {
           let (component, type) = leafBuffer.next()
@@ -2647,7 +2701,10 @@ internal func _appendingKeyPaths<
             break
           }
         }
-        
+
+        // Append our max size at the end of the buffer before the kvc string.
+        destBuilder.push(Swift.max(rootMaxSize, leafMaxSize))
+
         _internalInvariant(destBuilder.buffer.isEmpty,
                      "did not fill entire result buffer")
       }
@@ -2745,7 +2802,9 @@ public func _swift_getKeyPath(pattern: UnsafeMutableRawPointer,
     // This is a non-atomic load because the instantiated pointer will be
     // written with a release barrier, and loads of the instantiated key path
     // ought to carry a dependency through this loaded pointer.
-    let existingInstance = theOncePtr.load(as: UnsafeRawPointer?.self)
+    let existingInstance = UnsafeRawPointer(
+      bitPattern: UInt(Builtin.atomicload_acquire_Word(theOncePtr._rawValue))
+    )
     
     if let existingInstance = existingInstance {
       // Return the instantiated object at +1.
@@ -2766,7 +2825,7 @@ public func _swift_getKeyPath(pattern: UnsafeMutableRawPointer,
     = _getKeyPathClassAndInstanceSizeFromPattern(patternPtr, arguments)
 
   var pureStructOffset: UInt32? = nil
-        
+
   // Allocate the instance.
   let instance = keyPathClass._create(
     capacityInBytes: sizeWithMaxSize
@@ -2803,7 +2862,7 @@ public func _swift_getKeyPath(pattern: UnsafeMutableRawPointer,
     let instancePtr = Unmanaged.passRetained(instance)
 
     while true {
-      let (oldValue, won) = Builtin.cmpxchg_seqcst_seqcst_Word(
+      let (oldValue, won) = Builtin.cmpxchg_release_monotonic_Word(
         oncePtr._rawValue,
         0._builtinWordValue,
         UInt(bitPattern: instancePtr.toOpaque())._builtinWordValue)
@@ -3994,7 +4053,7 @@ internal struct ValidatingInstantiateKeyPathBuffer: KeyPathPatternVisitor {
     let nextDest = instantiateVisitor.destData.baseAddress._unsafelyUnwrappedUnchecked
     let curSize = nextDest - origDest + MemoryLayout<Int>.size
 
-    _internalInvariant(curSize == sizeVisitor.size,
+    _internalInvariant(curSize == sizeVisitor.sizeWithMaxSize,
                  "size and instantiation visitors out of sync")
   }
 }
@@ -4046,7 +4105,9 @@ internal func _instantiateKeyPathBuffer(
   let destHeader = KeyPathBuffer.Header(
     size: sizeBeforeMaxSize &- MemoryLayout<Int>.size,
     trivial: isTrivial,
-    hasReferencePrefix: endOfReferencePrefixComponent != nil)
+    hasReferencePrefix: endOfReferencePrefixComponent != nil,
+    isSingleComponent: walker.isPureStruct.count == 1
+  )
 
   destHeaderPtr.storeBytes(of: destHeader, as: KeyPathBuffer.Header.self)
 
@@ -4066,8 +4127,9 @@ internal func _instantiateKeyPathBuffer(
   }
 
   if isPureStruct {
-      offset = walker.structOffset
+    offset = walker.structOffset
   }
+
   return offset
 }
 
@@ -4097,7 +4159,8 @@ public func _createOffsetBasedKeyPath(
     let header = KeyPathBuffer.Header(
       size: kpBufferSize - MemoryLayout<Int>.size,
       trivial: true,
-      hasReferencePrefix: false
+      hasReferencePrefix: false,
+      isSingleComponent: true
     )
 
     builder.pushHeader(header)
@@ -4129,8 +4192,13 @@ public func _rerootKeyPath<NewRoot>(
   _ existingKp: AnyKeyPath,
   to newRoot: NewRoot.Type
 ) -> PartialKeyPath<NewRoot> {
-  let (isTrivial, hasReferencePrefix, componentSize) = existingKp.withBuffer {
-    ($0.trivial, $0.hasReferencePrefix, $0.data.count)
+  let (
+    isTrivial,
+    hasReferencePrefix,
+    isSingleComponent,
+    componentSize
+  ) = existingKp.withBuffer {
+    ($0.trivial, $0.hasReferencePrefix, $0.isSingleComponent, $0.data.count)
   }
 
   let existingKpTy = type(of: existingKp)
@@ -4159,7 +4227,8 @@ public func _rerootKeyPath<NewRoot>(
     let header = KeyPathBuffer.Header(
       size: componentSize,
       trivial: isTrivial,
-      hasReferencePrefix: hasReferencePrefix
+      hasReferencePrefix: hasReferencePrefix,
+      isSingleComponent: isSingleComponent
     )
 
     builder.pushHeader(header)
