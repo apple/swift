@@ -4046,14 +4046,20 @@ internal struct ValidatingInstantiateKeyPathBuffer: KeyPathPatternVisitor {
     sizeVisitor.finish()
     instantiateVisitor.finish()
     isPureStruct.append(contentsOf: instantiateVisitor.isPureStruct)
-    checkSizeConsistency()
+    checkSizeConsistency(checkMaxSize: true)
   }
 
-  func checkSizeConsistency() {
+  func checkSizeConsistency(checkMaxSize: Bool = false) {
     let nextDest = instantiateVisitor.destData.baseAddress._unsafelyUnwrappedUnchecked
     let curSize = nextDest - origDest + MemoryLayout<Int>.size
 
-    _internalInvariant(curSize == sizeVisitor.sizeWithMaxSize,
+    let sizeVisitorSize = if checkMaxSize {
+      sizeVisitor.sizeWithMaxSize
+    } else {
+      sizeVisitor.size
+    }
+
+    _internalInvariant(curSize == sizeVisitorSize,
                  "size and instantiation visitors out of sync")
   }
 }
