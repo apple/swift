@@ -17,6 +17,7 @@
 #include "swift/Basic/SourceManager.h"
 #include "swift/Parse/Lexer.h"
 #include "llvm/Config/config.h"
+#include "llvm/Support/VirtualFileSystem.h"
 
 using namespace swift;
 
@@ -59,6 +60,15 @@ static StringRef pluginModuleNameStringFromPath(StringRef path) {
   return "";
 }
 
+static llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem>
+getPluginLoadingFS(ASTContext &Ctx) {
+  // If there is a clang include tree FS, using real file system to load plugin
+  // as the FS in SourceMgr doesn't support directory iterator.
+  if (Ctx.ClangImporterOpts.HasClangIncludeTreeRoot)
+    return llvm::vfs::getRealFileSystem();
+  return Ctx.SourceMgr.getFileSystem();
+}
+
 llvm::DenseMap<Identifier, PluginLoader::PluginEntry> &
 PluginLoader::getPluginMap() {
   if (PluginMap.has_value()) {
@@ -86,7 +96,7 @@ PluginLoader::getPluginMap() {
     (void)result;
   };
 
-  auto fs = Ctx.SourceMgr.getFileSystem();
+  auto fs = getPluginLoadingFS(Ctx);
   std::error_code ec;
 
   for (auto &entry : Ctx.SearchPathOpts.PluginSearchOpts) {
@@ -162,7 +172,7 @@ PluginLoader::lookupPluginByModuleName(Identifier moduleName) {
 
 llvm::Expected<LoadedLibraryPlugin *>
 PluginLoader::loadLibraryPlugin(StringRef path) {
-  auto fs = Ctx.SourceMgr.getFileSystem();
+  auto fs = getPluginLoadingFS(Ctx);
   SmallString<128> resolvedPath;
   if (auto err = fs->getRealPath(path, resolvedPath)) {
     return llvm::createStringError(err, err.message());
@@ -186,7 +196,7 @@ PluginLoader::loadLibraryPlugin(StringRef path) {
 
 llvm::Expected<LoadedExecutablePlugin *>
 PluginLoader::loadExecutablePlugin(StringRef path) {
-  auto fs = Ctx.SourceMgr.getFileSystem();
+  auto fs = getPluginLoadingFS(Ctx);
   SmallString<128> resolvedPath;
   if (auto err = fs->getRealPath(path, resolvedPath)) {
     return llvm::createStringError(err, err.message());
