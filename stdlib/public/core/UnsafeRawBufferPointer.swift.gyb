@@ -115,6 +115,21 @@ public struct Unsafe${Mutable}RawBufferPointer {
     _debugPrecondition(count >= 0, "${Self} with negative count")
     _debugPrecondition(count == 0 || start != nil,
       "${Self} has a nil start and nonzero count")
+
+    self.init(_uncheckedStart: start, count: count)
+  }
+
+  @_alwaysEmitIntoClient
+  internal init(
+    _uncheckedStart start: Unsafe${Mutable}RawPointer?,
+    count: Int
+  ) {
+    _internalInvariant(count >= 0, "${Self} with negative count")
+    _internalInvariant(
+      count == 0 || start != nil,
+      "${Self} has a nil start and nonzero count"
+    )
+
     _position = start
     _end = start.map { $0 + _assumeNonNegative(count) }
   }
@@ -1264,7 +1279,12 @@ public func _withUnprotectedUnsafeBytes<T, Result>(
 ) rethrows -> Result
 {
   return try _withUnprotectedUnsafePointer(to: &value) {
-    try body(UnsafeRawBufferPointer(start: $0, count: MemoryLayout<T>.size))
+    try body(
+      UnsafeRawBufferPointer(
+        _uncheckedStart: $0,
+        count: MemoryLayout<T>.size
+      )
+    )
   }
 }
 
@@ -1312,7 +1332,10 @@ public func _withUnprotectedUnsafeBytes<T, Result>(
 #else
   let addr = UnsafeRawPointer(Builtin.addressOfBorrow(value))
 #endif
-  let buffer = UnsafeRawBufferPointer(start: addr, count: MemoryLayout<T>.size)
+  let buffer = UnsafeRawBufferPointer(
+    _uncheckedStart: addr,
+    count: MemoryLayout<T>.size
+  )
   return try body(buffer)
 }
 

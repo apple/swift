@@ -84,7 +84,7 @@ internal func _isStackAllocationSafe(byteCount: Int, alignment: Int) -> Bool {
   // without worrying about running out of space, and the compiler would emit
   // such allocations on the stack anyway when they represent structures or
   // stack-promoted objects.
-  if byteCount <= 1024 {
+  if _fastPath(byteCount <= 1024) {
     return true
   }
 
@@ -174,7 +174,8 @@ internal func _withUnprotectedUnsafeTemporaryAllocation<T, R>(
   _ body: (Builtin.RawPointer) throws -> R
 ) rethrows -> R {
   // How many bytes do we need to allocate?
-  let byteCount = _byteCountForTemporaryAllocation(of: type, capacity: capacity)
+  //let byteCount = _byteCountForTemporaryAllocation(of: type, capacity: capacity)
+  let byteCount = MemoryLayout<T>.stride &* capacity
 
   guard _isStackAllocationSafe(byteCount: byteCount, alignment: alignment) else {
     return try _fallBackToHeapAllocation(byteCount: byteCount, alignment: alignment, body)
@@ -298,7 +299,7 @@ public func _withUnprotectedUnsafeTemporaryAllocation<R>(
     alignment: alignment
   ) { pointer in
     let buffer = UnsafeMutableRawBufferPointer(
-      start: .init(pointer),
+      _uncheckedStart: .init(pointer),
       count: byteCount
     )
     return try body(buffer)
@@ -374,7 +375,7 @@ public func _withUnprotectedUnsafeTemporaryAllocation<T, R>(
   ) { pointer in
     Builtin.bindMemory(pointer, capacity._builtinWordValue, type)
     let buffer = UnsafeMutableBufferPointer<T>(
-      start: .init(pointer),
+      _uncheckedStart: .init(pointer),
       count: capacity
     )
     return try body(buffer)
