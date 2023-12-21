@@ -6618,13 +6618,19 @@ public:
   }
 
   /// Sets a new default argument expression for this parameter. This should
-  /// only be called internally by ParamDecl and AST walkers.
+  /// only be called internally by `ParamDecl` and `ASTWalker`.
   ///
   /// \param E The new default argument.
-  /// \param isTypeChecked Whether this argument should be used as the
-  /// parameter's fully type-checked default argument.
-  void setDefaultExpr(Expr *E, bool isTypeChecked);
+  void setDefaultExpr(Expr *E);
 
+private:
+  /// Sets a type-checked default argument expression for this parameter. This
+  /// should only be called by the `DefaultArgumentExprRequest` request.
+  ///
+  /// \param E The type-checked default argument.
+  void setTypeCheckedDefaultExpr(Expr *E);
+
+public:
   /// Sets a type of default expression associated with this parameter.
   /// This should only be called by deserialization.
   void setDefaultExprType(Type type);

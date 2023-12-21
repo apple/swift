@@ -8337,7 +8337,7 @@ ParamDecl *ParamDecl::createParsed(ASTContext &Context, SourceLoc specifierLoc,
     defaultValue = nullptr;
   }
 
-  decl->setDefaultExpr(defaultValue, false);
+  decl->setDefaultExpr(defaultValue);
   decl->setDefaultArgumentKind(kind);
 
   return decl;
@@ -8590,28 +8590,58 @@ Type ParamDecl::getTypeOfDefaultExpr() const {
   return Type();
 }
 
-void ParamDecl::setDefaultExpr(Expr *E, bool isTypeChecked) {
-  if (!DefaultValueAndFlags.getPointer()) {
+void ParamDecl::setDefaultExpr(Expr *E) {
+  auto *defaultInfo = DefaultValueAndFlags.getPointer();
+  if (defaultInfo) {
+    assert(defaultInfo->DefaultArg.isNull() ||
+           defaultInfo->DefaultArg.is<Expr *>());
+    assert((bool)E == (bool)defaultInfo->DefaultArg &&
+           "Overwrite of non-null default with null");
+
+    if (E == defaultInfo->DefaultArg.get<Expr *>()) {
+      return;
+    }
+
+    assert(
+        !(defaultInfo->InitContextAndIsTypeChecked.getInt() && !E->getType()) &&
+        "Overwrite of type-checked default with non-type-checked default");
+    defaultInfo->ExprType = E->getType();
+  } else {
     if (!E) return;
 
-    DefaultValueAndFlags.setPointer(
-        getASTContext().Allocate<StoredDefaultArgument>());
+    assert(!E->getType() && "Must not start off with a type-checked default");
+
+    defaultInfo = getASTContext().Allocate<StoredDefaultArgument>();
+    DefaultValueAndFlags.setPointer(defaultInfo);
+
+    defaultInfo->InitContextAndIsTypeChecked.setInt(false);
   }
 
-  auto *defaultInfo = DefaultValueAndFlags.getPointer();
-  assert(defaultInfo->DefaultArg.isNull() ||
-         defaultInfo->DefaultArg.is<Expr *>());
-
-  if (!isTypeChecked) {
-    assert(!defaultInfo->InitContextAndIsTypeChecked.getInt() &&
-           "Can't overwrite type-checked default with un-type-checked default");
-  }
   defaultInfo->DefaultArg = E;
-  // `Inherited` default arguments do not have an expression,
-  // so if the storage has been pre-allocated already we need
-  // to be careful requesting type here.
-  defaultInfo->ExprType = E ? E->getType() : Type();
-  defaultInfo->InitContextAndIsTypeChecked.setInt(isTypeChecked);
+}
+
+void ParamDecl::setTypeCheckedDefaultExpr(Expr *E) {
+  auto *defaultInfo = DefaultValueAndFlags.getPointer();
+  assert((bool)E == (bool)defaultInfo);
+
+  if (E) {
+    assert(!defaultInfo->ExprType);
+    assert(!defaultInfo->InitContextAndIsTypeChecked.getInt());
+
+    this->setDefaultExpr(E);
+  } else {
+    assert(getDefaultArgumentKind() == DefaultArgumentKind::Inherited);
+
+    // Even though we do not retain the parsed expression of an inherited
+    // default argument, 'DefaultArgumentExprRequest' is still triggered for
+    // such parameters to perform semantic checks. Make sure the request does
+    // not get re-evaluated for this special case.
+    defaultInfo = getASTContext().Allocate<StoredDefaultArgument>();
+    DefaultValueAndFlags.setPointer(defaultInfo);
+  }
+
+  // Setting this bit prevents re-evaluation of 'DefaultArgumentExprRequest'.
+  defaultInfo->InitContextAndIsTypeChecked.setInt(true);
 }
 
 void ParamDecl::setDefaultExprType(Type type) {
