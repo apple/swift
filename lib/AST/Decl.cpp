@@ -10314,10 +10314,6 @@ AccessorDecl *AccessorDecl::createParsed(
       // The cloned parameter is implicit.
       param->setImplicit();
 
-      // It has no default arguments; these will be always be taken
-      // from the subscript declaration.
-      param->setDefaultArgumentKind(DefaultArgumentKind::None);
-
       newParams.push_back(param);
     }
   }
