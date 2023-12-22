@@ -404,6 +404,10 @@ def remark_module_recovery : Flag<["-"], "Rmodule-recovery">,
 def remark_module_api_import : Flag<["-"], "Rmodule-api-import">,
   Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,
   HelpText<"Emit remarks about the import briging in each element composing the API">;
+def remark_unused_module_import : Flag<["-"], "Runused-module">,
+  Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,
+  HelpText<"Emit remarks about unused module imports">;
+
 
 def remark_macro_loading : Flag<["-"], "Rmacro-loading">,
   Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,

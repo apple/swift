@@ -1163,6 +1163,9 @@ REMARK(module_api_import_aliases,none,
        "typealias underlying type %kind0 is imported via %1"
        "%select{, which reexports definition from %2|}3",
        (const Decl *, ModuleDecl *, ModuleDecl *, bool))
+REMARK(potentially_unused_import,none,
+       "import of %0 unused during compilation",
+       (Identifier))
 
 REMARK(macro_loaded,none,
        "loaded macro implementation module %0 from "

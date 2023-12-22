@@ -1062,6 +1062,7 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.EnableModuleLoadingRemarks = Args.hasArg(OPT_remark_loading_module);
   Opts.EnableModuleRecoveryRemarks = Args.hasArg(OPT_remark_module_recovery);
   Opts.EnableModuleApiImportRemarks = Args.hasArg(OPT_remark_module_api_import);
+  Opts.EnableUnusedModuleImportRemarks = Args.hasArg(OPT_remark_unused_module_import);
   Opts.EnableMacroLoadingRemarks = Args.hasArg(OPT_remark_macro_loading);
   Opts.EnableIndexingSystemModuleRemarks = Args.hasArg(OPT_remark_indexing_system_module);
 

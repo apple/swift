@@ -3188,12 +3188,12 @@ void SourceFile::setImportUsedPreconcurrency(
   PreconcurrencyImportsUsed.insert(import);
 }
 
-AccessLevel
+llvm::Optional<AccessLevel>
 SourceFile::getMaxAccessLevelUsingImport(
     AttributedImport<ImportedModule> import) const {
   auto known = ImportsUseAccessLevel.find(import);
   if (known == ImportsUseAccessLevel.end())
-    return AccessLevel::Internal;
+    return llvm::Optional<AccessLevel>();
   return known->second;
 }
 

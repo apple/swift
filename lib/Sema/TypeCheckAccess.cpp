@@ -18,6 +18,7 @@
 #include "TypeChecker.h"
 #include "TypeCheckAvailability.h"
 #include "TypeAccessScopeChecker.h"
+#include "swift/Strings.h"
 #include "swift/AST/ASTVisitor.h"
 #include "swift/AST/ASTWalker.h"
 #include "swift/AST/ClangModuleLoader.h"
@@ -193,15 +194,15 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
     return;
 
   // Report where it was imported from.
-  if (contextAccessScope.isPublic() ||
-      contextAccessScope.isPackage()) {
+  if (Context.LangOpts.EnableUnusedModuleImportRemarks ||
+      (contextAccessScope.isPublic() ||
+       contextAccessScope.isPackage())) {
     auto SF = useDC->getParentSourceFile();
     auto report = [&](const IdentTypeRepr *typeRepr, const ValueDecl *VD) {
       ImportAccessLevel import = VD->getImportAccessFrom(useDC);
       if (import.has_value()) {
         if (SF) {
-          auto useLevel = contextAccessScope.isPublic() ? AccessLevel::Public
-                                                        : AccessLevel::Package;
+          auto useLevel = contextAccessScope.accessLevelForDiagnostics();
           SF->registerAccessLevelUsingImport(import.value(), useLevel);
         }
 
@@ -230,7 +231,7 @@ void AccessControlCheckerBase::checkTypeAccessImpl(
         return TypeWalker::Action::Continue;
       }));
     }
-  };
+  }
 
   AccessScope problematicAccessScope = AccessScope::getPublic();
 
@@ -2440,8 +2441,9 @@ void swift::diagnoseUnnecessaryPublicImports(SourceFile &SF) {
         import.accessLevel <= AccessLevel::Internal)
       continue;
 
-    AccessLevel levelUsed = SF.getMaxAccessLevelUsingImport(import);
-    if (import.accessLevel > levelUsed) {
+    auto levelUsed = SF.getMaxAccessLevelUsingImport(import);
+    if ((!levelUsed && import.accessLevel > AccessLevel::Internal) ||
+        (levelUsed && import.accessLevel > levelUsed.value())) {
       auto diagId = import.accessLevel == AccessLevel::Public ?
                                                   diag::remove_public_import :
                                                   diag::remove_package_import;
@@ -2458,6 +2460,23 @@ void swift::diagnoseUnnecessaryPublicImports(SourceFile &SF) {
       } else {
         inFlight.fixItReplace(import.accessLevelRange, "internal");
       }
+    }
+  }
+}
+
+void swift::diagnoseUnusedImports(SourceFile &SF) {
+  ASTContext &ctx = SF.getASTContext();
+  if (!ctx.LangOpts.EnableUnusedModuleImportRemarks ||
+      ctx.TypeCheckerOpts.SkipFunctionBodies != FunctionBodySkipping::None)
+    return;
+
+  for (const auto &import : SF.getImports()) {
+    if (import.importLoc.isValid() && !SF.getMaxAccessLevelUsingImport(import)) {
+      auto importedModuleName = import.module.importedModule->getName();
+      auto inFlight = ctx.Diags.diagnose(import.importLoc,
+                                         diag::potentially_unused_import,
+                                         importedModuleName);
+      inFlight.fixItRemove(import.importLoc);
     }
   }
 }

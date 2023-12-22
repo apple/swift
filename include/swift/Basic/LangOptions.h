@@ -257,6 +257,9 @@ namespace swift {
     /// Emit remarks about the source of each element exposed by the module API.
     bool EnableModuleApiImportRemarks = false;
 
+    /// Emit remarks about potentially-unused module imports
+    bool EnableUnusedModuleImportRemarks = false;
+
      /// Emit a remark after loading a macro implementation.
     bool EnableMacroLoadingRemarks = false;
 

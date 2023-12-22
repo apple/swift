@@ -1559,6 +1559,8 @@ public:
 /// Report imports that are marked public but are not used in API.
 void diagnoseUnnecessaryPublicImports(SourceFile &SF);
 
+/// Report imports that did not result in any imported types/decls.
+void diagnoseUnusedImports(SourceFile &SF);
 } // end namespace swift
 
 #endif

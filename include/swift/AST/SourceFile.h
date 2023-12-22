@@ -417,7 +417,7 @@ public:
 
   /// Return the highest access level of the declarations referencing
   /// this import in signature or inlinable code.
-  AccessLevel
+  llvm::Optional<AccessLevel>
   getMaxAccessLevelUsingImport(AttributedImport<ImportedModule> import) const;
 
   /// Register the use of \p import from an API with \p accessLevel.
