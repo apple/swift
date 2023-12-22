@@ -6504,8 +6504,15 @@ public:
             Identifier argumentName, SourceLoc parameterNameLoc,
             Identifier parameterName, DeclContext *dc);
 
-  /// Create a new ParamDecl identical to the first except without the interface type.
-  static ParamDecl *cloneWithoutType(const ASTContext &Ctx, ParamDecl *PD);
+  /// Create a new `ParamDecl` identical to the given one except without the
+  /// interface type.
+  ///
+  /// \param PD The parameter to clone.
+  /// \param defaultArgKind The default argument kind for the cloned parameter.
+  ///        If \c std::nullopt, use the default argument kind of \p PD.
+  static ParamDecl *cloneWithoutType(
+      const ASTContext &Ctx, ParamDecl *PD,
+      std::optional<DefaultArgumentKind> defaultArgKind = std::nullopt);
 
   /// Create a an identical copy of this ParamDecl.
   static ParamDecl *clone(const ASTContext &Ctx, ParamDecl *PD);
@@ -6570,9 +6577,8 @@ public:
   bool isDefaultArgument() const {
     return getDefaultArgumentKind() != DefaultArgumentKind::None;
   }
-  void setDefaultArgumentKind(DefaultArgumentKind K) {
-    Bits.ParamDecl.defaultArgumentKind = static_cast<unsigned>(K);
-  }
+
+  void setDefaultArgumentKind(DefaultArgumentKind K);
 
   void setDefaultArgumentKind(ArgumentAttrs K) {
     setDefaultArgumentKind(K.argumentKind);

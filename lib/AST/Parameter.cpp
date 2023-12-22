@@ -64,7 +64,23 @@ ParameterList *ParameterList::clone(const ASTContext &C,
   for (auto &decl : params) {
     auto defaultArgKind = decl->getDefaultArgumentKind();
 
-    decl = ParamDecl::cloneWithoutType(C, decl);
+    // If we're inheriting a default argument, mark it as such.
+    // FIXME: Figure out how to clone default arguments as well.
+    if (options & Inherited) {
+      switch (defaultArgKind) {
+      case DefaultArgumentKind::Normal:
+      case DefaultArgumentKind::StoredProperty:
+        defaultArgKind = DefaultArgumentKind::Inherited;
+        break;
+
+      default:
+        break;
+      }
+    } else {
+      defaultArgKind = DefaultArgumentKind::None;
+    }
+
+    decl = ParamDecl::cloneWithoutType(C, decl, defaultArgKind);
     if (options & Implicit)
       decl->setImplicit();
 
@@ -74,22 +90,6 @@ ParameterList *ParameterList::clone(const ASTContext &C,
       llvm::SmallString<16> s;
       { llvm::raw_svector_ostream(s) << "__argument" << ++i; }
       decl->setName(C.getIdentifier(s));
-    }
-    
-    // If we're inheriting a default argument, mark it as such.
-    // FIXME: Figure out how to clone default arguments as well.
-    if (options & Inherited) {
-      switch (defaultArgKind) {
-      case DefaultArgumentKind::Normal:
-      case DefaultArgumentKind::StoredProperty:
-        decl->setDefaultArgumentKind(DefaultArgumentKind::Inherited);
-        break;
-
-      default:
-        break;
-      }
-    } else {
-      decl->setDefaultArgumentKind(DefaultArgumentKind::None);
     }
   }
   

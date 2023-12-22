@@ -8231,14 +8231,19 @@ ParamDecl::ParamDecl(SourceLoc specifierLoc, SourceLoc argumentNameLoc,
     static_cast<unsigned>(DefaultArgumentKind::None);
 }
 
-ParamDecl *ParamDecl::cloneWithoutType(const ASTContext &Ctx, ParamDecl *PD) {
+ParamDecl *
+ParamDecl::cloneWithoutType(const ASTContext &Ctx, ParamDecl *PD,
+                            std::optional<DefaultArgumentKind> defaultArgKind) {
   auto *Clone = new (Ctx) ParamDecl(
       SourceLoc(), SourceLoc(), PD->getArgumentName(),
       SourceLoc(), PD->getParameterName(), PD->getDeclContext());
   Clone->DefaultValueAndFlags.setPointerAndInt(
       nullptr, PD->DefaultValueAndFlags.getInt());
-  Clone->Bits.ParamDecl.defaultArgumentKind =
-      PD->Bits.ParamDecl.defaultArgumentKind;
+  if (defaultArgKind) {
+    Clone->setDefaultArgumentKind(*defaultArgKind);
+  } else {
+    Clone->setDefaultArgumentKind(PD->getDefaultArgumentKind());
+  }
 
   Clone->setSpecifier(PD->getSpecifier());
   Clone->setImplicitlyUnwrappedOptional(PD->isImplicitlyUnwrappedOptional());
@@ -8341,6 +8346,12 @@ ParamDecl *ParamDecl::createParsed(ASTContext &Context, SourceLoc specifierLoc,
   decl->setDefaultArgumentKind(kind);
 
   return decl;
+}
+
+void ParamDecl::setDefaultArgumentKind(DefaultArgumentKind K) {
+  assert(getDefaultArgumentKind() == DefaultArgumentKind::None &&
+         "Overwrite of default argument kind");
+  Bits.ParamDecl.defaultArgumentKind = static_cast<unsigned>(K);
 }
 
 /// Retrieve the type of 'self' for the given context.
