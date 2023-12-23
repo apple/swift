@@ -1391,6 +1391,13 @@ bool SILInstruction::isTriviallyDuplicatable() const {
   if (isAllocatingStack())
     return false;
 
+  // In OSSA, partial_apply is not considered stack allocating (not handled by
+  // stack nesting fixup or verification). Nonetheless, prevent it from being
+  // cloned so OSSA lowering can directly convert it to a single allocation.
+  if (auto *PA = dyn_cast<PartialApplyInst>(this)) {
+    return !PA->isOnStack();
+  }
+
   if (isa<OpenExistentialAddrInst>(this) || isa<OpenExistentialRefInst>(this) ||
       isa<OpenExistentialMetatypeInst>(this) ||
       isa<OpenExistentialValueInst>(this) || isa<OpenExistentialBoxInst>(this) ||

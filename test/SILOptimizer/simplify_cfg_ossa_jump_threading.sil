@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -test-runner -sil-infinite-jump-threading-budget %s 2>&1 
+// RUN: %target-sil-opt -test-runner -sil-infinite-jump-threading-budget %s 2>&1 | %FileCheck %s
 
 import Builtin
 import Swift
@@ -105,6 +105,10 @@ bb4:
   return %4 : $Builtin.Int1
 }
 
+// CHECK-LABEL: sil [ossa] @test_jump_thread_ref_ele_loop : $@convention(thin) () -> () {
+// CHECK: begin_borrow
+// CHECK: begin_borrow
+// CHECK-LABEL: } // end sil function 'test_jump_thread_ref_ele_loop'
 sil [ossa] @test_jump_thread_ref_ele_loop : $@convention(thin) () -> () {
 bb0:
   specify_test "simplify-cfg-try-jump-threading @instruction[3]"
@@ -141,8 +145,8 @@ bb5:
 }
 
 // CHECK-LABEL: sil [ossa] @test_jump_thread_checked_cast_value :
-// CHECK: select_enum
-// CHECK: select_enum
+// CHECK: checked_cast_br
+// CHECK: checked_cast_br
 // CHECK-LABEL: } // end sil function 'test_jump_thread_checked_cast_value'
 sil [ossa] @test_jump_thread_checked_cast_value : $@convention(thin) (@owned AnyKlass, @owned AnyKlass) -> () {
 bb0(%0 : @owned $AnyKlass, %1 : @owned $AnyKlass):
@@ -173,4 +177,55 @@ bb8(%fail : @owned $AnyKlass):
 bb9:
   %999 = tuple ()
   return %999 : $()
+}
+
+// Partial apply cannot be cloned, even in OSSA. OSSA lowering does
+// not know how to allocate for multiple partial applies.
+//
+// rdar://119768691 (OwnershipModelEliminator triggers assertion when
+// lowering certain [on_stack] partial_applys in certain
+// circumstances)
+
+sil @test_simple_jump_thread_clone_partial_apply_closure : $@convention(thin) (@inout_aliasable Klass) -> ()
+sil @test_simple_jump_thread_clone_partial_apply_take_closure : $@convention(thin) (@noescape @callee_guaranteed () ->()) -> ()
+
+// CHECK-LABEL: sil [ossa] @test_simple_jump_thread_clone_partial_apply : $@convention(thin) (@owned Klass, @inout Klass) -> Builtin.Int1 {
+// CHECK: bb{{.*}}(%{{.*}} : @owned $FakeOptional<Klass>):
+// CHECK: partial_apply [callee_guaranteed]
+// CHECK-NEXT: mark_dependence
+// CHECK-NEXT: begin_borrow [lexical]
+// CHECK-NOT: partial_apply [callee_guaranted]
+// CHECK-NOT: begin_borrow
+// CHECK-LABEL: } // end sil function 'test_simple_jump_thread_clone_partial_apply'
+sil [ossa] @test_simple_jump_thread_clone_partial_apply : $@convention(thin) (@owned Klass, @inout Klass) -> Builtin.Int1 {
+bb0(%0 : @owned $Klass, %1 : $*Klass):
+  %t = integer_literal $Builtin.Int1, 1
+  %f = integer_literal $Builtin.Int1, 0
+  cond_br undef, bb1, bb2
+
+bb1:
+  specify_test "simplify-cfg-try-jump-threading @instruction[4]"
+  %2 = enum $FakeOptional<Klass>, #FakeOptional.some!enumelt, %0 : $Klass
+  br bb3(%2 : $FakeOptional<Klass>)
+
+bb2:
+  destroy_value %0 : $Klass
+  %3 = enum $FakeOptional<Klass>, #FakeOptional.none!enumelt
+  br bb3(%3 : $FakeOptional<Klass>)
+
+bb3(%4 : @owned $FakeOptional<Klass>):
+  %5 = select_enum %4 : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: %t, case #FakeOptional.none!enumelt: %f : $Builtin.Int1
+  %6 = function_ref @test_simple_jump_thread_clone_partial_apply_closure : $@convention(thin) (@inout_aliasable Klass) -> ()
+  %7 = partial_apply [callee_guaranteed] [on_stack] %6(%1) : $@convention(thin) (@inout_aliasable Klass) -> ()
+  %8 = mark_dependence %7 : $@noescape @callee_guaranteed () ->() on %1 : $*Klass
+  %9 = begin_borrow [lexical] %8 : $@noescape @callee_guaranteed () ->()
+  br bb4
+
+bb4:
+  %func = function_ref @test_simple_jump_thread_clone_partial_apply_take_closure : $@convention(thin) (@noescape @callee_guaranteed () ->()) -> ()
+  %call = apply %func(%9) : $@convention(thin) (@noescape @callee_guaranteed () ->()) -> ()
+  end_borrow %9 : $@noescape @callee_guaranteed () ->()
+  destroy_value %8 : $@noescape @callee_guaranteed () ->()
+  destroy_value %4 : $FakeOptional<Klass>
+  return %5 : $Builtin.Int1
 }
