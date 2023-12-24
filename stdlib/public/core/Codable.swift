@@ -314,7 +314,7 @@ public protocol KeyedEncodingContainerProtocol {
   /// - parameter key: The key to associate the value with.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  mutating func encode<T: Encodable>(_ value: T, forKey key: Key) throws
+  mutating func encode(_ value: some Encodable, forKey key: Key) throws
 
   /// Encodes a reference to the given object only if it is encoded
   /// unconditionally elsewhere in the payload (previously, or in the future).
@@ -326,8 +326,8 @@ public protocol KeyedEncodingContainerProtocol {
   /// - parameter key: The key to associate the object with.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  mutating func encodeConditional<T: AnyObject & Encodable>(
-    _ object: T,
+  mutating func encodeConditional(
+    _ object: some AnyObject & Encodable,
     forKey key: Key
   ) throws
 
@@ -449,8 +449,8 @@ public protocol KeyedEncodingContainerProtocol {
   /// - parameter key: The key to associate the value with.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  mutating func encodeIfPresent<T: Encodable>(
-    _ value: T?,
+  mutating func encodeIfPresent(
+    _ value: (some Encodable)?,
     forKey key: Key
   ) throws
 
@@ -671,8 +671,8 @@ public struct KeyedEncodingContainer<K: CodingKey> :
   /// - parameter key: The key to associate the value with.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  public mutating func encode<T: Encodable>(
-    _ value: T,
+  public mutating func encode(
+    _ value: some Encodable,
     forKey key: Key
   ) throws {
     try _box.encode(value, forKey: key)
@@ -688,8 +688,8 @@ public struct KeyedEncodingContainer<K: CodingKey> :
   /// - parameter key: The key to associate the object with.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  public mutating func encodeConditional<T: AnyObject & Encodable>(
-    _ object: T,
+  public mutating func encodeConditional(
+    _ object: some AnyObject & Encodable,
     forKey key: Key
   ) throws {
     try _box.encodeConditional(object, forKey: key)
@@ -883,8 +883,8 @@ public struct KeyedEncodingContainer<K: CodingKey> :
   /// - parameter key: The key to associate the value with.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  public mutating func encodeIfPresent<T: Encodable>(
-    _ value: T?,
+  public mutating func encodeIfPresent(
+    _ value: (some Encodable)?,
     forKey key: Key
   ) throws {
     try _box.encodeIfPresent(value, forKey: key)
@@ -2240,7 +2240,7 @@ public protocol UnkeyedEncodingContainer {
   /// - parameter value: The value to encode.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  mutating func encode<T: Encodable>(_ value: T) throws
+  mutating func encode(_ value: some Encodable) throws
 
   /// Encodes a reference to the given object only if it is encoded
   /// unconditionally elsewhere in the payload (previously, or in the future).
@@ -2254,119 +2254,119 @@ public protocol UnkeyedEncodingContainer {
   /// - parameter object: The object to encode.
   /// - throws: `EncodingError.invalidValue` if the given value is invalid in
   ///   the current context for this format.
-  mutating func encodeConditional<T: AnyObject & Encodable>(_ object: T) throws
+  mutating func encodeConditional(_ object: some AnyObject & Encodable) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Bool
+  mutating func encode(
+    contentsOf sequence: some Sequence<Bool>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == String
+  mutating func encode(
+    contentsOf sequence: some Sequence<String>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Double
+  mutating func encode(
+    contentsOf sequence: some Sequence<Double>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Float
+  mutating func encode(
+    contentsOf sequence: some Sequence<Float>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int
+  mutating func encode(
+    contentsOf sequence: some Sequence<Int>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int8
+  mutating func encode(
+    contentsOf sequence: some Sequence<Int8>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int16
+  mutating func encode(
+    contentsOf sequence: some Sequence<Int16>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int32
+  mutating func encode(
+    contentsOf sequence: some Sequence<Int32>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int64
+  mutating func encode(
+    contentsOf sequence: some Sequence<Int64>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt
+  mutating func encode(
+    contentsOf sequence: some Sequence<UInt>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt8
+  mutating func encode(
+    contentsOf sequence: some Sequence<UInt8>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt16
+  mutating func encode(
+    contentsOf sequence: some Sequence<UInt16>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt32
+  mutating func encode(
+    contentsOf sequence: some Sequence<UInt32>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
   /// - parameter sequence: The sequences whose contents to encode.
   /// - throws: An error if any of the contained values throws an error.
-  mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt64
+  mutating func encode(
+    contentsOf sequence: some Sequence<UInt64>
+  ) throws
 
   /// Encodes the elements of the given sequence.
   ///
@@ -2964,7 +2964,7 @@ public protocol SingleValueEncodingContainer {
   ///   the current context for this format.
   /// - precondition: May not be called after a previous `self.encode(_:)`
   ///   call.
-  mutating func encode<T: Encodable>(_ value: T) throws
+  mutating func encode(_ value: some Encodable) throws
 }
 
 /// A container that can support the storage and direct decoding of a single
@@ -3189,7 +3189,7 @@ public enum EncodingError: Error {
     public let debugDescription: String
 
     /// The underlying error which caused this error, if any.
-    public let underlyingError: Error?
+    public let underlyingError: (any Error)?
 
     /// Creates a new context with the given path of coding keys and a
     /// description of what went wrong.
@@ -3203,7 +3203,7 @@ public enum EncodingError: Error {
     public init(
       codingPath: [any CodingKey],
       debugDescription: String,
-      underlyingError: Error? = nil
+      underlyingError: (any Error)? = nil
     ) {
       self.codingPath = codingPath
       self.debugDescription = debugDescription
@@ -3272,7 +3272,7 @@ public enum DecodingError: Error {
     public let debugDescription: String
 
     /// The underlying error which caused this error, if any.
-    public let underlyingError: Error?
+    public let underlyingError: (any Error)?
 
     /// Creates a new context with the given path of coding keys and a
     /// description of what went wrong.
@@ -3286,7 +3286,7 @@ public enum DecodingError: Error {
     public init(
       codingPath: [any CodingKey],
       debugDescription: String,
-      underlyingError: Error? = nil
+      underlyingError: (any Error)? = nil
     ) {
       self.codingPath = codingPath
       self.debugDescription = debugDescription
@@ -5538,32 +5538,31 @@ internal struct _DictionaryCodingKey: CodingKey {
 @available(SwiftStdlib 5.6, *)
 public protocol CodingKeyRepresentable {
   @available(SwiftStdlib 5.6, *)
-  var codingKey: CodingKey { get }
+  var codingKey: any CodingKey { get }
   @available(SwiftStdlib 5.6, *)
-  init?<T: CodingKey>(codingKey: T)
+  init?(codingKey: some CodingKey)
 }
 
 @available(SwiftStdlib 5.6, *)
-extension RawRepresentable
-where Self: CodingKeyRepresentable, RawValue == String {
+extension RawRepresentable<String> where Self: CodingKeyRepresentable {
   @available(SwiftStdlib 5.6, *)
-  public var codingKey: CodingKey {
+  public var codingKey: any CodingKey {
     _DictionaryCodingKey(stringValue: rawValue)
   }
   @available(SwiftStdlib 5.6, *)
-  public init?<T: CodingKey>(codingKey: T) {
+  public init?(codingKey: some CodingKey) {
     self.init(rawValue: codingKey.stringValue)
   }
 }
 
 @available(SwiftStdlib 5.6, *)
-extension RawRepresentable where Self: CodingKeyRepresentable, RawValue == Int {
+extension RawRepresentable<Int> where Self: CodingKeyRepresentable {
   @available(SwiftStdlib 5.6, *)
-  public var codingKey: CodingKey {
+  public var codingKey: any CodingKey {
     _DictionaryCodingKey(intValue: rawValue)
   }
   @available(SwiftStdlib 5.6, *)
-  public init?<T: CodingKey>(codingKey: T) {
+  public init?(codingKey: some CodingKey) {
     if let intValue = codingKey.intValue {
       self.init(rawValue: intValue)
     } else {
@@ -5575,11 +5574,11 @@ extension RawRepresentable where Self: CodingKeyRepresentable, RawValue == Int {
 @available(SwiftStdlib 5.6, *)
 extension Int: CodingKeyRepresentable {
   @available(SwiftStdlib 5.6, *)
-  public var codingKey: CodingKey {
+  public var codingKey: any CodingKey {
     _DictionaryCodingKey(intValue: self)
   }
   @available(SwiftStdlib 5.6, *)
-  public init?<T: CodingKey>(codingKey: T) {
+  public init?(codingKey: some CodingKey) {
     if let intValue = codingKey.intValue {
       self = intValue
     } else {
@@ -5591,11 +5590,11 @@ extension Int: CodingKeyRepresentable {
 @available(SwiftStdlib 5.6, *)
 extension String: CodingKeyRepresentable {
   @available(SwiftStdlib 5.6, *)
-  public var codingKey: CodingKey {
+  public var codingKey: any CodingKey {
     _DictionaryCodingKey(stringValue: self)
   }
   @available(SwiftStdlib 5.6, *)
-  public init?<T: CodingKey>(codingKey: T) {
+  public init?(codingKey: some CodingKey) {
     self = codingKey.stringValue
   }
 }
@@ -5750,8 +5749,8 @@ extension Dictionary: Decodable where Key: Decodable, Value: Decodable {
 // Default implementation of encodeConditional(_:forKey:) in terms of
 // encode(_:forKey:)
 extension KeyedEncodingContainerProtocol {
-  public mutating func encodeConditional<T: AnyObject & Encodable>(
-    _ object: T,
+  public mutating func encodeConditional(
+    _ object: some AnyObject & Encodable,
     forKey key: Key
   ) throws {
     try encode(object, forKey: key)
@@ -5873,8 +5872,8 @@ extension KeyedEncodingContainerProtocol {
     try encode(value, forKey: key)
   }
 
-  public mutating func encodeIfPresent<T: Encodable>(
-    _ value: T?,
+  public mutating func encodeIfPresent(
+    _ value: (some Encodable)?,
     forKey key: Key
   ) throws {
     guard let value = value else { return }
@@ -6024,119 +6023,119 @@ extension KeyedDecodingContainerProtocol {
 // Default implementation of encodeConditional(_:) in terms of encode(_:),
 // and encode(contentsOf:) in terms of encode(_:) loop.
 extension UnkeyedEncodingContainer {
-  public mutating func encodeConditional<T: AnyObject & Encodable>(
-    _ object: T
+  public mutating func encodeConditional(
+    _ object: some AnyObject & Encodable
   ) throws {
     try self.encode(object)
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Bool {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Bool>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == String {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<String>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Double {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Double>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Float {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Float>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Int>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int8 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Int8>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int16 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Int16>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int32 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Int32>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == Int64 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<Int64>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<UInt>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt8 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<UInt8>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt16 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<UInt16>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt32 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<UInt32>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }
   }
 
-  public mutating func encode<T: Sequence>(
-    contentsOf sequence: T
-  ) throws where T.Element == UInt64 {
+  public mutating func encode(
+    contentsOf sequence: some Sequence<UInt64>
+  ) throws {
     for element in sequence {
       try self.encode(element)
     }

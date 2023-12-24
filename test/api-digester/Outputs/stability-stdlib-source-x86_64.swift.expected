@@ -28,3 +28,44 @@ Func Unicode.UTF8.decode(_:) has generic signature change from <I where I : Swif
 Constructor Mirror.init(_:children:displayStyle:ancestorRepresentation:) has generic signature change from <Subject, C where C : Swift.Collection, C.Element == Swift.Mirror.Child> to <Subject, C where C : Swift.Collection, C.Element == (label: Swift.String?, value: Any)>
 
 Protocol SIMDScalar has generic signature change from <Self == Self.SIMD16Storage.Scalar, Self.SIMD16Storage : Swift.SIMDStorage, Self.SIMD2Storage : Swift.SIMDStorage, Self.SIMD32Storage : Swift.SIMDStorage, Self.SIMD4Storage : Swift.SIMDStorage, Self.SIMD64Storage : Swift.SIMDStorage, Self.SIMD8Storage : Swift.SIMDStorage, Self.SIMDMaskScalar : Swift.FixedWidthInteger, Self.SIMDMaskScalar : Swift.SIMDScalar, Self.SIMDMaskScalar : Swift.SignedInteger, Self.SIMD16Storage.Scalar == Self.SIMD2Storage.Scalar, Self.SIMD2Storage.Scalar == Self.SIMD32Storage.Scalar, Self.SIMD32Storage.Scalar == Self.SIMD4Storage.Scalar, Self.SIMD4Storage.Scalar == Self.SIMD64Storage.Scalar, Self.SIMD64Storage.Scalar == Self.SIMD8Storage.Scalar> to <Self == Self.SIMD16Storage.Scalar, Self.SIMD16Storage : Swift.SIMDStorage, Self.SIMD2Storage : Swift.SIMDStorage, Self.SIMD32Storage : Swift.SIMDStorage, Self.SIMD4Storage : Swift.SIMDStorage, Self.SIMD64Storage : Swift.SIMDStorage, Self.SIMD8Storage : Swift.SIMDStorage, Self.SIMDMaskScalar : Swift.FixedWidthInteger, Self.SIMDMaskScalar : Swift.SIMDScalar, Self.SIMDMaskScalar : Swift.SignedInteger, Self.SIMDMaskScalar == Self.SIMDMaskScalar.SIMDMaskScalar, Self.SIMD16Storage.Scalar == Self.SIMD2Storage.Scalar, Self.SIMD2Storage.Scalar == Self.SIMD32Storage.Scalar, Self.SIMD32Storage.Scalar == Self.SIMD4Storage.Scalar, Self.SIMD4Storage.Scalar == Self.SIMD64Storage.Scalar, Self.SIMD64Storage.Scalar == Self.SIMD8Storage.Scalar>
+
+// FIXME: `(any Error)?`
+Accessor DecodingError.Context.underlyingError.Get() has return type change from Swift.Error? to (Swift.Error)?
+Accessor EncodingError.Context.underlyingError.Get() has return type change from Swift.Error? to (Swift.Error)?
+Constructor DecodingError.Context.init(codingPath:debugDescription:underlyingError:) has parameter 2 type change from Swift.Error? to (Swift.Error)?
+Constructor EncodingError.Context.init(codingPath:debugDescription:underlyingError:) has parameter 2 type change from Swift.Error? to (Swift.Error)?
+Var DecodingError.Context.underlyingError has declared type change from Swift.Error? to (Swift.Error)?
+Var EncodingError.Context.underlyingError has declared type change from Swift.Error? to (Swift.Error)?
+
+// FIXME: `some Encodable`
+Func KeyedEncodingContainerProtocol.encode(_:forKey:) has generic signature change from <Self, T where Self : Swift.KeyedEncodingContainerProtocol, T : Swift.Encodable> to <Self where Self : Swift.KeyedEncodingContainerProtocol>
+Func KeyedEncodingContainer.encode(_:forKey:) has generic signature change from <K, T where K : Swift.CodingKey, T : Swift.Encodable> to <K where K : Swift.CodingKey>
+Func SingleValueEncodingContainer.encode(_:) has generic signature change from <Self, T where Self : Swift.SingleValueEncodingContainer, T : Swift.Encodable> to <Self where Self : Swift.SingleValueEncodingContainer>
+Func UnkeyedEncodingContainer.encode(_:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Encodable> to <Self where Self : Swift.UnkeyedEncodingContainer>
+
+// FIXME: `some AnyObject & Encodable`
+Func KeyedEncodingContainerProtocol.encodeConditional(_:forKey:) has generic signature change from <Self, T where Self : Swift.KeyedEncodingContainerProtocol, T : AnyObject, T : Swift.Encodable> to <Self where Self : Swift.KeyedEncodingContainerProtocol>
+Func KeyedEncodingContainer.encodeConditional(_:forKey:) has generic signature change from <K, T where K : Swift.CodingKey, T : AnyObject, T : Swift.Encodable> to <K where K : Swift.CodingKey>
+Func UnkeyedEncodingContainer.encodeConditional(_:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : AnyObject, T : Swift.Encodable> to <Self where Self : Swift.UnkeyedEncodingContainer>
+
+// FIXME: `(some Encodable)?`
+Func KeyedEncodingContainerProtocol.encodeIfPresent(_:forKey:) has generic signature change from <Self, T where Self : Swift.KeyedEncodingContainerProtocol, T : Swift.Encodable> to <Self where Self : Swift.KeyedEncodingContainerProtocol>
+Func KeyedEncodingContainerProtocol.encodeIfPresent(_:forKey:) has parameter 0 type change from T? to (some Swift.Encodable)?
+Func KeyedEncodingContainer.encodeIfPresent(_:forKey:) has generic signature change from <K, T where K : Swift.CodingKey, T : Swift.Encodable> to <K where K : Swift.CodingKey>
+Func KeyedEncodingContainer.encodeIfPresent(_:forKey:) has parameter 0 type change from T? to (some Swift.Encodable)?
+
+// FIXME: `some Sequence<Element>`
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Bool> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.String> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Double> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Float> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Int> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Int8> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Int16> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Int32> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.Int64> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.UInt> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.UInt8> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.UInt16> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.UInt32> to <Self where Self : Swift.UnkeyedEncodingContainer>
+Func UnkeyedEncodingContainer.encode(contentsOf:) has generic signature change from <Self, T where Self : Swift.UnkeyedEncodingContainer, T : Swift.Sequence, T.Element == Swift.UInt64> to <Self where Self : Swift.UnkeyedEncodingContainer>
