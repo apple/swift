@@ -4272,6 +4272,9 @@ ERROR(no_member_of_module,none,
 
 // 'super'.
 
+ERROR(super_invalid_parent_expr,none,
+      "'super' may be used only to access a superclass member, subscript, or "
+      "initializer", ())
 ERROR(super_no_superclass,none,
       "'super' cannot be used in %select{|extension of }0class %1 because it "
       "has no superclass",

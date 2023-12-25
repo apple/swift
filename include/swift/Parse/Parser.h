@@ -1567,9 +1567,6 @@ public:
     /// The default argument for this parameter.
     Expr *DefaultArg = nullptr;
 
-    /// True if this parameter inherits a default argument via '= super'
-    bool hasInheritedDefaultArg = false;
-    
     /// True if we emitted a parse error about this parameter.
     bool isInvalid = false;
 

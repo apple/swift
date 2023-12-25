@@ -6523,6 +6523,13 @@ public:
                  DeclContext *Parent,
                  ParamSpecifier specifier = ParamSpecifier::Default);
 
+  static ParamDecl *createParsed(ASTContext &Context, SourceLoc specifierLoc,
+                                 SourceLoc argumentNameLoc,
+                                 Identifier argumentName,
+                                 SourceLoc parameterNameLoc,
+                                 Identifier parameterName, Expr *defaultValue,
+                                 DeclContext *dc);
+
   /// Retrieve the argument (API) name for this function parameter.
   Identifier getArgumentName() const {
     return ArgumentNameAndFlags.getPointer();

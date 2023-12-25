@@ -1101,6 +1101,8 @@ namespace {
     VarDecl *getImplicitSelfDeclForSuperContext(SourceLoc Loc) ;
 
     PreWalkResult<Expr *> walkToExprPre(Expr *expr) override {
+      auto &diags = Ctx.Diags;
+
       // FIXME(diagnostics): `InOutType` could appear here as a result
       // of successful re-typecheck of the one of the sub-expressions e.g.
       // `let _: Int = { (s: inout S) in s.bar() }`. On the first
@@ -1143,11 +1145,39 @@ namespace {
       // Resolve 'super' references.
       if (auto *superRef = dyn_cast<SuperRefExpr>(expr)) {
         auto loc = superRef->getLoc();
+
         auto *selfDecl = getImplicitSelfDeclForSuperContext(loc);
         if (selfDecl == nullptr)
           return finish(true, new (Ctx) ErrorExpr(loc));
 
         superRef->setSelf(selfDecl);
+
+        const bool isValidSuper = [&]() -> bool {
+          auto *parentExpr = Parent.getAsExpr();
+          if (!parentExpr) {
+            return false;
+          }
+
+          if (isa<UnresolvedDotExpr>(parentExpr) ||
+              isa<MemberRefExpr>(parentExpr)) {
+            return true;
+          } else if (auto *SE = dyn_cast<SubscriptExpr>(parentExpr)) {
+            // 'super[]' is valid, but 'x[super]' is not.
+            return superRef == SE->getBase();
+          }
+
+          return false;
+        }();
+
+        // NB: This is done along the happy path because presenting this error
+        // in a context where 'super' is not legal to begin with is not helpful.
+        if (!isValidSuper) {
+          // Diagnose and keep going. It is important for source tooling such
+          // as code completion that Sema is able to provide type information
+          // for 'super' in arbitrary positions inside expressions.
+          diags.diagnose(loc, diag::super_invalid_parent_expr);
+        }
+
         return finish(true, superRef);
       }
 
@@ -1188,8 +1218,8 @@ namespace {
             auto *DRE = cast<DeclRefExpr>(refExpr);
             if (accessor->getImplicitSelfDecl() == DRE->getDecl() &&
                 !isa_and_nonnull<UnresolvedDotExpr>(Parent.getAsExpr())) {
-              Ctx.Diags.diagnose(unresolved->getLoc(),
-                                 diag::invalid_use_of_self_in_init_accessor);
+              diags.diagnose(unresolved->getLoc(),
+                             diag::invalid_use_of_self_in_init_accessor);
               refExpr = new (Ctx) ErrorExpr(unresolved->getSourceRange());
             }
           }
@@ -1235,24 +1265,21 @@ namespace {
             // a member reference, it might be valid to have `&`
             // before all of the parens.
             if (lastInnerParenLoc.isValid()) {
-              auto &DE = getASTContext().Diags;
-              auto diag = DE.diagnose(expr->getStartLoc(),
-                                      diag::extraneous_address_of);
+              auto diag = diags.diagnose(expr->getStartLoc(),
+                                         diag::extraneous_address_of);
               diag.fixItExchange(expr->getLoc(), lastInnerParenLoc);
             }
             return finish(true, expr);
           }
 
           if (isa<SubscriptExpr>(parent)) {
-            getASTContext().Diags.diagnose(
-                expr->getStartLoc(),
-                diag::cannot_pass_inout_arg_to_subscript);
+            diags.diagnose(expr->getStartLoc(),
+                           diag::cannot_pass_inout_arg_to_subscript);
             return finish(false, nullptr);
           }
         }
 
-        getASTContext().Diags.diagnose(expr->getStartLoc(),
-                                       diag::extraneous_address_of);
+        diags.diagnose(expr->getStartLoc(), diag::extraneous_address_of);
         return finish(false, nullptr);
       }
 

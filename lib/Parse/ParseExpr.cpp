@@ -1029,27 +1029,10 @@ void Parser::tryLexRegexLiteral(bool forUnappliedOperator) {
 /// parseExprSuper
 ///
 ///   expr-super:
-///     expr-super-member
-///     expr-super-init
-///     expr-super-subscript
-///   expr-super-member:
-///     'super' '.' identifier
-///   expr-super-init:
-///     'super' '.' 'init'
-///   expr-super-subscript:
-///     'super' '[' expr ']'
+///     'super'
 ParserResult<Expr> Parser::parseExprSuper() {
   // Parse the 'super' reference.
   SourceLoc superLoc = consumeToken(tok::kw_super);
-
-  // 'super.' must be followed by a member ref, explicit initializer ref, or
-  // subscript call.
-  if (!Tok.isAny(tok::period, tok::period_prefix, tok::code_complete) &&
-      !Tok.isFollowingLSquare()) {
-    if (!consumeIf(tok::unknown))
-      diagnose(Tok, diag::expected_dot_or_subscript_after_super);
-    return nullptr;
-  }
 
   return makeParserResult(new (Context) SuperRefExpr(/*selfDecl=*/nullptr,
                                                      superLoc,

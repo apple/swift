@@ -543,15 +543,7 @@ func exprPostfix2() {
 
 //===--- Recovery for expr-super.
 
-class Base {}
-
-class ExprSuper1 {
-  init() {
-    super // expected-error {{expected '.' or '[' after 'super'}}
-  }
-}
-
-class ExprSuper2 {
+class ExprSuper {
   init() {
     super. // expected-error {{expected member name following '.'}} 
   }
@@ -623,6 +615,8 @@ class WrongInheritanceClause6(Int {}
 
 // expected-error@+1 {{expected ':' to begin inheritance clause}} {{33-34=: }} 
 class WrongInheritanceClause7<T>(Int where T:AnyObject {}
+
+class Base {}
 
 // <rdar://problem/18502220> [swift-crashes 078] parser crash on invalid cast in sequence expr
 Base=1 as Base=1 // expected-error{{cannot convert value of type 'Int' to type 'Base' in coercion}}

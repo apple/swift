@@ -1342,8 +1342,6 @@ ERROR(expected_identifier_after_dot_expr,none,
 ERROR(expected_identifier_after_super_dot_expr,
       PointsToFirstBadToken,
       "expected identifier or 'init' after super '.' expression", ())
-ERROR(expected_dot_or_subscript_after_super,PointsToFirstBadToken,
-      "expected '.' or '[' after 'super'", ())
 
 WARNING(await_before_try,none, "'try' must precede 'await'", ())
 
