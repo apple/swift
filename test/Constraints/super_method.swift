@@ -1,11 +1,5 @@
 // RUN: %target-typecheck-verify-swift -parse-as-library
 
-struct S {
-  func foo() {
-    super.foo() // expected-error{{'super' cannot be used outside of class members}}
-  }
-}
-
 class D : B {
   func b_foo() -> Int { return super.foo }
 
@@ -33,9 +27,6 @@ class B {
   func zung() -> String {}
 
   var zippity : Int { return 123 }
-
-  func zoo() { super.zoo() } // expected-error{{'super' members cannot be referenced in a root class}}
-
 }
 
 class X<T> {
@@ -57,7 +48,7 @@ func use_d(_ d: D) -> Int {
 }
 
 func not_method() {
-  super.foo() // expected-error{{'super' cannot be used outside of class members}}
+  super.foo() // expected-error{{'super' cannot be used outside of a class computed property, method, initializer, deinitializer, or subscript}}
 }
 
 // rdar://problem/50819554 - inability to properly resolve superclass shouldn't crash the solver

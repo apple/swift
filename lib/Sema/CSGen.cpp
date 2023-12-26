@@ -1617,8 +1617,8 @@ namespace {
 
       // Resolve the super type of 'self'.
       return getSuperType(E->getSelf(), E->getLoc(),
-                          diag::super_not_in_class_method,
-                          diag::super_with_no_base_class);
+                          diag::super_invalid_context,
+                          diag::super_no_superclass);
     }
 
     Type
@@ -3302,10 +3302,9 @@ namespace {
       return resultType;
     }
 
-    Type getSuperType(VarDecl *selfDecl,
-                      SourceLoc diagLoc,
+    Type getSuperType(VarDecl *selfDecl, SourceLoc diagLoc,
                       Diag<> diag_not_in_class,
-                      Diag<> diag_no_base_class) {
+                      Diag<bool, const ClassDecl *> diag_no_superclass) {
       DeclContext *typeContext = selfDecl->getDeclContext()->getParent();
       assert(typeContext && "constructor without parent context?!");
 
@@ -3316,7 +3315,10 @@ namespace {
         return Type();
       }
       if (!classDecl->hasSuperclass()) {
-        de.diagnose(diagLoc, diag_no_base_class);
+        de.diagnose(
+            diagLoc, diag_no_superclass,
+            /*isExtension*/ isa<ExtensionDecl>(typeContext->getAsDecl()),
+            classDecl);
         return Type();
       }
 

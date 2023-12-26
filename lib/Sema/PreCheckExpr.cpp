@@ -1805,8 +1805,20 @@ void PreCheckExpression::markAcceptableDiscardExprs(Expr *E) {
 
 VarDecl *PreCheckExpression::getImplicitSelfDeclForSuperContext(SourceLoc Loc) {
   auto *methodContext = DC->getInnermostMethodContext();
-  if (!methodContext) {
-    Ctx.Diags.diagnose(Loc, diag::super_not_in_class_method);
+
+  if (auto *typeContext = DC->getInnermostTypeContext()) {
+    auto *nominal = typeContext->getSelfNominalTypeDecl();
+    auto *classDecl = dyn_cast<ClassDecl>(nominal);
+
+    if (!classDecl) {
+      Ctx.Diags.diagnose(Loc, diag::super_in_nonclass_type, nominal);
+      return nullptr;
+    } else if (!methodContext) {
+      Ctx.Diags.diagnose(Loc, diag::super_invalid_context);
+      return nullptr;
+    }
+  } else {
+    Ctx.Diags.diagnose(Loc, diag::super_invalid_context);
     return nullptr;
   }
 

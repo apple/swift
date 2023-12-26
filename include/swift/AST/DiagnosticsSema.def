@@ -4270,10 +4270,16 @@ ERROR(no_MaxBuiltinFloatType_found,none,
 ERROR(no_member_of_module,none,
       "module %0 has no member named %1", (Identifier, DeclNameRef))
 
-ERROR(super_with_no_base_class,none,
-      "'super' members cannot be referenced in a root class", ())
-ERROR(super_not_in_class_method,none,
-      "'super' cannot be used outside of class members", ())
+ERROR(super_no_superclass,none,
+      "'super' cannot be used in %select{|extension of }0class %1 because it "
+      "has no superclass",
+      (bool, const ClassDecl *))
+ERROR(super_invalid_context,none,
+      "'super' cannot be used outside of a class computed property, method, "
+      "initializer, deinitializer, or subscript", ())
+ERROR(super_in_nonclass_type,none,
+      "'super' cannot be used in non-class type %0",
+      (const NominalTypeDecl *))
 
 ERROR(unqualified_init,none,
       "initializer expression requires explicit access"
