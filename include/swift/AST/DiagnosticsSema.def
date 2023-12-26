@@ -4272,6 +4272,9 @@ ERROR(no_member_of_module,none,
 
 ERROR(super_with_no_base_class,none,
       "'super' members cannot be referenced in a root class", ())
+ERROR(super_not_in_class_method,none,
+      "'super' cannot be used outside of class members", ())
+
 ERROR(unqualified_init,none,
       "initializer expression requires explicit access"
       "%select{|; did you mean to prepend it with|; did you mean to prepend "

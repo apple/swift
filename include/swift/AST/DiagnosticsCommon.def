@@ -56,11 +56,6 @@ NOTE(while_parsing_as_left_angle_bracket,none,
 REMARK(remark_max_determinism_overriding,none,
          "SWIFTC_MAXIMUM_DETERMINISM overriding %0", (StringRef))
 
-// FIXME: This is used both as a parse error (a literal "super" outside a
-// method) and a type-checker error ("super" in a method of a non-class type).
-ERROR(super_not_in_class_method,none,
-      "'super' cannot be used outside of class members", ())
-
 ERROR(class_func_not_in_class,none,
       "class methods are only allowed within classes; "
       "use 'static' to declare a %select{static|requirement fulfilled by either a static or class}0 method", (bool))
