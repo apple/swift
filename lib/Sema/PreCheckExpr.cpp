@@ -1816,6 +1816,12 @@ VarDecl *PreCheckExpression::getImplicitSelfDeclForSuperContext(SourceLoc Loc) {
     } else if (!methodContext) {
       Ctx.Diags.diagnose(Loc, diag::super_invalid_context);
       return nullptr;
+    } else if (!classDecl->hasSuperclass()) {
+      Ctx.Diags.diagnose(
+          Loc, diag::super_no_superclass,
+          /*isExtension*/ isa<ExtensionDecl>(typeContext->getAsDecl()),
+          classDecl);
+      return nullptr;
     }
   } else {
     Ctx.Diags.diagnose(Loc, diag::super_invalid_context);
