@@ -548,6 +548,11 @@ SIMPLE_DECL_ATTR(_noObjCBridging, NoObjCBridging,
 CONTEXTUAL_SIMPLE_DECL_ATTR(_resultDependsOn, ResultDependsOn,
   OnParam | DeclModifier | UserInaccessible | ABIBreakingToAdd | ABIStableToRemove | APIBreakingToAdd | APIStableToRemove,
   156)
+
+SIMPLE_DECL_ATTR(resetTaskLocals, ResetTaskLocals,
+  OnDestructor | ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
+  157)
+
 #undef TYPE_ATTR
 #undef DECL_ATTR_ALIAS
 #undef CONTEXTUAL_DECL_ATTR_ALIAS
