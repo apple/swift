@@ -2125,7 +2125,11 @@ static void swift_task_deinitOnExecutorImpl(void *object,
       // but we don't have a tail call anyway, so this does not help much here.
       // Always create new tracking info to keep code simple.
       ExecutorTrackingInfo trackingInfo;
-      trackingInfo.enterAndShadow(newExecutor, TaskExecutorRef::undefined());
+      TaskExecutorRef taskExecutor = TaskExecutorRef::undefined();
+      if (ExecutorTrackingInfo *current = ExecutorTrackingInfo::current()) {
+          taskExecutor = current->getTaskExecutor();
+      }
+      trackingInfo.enterAndShadow(newExecutor, taskExecutor);
 
       // Run the work.
       doWorkWithoutHop();
@@ -2134,6 +2138,7 @@ static void swift_task_deinitOnExecutorImpl(void *object,
       // If it calls any synchronous API that may change executor inside
       // tracking info, that API is also responsible for changing it back.
       assert(newExecutor == trackingInfo.getActiveExecutor());
+      assert(taskExecutor == trackingInfo.getTaskExecutor());
 
       // Leave the tracking frame
       trackingInfo.leave();
