@@ -86,7 +86,7 @@ endfunction()
 function(_add_host_variant_swift_sanitizer_flags target)
   if(LLVM_USE_SANITIZER)
     if(LLVM_USE_SANITIZER STREQUAL "Address")
-      set(_Swift_SANITIZER_FLAGS "-sanitize=address")
+      set(_Swift_SANITIZER_FLAGS "-sanitize=address" "-Xclang-linker" "-fsanitize=address")
     elseif(LLVM_USE_SANITIZER STREQUAL "HWAddress")
       # Not supported?
     elseif(LLVM_USE_SANITIZER MATCHES "Memory(WithOrigins)?")
@@ -95,14 +95,14 @@ function(_add_host_variant_swift_sanitizer_flags target)
         # Not supported
       endif()
     elseif(LLVM_USE_SANITIZER STREQUAL "Undefined")
-      set(_Swift_SANITIZER_FLAGS "-sanitize=undefined")
+      set(_Swift_SANITIZER_FLAGS "-sanitize=undefined" "-Xclang-linker" "-fsanitize=undefined")
     elseif(LLVM_USE_SANITIZER STREQUAL "Thread")
-      set(_Swift_SANITIZER_FLAGS "-sanitize=thread")
+      set(_Swift_SANITIZER_FLAGS "-sanitize=thread" "-Xclang-linker" "-fsanitize=thread")
     elseif(LLVM_USE_SANITIZER STREQUAL "DataFlow")
       # Not supported
     elseif(LLVM_USE_SANITIZER STREQUAL "Address;Undefined" OR
            LLVM_USE_SANITIZER STREQUAL "Undefined;Address")
-      set(_Swift_SANITIZER_FLAGS "-sanitize=address" "-sanitize=undefined")
+      set(_Swift_SANITIZER_FLAGS "-sanitize=address" "-sanitize=undefined" "-Xclang-linker" "-fsanitize=address" "-Xclang-linker" "-fsanitize=undefined")
     elseif(LLVM_USE_SANITIZER STREQUAL "Leaks")
       # Not supported
     else()
