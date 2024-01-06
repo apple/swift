@@ -362,8 +362,9 @@ void SILGenFunction::emitIsolatingDestructor(DestructorDecl *dd) {
   Type anyObjectType = getASTContext().getAnyObjectType();
   SILType anyObjectLoweredType =
       getTypeLowering(anyObjectType).getLoweredType();
-  auto castedSelf =
-      B.createUncheckedValueCast(loc, selfValue, anyObjectLoweredType);
+  auto castedSelf = B.createInitExistentialRef(
+      loc, anyObjectLoweredType, selfValue->getType().getASTType(), selfValue,
+      {});
 
   // Cast isolated deallocator to (__owned AnyObject) -> Void
   auto workFuncType1 = SILFunctionType::get(
