@@ -406,7 +406,7 @@ extension SetAlgebra {
   ///
   /// - Parameter sequence: The elements to use as members of the new set.
   @inlinable // protocol-only
-  public init<S: Sequence>(_ sequence: __owned S)
+  public init<S: Sequence>(@_eagerMove _ sequence: __owned S)
     where S.Element == Element {
     self.init()
     // Needed to fully optimize OptionSet literals.

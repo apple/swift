@@ -146,7 +146,7 @@ extension _ArrayBufferProtocol {
   internal mutating func replaceSubrange<C>(
     _ subrange: Range<Int>,
     with newCount: Int,
-    elementsOf newValues: __owned C
+    @_eagerMove elementsOf newValues: __owned C
   ) where C: Collection, C.Element == Element {
     _internalInvariant(startIndex == 0, "_SliceBuffer should override this function.")
     let oldCount = self.count
@@ -186,7 +186,7 @@ extension _ArrayBufferProtocol {
     else { // We're not growing the buffer
       // Assign all the new elements into the start of the subrange
       var i = subrange.lowerBound
-      var j = newValues.startIndex
+      @_eagerMove var j = newValues.startIndex
       for _ in 0..<newCount {
         elements[i] = newValues[j]
         i += 1

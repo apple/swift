@@ -678,7 +678,7 @@ extension Set: SetAlgebra {
   ///
   /// - Parameter sequence: The elements to use as members of the new set.
   @inlinable
-  public init<Source: Sequence>(_ sequence: __owned Source)
+  public init<Source: Sequence>(@_eagerMove _ sequence: __owned Source)
   where Source.Element == Element {
     if let s = sequence as? Set<Element> {
       // If this sequence is actually a `Set`, then we can quickly
@@ -763,7 +763,7 @@ extension Set: SetAlgebra {
   /// - Returns: `true` if the set is a superset of `possibleSubset`;
   ///   otherwise, `false`.
   @inlinable
-  public func isSuperset<S: Sequence>(of possibleSubset: __owned S) -> Bool
+  public func isSuperset<S: Sequence>(@_eagerMove of possibleSubset: __owned S) -> Bool
   where S.Element == Element {
     if let s = possibleSubset as? Set<Element> {
       return isSuperset(of: s)
@@ -851,7 +851,7 @@ extension Set: SetAlgebra {
   /// - Parameter other: A sequence of elements. `other` must be finite.
   /// - Returns: A new set with the unique elements of this set and `other`.
   @inlinable
-  public __consuming func union<S: Sequence>(_ other: __owned S) -> Set<Element>
+  public __consuming func union<S: Sequence>(@_eagerMove _ other: __owned S) -> Set<Element>
   where S.Element == Element {
     var newSet = self
     newSet.formUnion(other)
@@ -872,7 +872,7 @@ extension Set: SetAlgebra {
   ///
   /// - Parameter other: A sequence of elements. `other` must be finite.
   @inlinable
-  public mutating func formUnion<S: Sequence>(_ other: __owned S)
+  public mutating func formUnion<S: Sequence>(@_eagerMove _ other: __owned S)
   where S.Element == Element {
     for item in other {
       insert(item)
@@ -1003,7 +1003,7 @@ extension Set: SetAlgebra {
   /// - Returns: A new set.
   @inlinable
   public __consuming func symmetricDifference<S: Sequence>(
-    _ other: __owned S
+    @_eagerMove _ other: __owned S
   ) -> Set<Element>
   where S.Element == Element {
     var newSet = self

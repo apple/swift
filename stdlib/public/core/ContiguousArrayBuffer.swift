@@ -971,7 +971,7 @@ internal struct _ContiguousArrayBuffer<Element>: _ArrayBufferProtocol {
 /// Append the elements of `rhs` to `lhs`.
 @inlinable
 internal func += <Element, C: Collection>(
-  lhs: inout _ContiguousArrayBuffer<Element>, rhs: __owned C
+  lhs: inout _ContiguousArrayBuffer<Element>, @_eagerMove rhs: __owned C
 ) where C.Element == Element {
 
   let oldCount = lhs.count
@@ -1030,6 +1030,7 @@ extension _ContiguousArrayBuffer: RandomAccessCollection {
 
 extension Sequence {
   @inlinable
+  @_eagerMove
   public __consuming func _copyToContiguousArray() -> ContiguousArray<Element> {
     return _copySequenceToContiguousArray(self)
   }
@@ -1063,6 +1064,7 @@ internal func _copySequenceToContiguousArray<
 
 extension Collection {
   @inlinable
+  @_eagerMove
   public __consuming func _copyToContiguousArray() -> ContiguousArray<Element> {
     return _copyCollectionToContiguousArray(self)
   }

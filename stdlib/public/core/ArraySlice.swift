@@ -944,7 +944,7 @@ extension ArraySlice: RangeReplaceableCollection {
   ///   array.
   @inlinable
   @_semantics("array.append_contentsOf")
-  public mutating func append<S: Sequence>(contentsOf newElements: __owned S)
+  public mutating func append<S: Sequence>(@_eagerMove contentsOf newElements: __owned S)
     where S.Element == Element {
 
     let newElementsCount = newElements.underestimatedCount
@@ -1338,7 +1338,7 @@ extension ArraySlice {
   @_semantics("array.mutate_unknown")
   public mutating func replaceSubrange<C>(
     _ subrange: Range<Int>,
-    with newElements: __owned C
+    @_eagerMove with newElements: __owned C
   ) where C: Collection, C.Element == Element {
     _precondition(subrange.lowerBound >= _buffer.startIndex,
       "ArraySlice replace: subrange start is before the startIndex")

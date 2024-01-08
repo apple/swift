@@ -706,6 +706,7 @@ extension Sequence {
   ///
   /// - Complexity: O(*n*), where *n* is the length of the sequence.
   @inlinable
+  @_eagerMove
   public __consuming func reversed() -> [Element] {
     // FIXME(performance): optimize to 1 pass?  But Array(self) can be
     // optimized to a memcpy() sometimes.  Those cases are usually collections,

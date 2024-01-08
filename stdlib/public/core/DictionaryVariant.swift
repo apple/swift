@@ -465,7 +465,7 @@ extension Dictionary._Variant {
 
   @inlinable
   internal mutating func merge<S: Sequence>(
-    _ keysAndValues: __owned S,
+    @_eagerMove _ keysAndValues: __owned S,
     uniquingKeysWith combine: (Value, Value) throws -> Value
   ) rethrows where S.Element == (Key, Value) {
 #if _runtime(_ObjC)
