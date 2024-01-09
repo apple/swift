@@ -37,6 +37,8 @@ class DeclContext;
 class Type;
 class ModuleDecl;
 enum DeclAttrKind : unsigned;
+class DeclAttribute;
+class CustomAttr;
 class SynthesizedExtensionAnalyzer;
 struct PrintOptions;
 class SILPrintContext;
@@ -334,6 +336,10 @@ struct PrintOptions {
   /// Suppress emitting @available(*, noasync)
   bool SuppressNoAsyncAvailabilityAttr = false;
 
+  /// Suppress emitting isolated or async deinit, and emit open containing class
+  /// as public
+  bool SuppressIsolatedDeinit = false;
+
   /// Whether to print the \c{/*not inherited*/} comment on factory initializers.
   bool PrintFactoryInitializerComment = true;
 
@@ -368,6 +374,8 @@ struct PrintOptions {
   std::vector<AnyAttrKind> ExcludeAttrList = {DAK_Transparent, DAK_Effects,
                                               DAK_FixedLayout,
                                               DAK_ShowInInterface};
+
+  std::vector<CustomAttr *> ExcludeCustomAttrList = {};
 
   /// List of attribute kinds that should be printed exclusively.
   /// Empty means allow all.
@@ -617,6 +625,8 @@ struct PrintOptions {
     return false;
   }
 
+  bool excludeAttr(const DeclAttribute *DA) const;
+
   /// Retrieve the set of options for verbose printing to users.
   static PrintOptions printVerbose() {
     PrintOptions result;
@@ -673,7 +683,8 @@ struct PrintOptions {
     result.SkipPrivateStdlibDecls = true;
     result.SkipUnderscoredStdlibProtocols = true;
     result.SkipUnsafeCXXMethods = true;
-    result.SkipDeinit = true;
+    result.SkipDeinit = false; // Deinit may have isolation attributes, which
+                               // are part of the interface
     result.EmptyLineBetweenMembers = true;
     result.CascadeDocComment = true;
     result.ShouldQualifyNestedDeclarations =

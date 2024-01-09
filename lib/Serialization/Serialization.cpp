@@ -4756,12 +4756,10 @@ public:
     auto contextID = S.addDeclContextRef(dtor->getDeclContext());
 
     unsigned abbrCode = S.DeclTypeAbbrCodes[DestructorLayout::Code];
-    DestructorLayout::emitRecord(S.Out, S.ScratchRecord, abbrCode,
-                                 contextID.getOpaqueValue(),
-                                 dtor->isImplicit(),
-                                 dtor->isObjC(),
-                                 S.addGenericSignatureRef(
-                                                dtor->getGenericSignature()));
+    DestructorLayout::emitRecord(
+        S.Out, S.ScratchRecord, abbrCode, contextID.getOpaqueValue(),
+        dtor->isImplicit(), dtor->isObjC(), dtor->hasAsync(),
+        S.addGenericSignatureRef(dtor->getGenericSignature()));
     writeInlinableBodyTextIfNeeded(dtor);
   }
 

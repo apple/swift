@@ -1101,6 +1101,9 @@ namespace Lowering {
 /// Determine whether the given class will be allocated/deallocated using the
 /// Objective-C runtime, i.e., +alloc and -dealloc.
 LLVM_LIBRARY_VISIBILITY bool usesObjCAllocator(ClassDecl *theClass);
+/// Determine if isolating destructor is needed.
+LLVM_LIBRARY_VISIBILITY bool needsIsolatingDestructor(DestructorDecl *dd);
+
 } // namespace Lowering
 } // namespace swift
 

@@ -142,6 +142,16 @@ OVERRIDE_ACTOR(task_switch, void,
                TaskContinuationFunction *resumeFunction, SerialExecutorRef newExecutor),
                (resumeToContext, resumeFunction, newExecutor))
 
+OVERRIDE_ACTOR(task_deinitOnExecutor, void,
+              SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
+              (void *object, DeinitWorkFunction *work, SerialExecutorRef newExecutor, size_t flags),
+              (object, work, newExecutor, flags))
+              
+OVERRIDE_ACTOR(task_deinitAsync, void,
+              SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
+              (void *object, void *work, SerialExecutorRef newExecutor, size_t flags),
+              (object, work, newExecutor, flags))
+
 OVERRIDE_TASK(task_create_common, AsyncTaskAndContext,
               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift), swift::,
               (size_t taskCreateFlags,
@@ -371,6 +381,16 @@ OVERRIDE_TASK_LOCAL(task_localValueGet, OpaqueValue *,
 OVERRIDE_TASK_LOCAL(task_localValuePop, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                     swift::, ,)
+
+OVERRIDE_TASK_LOCAL(task_localBarrierPush, bool,
+                    SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
+                    swift::, ,)
+
+OVERRIDE_TASK_LOCAL(task_localBarrierPop, void,
+                    SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
+                    swift::,
+                    (bool didPush),
+                    (didPush))
 
 OVERRIDE_TASK_LOCAL(task_localsCopyTo, void,
                     SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),

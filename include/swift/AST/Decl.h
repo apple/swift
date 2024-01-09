@@ -1262,6 +1262,10 @@ public:
   llvm::Optional<std::pair<CustomAttr *, NominalTypeDecl *>>
   getGlobalActorAttr() const;
 
+  /// Determine whether there is an explicit isolation attribute
+  /// of any kind.
+  bool hasExplicitIsolationAttribute() const;
+
   /// If an alternative module name is specified for this decl, e.g. using
   /// @_originalDefinedIn attribute, this function returns this module name.
   StringRef getAlternateModuleName() const;
@@ -2938,6 +2942,10 @@ public:
 
   /// Retrieve the declaration that this declaration overrides, if any.
   ValueDecl *getOverriddenDecl() const;
+
+  /// Retrieve the declaration that this declaration overrides, including super
+  /// deinit.
+  ValueDecl *getOverriddenDeclOrSuperDeinit() const;
 
   /// Retrieve the declarations that this declaration overrides, if any.
   llvm::TinyPtrVector<ValueDecl *> getOverriddenDecls() const;
@@ -8410,7 +8418,8 @@ class DestructorDecl : public AbstractFunctionDecl {
   ParamDecl *SelfDecl;
 
 public:
-  DestructorDecl(SourceLoc DestructorLoc, DeclContext *Parent);
+  DestructorDecl(SourceLoc DestructorLoc, bool Async, SourceLoc AsyncLoc,
+                 DeclContext *Parent);
 
   ParamDecl **getImplicitSelfDeclStorage() { return &SelfDecl; }
 
@@ -8420,6 +8429,12 @@ public:
 
   /// Retrieve the Objective-C selector for destructors.
   ObjCSelector getObjCSelector() const;
+
+  /// Retrieves destructor decl from the superclass, or nil if there is no
+  /// superclass
+  DestructorDecl *getSuperDeinit() const;
+
+  bool shouldResetTaskLocals() const;
 
   static bool classof(const Decl *D) {
     return D->getKind() == DeclKind::Destructor;
@@ -8433,6 +8448,8 @@ public:
     return false;
   }
 };
+
+enum class DestructorKind { Destroyer, Deallocator, IsolatedDeallocator };
 
 /// Declares a precedence group.  For example:
 ///

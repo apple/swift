@@ -537,13 +537,14 @@ BridgedConstructorDecl BridgedConstructorDecl_createParsed(
   return decl;
 }
 
-BridgedDestructorDecl
-BridgedDestructorDecl_createParsed(BridgedASTContext cContext,
-                                   BridgedDeclContext cDeclContext,
-                                   BridgedSourceLoc cDeinitKeywordLoc) {
+BridgedDestructorDecl BridgedDestructorDecl_createParsed(
+    BridgedASTContext cContext, BridgedDeclContext cDeclContext,
+    BridgedSourceLoc cDeinitKeywordLoc, BridgedSourceLoc cAsyncLoc) {
   ASTContext &context = cContext.unbridged();
+  auto asyncLoc = cAsyncLoc.unbridged();
   auto *decl = new (context)
-      DestructorDecl(cDeinitKeywordLoc.unbridged(), cDeclContext.unbridged());
+      DestructorDecl(cDeinitKeywordLoc.unbridged(), asyncLoc.isValid(),
+                     asyncLoc, cDeclContext.unbridged());
 
   return decl;
 }

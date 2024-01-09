@@ -127,7 +127,7 @@ actor Demons {
     self.ns = x
   }
 
-  deinit {
+  nonisolated deinit {
     let _ = self.ns // expected-warning {{cannot access property 'ns' with a non-sendable type 'NonSendableType' from non-isolated deinit; this is an error in Swift 6}}
   }
 }
@@ -155,7 +155,7 @@ actor ExampleFromProposal {
   }
 
 
-  deinit {
+  nonisolated deinit {
     _ = self.immutableSendable  // ok
     _ = self.mutableSendable    // ok
     _ = self.nonSendable        // expected-warning {{cannot access property 'nonSendable' with a non-sendable type 'NonSendableType' from non-isolated deinit; this is an error in Swift 6}}
@@ -195,7 +195,7 @@ class CheckGAIT1 {
     silly += 2 // expected-warning {{cannot access property 'silly' here in non-isolated initializer; this is an error in Swift 6}}
   }
 
-  deinit {
+  nonisolated deinit {
     _ = ns // expected-warning {{cannot access property 'ns' with a non-sendable type 'NonSendableType' from non-isolated deinit; this is an error in Swift 6}}
     f()     // expected-note {{after calling instance method 'f()', only non-isolated properties of 'self' can be accessed from a deinit}}
     _ = silly // expected-warning {{cannot access property 'silly' here in deinitializer; this is an error in Swift 6}}
@@ -618,7 +618,7 @@ actor Ahmad {
     prop += 1 // expected-warning {{cannot access property 'prop' here in non-isolated initializer; this is an error in Swift 6}}
   }
 
-  deinit {
+  nonisolated deinit {
     // expected-warning@+2 {{actor-isolated property 'computedProp' can not be referenced from a non-isolated context; this is an error in Swift 6}}
     // expected-note@+1 {{after accessing property 'computedProp', only non-isolated properties of 'self' can be accessed from a deinit}}
     let x = computedProp
@@ -658,7 +658,7 @@ actor Rain {
 }
 
 @available(SwiftStdlib 5.5, *)
-actor DeinitExceptionForSwift5 {
+actor NonIsolatedDeinitExceptionForSwift5 {
   var x: Int = 0
 
   func cleanup() { // expected-note {{calls to instance method 'cleanup()' from outside of its actor context are implicitly asynchronous}}
@@ -673,6 +673,22 @@ actor DeinitExceptionForSwift5 {
     x = 1 // expected-warning {{cannot access property 'x' here in deinitializer; this is an error in Swift 6}}
   }
 }
+
+@available(SwiftStdlib 5.5, *)
+actor IsolatedDeinitExceptionForSwift5 {
+  var x: Int = 0
+
+  func cleanup() {
+    x = 0
+  }
+
+  isolated deinit {
+    cleanup() // ok
+
+    x = 1 // ok
+  }
+}
+
 
 @available(SwiftStdlib 5.5, *)
 actor OhBrother {

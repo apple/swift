@@ -433,6 +433,8 @@ ERROR(expected_lbrace_destructor,PointsToFirstBadToken,
       "expected '{' for deinitializer", ())
 ERROR(destructor_has_name,PointsToFirstBadToken,
       "deinitializers cannot have a name", ())
+ERROR(destructor_throws,none,
+      "deinitializers cannot throw", ())
 
 ERROR(opened_destructor_expected_rparen,none,
       "expected ')' to close parameter list", ())

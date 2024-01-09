@@ -786,7 +786,7 @@ void DeclAttributes::print(ASTPrinter &Printer, const PrintOptions &Options,
     if (!Options.PrintUserInaccessibleAttrs &&
         DeclAttribute::isUserInaccessible(DA->getKind()))
       continue;
-    if (Options.excludeAttrKind(DA->getKind()))
+    if (Options.excludeAttr(DA))
       continue;
 
     // If we're supposed to suppress expanded macros, check whether this is

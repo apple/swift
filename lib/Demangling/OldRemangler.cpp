@@ -1174,6 +1174,12 @@ ManglingError Remangler::mangleDeallocator(Node *node, EntityContext &ctx,
   return mangleSimpleEntity(node, 'F', "D", ctx, depth + 1);
 }
 
+ManglingError Remangler::mangleIsolatedDeallocator(Node *node,
+                                                   EntityContext &ctx,
+                                                   unsigned depth) {
+  return mangleSimpleEntity(node, 'F', "Z", ctx, depth + 1);
+}
+
 ManglingError Remangler::mangleDestructor(Node *node, EntityContext &ctx,
                                           unsigned depth) {
   return mangleSimpleEntity(node, 'F', "d", ctx, depth + 1);

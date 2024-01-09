@@ -5302,6 +5302,23 @@ namespace {
       result->setHasMissingVTableEntries(false);
       result->setMemberLoader(&Impl, 0);
 
+      // GetDestructorRequest does not trigger lazy member loading
+      // And typechecking may ask for destructor before member loading is
+      // triggered. Create deinit explicitly
+      auto deallocII = &clangCtx.Idents.get("dealloc");
+      auto deallocSelector = clangCtx.Selectors.getNullarySelector(deallocII);
+      auto deallocName = clang::DeclarationName(deallocSelector);
+      for (auto nd : decl->lookup(deallocName)) {
+        if (auto deallocDecl = dyn_cast<clang::ObjCMethodDecl>(nd)) {
+          if (deallocDecl->isInstanceMethod()) {
+            auto loc = Impl.importSourceLoc(deallocDecl->getLocation());
+            auto dtor = Impl.createDeclWithClangNode<DestructorDecl>(
+                deallocDecl, access, loc, /*isAsync=*/false,
+                /*AsyncLoc=*/SourceLoc(), result);
+            result->addMember(dtor);
+          }
+        }
+      }
       return result;
     }
 
@@ -9394,9 +9411,8 @@ void ClangImporter::Implementation::insertMembersAndAlternates(
     return true;
   });
 
-  addCompletionHandlerAttribute(asyncImport,
-                                llvm::makeArrayRef(members).drop_front(start),
-                                SwiftContext);
+  addCompletionHandlerAttribute(
+      asyncImport, llvm::makeArrayRef(members).drop_front(start), SwiftContext);
 }
 
 void ClangImporter::Implementation::importInheritedConstructors(

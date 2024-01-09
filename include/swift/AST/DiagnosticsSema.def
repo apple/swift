@@ -5754,9 +5754,12 @@ ERROR(global_actor_not_usable_from_inline,none,
 NOTE(move_global_actor_attr_to_storage_decl,none,
      "move global actor attribute to %kind0", (const ValueDecl *))
 
-ERROR(actor_isolation_multiple_attr,none,
+ERROR(actor_isolation_multiple_attr_2,none,
       "%kind0 has multiple actor-isolation attributes ('%1' and '%2')",
       (const Decl *, StringRef, StringRef))
+ERROR(actor_isolation_multiple_attr_3,none,
+      "%0 %1 has multiple actor-isolation attributes ('%2', '%3' and '%4')",
+      (const Decl *, StringRef, StringRef, StringRef))
 ERROR(actor_isolation_override_mismatch,none,
       "%0 %kind1 has different actor isolation from %2 overridden declaration",
       (ActorIsolation, const ValueDecl *, ActorIsolation))
@@ -5773,6 +5776,21 @@ ERROR(async_named_decl_must_be_available_from_async,none,
 ERROR(async_unavailable_decl,none,
       "%kindbase0 is unavailable from asynchronous contexts%select{|; %1}1",
       (const ValueDecl *, StringRef))
+      
+      
+ERROR(isolated_deinit_no_isolation,none,
+      "deinit is marked isolated, but containing class %0 is not isolated to an actor",
+      (DeclName))
+      
+ERROR(deinit_must_be_async,none,
+      "deinit must be 'async' because parent class has 'async' deinit",
+      ())
+NOTE(super_async_deinit_here,none,
+     "async deinit was introduced to class hierarchy here",
+     ())
+WARNING(deinit_does_not_need_async,none,
+    "async deinit contains no await statements; consider using isolated sync deinit instead",
+    ())
 
 //------------------------------------------------------------------------------
 // MARK: String Processing

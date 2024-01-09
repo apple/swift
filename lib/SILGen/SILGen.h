@@ -137,6 +137,8 @@ public:
   llvm::Optional<FuncDecl *> AsyncMainDrainQueue;
   llvm::Optional<FuncDecl *> GetMainExecutor;
   llvm::Optional<FuncDecl *> SwiftJobRun;
+  llvm::Optional<FuncDecl *> DeinitOnExecutor;
+  llvm::Optional<FuncDecl *> DeinitAsync;
   llvm::Optional<FuncDecl *> ExitFunc;
 
 public:
@@ -585,6 +587,10 @@ public:
   FuncDecl *getAsyncMainDrainQueue();
   /// Retrieve the _Concurrency._swiftJobRun intrinsic.
   FuncDecl *getSwiftJobRun();
+  /// Retrieve the _Concurrency._deinitOnExecutor intrinsic.
+  FuncDecl *getDeinitOnExecutor();
+  /// Retrieve the _Concurrency._deinitAsync intrinsic.
+  FuncDecl *getDeinitAsync();
   // Retrieve the _SwiftConcurrencyShims.exit intrinsic.
   FuncDecl *getExit();
 
@@ -646,6 +652,12 @@ private:
 
   /// Emit the deallocator for a class that uses the objc allocator.
   void emitObjCAllocatorDestructor(ClassDecl *cd, DestructorDecl *dd);
+
+  /// Emit the actual body of deallocator.
+  /// If deinit is isolated, function should be an isolated deallocator, an
+  /// actual deallocator is just a thunk that switches executors. If deinit is
+  /// isolated, function should be the deallocator itself.
+  void emitDeallocatorImpl(SILDeclRef constant, SILFunction *f);
 };
  
 } // end namespace Lowering

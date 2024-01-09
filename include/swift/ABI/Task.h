@@ -17,7 +17,6 @@
 #ifndef SWIFT_ABI_TASK_H
 #define SWIFT_ABI_TASK_H
 
-#include "swift/ABI/TaskLocal.h"
 #include "swift/ABI/Executor.h"
 #include "swift/ABI/HeapObject.h"
 #include "swift/ABI/Metadata.h"
@@ -438,13 +437,13 @@ public:
   // ==== Task Local Values ----------------------------------------------------
 
   void localValuePush(const HeapObject *key,
-                      /* +1 */ OpaqueValue *value,
-                      const Metadata *valueType);
+                      /* +1 */ OpaqueValue *value, const Metadata *valueType);
 
-  OpaqueValue *localValueGet(const HeapObject *key);
+  void localValuePushBarrier();
 
-  /// Returns true if storage has still more bindings.
-  bool localValuePop();
+  OpaqueValue *localGetValue(const HeapObject *key);
+
+  void localPop();
 
   // ==== Child Fragment -------------------------------------------------------
 
@@ -871,6 +870,11 @@ public:
 using AsyncVoidClosureEntryPoint =
   SWIFT_CC(swiftasync)
   void (SWIFT_ASYNC_CONTEXT AsyncContext *, SWIFT_CONTEXT void *);
+
+/// This matches the ABI of a thin function taking context as explicit parameter
+/// `@convention(thin) (AnyObject) async throws -> ()`
+using AsyncVoidFunctionEntryPoint =
+    SWIFT_CC(swiftasync) void(SWIFT_ASYNC_CONTEXT AsyncContext *, void *);
 
 /// This matches the ABI of a closure `<T>() async throws -> T`
 using AsyncGenericClosureEntryPoint =

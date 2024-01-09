@@ -237,6 +237,38 @@ public final class TaskLocal<Value: Sendable>: Sendable, CustomStringConvertible
 
 }
 
+/// Resets task-local's to their default values for the duration of the asynchronous operation.
+///
+@inlinable
+@discardableResult
+@_unsafeInheritExecutor
+@available(SwiftStdlib 5.8, *)
+public func withResetTaskLocalValues<R>(operation: () async throws -> R,
+                         file: String = #fileID, line: UInt = #line) async rethrows -> R {
+  // check if we're not trying to bind a value from an illegal context; this may crash
+  _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
+
+  let didPush = _taskLocalBarrierPush()
+  defer { _taskLocalBarrierPop(didPush) }
+
+  return try await operation()
+}
+
+/// Resets task-local's to their default values for the duration of the asynchronous operation.
+///
+@available(SwiftStdlib 5.8, *)
+@discardableResult
+public func withResetTaskLocalValues<R>(operation: () throws -> R,
+                         file: String = #fileID, line: UInt = #line) rethrows -> R {
+  // check if we're not trying to bind a value from an illegal context; this may crash
+  _checkIllegalTaskLocalBindingWithinWithTaskGroup(file: file, line: line)
+
+  let didPush = _taskLocalBarrierPush()
+  defer { _taskLocalBarrierPop(didPush) }
+
+  return try operation()
+}
+
 // ==== ------------------------------------------------------------------------
 
 @available(SwiftStdlib 5.1, *)
@@ -251,6 +283,16 @@ func _taskLocalValuePush<Value>(
 @usableFromInline
 @_silgen_name("swift_task_localValuePop")
 func _taskLocalValuePop()
+
+@available(SwiftStdlib 5.8, *)
+@usableFromInline
+@_silgen_name("swift_task_localBarrierPush")
+func _taskLocalBarrierPush() -> Bool
+
+@available(SwiftStdlib 5.8, *)
+@usableFromInline
+@_silgen_name("swift_task_localBarrierPop")
+func _taskLocalBarrierPop(_ didPush: Bool)
 
 @available(SwiftStdlib 5.1, *)
 @_silgen_name("swift_task_localValueGet")

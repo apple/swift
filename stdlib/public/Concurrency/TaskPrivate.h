@@ -19,6 +19,8 @@
 
 #include "Error.h"
 #include "Tracing.h"
+#include "TaskLocal.h"
+#include "TaskAlloc.h"
 #include "swift/ABI/Metadata.h"
 #include "swift/ABI/Task.h"
 #include "swift/ABI/TaskStatus.h"
@@ -32,9 +34,6 @@
 #include "swift/Threading/ThreadSanitizer.h"
 #include <atomic>
 #include <new>
-
-#define SWIFT_FATAL_ERROR swift_Concurrency_fatalError
-#include "../runtime/StackAllocator.h"
 
 namespace swift {
 
@@ -54,16 +53,6 @@ namespace swift {
 class AsyncTask;
 class TaskGroup;
 class ActiveTaskStatus;
-
-/// Allocate task-local memory on behalf of a specific task,
-/// not necessarily the current one.  Generally this should only be
-/// done on behalf of a child task.
-void *_swift_task_alloc_specific(AsyncTask *task, size_t size);
-
-/// dellocate task-local memory on behalf of a specific task,
-/// not necessarily the current one.  Generally this should only be
-/// done on behalf of a child task.
-void _swift_task_dealloc_specific(AsyncTask *task, void *ptr);
 
 /// Given that we've already set the right executor as the active
 /// executor, run the given job.  This does additional bookkeeping
@@ -724,15 +713,6 @@ public:
 static_assert(sizeof(ActiveTaskStatus) == ACTIVE_TASK_STATUS_SIZE,
   "ActiveTaskStatus is of incorrect size");
 
-/// The size of an allocator slab. We want the full allocation to fit into a
-/// 1024-byte malloc quantum. We subtract off the slab header size, plus a
-/// little extra to stay within our limits even when there's overhead from
-/// malloc stack logging.
-static constexpr size_t SlabCapacity = 1024 - StackAllocator<0, nullptr>::slabHeaderSize() - 8;
-extern Metadata TaskAllocatorSlabMetadata;
-
-using TaskAllocator = StackAllocator<SlabCapacity, &TaskAllocatorSlabMetadata>;
-
 /// Private storage in an AsyncTask object.
 struct AsyncTask::PrivateStorage {
   /// State inside the AsyncTask whose state is only managed by the exclusivity
@@ -829,7 +809,7 @@ struct AsyncTask::PrivateStorage {
     // Destroy and deallocate any remaining task local items since the task is
     // completed. We need to do this before we destroy the task local
     // deallocator.
-    Local.destroy(task);
+    Local.destroy(&task->_private().Allocator);
 
     // Task is completed, it can no longer have a dependency.
     assert(dependencyRecord == nullptr);
@@ -1200,17 +1180,18 @@ inline void AsyncTask::flagAsDestroyed() {
 inline void AsyncTask::localValuePush(const HeapObject *key,
                                       /* +1 */ OpaqueValue *value,
                                       const Metadata *valueType) {
-  _private().Local.pushValue(this, key, value, valueType);
+  _private().Local.pushValue(&_private().Allocator, key, value, valueType);
 }
 
-inline OpaqueValue *AsyncTask::localValueGet(const HeapObject *key) {
-  return _private().Local.getValue(this, key);
+inline void AsyncTask::localValuePushBarrier() {
+  _private().Local.pushBarrier(&_private().Allocator);
 }
 
-/// Returns true if storage has still more bindings.
-inline bool AsyncTask::localValuePop() {
-  return _private().Local.popValue(this);
+inline OpaqueValue *AsyncTask::localGetValue(const HeapObject *key) {
+  return _private().Local.getValue(key);
 }
+
+inline void AsyncTask::localPop() { _private().Local.pop(&_private().Allocator); }
 
 } // end namespace swift
 

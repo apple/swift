@@ -22,6 +22,7 @@
 #include "../CompatibilityOverride/CompatibilityOverride.h"
 #include "swift/ABI/Actor.h"
 #include "swift/ABI/Task.h"
+#include "swift/ABI/TaskOptions.h"
 #include "swift/Basic/ListMerger.h"
 #include "swift/Concurrency/Actor.h"
 #include "swift/Runtime/AccessibleFunction.h"
@@ -2037,6 +2038,145 @@ static void swift_task_switchImpl(SWIFT_ASYNC_CONTEXT AsyncContext *resumeContex
 
   task->flagAsAndEnqueueOnExecutor(newExecutor);
   _swift_task_clearCurrent();
+}
+
+namespace {
+/// Job that allows to use executor API to schedule a block of task-less
+/// synchronous code.
+class IsolatedDeinitJob : public Job {
+
+private:
+  void *Object;
+  DeinitWorkFunction *Work;
+  TaskLocal::Storage Local;
+  TaskAllocator Allocator;
+public:
+  IsolatedDeinitJob(JobPriority priority, void *object,
+                    DeinitWorkFunction *work, TaskLocal::Copier& copier,
+                    size_t capacity)
+      : Job({JobKind::IsolatedDeinit, priority}, &process),
+        Object(object), Work(work),
+        Allocator(this + 1, capacity - sizeof(*this))
+  {
+      copier.copyTo(&Local, &Allocator);
+  }
+
+  ~IsolatedDeinitJob() { Local.destroy(&Allocator); }
+
+  SWIFT_CC(swiftasync)
+  static void process(Job *_job) {
+    auto *job = cast<IsolatedDeinitJob>(_job);
+    job->runWork();
+    job->~IsolatedDeinitJob();
+    free(job);
+  }
+
+  inline void runWork() {
+    TaskLocal::AdHocScope taskLocalScope(&Local);
+    Work(Object);
+  }
+
+  static bool classof(const Job *job) {
+    return job->Flags.getKind() == JobKind::IsolatedDeinit;
+  }
+};
+} // namespace
+
+SWIFT_CC(swift)
+static void swift_task_deinitOnExecutorImpl(void *object,
+                                            DeinitWorkFunction *work,
+                                            SerialExecutorRef newExecutor,
+                                            size_t rawFlags) {
+  DeinitOnExecutorFlags flags(rawFlags);
+
+  auto doWorkWithoutHop = [=]() {
+    if (flags.resetTaskLocalsOnNoHop()) {
+      TaskLocal::WithResetValuesScope taskLocalResetScope;
+      return work(object);
+    } else {
+      return work(object);
+    }
+  };
+
+  // If the current executor is compatible with running the new executor,
+  // we can just immediately continue running with the resume function
+  // we were passed in.
+  //
+  // Note that swift_task_isCurrentExecutor() returns true for @MainActor
+  // when running on the main thread without any executor
+  if (swift_task_isCurrentExecutor(newExecutor)) {
+    return doWorkWithoutHop(); // 'return' forces tail call
+  }
+
+  // Optimize deallocation of the default actors
+  if (newExecutor.isDefaultActor() && object == newExecutor.getIdentity()) {
+    // Try to take the lock. This should always succeed, unless someone is
+    // running the actor using unsafe unowned reference.
+    if (asImpl(newExecutor.getDefaultActor())->tryLock(false)) {
+
+      // Don't unlock current executor, because we must preserve it when
+      // returning. If we release the lock, we might not be able to get it back.
+      // It cannot produce deadlocks, because:
+      //   * we use tryLock(), not lock()
+      //   * each object can be deinitialized only once, so call graph of
+      //   deinit's cannot have cycles.
+
+      // Function runOnAssumedThread() tries to reuse existing tracking info,
+      // but we don't have a tail call anyway, so this does not help much here.
+      // Always create new tracking info to keep code simple.
+      ExecutorTrackingInfo trackingInfo;
+
+      // The only place where ExecutorTrackingInfo::getTaskExecutor() is
+      // called is in swift_task_switch(), but swift_task_switch() cannot be
+      // called from the synchronous code. So it does not really matter what is
+      // set in the ExecutorTrackingInfo::ActiveExecutor for the duration of the
+      // isolated deinit - it is unobservable anyway.
+      TaskExecutorRef taskExecutor = TaskExecutorRef::undefined();
+      trackingInfo.enterAndShadow(newExecutor, taskExecutor);
+
+      // Run the work.
+      doWorkWithoutHop();
+
+      // `work` is a synchronous function, it cannot call swift_task_switch()
+      // If it calls any synchronous API that may change executor inside
+      // tracking info, that API is also responsible for changing it back.
+      assert(newExecutor == trackingInfo.getActiveExecutor());
+      assert(taskExecutor == trackingInfo.getTaskExecutor());
+
+      // Leave the tracking frame
+      trackingInfo.leave();
+
+      // Give up the current actor.
+      asImpl(newExecutor.getDefaultActor())->unlock(true);
+      return;
+    }
+  }
+
+  auto currentTask = swift_task_getCurrent();
+  auto priority = currentTask ? swift_task_currentPriority(currentTask)
+                              : swift_task_getCurrentThreadPriority();
+
+  auto copier = flags.copyTaskLocalsOnHop() ? TaskLocal::Copier::get() : TaskLocal::Copier();
+  TaskAllocator::Simulator simulator(sizeof(IsolatedDeinitJob));
+  copier.simulate(simulator);
+  size_t bufferSize = simulator.getBufferSize();
+  void *buffer = malloc(bufferSize);
+  auto job = new(buffer) IsolatedDeinitJob(priority, object, work, copier, bufferSize);
+  swift_task_enqueue(job, newExecutor);
+}
+
+SWIFT_CC(swift)
+static void swift_task_deinitAsyncImpl(void *object, void *work,
+                                       SerialExecutorRef newExecutor,
+                                       size_t rawFlags) {
+  DeinitOnExecutorFlags flags(rawFlags);
+  TaskCreateFlags taskFlags;
+  taskFlags.setCopyTaskLocals(flags.copyTaskLocalsOnHop());
+  taskFlags.setEnqueueJob(true);
+  taskFlags.setFunctionConsumesContext(true);
+  InitialSerialExecutorTaskOptionRecord executorOption(newExecutor);
+  swift_task_create(taskFlags.getOpaqueValue(), &executorOption, nullptr, work,
+                    static_cast<HeapObject *>(object));
 }
 
 /*****************************************************************************/

@@ -778,15 +778,21 @@ public:
 
   /// Generates code for class/move only deallocating destructor. This calls the
   /// destroying destructor and then deallocates 'self'.
-  void emitDeallocatingDestructor(DestructorDecl *dd);
+  void emitDeallocatingDestructor(DestructorDecl *dd, bool isIsolated);
 
-  /// Generates code for a class deallocating destructor. This
+  /// Generates code for a class (isolated-)deallocating destructor. This
   /// calls the destroying destructor and then deallocates 'self'.
-  void emitDeallocatingClassDestructor(DestructorDecl *dd);
+  void emitDeallocatingClassDestructor(DestructorDecl *dd, bool isIsolated);
 
   /// Generates code for the deinit of the move only type and destroys all of
   /// the fields.
   void emitDeallocatingMoveOnlyDestructor(DestructorDecl *dd);
+
+  /// Generates code for a class deallocating destructor that switches executor
+  /// and calls isolated deallocating destructor on the right executor.
+  void emitIsolatingDestructor(DestructorDecl *dd);
+  void emitIsolatingDestructorImpl(DestructorDecl *dd, SILValue selfValue,
+                                   SILLocation loc);
 
   /// Generates code for a struct constructor.
   /// This allocates the new 'self' value, emits the
@@ -861,12 +867,8 @@ public:
   ///
   /// \param selfValue The 'self' value.
   /// \param cd The class declaration whose members are being destroyed.
-  /// \param finishBB If set, used as the basic block after members have been
-  ///                 destroyed, and we're ready to perform final cleanups
-  ///                 before returning.
   void emitClassMemberDestruction(ManagedValue selfValue, ClassDecl *cd,
-                                  CleanupLocation cleanupLoc,
-                                  SILBasicBlock* finishBB);
+                                  CleanupLocation cleanupLoc);
 
   /// Generates code to destroy the instance variables of a move only non-class
   /// nominal type.
@@ -1091,6 +1093,13 @@ public:
   /// inside an async actor-independent function. No hop-back is expected.
   void emitHopToActorValue(SILLocation loc, ManagedValue actor);
 
+  /// Emit hop to executor if parent deinit is sync but isolated
+  /// Note that this also covers the case when deinit does not need isolating
+  /// destructor because it was declared isolated in ObjC and isolation is
+  /// assumed to be implemented in overriden release method.
+  void emitHopToActorOfSuperDeinit(DestructorDecl *dd, SILValue selfValue,
+                                   SILLocation loc);
+
   /// Return true if the function being emitted is an async function
   /// that unsafely inherits its executor.
   bool unsafelyInheritsExecutor();
@@ -1140,6 +1149,8 @@ public:
   /// of the \p globalActor based on the type.
   /// \returns a value which can be used with hop_to_executor
   SILValue emitLoadGlobalActorExecutor(Type globalActor);
+
+  void emitExpectedExecutor(ParamDecl *selfParam);
 
   //===--------------------------------------------------------------------===//
   // Memory management
@@ -2344,9 +2355,8 @@ public:
   /// corresponding SIL function for it.
   void emitDistributedActorFactory(FuncDecl *fd); // TODO(distributed): this is the "resolve"
 
-  void emitDistributedIfRemoteBranch(SILLocation Loc,
-                                     ManagedValue selfValue, Type selfTy,
-                                     SILBasicBlock *isRemoteBB,
+  void emitDistributedIfRemoteBranch(SILLocation Loc, SILValue selfValue,
+                                     Type selfTy, SILBasicBlock *isRemoteBB,
                                      SILBasicBlock *isLocalBB);
 
   /// Notify transport that actor has initialized successfully,
@@ -2369,22 +2379,14 @@ public:
   /// \param actorSelf the SIL value representing the distributed actor instance
   void emitDistributedActorSystemResignIDCall(SILLocation loc,
                               ClassDecl *actorDecl, ManagedValue actorSelf);
-  
-  /// Emit code that tests whether the distributed actor is local, and if so,
-  /// resigns the distributed actor's identity.
-  /// \param continueBB the target block where execution will continue after
-  ///                   the conditional call, whether actor is local or remote.
-  void emitConditionalResignIdentityCall(SILLocation loc,
-                                         ClassDecl *actorDecl,
-                                         ManagedValue actorSelf,
-                                         SILBasicBlock *continueBB,
-                                         SILBasicBlock *finishBB);
 
-  void emitDistributedActorClassMemberDestruction(
-      SILLocation cleanupLoc, ManagedValue selfValue, ClassDecl *cd,
-      SILBasicBlock *normalMemberDestroyBB,
-      SILBasicBlock *remoteMemberDestroyBB,
-      SILBasicBlock *finishBB);
+  /// Emits check for remote actor and a branch that implements deallocating
+  /// deinit for remote proxy. Calls \p emitLocalDeinit to generate branch for
+  /// local actor.
+  void
+  emitDistributedRemoteActorDeinit(SILValue selfValue, DestructorDecl *dd,
+                                   bool isIsolated,
+                                   llvm::function_ref<void()> emitLocalDeinit);
 
   //===--------------------------------------------------------------------===//
   // Declarations
@@ -2488,6 +2490,9 @@ public:
 
   /// Destroy the class member.
   void destroyClassMember(SILLocation L, ManagedValue selfValue, VarDecl *D);
+
+  /// Destroy the default actor implementation.
+  void emitDestroyDefaultActor(CleanupLocation cleanupLoc, SILValue selfValue);
 
   /// Enter a cleanup to deallocate a stack variable.
   CleanupHandle enterDeallocStackCleanup(SILValue address);

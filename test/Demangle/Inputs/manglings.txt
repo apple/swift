@@ -105,6 +105,7 @@ _TF3foooP1xFTCS_3barVS_3bas_OS_3zim ---> foo.^ postfix(foo.bar, foo.bas) -> foo.
 _TFC3foo3barCfT_S0_ ---> foo.bar.__allocating_init() -> foo.bar
 _TFC3foo3barcfT_S0_ ---> foo.bar.init() -> foo.bar
 _TFC3foo3barD ---> foo.bar.__deallocating_deinit
+_TFC3foo3barZ ---> foo.bar.__isolated_deallocating_deinit
 _TFC3foo3bard ---> foo.bar.deinit
 _TMPC3foo3bar ---> generic type metadata pattern for foo.bar
 _TMnC3foo3bar ---> nominal type descriptor for foo.bar

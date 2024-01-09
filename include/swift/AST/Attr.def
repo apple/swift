@@ -491,7 +491,7 @@ CONTEXTUAL_SIMPLE_DECL_ATTR(indirect, Indirect,
   DeclModifier | OnEnum | OnEnumElement | ABIBreakingToAdd | ABIBreakingToRemove | APIStableToAdd | APIStableToRemove,
   60)
 CONTEXTUAL_SIMPLE_DECL_ATTR(isolated, Isolated,
-  DeclModifier | OnParam | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
+  DeclModifier | OnParam | OnDestructor | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
   103)
 CONTEXTUAL_SIMPLE_DECL_ATTR(async, Async,
   DeclModifier | OnVar | OnFunc | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
@@ -500,7 +500,7 @@ SIMPLE_DECL_ATTR(reasync, Reasync,
   OnFunc | OnConstructor | RejectByParser | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
   109)
 CONTEXTUAL_DECL_ATTR(nonisolated, Nonisolated,
-  DeclModifier | OnFunc | OnConstructor | OnVar | OnSubscript | ABIStableToAdd | ABIStableToRemove | APIBreakingToAdd | APIStableToRemove,
+  DeclModifier | OnFunc | OnConstructor | OnDestructor | OnVar | OnSubscript | ABIStableToAdd | ABIStableToRemove | APIBreakingToAdd | APIStableToRemove,
   112)
 CONTEXTUAL_SIMPLE_DECL_ATTR(distributed, DistributedActor,
   DeclModifier | OnClass | OnFunc | OnAccessor | OnVar | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
@@ -548,6 +548,11 @@ SIMPLE_DECL_ATTR(_noObjCBridging, NoObjCBridging,
 CONTEXTUAL_SIMPLE_DECL_ATTR(_resultDependsOn, ResultDependsOn,
   OnParam | DeclModifier | UserInaccessible | ABIBreakingToAdd | ABIStableToRemove | APIBreakingToAdd | APIStableToRemove,
   156)
+
+SIMPLE_DECL_ATTR(resetTaskLocals, ResetTaskLocals,
+  OnDestructor | ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
+  157)
+
 #undef TYPE_ATTR
 #undef DECL_ATTR_ALIAS
 #undef CONTEXTUAL_DECL_ATTR_ALIAS

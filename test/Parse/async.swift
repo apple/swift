@@ -27,10 +27,52 @@ func asyncGlobal8() async throws async -> async Int async {}
 // expected-error@-2{{'async' has already been specified}} {{43-49=}}
 // expected-error@-3{{'async' has already been specified}} {{53-59=}}
 
+func noop() async {}
+
 class X {
   init() async { }
 
-  deinit async { } // expected-error{{deinitializers cannot have a name}}
+  deinit async { await noop() }
+  
+  class A {
+    // expected-error@+1 {{deinitializers cannot throw}}
+    deinit throws { }
+  }
+  class B {
+    // expected-error@+1 {{deinitializers cannot throw}}
+    deinit async throws { await noop() }
+  }
+  class C {
+    // expected-error@+1 {{deinitializers cannot have a name}}
+    deinit name async { await noop() }
+  }
+  class D {
+    // expected-error@+2 {{deinitializers cannot have a name}}
+    // expected-error@+1 {{deinitializers cannot throw}}
+    deinit name throws { }
+  }
+  class E {
+    // expected-error@+2 {{deinitializers cannot have a name}}
+    // expected-error@+1 {{deinitializers cannot throw}}
+    deinit name async throws { await noop() }
+  }
+  class F {
+    // expected-error@+2 {{deinitializers cannot have a name}}
+    // expected-error@+1 {{no parameter clause allowed on deinitializer}}
+    deinit name(x: Int, y: Bool) async { await noop() }
+  }
+  class G {
+    // expected-error@+3 {{deinitializers cannot have a name}}
+    // expected-error@+2 {{no parameter clause allowed on deinitializer}}
+    // expected-error@+1 {{deinitializers cannot throw}}
+    deinit name(x: Int, y: Bool) throws { }
+  }
+  class H {
+    // expected-error@+3{{deinitializers cannot have a name}}
+    // expected-error@+2{{no parameter clause allowed on deinitializer}}
+    // expected-error@+1{{deinitializers cannot throw}}
+    deinit name(x: Int, y: Bool) async throws { await noop() }
+  }
 
   func f() async { }
 

@@ -28,7 +28,7 @@
 #include "Tracing.h"
 #include "swift/ABI/Metadata.h"
 #include "swift/ABI/Task.h"
-#include "swift/ABI/TaskLocal.h"
+#include "TaskLocal.h"
 #include "swift/ABI/TaskOptions.h"
 #include "swift/Basic/Lazy.h"
 #include "swift/Runtime/Concurrency.h"
@@ -505,6 +505,15 @@ static void non_future_adapter(SWIFT_ASYNC_CONTEXT AsyncContext *_context) {
 }
 
 SWIFT_CC(swiftasync)
+static void non_context_adapter(SWIFT_ASYNC_CONTEXT AsyncContext *_context) {
+  auto asyncContextPrefix = reinterpret_cast<AsyncContextPrefix *>(
+      reinterpret_cast<char *>(_context) - sizeof(AsyncContextPrefix));
+  auto entryPoint = reinterpret_cast<AsyncVoidFunctionEntryPoint *>(
+      asyncContextPrefix->asyncEntryPoint);
+  return entryPoint(_context, asyncContextPrefix->closureContext);
+}
+
+SWIFT_CC(swiftasync)
 static void future_adapter(SWIFT_ASYNC_CONTEXT AsyncContext *_context) {
   auto asyncContextPrefix = reinterpret_cast<FutureAsyncContextPrefix *>(
       reinterpret_cast<char *>(_context) - sizeof(FutureAsyncContextPrefix));
@@ -530,6 +539,8 @@ task_future_wait_resume_adapter(SWIFT_ASYNC_CONTEXT AsyncContext *_context) {
 
 const void *const swift::_swift_concurrency_debug_non_future_adapter =
     reinterpret_cast<void *>(non_future_adapter);
+const void *const swift::_swift_concurrency_debug_non_context_adapter =
+    reinterpret_cast<void *>(non_context_adapter);
 const void *const swift::_swift_concurrency_debug_future_adapter =
     reinterpret_cast<void *>(future_adapter);
 const void
@@ -542,7 +553,7 @@ const void
 const void *AsyncTask::getResumeFunctionForLogging() {
   const void *result = reinterpret_cast<const void *>(ResumeTask);
 
-  if (ResumeTask == non_future_adapter) {
+  if (ResumeTask == non_future_adapter || ResumeTask == non_context_adapter) {
     auto asyncContextPrefix = reinterpret_cast<AsyncContextPrefix *>(
         reinterpret_cast<char *>(ResumeContext) - sizeof(AsyncContextPrefix));
     result =
@@ -657,6 +668,11 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
       taskExecutor = cast<InitialTaskExecutorPreferenceTaskOptionRecord>(option)
                          ->getExecutorRef();
       jobFlags.task_setHasInitialTaskExecutorPreference(true);
+      break;
+
+    case TaskOptionRecordKind::InitialSerialExecutor:
+      serialExecutor =
+          cast<InitialSerialExecutorTaskOptionRecord>(option)->getExecutorRef();
       break;
 
     case TaskOptionRecordKind::TaskGroup:
@@ -874,7 +890,8 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
     asyncContextPrefix->asyncEntryPoint =
         reinterpret_cast<AsyncVoidClosureEntryPoint *>(function);
     asyncContextPrefix->closureContext = closureContext;
-    function = non_future_adapter;
+    function = taskCreateFlags.functionConsumesContext() ? non_context_adapter
+                                                         : non_future_adapter;
     assert(sizeof(AsyncContextPrefix) == 3 * sizeof(void *));
   } else {
     auto asyncContextPrefix = reinterpret_cast<FutureAsyncContextPrefix *>(
@@ -882,6 +899,8 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
         sizeof(FutureAsyncContextPrefix));
     asyncContextPrefix->asyncEntryPoint =
         reinterpret_cast<AsyncGenericClosureEntryPoint *>(function);
+    assert(!taskCreateFlags.functionConsumesContext() &&
+           "Unexpected requested a task with non-void non-context adapter");
     function = future_adapter;
     asyncContextPrefix->closureContext = closureContext;
     assert(sizeof(FutureAsyncContextPrefix) == 4 * sizeof(void *));
@@ -949,13 +968,20 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
                        " with parent %p at base pri %zu",
                        task, task->getTaskId(), parent, basePriority);
 
+  initialContext->ResumeParent = [=]() -> TaskContinuationFunction * {
+    if (runInlineOption)
+      return &completeInlineTask;
+    if (asyncLet)
+      return reinterpret_cast<TaskContinuationFunction *>(&completeTask);
+    if (closureContext && !taskCreateFlags.functionConsumesContext()) {
+      return reinterpret_cast<TaskContinuationFunction *>(
+          &completeTaskWithClosure);
+    }
+    return reinterpret_cast<TaskContinuationFunction *>(
+        &completeTaskAndRelease);
+  }();
+
   // Initialize the task-local allocator.
-  initialContext->ResumeParent =
-      runInlineOption ? &completeInlineTask
-                      : reinterpret_cast<TaskContinuationFunction *>(
-                            asyncLet         ? &completeTask
-                            : closureContext ? &completeTaskWithClosure
-                                             : &completeTaskAndRelease);
   if ((asyncLet || (runInlineOption && runInlineOption->getAllocation())) &&
       initialSlabSize > 0) {
     assert(parent || (runInlineOption && runInlineOption->getAllocation()));
@@ -978,7 +1004,7 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
       swift_task_cancel(task);
 
     // Initialize task locals with a link to the parent task.
-    task->_private().Local.initializeLinkParent(task, parent);
+    task->_private().Local.initializeLinkParent(task->_private().Allocator, parent);
   }
 
   // Configure the initial context.

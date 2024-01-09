@@ -2360,7 +2360,8 @@ enum class JobKind : size_t {
   DefaultActorInline = First_Reserved,
   DefaultActorSeparate,
   DefaultActorOverride,
-  NullaryContinuation
+  NullaryContinuation,
+  IsolatedDeinit,
 };
 
 /// The priority of a job.  Higher priorities are larger values.
@@ -2394,15 +2395,16 @@ public:
     RequestedPriority = 0,
     RequestedPriority_width = 8,
 
-    Task_IsChildTask                              = 8,
+    Task_IsChildTask = 8,
     // Should only be set in task-to-thread model where Task.runInline is
     // available
-    Task_IsInlineTask                             = 9,
-    Task_CopyTaskLocals                           = 10,
-    Task_InheritContext                           = 11,
-    Task_EnqueueJob                               = 12,
-    Task_AddPendingGroupTaskUnconditionally       = 13,
-    Task_IsDiscardingTask                         = 14,
+    Task_IsInlineTask = 9,
+    Task_CopyTaskLocals = 10,
+    Task_InheritContext = 11,
+    Task_EnqueueJob = 12,
+    Task_AddPendingGroupTaskUnconditionally = 13,
+    Task_IsDiscardingTask = 14,
+    Task_FunctionConsumesContext = 15,
   };
 
   explicit constexpr TaskCreateFlags(size_t bits) : FlagSet(bits) {}
@@ -2432,6 +2434,9 @@ public:
   FLAGSET_DEFINE_FLAG_ACCESSORS(Task_IsDiscardingTask,
                                 isDiscardingTask,
                                 setIsDiscardingTask)
+  FLAGSET_DEFINE_FLAG_ACCESSORS(Task_FunctionConsumesContext,
+                                functionConsumesContext,
+                                setFunctionConsumesContext)
 };
 
 /// Flags for schedulable jobs.
@@ -2527,7 +2532,7 @@ enum class TaskStatusRecordKind : uint8_t {
 
 /// Kinds of option records that can be passed to creating asynchronous tasks.
 enum class TaskOptionRecordKind : uint8_t {
-  /// Request a task to be kicked off, or resumed, on a specific executor.
+  /// Request a task to be kicked off, or resumed, on a specific task executor.
   InitialTaskExecutor = 0,
   /// Request a child task to be part of a specific task group.
   TaskGroup = 1,
@@ -2538,6 +2543,9 @@ enum class TaskOptionRecordKind : uint8_t {
   AsyncLetWithBuffer = 3,
   /// Information about the result type of the task, used in embedded Swift.
   ResultTypeInfo = 4,
+  /// Request a task to be kicked off, or resumed, on a specific serial
+  /// executor.
+  InitialSerialExecutor = 5,
   /// Request a child task for swift_task_run_inline.
   RunInline = UINT8_MAX,
 };

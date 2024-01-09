@@ -111,11 +111,11 @@ struct SILDeclRef {
     /// Initializer - this constant references the initializing constructor
     /// entry point of the class ConstructorDecl in loc.
     Initializer,
-    
+
     /// EnumElement - this constant references the injection function for
     /// an EnumElementDecl.
     EnumElement,
-    
+
     /// Destroyer - this constant references the destroying destructor for the
     /// DestructorDecl in loc.
     Destroyer,
@@ -123,7 +123,11 @@ struct SILDeclRef {
     /// Deallocator - this constant references the deallocating
     /// destructor for the DestructorDecl in loc.
     Deallocator,
-    
+
+    /// Deallocator - this constant references the isolated deallocating
+    /// destructor for the DestructorDecl in loc.
+    IsolatedDeallocator,
+
     /// GlobalAccessor - this constant references the lazy-initializing
     /// accessor for the global VarDecl in loc.
     GlobalAccessor,
@@ -336,7 +340,8 @@ struct SILDeclRef {
   }
   /// True if the SILDeclRef references a destructor entry point.
   bool isDestructor() const {
-    return kind == Kind::Destroyer || kind == Kind::Deallocator;
+    return kind == Kind::Destroyer || kind == Kind::Deallocator ||
+           kind == Kind::IsolatedDeallocator;
   }
   /// True if the SILDeclRef references an enum entry point.
   bool isEnumElement() const {

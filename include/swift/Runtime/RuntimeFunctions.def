@@ -2250,7 +2250,7 @@ FUNCTION(GetTypeByMangledNameInContextInMetadataState2,
          EFFECT(MetaData),
          MEMEFFECTS(ArgMemOnly))
 
-// AsyncTask *swift_task_getCurrent();s
+// AsyncTask *swift_task_getCurrent();
 FUNCTION(GetCurrentTask,
          swift_task_getCurrent, SwiftCC,
          ConcurrencyAvailability,
@@ -2319,6 +2319,32 @@ FUNCTION(TaskSwitchFunc,
          ATTRS(NoUnwind),
          EFFECT(Concurrency),
          UNKNOWN_MEMEFFECTS)
+         
+// void swift_task_deinitOnExecutor(void *object,
+//                                  DeinitWorkFunction *work,
+//                                  SerialExecutorRef newExecutor,
+//                                  size_t flags);
+FUNCTION(DeinitOnExecutorFunc,
+         swift_task_deinitOnExecutor, SwiftCC,
+         ConcurrencyAvailability,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int8PtrTy, ExecutorFirstTy, ExecutorSecondTy, SizeTy),
+         ATTRS(NoUnwind),
+         EFFECT(Concurrency),
+         UNKNOWN_MEMEFFECTS)
+         
+// void swift_task_deinitAsync(void *object,
+//                             void *work,
+//                             SerialExecutorRef newExecutor,
+//                             size_t flags);
+FUNCTION(DeinitAsyncFunc,
+         swift_task_deinitAsync, SwiftCC,
+         ConcurrencyAvailability,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, Int8PtrTy, ExecutorFirstTy, ExecutorSecondTy, SizeTy),
+         ATTRS(NoUnwind),
+         EFFECT(Concurrency),
+         MEMEFFECTS(ArgMemOnly))
 
 // AsyncTask *swift_continuation_init(AsyncContext *continuationContext,
 //                                    AsyncContinuationFlags);

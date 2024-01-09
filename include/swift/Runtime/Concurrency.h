@@ -605,6 +605,33 @@ swift_task_createNullaryContinuationJob(
     size_t priority,
     AsyncTask *continuation);
 
+class DeinitOnExecutorFlags : public FlagSet<size_t> {
+public:
+  enum {
+    CopyTaskLocalsOnHop = 0,
+    ResetTaskLocalsOnNoHop = 1,
+  };
+
+  explicit DeinitOnExecutorFlags(size_t bits) : FlagSet(bits) {}
+  constexpr DeinitOnExecutorFlags() {}
+
+  FLAGSET_DEFINE_FLAG_ACCESSORS(CopyTaskLocalsOnHop, copyTaskLocalsOnHop,
+                                setCopyTaskLocalsOnHop)
+
+  FLAGSET_DEFINE_FLAG_ACCESSORS(ResetTaskLocalsOnNoHop, resetTaskLocalsOnNoHop,
+                                setResetTaskLocalsOnNoHop)
+};
+
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift)
+void swift_task_deinitOnExecutor(void *object, DeinitWorkFunction *work,
+                                 SerialExecutorRef newExecutor, size_t flags);
+
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift)
+void swift_task_deinitAsync(void *object, void *work,
+                            SerialExecutorRef newExecutor, size_t flags);
+
 /// Report error about attempting to bind a task-local value from an illegal context.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_reportIllegalTaskLocalBindingWithinWithTaskGroup(
@@ -657,6 +684,35 @@ void swift_task_localValuePush(const HeapObject *key,
 /// \endcode
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_localValuePop();
+
+/// Bind a task local key to a value in the context of either the current
+/// AsyncTask if present, or in the thread-local fallback context if no task
+/// available.
+///
+/// Its Swift signature is
+///
+/// \code
+///  public func _taskLocalBarrierPush() -> Bool
+/// \endcode
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift) bool swift_task_localBarrierPush();
+
+/// Pop a single task local binding from the binding stack of the current task,
+/// or the fallback thread-local storage if no task is available.
+///
+/// This operation must be paired up with a preceding "push" operation, as
+/// otherwise it may attempt to "pop" off an empty value stuck which will lead
+/// to a crash.
+///
+/// The Swift surface API ensures proper pairing of push and pop operations.
+///
+/// Its Swift signature is
+///
+/// \code
+///  public func _taskLocalBarrierPop()
+/// \endcode
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift) void swift_task_localBarrierPop(bool didPush);
 
 /// Copy all task locals from the current context to the target task.
 ///

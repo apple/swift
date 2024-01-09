@@ -11,7 +11,7 @@
 import Distributed
 
 distributed actor SomeSpecificDistributedActor {
-  deinit {
+  nonisolated deinit {
     print("deinit \(self.id)")
   }
 }
@@ -40,7 +40,7 @@ final class FakeActorSystem: DistributedActorSystem {
   typealias SerializationRequirement = Codable
   typealias ResultHandler = FakeResultHandler
 
-  deinit {
+  nonisolated deinit {
     print("deinit \(self)")
   }
 

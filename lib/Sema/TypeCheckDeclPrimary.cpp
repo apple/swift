@@ -2115,8 +2115,7 @@ public:
       (void) VD->getFormalAccess();
 
       // Compute overrides.
-      if (!VD->getOverriddenDecls().empty())
-        checkOverrideActorIsolation(VD);
+      checkOverrideActorIsolation(VD);
 
       // Check whether the member is @objc or dynamic.
       (void) VD->isObjC();
@@ -4073,6 +4072,8 @@ public:
     } else if (!DD->isBodySkipped()) {
       addDelayedFunction(DD);
     }
+
+    checkAsyncDeinitUsage(DD);
   }
 
   void visitBuiltinTupleDecl(BuiltinTupleDecl *BTD) {

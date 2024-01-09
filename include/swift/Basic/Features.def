@@ -272,6 +272,8 @@ EXPERIMENTAL_FEATURE(GroupActorErrors, true)
 // Allow for the 'transferring' keyword to be applied to arguments and results.
 EXPERIMENTAL_FEATURE(TransferringArgsAndResults, true)
 
+SUPPRESSIBLE_LANGUAGE_FEATURE(IsolatedDeinit, 371, "isolated/async deinit")
+
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE
 #undef UPCOMING_FEATURE

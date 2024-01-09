@@ -2003,7 +2003,10 @@ void markAsObjC(ValueDecl *D, ObjCReason reason,
       assert(method->hasAsync() && "async objc req offered for sync witness?");
       method->setForeignAsyncConvention(*inheritedAsyncConvention);
 
-    } else if (method->hasAsync()) {
+    } else if (method->hasAsync() && !isa<DestructorDecl>(method)) {
+      // It is ok for destructor to not have async convention
+      // Because @objc attribute applies to the deallocator, while async applies
+      // to the isolated deallocator They are actually two different functions.
       assert(asyncConvention && "Missing async convention");
       method->setForeignAsyncConvention(*asyncConvention);
     }

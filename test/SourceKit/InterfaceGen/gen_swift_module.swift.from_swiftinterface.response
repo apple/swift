@@ -2,6 +2,8 @@
 public class MyClass {
 
     public func pub_method()
+
+    deinit
 }
 
 public protocol MyProto<Assoc> {
@@ -45,70 +47,75 @@ public func pub_function() -> Int
     key.length: 10
   },
   {
+    key.kind: source.lang.swift.syntaxtype.keyword,
+    key.offset: 59,
+    key.length: 6
+  },
+  {
     key.kind: source.lang.swift.syntaxtype.attribute.builtin,
-    key.offset: 57,
+    key.offset: 69,
     key.length: 6
   },
   {
     key.kind: source.lang.swift.syntaxtype.keyword,
-    key.offset: 64,
+    key.offset: 76,
     key.length: 8
   },
   {
     key.kind: source.lang.swift.syntaxtype.identifier,
-    key.offset: 73,
+    key.offset: 85,
     key.length: 7
   },
   {
     key.kind: source.lang.swift.syntaxtype.identifier,
-    key.offset: 81,
+    key.offset: 93,
     key.length: 5
   },
   {
     key.kind: source.lang.swift.syntaxtype.keyword,
-    key.offset: 95,
+    key.offset: 107,
     key.length: 14
   },
   {
     key.kind: source.lang.swift.syntaxtype.identifier,
-    key.offset: 110,
+    key.offset: 122,
     key.length: 5
   },
   {
     key.kind: source.lang.swift.syntaxtype.attribute.builtin,
-    key.offset: 119,
+    key.offset: 131,
     key.length: 18
   },
   {
     key.kind: source.lang.swift.syntaxtype.attribute.builtin,
-    key.offset: 138,
+    key.offset: 150,
     key.length: 6
   },
   {
     key.kind: source.lang.swift.syntaxtype.keyword,
-    key.offset: 145,
+    key.offset: 157,
     key.length: 4
   },
   {
     key.kind: source.lang.swift.syntaxtype.identifier,
-    key.offset: 150,
+    key.offset: 162,
     key.length: 12
   },
   {
     key.kind: source.lang.swift.syntaxtype.typeidentifier,
-    key.offset: 168,
+    key.offset: 180,
     key.length: 3
   }
 ]
 [
   {
     key.kind: source.lang.swift.ref.associatedtype,
-    key.offset: 81,
+    key.offset: 93,
     key.length: 5
   },
   {
     key.kind: source.lang.swift.ref.struct,
-    key.offset: 168,
+    key.offset: 180,
     key.length: 3,
     key.is_system: 1
   }
@@ -119,11 +126,11 @@ public func pub_function() -> Int
     key.accessibility: source.lang.swift.accessibility.public,
     key.name: "MyClass",
     key.offset: 8,
-    key.length: 47,
+    key.length: 59,
     key.nameoffset: 14,
     key.namelength: 7,
     key.bodyoffset: 23,
-    key.bodylength: 31,
+    key.bodylength: 43,
     key.attributes: [
       {
         key.offset: 1,
@@ -154,15 +161,15 @@ public func pub_function() -> Int
     key.kind: source.lang.swift.decl.protocol,
     key.accessibility: source.lang.swift.accessibility.public,
     key.name: "MyProto",
-    key.offset: 64,
+    key.offset: 76,
     key.length: 53,
-    key.nameoffset: 73,
+    key.nameoffset: 85,
     key.namelength: 7,
-    key.bodyoffset: 89,
+    key.bodyoffset: 101,
     key.bodylength: 27,
     key.attributes: [
       {
-        key.offset: 57,
+        key.offset: 69,
         key.length: 6,
         key.attribute: source.decl.attribute.public
       }
@@ -172,9 +179,9 @@ public func pub_function() -> Int
         key.kind: source.lang.swift.decl.associatedtype,
         key.accessibility: source.lang.swift.accessibility.public,
         key.name: "Assoc",
-        key.offset: 95,
+        key.offset: 107,
         key.length: 20,
-        key.nameoffset: 110,
+        key.nameoffset: 122,
         key.namelength: 5
       }
     ]
@@ -183,19 +190,19 @@ public func pub_function() -> Int
     key.kind: source.lang.swift.decl.function.free,
     key.accessibility: source.lang.swift.accessibility.public,
     key.name: "pub_function()",
-    key.offset: 145,
+    key.offset: 157,
     key.length: 26,
     key.typename: "Int",
-    key.nameoffset: 150,
+    key.nameoffset: 162,
     key.namelength: 14,
     key.attributes: [
       {
-        key.offset: 138,
+        key.offset: 150,
         key.length: 6,
         key.attribute: source.decl.attribute.public
       },
       {
-        key.offset: 119,
+        key.offset: 131,
         key.length: 18,
         key.attribute: source.decl.attribute.discardableResult
       }

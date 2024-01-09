@@ -34,6 +34,7 @@ class NominalTypeDecl;
 class SubstitutionMap;
 class AbstractFunctionDecl;
 class AbstractClosureExpr;
+class DestructorDecl;
 
 /// Determine whether the given types are (canonically) equal, declared here
 /// to avoid having to include Types.h.
@@ -307,6 +308,11 @@ bool isSameActorIsolated(ValueDecl *value, DeclContext *dc);
 /// Determines whether this function's body uses flow-sensitive isolation.
 bool usesFlowSensitiveIsolation(AbstractFunctionDecl const *fn);
 
+/// Produces an error if deinit is not declared async when one of the
+/// superclasses has async deinit. Produces a warning if deinit is declared async
+/// but does not use any concurrency features.
+void checkAsyncDeinitUsage(DestructorDecl *dd);
+llvm::Optional<ActorIsolation> shouldHopForSuperDeinit(DestructorDecl *dd);
 void simple_display(llvm::raw_ostream &out, const ActorIsolation &state);
 
 // ApplyIsolationCrossing records the source and target of an isolation crossing

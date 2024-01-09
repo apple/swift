@@ -17,7 +17,6 @@
 #ifndef SWIFT_ABI_TASK_OPTIONS_H
 #define SWIFT_ABI_TASK_OPTIONS_H
 
-#include "swift/ABI/TaskLocal.h"
 #include "swift/ABI/Executor.h"
 #include "swift/ABI/HeapObject.h"
 #include "swift/ABI/Metadata.h"
@@ -94,6 +93,21 @@ public:
 
   static bool classof(const TaskOptionRecord *record) {
     return record->getKind() == TaskOptionRecordKind::InitialTaskExecutor;
+  }
+};
+
+class InitialSerialExecutorTaskOptionRecord : public TaskOptionRecord {
+  const SerialExecutorRef Executor;
+
+public:
+  InitialSerialExecutorTaskOptionRecord(SerialExecutorRef executor)
+      : TaskOptionRecord(TaskOptionRecordKind::InitialSerialExecutor),
+        Executor(executor) {}
+
+  SerialExecutorRef getExecutorRef() const { return Executor; }
+
+  static bool classof(const TaskOptionRecord *record) {
+    return record->getKind() == TaskOptionRecordKind::InitialSerialExecutor;
   }
 };
 

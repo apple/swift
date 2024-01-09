@@ -571,7 +571,8 @@ extension ASTGenVisitor {
     let decl = BridgedDestructorDecl.createParsed(
       self.ctx,
       declContext: self.declContext,
-      deinitKeywordLoc: self.generateSourceLoc(node.deinitKeyword)
+      deinitKeywordLoc: self.generateSourceLoc(node.deinitKeyword),
+      asyncSpecifierLoc: self.generateSourceLoc(node.effectSpecifiers?.asyncSpecifier)
     )
 
     if let body = node.body {

@@ -960,6 +960,26 @@ llvm::Optional<CustomAttrNominalPair> Decl::getGlobalActorAttr() const {
       ctx.evaluator, GlobalActorAttributeRequest{mutableThis}, llvm::None);
 }
 
+bool Decl::hasExplicitIsolationAttribute() const {
+  if (auto nonisolatedAttr = getAttrs().getAttribute<NonisolatedAttr>()) {
+    if (!nonisolatedAttr->isImplicit())
+      return true;
+  }
+
+  if (auto isolatedAttr = getAttrs().getAttribute<IsolatedAttr>()) {
+    if (!isolatedAttr->isImplicit()) {
+      return true;
+    }
+  }
+
+  if (auto globalActorAttr = getGlobalActorAttr()) {
+    if (!globalActorAttr->first->isImplicit())
+      return true;
+  }
+
+  return false;
+}
+
 bool Decl::preconcurrency() const {
   if (getAttrs().hasAttribute<PreconcurrencyAttr>())
     return true;
@@ -3185,6 +3205,16 @@ ValueDecl *ValueDecl::getOverriddenDecl() const {
 
   // FIXME: Arbitrarily pick the first overridden declaration.
   return overridden.front();
+}
+
+ValueDecl *ValueDecl::getOverriddenDeclOrSuperDeinit() const {
+  if (auto overridden = getOverriddenDecl()) {
+    return overridden;
+  }
+  if (auto dtor = dyn_cast<DestructorDecl>(this)) {
+    return dtor->getSuperDeinit();
+  }
+  return nullptr;
 }
 
 bool ValueDecl::overriddenDeclsComputed() const {
@@ -5912,12 +5942,24 @@ synthesizeEmptyFunctionBody(AbstractFunctionDecl *afd, void *context) {
            /*isTypeChecked=*/true };
 }
 
+static bool hasAsyncDestructor(ClassDecl *CD) {
+  if (!CD)
+    return false;
+  DestructorDecl *DD = CD->getDestructor();
+  if (DD && DD->hasAsync())
+    return true;
+  return hasAsyncDestructor(CD->getSuperclassDecl());
+}
+
 DestructorDecl *
 GetDestructorRequest::evaluate(Evaluator &evaluator, ClassDecl *CD) const {
   auto dc = CD->getImplementationContext();
 
   auto &ctx = CD->getASTContext();
-  auto *DD = new (ctx) DestructorDecl(CD->getLoc(), dc->getAsGenericContext());
+  bool isAsync = hasAsyncDestructor(CD->getSuperclassDecl());
+  auto *DD =
+      new (ctx) DestructorDecl(CD->getLoc(), isAsync, /*AsyncLoc=*/SourceLoc(),
+                               dc->getAsGenericContext());
 
   DD->setImplicit();
 
@@ -10377,15 +10419,16 @@ bool ConstructorDecl::isObjCZeroParameterWithLongSelector() const {
   return params->get(0)->getInterfaceType()->isVoid();
 }
 
-DestructorDecl::DestructorDecl(SourceLoc DestructorLoc, DeclContext *Parent)
-  : AbstractFunctionDecl(DeclKind::Destructor, Parent,
-                         DeclBaseName::createDestructor(), DestructorLoc,
-                         /*Async=*/false, /*AsyncLoc=*/SourceLoc(),
-                         /*Throws=*/false, /*ThrowsLoc=*/SourceLoc(),
-                         /*ThrownType=*/TypeLoc(),
-                         /*HasImplicitSelfDecl=*/true,
-                         /*GenericParams=*/nullptr),
-    SelfDecl(nullptr) {
+DestructorDecl::DestructorDecl(SourceLoc DestructorLoc, bool Async,
+                               SourceLoc AsyncLoc, DeclContext *Parent)
+    : AbstractFunctionDecl(DeclKind::Destructor, Parent,
+                           DeclBaseName::createDestructor(), DestructorLoc,
+                           Async, AsyncLoc,
+                           /*Throws=*/false, /*ThrowsLoc=*/SourceLoc(),
+                           /*ThrownType=*/TypeLoc(),
+                           /*HasImplicitSelfDecl=*/true,
+                           /*GenericParams=*/nullptr),
+      SelfDecl(nullptr) {
   setParameters(ParameterList::createEmpty(Parent->getASTContext()));
 }
 
@@ -10393,6 +10436,20 @@ ObjCSelector DestructorDecl::getObjCSelector() const {
   // Deinitializers are always called "dealloc".
   auto &ctx = getASTContext();
   return ObjCSelector(ctx, 0, ctx.Id_dealloc);
+}
+
+DestructorDecl *DestructorDecl::getSuperDeinit() const {
+  auto declContext = getDeclContext()->getImplementedObjCContext();
+  if (auto classDecl = dyn_cast<ClassDecl>(declContext)) {
+    if (auto superclass = classDecl->getSuperclassDecl()) {
+      return superclass->getDestructor();
+    }
+  }
+  return nullptr;
+}
+
+bool DestructorDecl::shouldResetTaskLocals() const {
+  return getAttrs().hasAttribute<ResetTaskLocalsAttr>();
 }
 
 SourceRange FuncDecl::getSourceRange() const {

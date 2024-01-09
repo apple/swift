@@ -336,6 +336,38 @@ public:
 
   /// For unit testing.
   int getNumAllocatedSlabs() { return numAllocatedSlabs; }
+    
+  struct Simulator {
+    size_t extraSize;
+    size_t capacity;
+  public:
+    explicit Simulator(size_t extraSize) {
+      this->extraSize = extraSize;
+      this->capacity = llvm::alignTo(extraSize, llvm::Align(alignment));
+    }
+    
+    // Returns a size of the buffer sufficient for storing extraSize and a first slab
+    size_t getBufferSize() const {
+      if (capacity > llvm::alignTo(extraSize, llvm::Align(alignment))) {
+        return Slab::includingHeader(capacity);
+      } else {
+        return extraSize;
+      }
+    }
+    void allocate(size_t size) {
+      if (guardAllocations)
+        size += sizeof(uintptr_t);
+      size_t alignedSize = llvm::alignTo(size, llvm::Align(alignment));
+      size_t allocationSize = Allocation::includingHeader(alignedSize);
+      size_t newCapacity = capacity + allocationSize;
+      // Preallocate memory only for the first slab
+      // If multiple slabs are needed - allocate them individually,
+      // instead of allocating one single chunk which is more likely to fail.
+      if (newCapacity <= SlabCapacity) {
+        capacity = newCapacity;
+      }
+    }
+  };
 };
 
 } // namespace swift

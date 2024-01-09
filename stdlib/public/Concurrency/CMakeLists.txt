@@ -18,7 +18,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   list(APPEND swift_concurrency_private_link_libraries Synchronization)
 endif()
 
-set(swift_concurrency_incorporate_object_libraries_so swiftThreading)
+set(swift_concurrency_incorporate_object_libraries_so)
+list(APPEND swift_concurrency_incorporate_object_libraries_so swiftThreading)
+list(APPEND swift_concurrency_incorporate_object_libraries_so swiftLLVMSupport)
 
 if("${SWIFT_CONCURRENCY_GLOBAL_EXECUTOR}" STREQUAL "dispatch")
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
