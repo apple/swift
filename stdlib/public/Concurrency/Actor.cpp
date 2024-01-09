@@ -2125,10 +2125,13 @@ static void swift_task_deinitOnExecutorImpl(void *object,
       // but we don't have a tail call anyway, so this does not help much here.
       // Always create new tracking info to keep code simple.
       ExecutorTrackingInfo trackingInfo;
+
+      // The only place where ExecutorTrackingInfo::getTaskExecutor() is
+      // called is in swift_task_switch(), but swift_task_switch() cannot be
+      // called from the synchronous code. So it does not really matter what is
+      // set in the ExecutorTrackingInfo::ActiveExecutor for the duration of the
+      // isolated deinit - it is unobservable anyway.
       TaskExecutorRef taskExecutor = TaskExecutorRef::undefined();
-      if (ExecutorTrackingInfo *current = ExecutorTrackingInfo::current()) {
-          taskExecutor = current->getTaskExecutor();
-      }
       trackingInfo.enterAndShadow(newExecutor, taskExecutor);
 
       // Run the work.
