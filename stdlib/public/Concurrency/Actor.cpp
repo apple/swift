@@ -828,6 +828,35 @@ public:
   }
 };
 
+#if !SWIFT_CONCURRENCY_ACTORS_AS_LOCKS
+
+/// Given that a job is enqueued normally on a default actor, get/set
+/// the next job in the actor's queue.
+static JobRef getNextJobInQueue(Job *job) {
+  return *reinterpret_cast<JobRef *>(job->SchedulerPrivate);
+}
+static void setNextJobInQueue(Job *job, JobRef next) {
+  *reinterpret_cast<JobRef *>(job->SchedulerPrivate) = next;
+}
+
+namespace {
+
+struct JobQueueTraits {
+  static Job *getNext(Job *job) {
+    return getNextJobInQueue(job).getAsPreprocessedJob();
+  }
+  static void setNext(Job *job, Job *next) {
+    setNextJobInQueue(job, JobRef::getPreprocessed(next));
+  }
+  static int compare(Job *lhs, Job *rhs) {
+    return descendingPriorityOrder(lhs->getPriority(), rhs->getPriority());
+  }
+};
+
+} // end anonymous namespace
+
+#endif
+
 #if SWIFT_CONCURRENCY_ENABLE_PRIORITY_ESCALATION && SWIFT_POINTER_IS_4_BYTES
 #define ACTIVE_ACTOR_STATUS_SIZE (4 * (sizeof(uintptr_t)))
 #else
@@ -899,10 +928,13 @@ class DefaultActorImpl : public HeapObject {
   // enforce alignment. This is space that is available for us to use in
   // the future
   alignas(sizeof(ActiveActorStatus)) char StatusStorage[sizeof(ActiveActorStatus)];
+
+  using ListMerger = swift::ListMerger<Job *, JobQueueTraits>;
+  ListMerger::LastInsertionPoint lastInsertionPoint =
+      ListMerger::LastInsertionPoint();
 #endif
   // TODO (rokhinip): Make this a flagset
   bool isDistributedRemoteActor;
-
 public:
   /// Properly construct an actor, except for the heap header.
   void initialize(bool isDistributedRemote = false) {
@@ -975,6 +1007,10 @@ private:
   /// It can be done when actor transitions from Idle to Scheduled or
   /// when actor gets a priority override and we schedule a stealer.
   void scheduleActorProcessJob(JobPriority priority);
+
+  Job *preprocessQueue(JobRef start);
+  Job *preprocessQueue(JobRef unprocessedStart, JobRef unprocessedEnd,
+                       Job *existingProcessedJobsToMergeInto);
 #endif /* !SWIFT_CONCURRENCY_ACTORS_AS_LOCKS */
 
   void deallocateUnconditional();
@@ -1050,31 +1086,6 @@ static NonDefaultDistributedActorImpl *asImpl(NonDefaultDistributedActor *actor)
 /*****************************************************************************/
 
 #if !SWIFT_CONCURRENCY_ACTORS_AS_LOCKS
-/// Given that a job is enqueued normally on a default actor, get/set
-/// the next job in the actor's queue.
-static JobRef getNextJobInQueue(Job *job) {
-  return *reinterpret_cast<JobRef*>(job->SchedulerPrivate);
-}
-static void setNextJobInQueue(Job *job, JobRef next) {
-  *reinterpret_cast<JobRef*>(job->SchedulerPrivate) = next;
-}
-
-namespace {
-
-struct JobQueueTraits {
-  static Job *getNext(Job *job) {
-    return getNextJobInQueue(job).getAsPreprocessedJob();
-  }
-  static void setNext(Job *job, Job *next) {
-    setNextJobInQueue(job, JobRef::getPreprocessed(next));
-  }
-  static int compare(Job *lhs, Job *rhs) {
-    return descendingPriorityOrder(lhs->getPriority(), rhs->getPriority());
-  }
-};
-
-} // end anonymous namespace
-
 
 // Called with the actor drain lock held
 //
@@ -1087,15 +1098,14 @@ struct JobQueueTraits {
 // and the previous start. We can then process these jobs and merge them into
 // the already processed list of jobs from the previous iteration of
 // preprocessQueue
-static Job *
-preprocessQueue(JobRef unprocessedStart, JobRef unprocessedEnd, Job *existingProcessedJobsToMergeInto)
-{
+Job *DefaultActorImpl::preprocessQueue(JobRef unprocessedStart,
+                                       JobRef unprocessedEnd,
+                                       Job *existingProcessedJobsToMergeInto) {
   assert(existingProcessedJobsToMergeInto != NULL);
   assert(unprocessedStart.needsPreprocessing());
   assert(unprocessedStart.getAsJob() != unprocessedEnd.getAsJob());
 
   // Build up a list of jobs we need to preprocess
-  using ListMerger = swift::ListMerger<Job*, JobQueueTraits>;
   ListMerger jobsToProcess;
 
   // Get just the prefix list of unprocessed jobs
@@ -1110,19 +1120,20 @@ preprocessQueue(JobRef unprocessedStart, JobRef unprocessedEnd, Job *existingPro
   }
 
   // Finish processing the unprocessed jobs
-  Job *newProcessedJobs = jobsToProcess.release();
+  Job *newProcessedJobs = std::get<0>(jobsToProcess.release());
   assert(newProcessedJobs);
 
-  ListMerger mergedList(existingProcessedJobsToMergeInto);
+  ListMerger mergedList(existingProcessedJobsToMergeInto, lastInsertionPoint);
   mergedList.merge(newProcessedJobs);
-  return mergedList.release();
+  Job *result;
+  std::tie(result, lastInsertionPoint) = mergedList.release();
+  return result;
 }
 
 // Called with the actor drain lock held.
 //
 // Preprocess the queue starting from the top
-static Job *
-preprocessQueue(JobRef start) {
+Job *DefaultActorImpl::preprocessQueue(JobRef start) {
   if (!start) {
     return NULL;
   }
@@ -1135,7 +1146,6 @@ preprocessQueue(JobRef start) {
   // There exist some jobs which haven't been preprocessed
 
   // Build up a list of jobs we need to preprocess
-  using ListMerger = swift::ListMerger<Job*, JobQueueTraits>;
   ListMerger jobsToProcess;
 
   Job *wellFormedListStart = NULL;
@@ -1158,18 +1168,19 @@ preprocessQueue(JobRef start) {
   }
 
   // Finish processing the unprocessed jobs
-  auto processedJobHead = jobsToProcess.release();
+  auto processedJobHead = std::get<0>(jobsToProcess.release());
   assert(processedJobHead);
 
   Job *firstJob = NULL;
   if (wellFormedListStart) {
     // Merge it with already known well formed list if we have one.
-    ListMerger mergedList(wellFormedListStart);
+    ListMerger mergedList(wellFormedListStart, lastInsertionPoint);
     mergedList.merge(processedJobHead);
-    firstJob = mergedList.release();
+    std::tie(firstJob, lastInsertionPoint) = mergedList.release();
   } else {
     // Nothing to merge with, just return the head we already have
     firstJob = processedJobHead;
+    lastInsertionPoint = ListMerger::LastInsertionPoint();
   }
 
   return firstJob;
@@ -1375,6 +1386,7 @@ Job * DefaultActorImpl::drainOne() {
     if (_status().compare_exchange_weak(oldState, newState,
                             /* success */ std::memory_order_relaxed,
                             /* failure */ std::memory_order_relaxed)) {
+      lastInsertionPoint.nodeWasRemoved(firstJob);
       SWIFT_TASK_DEBUG_LOG("Drained first job %p from actor %p", firstJob, this);
       traceActorStateTransition(this, oldState, newState, distributedActorIsRemote);
       concurrency::trace::actor_dequeue(this, firstJob);
