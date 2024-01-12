@@ -28,6 +28,7 @@ import ArrayOfRef
 import ArrayRemoveAll
 import ArraySetElement
 import ArraySubscript
+import AsyncTree
 import BinaryFloatingPointConversionFromBinaryInteger
 import BinaryFloatingPointProperties
 import BitCount
@@ -221,6 +222,7 @@ register(ArrayOfRef.benchmarks)
 register(ArrayRemoveAll.benchmarks)
 register(ArraySetElement.benchmarks)
 register(ArraySubscript.benchmarks)
+register(AsyncTree.benchmarks)
 register(BinaryFloatingPointConversionFromBinaryInteger.benchmarks)
 register(BinaryFloatingPointProperties.benchmarks)
 register(BitCount.benchmarks)
