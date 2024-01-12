@@ -378,4 +378,28 @@ StdStringOverlayTestSuite.test("std::string from C string") {
   expectEqual(str, std.string("abc"))
 }
 
+StdStringOverlayTestSuite.test("std::string to UTF-8") {
+  std.string().withUTF8 { ptr in
+    expectEqual(ptr.count, 0)
+  }
+  std.string("abc").withUTF8 { ptr in
+    expectEqual(ptr.count, 3)
+    expectEqual(ptr.baseAddress?.pointee, 97)
+    expectEqual(ptr.baseAddress?.successor().pointee, 98)
+    expectEqual(ptr.baseAddress?.successor().successor().pointee, 99)
+  }
+
+  let bytes: [UInt8] = [0xE1, 0xC1, 0xAC]
+  var str = std.string()
+  for byte in bytes {
+    str.push_back(CChar(bitPattern: byte))
+  }
+  str.withUTF8 { ptr in
+    expectEqual(ptr.count, 3)
+    expectEqual(ptr.baseAddress?.pointee, 0xE1)
+    expectEqual(ptr.baseAddress?.successor().pointee, 0xC1)
+    expectEqual(ptr.baseAddress?.successor().successor().pointee, 0xAC)
+  }
+}
+
 runAllTests()
