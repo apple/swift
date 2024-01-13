@@ -360,10 +360,10 @@ bool AbstractStorageDecl::exportsPropertyDescriptor() const {
       }
     }
   }
-  
-  // TODO: Global and static properties ought to eventually be referenceable
-  // as key paths from () or T.Type too.
-  if (!getDeclContext()->isTypeContext() || isStatic())
+
+  // TODO: Global properties ought to eventually be referenceable
+  // as key paths from ().
+  if (!getDeclContext()->isTypeContext())
     return false;
   
   // Protocol requirements do not need property descriptors.
