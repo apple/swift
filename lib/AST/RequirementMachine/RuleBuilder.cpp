@@ -366,7 +366,6 @@ void RuleBuilder::addRequirement(const Requirement &req,
 
   case RequirementKind::SameType: {
     auto otherType = CanType(req.getSecondType());
-    auto elementSymbol = Symbol::forPackElement(Context);
 
     if (!otherType->isTypeParameter()) {
       // A concrete same-type requirement T == C<X, Y> becomes a
@@ -385,9 +384,7 @@ void RuleBuilder::addRequirement(const Requirement &req,
       //
       //   [element].T.[concrete: C<X, Y>] => [element].T
       if (subjectType->isParameterPack()) {
-        llvm::SmallVector<Symbol, 3> subjectSymbols{elementSymbol};
-        subjectSymbols.append(subjectTerm.begin(), subjectTerm.end());
-        subjectTerm = MutableTerm(std::move(subjectSymbols));
+        subjectTerm.prepend(Symbol::forPackElement(Context));
       }
 
       constraintTerm = subjectTerm;
@@ -403,14 +400,10 @@ void RuleBuilder::addRequirement(const Requirement &req,
 
     if (subjectType->isParameterPack() != otherType->isParameterPack()) {
       // This is a same-element requirement.
-      llvm::SmallVector<Symbol, 3> symbols{elementSymbol};
-
       if (subjectType->isParameterPack()) {
-        symbols.append(subjectTerm.begin(), subjectTerm.end());
-        subjectTerm = MutableTerm(std::move(symbols));
+        subjectTerm.prepend(Symbol::forPackElement(Context));
       } else {
-        symbols.append(constraintTerm.begin(), constraintTerm.end());
-        constraintTerm = MutableTerm(std::move(symbols));
+        constraintTerm.prepend(Symbol::forPackElement(Context));
       }
     }
 

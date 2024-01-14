@@ -133,6 +133,10 @@ public:
     Symbols.push_back(symbol);
   }
 
+  void prepend(Symbol symbol) {
+    Symbols.insert(Symbols.begin(), symbol);
+  }
+
   void append(Term other) {
     Symbols.append(other.begin(), other.end());
   }
