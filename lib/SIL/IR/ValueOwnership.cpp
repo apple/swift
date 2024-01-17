@@ -71,6 +71,7 @@ CONSTANT_OWNERSHIP_INST(Owned, WeakCopyValue)
 #include "swift/AST/ReferenceStorage.def"
 
 CONSTANT_OWNERSHIP_INST(Guaranteed, BeginBorrow)
+CONSTANT_OWNERSHIP_INST(Guaranteed, BorrowedFrom)
 CONSTANT_OWNERSHIP_INST(Guaranteed, LoadBorrow)
 CONSTANT_OWNERSHIP_INST(Guaranteed, FunctionExtractIsolation)
 CONSTANT_OWNERSHIP_INST(None, GlobalValue)

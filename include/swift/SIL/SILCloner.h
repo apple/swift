@@ -1240,6 +1240,21 @@ void SILCloner<ImplClass>::visitBeginBorrowInst(BeginBorrowInst *Inst) {
 }
 
 template <typename ImplClass>
+void SILCloner<ImplClass>::visitBorrowedFromInst(BorrowedFromInst *bfi) {
+  getBuilder().setCurrentDebugScope(getOpScope(bfi->getDebugScope()));
+  if (!getBuilder().hasOwnership()) {
+    return recordFoldedValue(bfi, getOpValue(bfi->getBorrowedValue()));
+  }
+
+  auto enclosingValues = getOpValueArray<8>(bfi->getEnclosingValues());
+  recordClonedInstruction(bfi,
+                          getBuilder().createBorrowedFrom(
+                              getOpLocation(bfi->getLoc()),
+                              getOpValue(bfi->getBorrowedValue()),
+                              enclosingValues));
+}
+
+template <typename ImplClass>
 void SILCloner<ImplClass>::visitStoreInst(StoreInst *Inst) {
   getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
   if (!getBuilder().hasOwnership()) {

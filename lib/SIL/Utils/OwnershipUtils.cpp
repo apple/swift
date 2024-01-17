@@ -609,6 +609,9 @@ void BorrowingOperandKind::print(llvm::raw_ostream &os) const {
   case Kind::BeginBorrow:
     os << "BeginBorrow";
     return;
+  case Kind::BorrowedFrom:
+    os << "BorrowedFrom";
+    return;
   case Kind::StoreBorrow:
     os << "StoreBorrow";
     return;
@@ -664,6 +667,7 @@ bool BorrowingOperand::hasEmptyRequiredEndingUses() const {
   case BorrowingOperandKind::Invalid:
     llvm_unreachable("Using invalid case");
   case BorrowingOperandKind::BeginBorrow:
+  case BorrowingOperandKind::BorrowedFrom:
   case BorrowingOperandKind::StoreBorrow:
   case BorrowingOperandKind::BeginApply:
   case BorrowingOperandKind::BeginAsyncLet:
@@ -691,9 +695,10 @@ bool BorrowingOperand::visitScopeEndingUses(
   switch (kind) {
   case BorrowingOperandKind::Invalid:
     llvm_unreachable("Using invalid case");
-  case BorrowingOperandKind::BeginBorrow: {
+  case BorrowingOperandKind::BeginBorrow:
+  case BorrowingOperandKind::BorrowedFrom: {
     bool deadBorrow = true;
-    for (auto *use : cast<BeginBorrowInst>(op->getUser())->getUses()) {
+    for (auto *use : cast<SingleValueInstruction>(op->getUser())->getUses()) {
       if (use->isLifetimeEnding()) {
         deadBorrow = false;
         if (!visitScopeEnd(use))
@@ -805,8 +810,9 @@ BorrowedValue BorrowingOperand::getBorrowIntroducingUserResult() const {
   case BorrowingOperandKind::StoreBorrow:
     return BorrowedValue();
 
-  case BorrowingOperandKind::BeginBorrow: {
-    auto value = BorrowedValue(cast<BeginBorrowInst>(op->getUser()));
+  case BorrowingOperandKind::BeginBorrow:
+  case BorrowingOperandKind::BorrowedFrom: {
+    auto value = BorrowedValue(cast<SingleValueInstruction>(op->getUser()));
     assert(value);
     return value;
   }
@@ -833,6 +839,7 @@ SILValue BorrowingOperand::getScopeIntroducingUserResult() {
   case BorrowingOperandKind::PartialApplyStack:
   case BorrowingOperandKind::MarkDependenceNonEscaping:
   case BorrowingOperandKind::BeginBorrow:
+  case BorrowingOperandKind::BorrowedFrom:
   case BorrowingOperandKind::StoreBorrow:
     return cast<SingleValueInstruction>(op->getUser());
 

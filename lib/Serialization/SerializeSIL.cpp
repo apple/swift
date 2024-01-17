@@ -2340,12 +2340,13 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
                                  RTAI->getOperand());
     break;
   }
-  case SILInstructionKind::StructInst: {
+  case SILInstructionKind::StructInst:
+  case SILInstructionKind::BorrowedFromInst: {
     // Format: a type followed by a list of typed values. A typed value is
     // expressed by 4 IDs: TypeID, TypeCategory, ValueID, ValueResultNumber.
-    const StructInst *StrI = cast<StructInst>(&SI);
+    const auto *svi = cast<SingleValueInstruction>(&SI);
     SmallVector<ValueID, 4> ListOfValues;
-    for (auto Elt : StrI->getElements()) {
+    for (auto Elt : svi->getOperandValues()) {
       ListOfValues.push_back(S.addTypeRef(Elt->getType().getRawASTType()));
       ListOfValues.push_back((unsigned)Elt->getType().getCategory());
       ListOfValues.push_back(addValueRef(Elt));
@@ -2353,8 +2354,8 @@ void SILSerializer::writeSILInstruction(const SILInstruction &SI) {
 
     SILOneTypeValuesLayout::emitRecord(
         Out, ScratchRecord, SILAbbrCodes[SILOneTypeValuesLayout::Code],
-        (unsigned)SI.getKind(), S.addTypeRef(StrI->getType().getRawASTType()),
-        (unsigned)StrI->getType().getCategory(), ListOfValues);
+        (unsigned)SI.getKind(), S.addTypeRef(svi->getType().getRawASTType()),
+        (unsigned)svi->getType().getCategory(), ListOfValues);
     break;
   }
   case SILInstructionKind::TupleElementAddrInst:

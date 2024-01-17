@@ -201,6 +201,7 @@ public func registerSILClasses() {
   register(ExtractExecutorInst.self)
   register(BeginAccessInst.self)
   register(BeginBorrowInst.self)
+  register(BorrowedFromInst.self)
   register(ProjectBoxInst.self)
   register(ProjectExistentialBoxInst.self)
   register(CopyValueInst.self)

@@ -139,12 +139,30 @@ public struct Phi {
     value.ownership == .owned || value.isReborrow
   }
 
+  public var borrowedFrom: BorrowedFromInst? {
+    for use in value.uses {
+      if let bfi = use.forwardingBorrowedFromUser {
+        return bfi
+      }
+    }
+    return nil
+  }
+
   public static func ==(lhs: Phi, rhs: Phi) -> Bool {
     lhs.value === rhs.value
   }
 
   public func hash(into hasher: inout Hasher) {
     value.hash(into: &hasher)
+  }
+}
+
+extension Operand {
+  public var forwardingBorrowedFromUser: BorrowedFromInst? {
+    if let bfi = instruction as? BorrowedFromInst, index == 0 {
+      return bfi
+    }
+    return nil
   }
 }
 

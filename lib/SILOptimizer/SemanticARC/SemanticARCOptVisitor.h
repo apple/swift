@@ -168,6 +168,7 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
     }                                                                          \
     return false;                                                              \
   }
+  FORWARDING_INST(BorrowedFrom)
   FORWARDING_INST(Tuple)
   FORWARDING_INST(Object)
   FORWARDING_INST(Struct)

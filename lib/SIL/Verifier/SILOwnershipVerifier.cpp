@@ -342,7 +342,8 @@ bool SILValueOwnershipChecker::gatherUsers(
         // lifetime ending use. Otherwise, we have a guaranteed value that has
         // an end_borrow on a forwarded value which is not supported in any
         // case, so emit an error.
-        if (op->get() != value) {
+        // The only exception is a `borrowed-from` instruction.
+        if (op->get() != value && !isa<BorrowedFromInst>(op->get())) {
           errorBuilder.handleMalformedSIL([&] {
             llvm::errs() << "Invalid End Borrow!\n"
                          << "Original Value: " << value

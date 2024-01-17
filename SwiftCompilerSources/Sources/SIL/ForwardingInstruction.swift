@@ -438,6 +438,14 @@ extension LinearFunctionExtractInst: ForwardingInstruction {
   public var canForwardOwnedValues: Bool { true }
 }
 
+extension BorrowedFromInst: ForwardingInstruction {
+  public var singleForwardedOperand: Operand? { operands[0] }
+  public var preservesIdentity: Bool { true }
+  public var preservesRepresentation: Bool { true }
+  public var canForwardGuaranteedValues: Bool { true }
+  public var canForwardOwnedValues: Bool { false }
+}
+
 // -----------------------------------------------------------------------------
 // ownership transition instructions
 
