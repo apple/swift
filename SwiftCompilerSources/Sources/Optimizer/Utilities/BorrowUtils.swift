@@ -293,7 +293,8 @@ enum BeginBorrowValue {
     switch value {
     case let bbi as BeginBorrowInst: self = .beginBorrow(bbi)
     case let lbi as LoadBorrowInst: self = .loadBorrow(lbi)
-    case let arg as FunctionArgument: self = .functionArgument(arg)
+    case let arg as FunctionArgument where arg.ownership == .guaranteed:
+      self = .functionArgument(arg)
     case let arg as Argument where arg.isReborrow:
       self = .reborrow(Phi(arg)!)
     default:
