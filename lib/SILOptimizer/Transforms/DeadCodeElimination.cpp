@@ -347,7 +347,7 @@ void DCE::markLive() {
 // Records a reverse dependency if needed. See DCE::ReverseDependencies.
 void DCE::addReverseDependency(SILValue from, SILInstruction *to) {
   LLVM_DEBUG(llvm::dbgs() << "Adding reverse dependency from " << from << " to "
-                          << to);
+                          << *to);
   ReverseDependencies[from].insert(to);
 }
 
