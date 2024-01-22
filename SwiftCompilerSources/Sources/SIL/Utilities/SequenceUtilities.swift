@@ -98,6 +98,8 @@ public extension CollectionLikeSequence {
     }
     return singleElement
   }
+
+  var first: Element? { first(where: { _ in true }) }
 }
 
 // Also make the lazy sequences a CollectionLikeSequence if the underlying sequence is one.
