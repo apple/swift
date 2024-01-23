@@ -359,7 +359,7 @@ StepResult ComponentStep::take(bool prevFailed) {
     }
   });
 
-  auto *disjunction = CS.selectDisjunction();
+  auto disjunction = CS.selectDisjunction();
   auto *conjunction = CS.selectConjunction();
 
   if (CS.isDebugMode()) {
@@ -402,7 +402,8 @@ StepResult ComponentStep::take(bool prevFailed) {
     // Bindings usually happen first, but sometimes we want to prioritize a
     // disjunction or conjunction.
     if (bestBindings) {
-      if (disjunction && !bestBindings->favoredOverDisjunction(disjunction))
+      if (disjunction &&
+          !bestBindings->favoredOverDisjunction(disjunction->first))
         return StepKind::Disjunction;
 
       if (conjunction && !bestBindings->favoredOverConjunction(conjunction))
@@ -426,7 +427,7 @@ StepResult ComponentStep::take(bool prevFailed) {
           std::make_unique<TypeVariableStep>(*bestBindings, Solutions));
     case StepKind::Disjunction:
       return suspend(
-          std::make_unique<DisjunctionStep>(CS, disjunction, Solutions));
+          std::make_unique<DisjunctionStep>(CS, *disjunction, Solutions));
     case StepKind::Conjunction:
       return suspend(
           std::make_unique<ConjunctionStep>(CS, conjunction, Solutions));

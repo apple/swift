@@ -9640,7 +9640,6 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
   // If this is true, we're using type construction syntax (Foo()) rather
   // than an explicit call to `init` (Foo.init()).
   bool isImplicitInit = false;
-  TypeBase *favoredType = nullptr;
   if (memberName.isSimpleName(DeclBaseName::createConstructor())) {
     SmallVector<LocatorPathElt, 2> parts;
     if (auto anchor = memberLocator->getAnchor()) {
@@ -9648,17 +9647,6 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
       if (!path.empty())
         if (path.back().getKind() == ConstraintLocator::ConstructorMember)
           isImplicitInit = true;
-
-      if (auto *applyExpr = getAsExpr<ApplyExpr>(anchor)) {
-        if (auto *argExpr = applyExpr->getArgs()->getUnlabeledUnaryExpr()) {
-          favoredType = getFavoredType(argExpr);
-
-          if (!favoredType) {
-            optimizeConstraints(argExpr);
-            favoredType = getFavoredType(argExpr);
-          }
-        }
-      }
     }
   }
 
@@ -9765,30 +9753,6 @@ performMemberLookup(ConstraintKind constraintKind, DeclNameRef memberName,
       // Otherwise, we can access all instance members.
       hasInstanceMembers = true;
       hasInstanceMethods = true;
-    }
-
-    // If the invocation's argument expression has a favored type,
-    // use that information to determine whether a specific overload for
-    // the candidate should be favored.
-    if (isa<ConstructorDecl>(decl) && favoredType &&
-        result.FavoredChoice == ~0U) {
-      auto *ctor = cast<ConstructorDecl>(decl);
-
-      // Only try and favor monomorphic unary initializers.
-      if (!ctor->isGenericContext()) {
-        if (!ctor->getMethodInterfaceType()->hasError()) {
-          // The constructor might have an error type because we don't skip
-          // invalid decls for code completion
-          auto args = ctor->getMethodInterfaceType()
-                          ->castTo<FunctionType>()
-                          ->getParams();
-          if (args.size() == 1 && !args[0].hasLabel() &&
-              args[0].getPlainType()->isEqual(favoredType)) {
-            if (!isDeclUnavailable(decl, memberLocator))
-              result.FavoredChoice = result.ViableCandidates.size();
-          }
-        }
-      }
     }
 
     const auto isUnsupportedExistentialMemberAccess = [&] {

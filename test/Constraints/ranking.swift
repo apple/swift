@@ -440,3 +440,11 @@ extension SignalProtocol where Element: SignalProtocol, Error == Never {
 func no_ambiguity_error_vs_never<Element, Error>(_ signals: [Signal<Element, Error>]) -> Signal<Element, Error> {
   return Signal(sequence: signals).flatten() // Ok
 }
+
+// Test to make sure that previous favoring behavior is maintained and @autoclosure makes a difference.
+func test_no_ambiguity_with_autoclosure(x: Int) {
+  func test(_ condition: Bool, file: StaticString = #file, line: UInt = #line) {}
+  func test(_ condition: @autoclosure () -> Bool, file: StaticString = #file, line: UInt = #line) {}
+
+  test(x >= 0) // Ok
+}

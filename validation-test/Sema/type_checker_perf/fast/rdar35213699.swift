@@ -3,6 +3,4 @@
 
 func test() {
   let _: UInt = 1 * 2 + 3 * 4 + 5 * 6 + 7 * 8 + 9 * 10 + 11 * 12 + 13 * 14
-  // expected-error@-1 {{the compiler is unable to type-check this expression in reasonable time}}
 }
-
