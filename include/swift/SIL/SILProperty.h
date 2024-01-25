@@ -71,6 +71,8 @@ public:
     return Component;
   }
 
+  CanType getBaseType() const;
+
   void print(SILPrintContext &Ctx) const;
   void dump() const;
   
