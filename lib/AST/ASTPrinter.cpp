@@ -1457,42 +1457,13 @@ static unsigned getDepthOfType(Type ty) {
   return depth;
 }
 
-/// Recomputes which inverses must have been written for the given generic
-/// signature.
-static void reconstituteInverses(GenericSignature genericSig,
-                               ArrayRef<Type> typeParams,
-                               SmallVectorImpl<InverseRequirement> &inverses) {
-  auto &ctx = genericSig->getASTContext();
-
-  if (!ctx.LangOpts.hasFeature(swift::Feature::NoncopyableGenerics))
-    return;
-
-  for (auto tp : typeParams) {
-    assert(tp);
-
-    // Any generic parameter with a superclass bound could not have an inverse.
-    if (genericSig->getSuperclassBound(tp))
-      continue;
-
-    auto defaults = InverseRequirement::expandDefault(tp);
-    for (auto ip : defaults) {
-      auto *proto = ctx.getProtocol(getKnownProtocolKind(ip));
-
-      // If the generic signature reflects the default requirement,
-      // then there was no inverse for this generic parameter.
-      if (genericSig->requiresProtocol(tp, proto))
-        continue;
-
-      inverses.push_back({tp, proto, SourceLoc()});
-    }
-  }
-}
-
 static void reconstituteInverses(GenericSignature genericSig,
                                  ArrayRef<GenericTypeParamType *> genericParams,
                                  SmallVectorImpl<InverseRequirement> &inverses) {
   SmallVector<Type, 4> asType(genericParams);
-  reconstituteInverses(genericSig, asType, inverses);
+  InverseRequirement::reconstituteInverses(genericSig.getPointer(),
+                                           asType,
+                                           inverses);
 }
 
 namespace {
@@ -1616,7 +1587,8 @@ void PrintAST::printInheritedFromRequirementSignature(ProtocolDecl *proto,
     llvm_unreachable("nonexhaustive");
 
   SmallVector<InverseRequirement, 2> inverses;
-  reconstituteInverses(proto->getGenericSignature(), attachedGP, inverses);
+  InverseRequirement::reconstituteInverses(
+      proto->getGenericSignature().getPointer(), attachedGP, inverses);
 
   printGenericSignature(
       proto->getRequirementSignatureAsGenericSignature(),
@@ -2698,7 +2670,8 @@ void PrintAST::printDeclGenericRequirements(GenericContext *decl) {
   InverseRequirement::enumerateDefaultedParams(decl, genericParams);
 
   SmallVector<InverseRequirement, 2> inverses;
-  reconstituteInverses(genericSig, genericParams, inverses);
+  InverseRequirement::reconstituteInverses(genericSig.getPointer(),
+                                           genericParams, inverses);
 
   Printer.printStructurePre(PrintStructureKind::DeclGenericParameterClause);
   printGenericSignature(genericSig,

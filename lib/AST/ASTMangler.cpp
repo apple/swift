@@ -3006,18 +3006,61 @@ void ASTMangler::appendTypeListElement(Identifier name, Type elementType,
 }
 
 /// Filters out requirements stating that a type conforms to one of the
-/// invertible protocols.
-/// TODO: reconsituteInverses so the absence of conformances gets mangled
-static void withoutInvertibleRequirements(ArrayRef<Requirement> requirements,
-                                          SmallVector<Requirement, 4> &output) {
+/// invertible protocols, as those are not mangled. In their place, produces the
+/// list of inverses that represent the absence of such requirements, which
+/// must be mangled.
+static void withoutInvertibleRequirements(
+                   CanGenericSignature sig,
+                   ArrayRef<CanTypeWrapper<GenericTypeParamType>> genericParams,
+                   ArrayRef<Requirement> requirements,
+                   SmallVector<Requirement, 4> &output,
+                   SmallVector<InverseRequirement, 4> &inverses) {
+
+  // Skip all conformance requirements for invertible protocols.
   for (auto req : requirements) {
-    // Skip conformance requirements for invertible protocols.
     if (req.getKind() == RequirementKind::Conformance
         && req.getProtocolDecl()->getInvertibleProtocolKind())
       continue;
 
     output.push_back(req);
   }
+
+  // Reconstitute inverses.
+  SmallVector<Type> genericParamsAsType;
+  for (auto gp : genericParams)
+    genericParamsAsType.push_back(gp);
+
+  InverseRequirement::reconstituteInverses(sig.getPointer(),
+                                           genericParamsAsType,
+                                           inverses);
+}
+
+/// Does this generic signature contain:
+///   1. exactly one generic parameter
+///   2. all of the default requirements for that generic parameter
+static
+bool onlyOneGenericParamWithDefaultRequirements(GenericSignature contextSig) {
+  auto genericParams = contextSig.getGenericParams();
+
+  if (genericParams.size() != 1)
+    return false;
+
+  auto param = genericParams[0];
+
+  InvertibleProtocolSet seen;
+  for (auto req: contextSig.getRequirements()) {
+    if (req.getKind() != RequirementKind::Conformance)
+      continue;
+
+    auto subject = req.getFirstType();
+    if (subject->getCanonicalType() != param->getCanonicalType())
+      continue;
+
+    if (auto kind = req.getProtocolDecl()->getInvertibleProtocolKind())
+      seen.insert(*kind);
+  }
+
+  return seen == InverseRequirement::expandDefault(param);
 }
 
 bool ASTMangler::appendGenericSignature(GenericSignature sig,
@@ -3026,7 +3069,7 @@ bool ASTMangler::appendGenericSignature(GenericSignature sig,
 
   unsigned initialParamDepth;
   ArrayRef<CanTypeWrapper<GenericTypeParamType>> genericParams;
-  SmallVector<Requirement, 4> requirements;
+  ArrayRef<Requirement> initialRequirements;
   if (contextSig) {
     // If the signature is the same as the context signature, there's nothing
     // to do.
@@ -3052,27 +3095,31 @@ bool ASTMangler::appendGenericSignature(GenericSignature sig,
     // it's better to mangle the complete canonical signature because we
     // have a special-case mangling for that.
     if (genericParams.empty() &&
-        contextSig.getGenericParams().size() == 1 &&
-        contextSig.getRequirements().empty()) {
+        onlyOneGenericParamWithDefaultRequirements(contextSig)) {
       initialParamDepth = 0;
       genericParams = canSig.getGenericParams();
-      withoutInvertibleRequirements(canSig.getRequirements(), requirements);
+      initialRequirements = canSig.getRequirements();
     } else {
-      withoutInvertibleRequirements(
-          canSig.requirementsNotSatisfiedBy(contextSig), requirements);
+      initialRequirements = canSig.requirementsNotSatisfiedBy(contextSig);
     }
   } else {
     // Use the complete canonical signature.
     initialParamDepth = 0;
     genericParams = canSig.getGenericParams();
-    withoutInvertibleRequirements(canSig.getRequirements(), requirements);
+    initialRequirements = canSig.getRequirements();
   }
 
-  if (genericParams.empty() && requirements.empty())
+  SmallVector<Requirement, 4> requirements;
+  SmallVector<InverseRequirement, 4> inverses;
+  withoutInvertibleRequirements(canSig, genericParams, initialRequirements,
+                                requirements, inverses);
+
+
+  if (genericParams.empty() && requirements.empty() && inverses.empty())
     return false;
 
   appendGenericSignatureParts(sig, genericParams,
-                              initialParamDepth, requirements);
+                              initialParamDepth, requirements, inverses);
   return true;
 }
 
@@ -3080,12 +3127,15 @@ void ASTMangler::appendRequirement(const Requirement &reqt,
                                    GenericSignature sig,
                                    bool lhsBaseIsProtocolSelf) {
 
-  Type FirstTy = reqt.getFirstType()->getCanonicalType();
-
+  // Handle the constraint first for most cases.
   switch (reqt.getKind()) {
   case RequirementKind::Layout:
     break;
   case RequirementKind::Conformance: {
+    // Only the absence of a conformance is ever mangled!
+    if (reqt.getProtocolDecl()->getInvertibleProtocolKind())
+      llvm_unreachable("can never mangle conformance to invertible protocol!");
+
     // If we don't allow marker protocols but we have one here, skip it.
     if (!AllowMarkerProtocols &&
         reqt.getProtocolDecl()->isMarkerProtocol())
@@ -3102,16 +3152,34 @@ void ASTMangler::appendRequirement(const Requirement &reqt,
   }
   }
 
-  if (auto *DT = FirstTy->getAs<DependentMemberType>()) {
+  llvm::Optional<LayoutConstraint> layout;
+  if (reqt.getKind() == RequirementKind::Layout)
+    layout = reqt.getLayoutConstraint();
+
+  // Finish the output of the subject.
+  appendRequirementSubjectParts(reqt.getFirstType()->getCanonicalType(),
+                                sig,
+                                reqt.getKind(),
+                                layout,
+                                lhsBaseIsProtocolSelf);
+}
+
+void ASTMangler::appendRequirementSubjectParts(Type subject,
+                                        GenericSignature sig,
+                                        RequirementKind kind,
+                                        llvm::Optional<LayoutConstraint> layout,
+                                        bool lhsBaseIsProtocolSelf) {
+
+  if (auto *DT = subject->getAs<DependentMemberType>()) {
     if (tryMangleTypeSubstitution(DT, sig)) {
-      switch (reqt.getKind()) {
+      switch (kind) {
         case RequirementKind::SameShape:
           llvm_unreachable("Same-shape requirement with dependent member type?");
         case RequirementKind::Conformance:
           return appendOperator("RQ");
         case RequirementKind::Layout:
           appendOperator("RL");
-          appendOpParamForLayoutConstraint(reqt.getLayoutConstraint());
+          appendOpParamForLayoutConstraint(*layout);
           return;
         case RequirementKind::Superclass:
           return appendOperator("RB");
@@ -3125,7 +3193,7 @@ void ASTMangler::appendRequirement(const Requirement &reqt,
                                                    isAssocTypeAtDepth);
     addTypeSubstitution(DT, sig);
     assert(gpBase);
-    switch (reqt.getKind()) {
+    switch (kind) {
       case RequirementKind::SameShape:
         llvm_unreachable("Same-shape requirement with a dependent member type?");
       case RequirementKind::Conformance:
@@ -3134,7 +3202,7 @@ void ASTMangler::appendRequirement(const Requirement &reqt,
       case RequirementKind::Layout:
         appendOpWithGenericParamIndex(isAssocTypeAtDepth ? "RM" : "Rm", gpBase,
                                       lhsBaseIsProtocolSelf);
-        appendOpParamForLayoutConstraint(reqt.getLayoutConstraint());
+        appendOpParamForLayoutConstraint(*layout);
         return;
       case RequirementKind::Superclass:
         return appendOpWithGenericParamIndex(isAssocTypeAtDepth ? "RC" : "Rc",
@@ -3145,13 +3213,13 @@ void ASTMangler::appendRequirement(const Requirement &reqt,
     }
     llvm_unreachable("bad requirement type");
   }
-  GenericTypeParamType *gpBase = FirstTy->castTo<GenericTypeParamType>();
-  switch (reqt.getKind()) {
+  GenericTypeParamType *gpBase = subject->castTo<GenericTypeParamType>();
+  switch (kind) {
     case RequirementKind::Conformance:
       return appendOpWithGenericParamIndex("R", gpBase);
     case RequirementKind::Layout:
       appendOpWithGenericParamIndex("Rl", gpBase);
-      appendOpParamForLayoutConstraint(reqt.getLayoutConstraint());
+      appendOpParamForLayoutConstraint(*layout);
       return;
     case RequirementKind::Superclass:
       return appendOpWithGenericParamIndex("Rb", gpBase);
@@ -3163,11 +3231,25 @@ void ASTMangler::appendRequirement(const Requirement &reqt,
   llvm_unreachable("bad requirement type");
 }
 
+void ASTMangler::appendInverseRequirement(const InverseRequirement &reqt,
+                                          GenericSignature sig,
+                                          bool lhsBaseIsProtocolSelf) {
+  appendProtocolName(reqt.protocol);
+  appendOperator("i"); // distinguishes this as an inverse of the protocol!
+
+  appendRequirementSubjectParts(reqt.subject,
+                                sig,
+                                RequirementKind::Conformance,
+                                llvm::None,
+                                lhsBaseIsProtocolSelf);
+}
+
 void ASTMangler::appendGenericSignatureParts(
                                      GenericSignature sig,
                                      ArrayRef<CanGenericTypeParamType> params,
                                      unsigned initialParamDepth,
-                                     ArrayRef<Requirement> requirements) {
+                                     ArrayRef<Requirement> requirements,
+                                     ArrayRef<InverseRequirement> inverses) {
   // Mangle which generic parameters are pack parameters.
   for (auto param : params) {
     if (param->isParameterPack())
@@ -3178,6 +3260,10 @@ void ASTMangler::appendGenericSignatureParts(
   for (const Requirement &reqt : requirements) {
     appendRequirement(reqt, sig);
   }
+
+  // Mangle the inverse requirements.
+  for (const InverseRequirement &invReq : inverses)
+    appendInverseRequirement(invReq, sig);
 
   if (params.size() == 1 && params[0]->getDepth() == initialParamDepth)
     return appendOperator("l");

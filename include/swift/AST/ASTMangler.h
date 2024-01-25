@@ -518,10 +518,27 @@ protected:
   void appendRequirement(const Requirement &reqt, GenericSignature sig,
                          bool lhsBaseIsProtocolSelf = false);
 
+  /// Append an inverse requirement into the mangling.
+  ///
+  /// Instead of mangling the presence of an invertible protocol, we mangle
+  /// their absence, which is what an inverse represents.
+  ///
+  /// \param reqt the inverse requirement to mangle.
+  void appendInverseRequirement(const InverseRequirement &reqt,
+                                GenericSignature sig,
+                                bool lhsBaseIsProtocolSelf = false);
+
+  void appendRequirementSubjectParts(Type subject,
+                                     GenericSignature sig,
+                                     RequirementKind kind,
+                                     llvm::Optional<LayoutConstraint> layout,
+                                     bool lhsBaseIsProtocolSelf);
+
   void appendGenericSignatureParts(GenericSignature sig,
                                    ArrayRef<CanTypeWrapper<GenericTypeParamType>> params,
                                    unsigned initialParamDepth,
-                                   ArrayRef<Requirement> requirements);
+                                   ArrayRef<Requirement> requirements,
+                                   ArrayRef<InverseRequirement> inverses);
 
   DependentMemberType *dropProtocolFromAssociatedType(DependentMemberType *dmt,
                                                       GenericSignature sig);
