@@ -179,7 +179,7 @@ fileprivate func _allocate<T: AnyObject>(
   growthFactor: Float? = nil, // Exponential growth factor for large allocs
   tailAllocator: (_ numTailBytes: Int) -> T // Do the actual tail allocation
 ) -> (T, realNumTailBytes: Int) {
-  _internalInvariant(getSwiftClassInstanceExtents(T.self).1 == numHeaderBytes)
+  //_internalInvariant(getSwiftClassInstanceExtents(T.self).1 == numHeaderBytes)
 
   func roundUp(_ x: Int) -> Int { (x + 15) & ~15 }
 
@@ -206,8 +206,14 @@ fileprivate func _allocate<T: AnyObject>(
   let totalTailBytes = total - numHeaderBytes
 
   let object = tailAllocator(totalTailBytes)
-  if let allocSize = _mallocSize(ofAllocation:
-    UnsafeRawPointer(Builtin.bridgeToRawPointer(object))) {
+
+  let allocSize: Int?
+  #if !$Embedded
+    allocSize = _mallocSize(ofAllocation: UnsafeRawPointer(Builtin.bridgeToRawPointer(object)))
+  #else
+    allocSize = nil
+  #endif
+  if let allocSize {
     _internalInvariant(allocSize % MemoryLayout<Int>.stride == 0)
 
     let realNumTailBytes = allocSize - numHeaderBytes

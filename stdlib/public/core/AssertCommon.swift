@@ -122,12 +122,12 @@ internal func _assertionFailure(
 @usableFromInline
 @inline(never)
 @_semantics("programtermination_point")
-@_unavailableInEmbedded
 internal func _assertionFailure(
   _ prefix: StaticString, _ message: String,
   file: StaticString, line: UInt,
   flags: UInt32
 ) -> Never {
+#if !$Embedded
   prefix.withUTF8Buffer {
     (prefix) -> Void in
     var message = message
@@ -143,7 +143,7 @@ internal func _assertionFailure(
       }
     }
   }
-
+#endif
   Builtin.int_trap()
 }
 

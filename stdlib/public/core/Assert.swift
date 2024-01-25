@@ -390,6 +390,9 @@ internal func _internalInvariant(
 ) {
 #if INTERNAL_CHECKS_ENABLED
   if !_fastPath(condition()) {
+  print(StaticString("_internalInvariant"))
+  print(file)
+  print(line)
     _fatalErrorMessage("Fatal error", message, file: file, line: line,
       flags: _fatalErrorFlags())
   }

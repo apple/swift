@@ -96,7 +96,7 @@ extension String: BidirectionalCollection {
     // Note: Aligning an index may move it closer towards the `startIndex`, so
     // the `i > startIndex` check needs to come after rounding.
     _precondition(
-      ifLinkedOnOrAfter: .v5_7_0,
+      //ifLinkedOnOrAfter: .v5_7_0,
       i > startIndex, "String index is out of bounds")
 
     return _uncheckedIndex(before: i)

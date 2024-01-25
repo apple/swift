@@ -152,6 +152,7 @@ internal typealias _VAInt  = Int32
 ///     The pointer argument is valid only for the duration of the function's
 ///     execution.
 /// - Returns: The return value, if any, of the `body` closure parameter.
+/*
 @inlinable // c-abi
 public func withVaList<R>(_ args: [CVarArg],
   _ body: (CVaListPointer) -> R) -> R {
@@ -161,6 +162,26 @@ public func withVaList<R>(_ args: [CVarArg],
   }
   return _withVaList(builder, body)
 }
+*/
+
+public func withVaList<R>(_ args: [Int],
+  _ body: (CVaListPointer) -> R) -> R {
+  let builder = __VaListBuilder()
+  for a in args {
+    builder.append(a)
+  }
+  return _withVaList(builder, body)
+}
+
+@inlinable // c-abi
+public func withVaList<each T: CVarArg, R>(_ args: (repeat each T), _ body: (CVaListPointer) -> R) -> R {
+  let builder = __VaListBuilder()
+  repeat builder.append(each args)
+  return _withVaList(builder, body)
+}
+
+
+
 
 /// Invoke `body` with a C `va_list` argument derived from `builder`.
 @inlinable // c-abi
@@ -494,13 +515,14 @@ final internal class __VaListBuilder {
 #if !_runtime(_ObjC)
     var arg = arg
 
-    // We may need to retain an object that provides a pointer value.
+    /* // We may need to retain an object that provides a pointer value.
     if let obj = arg as? _CVarArgObject {
       arg = obj._cVarArgObject
       retainer.append(arg)
-    }
+    }*/
 #endif
 
+    fatalError("varargs")
     var encoded = arg._cVarArgEncoding
 
 #if arch(x86_64) || arch(arm64)
@@ -587,15 +609,15 @@ final internal class __VaListBuilder {
   internal init() {}
 
   @inlinable // c-abi
-  internal func append(_ arg: CVarArg) {
+  internal func append(_ arg: some CVarArg) {
 #if !_runtime(_ObjC)
     var arg = arg
 
     // We may need to retain an object that provides a pointer value.
-    if let obj = arg as? _CVarArgObject {
-      arg = obj._cVarArgObject
-      retainer.append(arg)
-    }
+    // if let obj = arg as? _CVarArgObject {
+    //   arg = obj._cVarArgObject
+    //   retainer.append(arg)
+    // }
 #endif
 
     // Write alignment padding if necessary.

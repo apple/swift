@@ -191,7 +191,6 @@ public func _withUnprotectedUnsafePointer<T, Result>(
 #endif
 }
 
-#if !$Embedded
 extension String {
   /// Calls the given closure with a pointer to the contents of the string,
   /// represented as a null-terminated sequence of UTF-8 code units.
@@ -213,7 +212,6 @@ extension String {
     return try _guts.withCString(body)
   }
 }
-#endif
 
 /// Takes in a value at +0 and performs a Builtin.copy upon it.
 ///

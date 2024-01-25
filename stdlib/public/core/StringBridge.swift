@@ -566,6 +566,7 @@ private func getConstantTaggedCocoaContents(_ cocoaString: _CocoaString) ->
 #endif
 }
 
+#if false
 @usableFromInline
 @_effects(releasenone) // @opaque
 internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
@@ -639,6 +640,7 @@ extension String {
     self._guts = _bridgeCocoaString(_cocoaString)
   }
 }
+#endif
 
 @_effects(releasenone)
 private func _createNSString(

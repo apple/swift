@@ -1183,7 +1183,9 @@ extension Substring {
   public func filter(
     _ isIncluded: (Element) throws -> Bool
   ) rethrows -> String {
-    return try String(self.lazy.filter(isIncluded))
+    //return try String(self.lazy.filter(isIncluded))
+    //return try String(self.filter(isIncluded)) // infinite recursion?
+    fatalError("filter")
   }
 }
 

@@ -13,6 +13,7 @@
 // This file contains only support for types deprecated from previous versions
 // of Swift
 
+#if !$Embedded
 @available(swift, deprecated: 3.0, obsoleted: 5.0, renamed: "BidirectionalCollection")
 public typealias BidirectionalIndexable = BidirectionalCollection
 @available(swift, deprecated: 3.0, obsoleted: 5.0, renamed: "Collection")
@@ -142,6 +143,7 @@ public typealias _FileReferenceLiteralConvertible = _ExpressibleByFileReferenceL
 
 @available(swift, deprecated: 4.2, obsoleted: 5.0, renamed: "ClosedRange.Index")
 public typealias ClosedRangeIndex<T> = ClosedRange<T>.Index where T: Strideable, T.Stride: SignedInteger
+#endif
 
 /// An optional type that allows implicit member access.
 ///
@@ -177,9 +179,12 @@ extension ClosedRange where Bound: Strideable, Bound.Stride: SignedInteger {
   }  
 }
 
+#if !$Embedded
 @available(swift, deprecated: 5.0, renamed: "KeyValuePairs")
 public typealias DictionaryLiteral<Key, Value> = KeyValuePairs<Key, Value>
+#endif
 
+#if !$Embedded
 extension LazySequenceProtocol {
   /// Returns the non-`nil` results of mapping the given transformation over
   /// this sequence.
@@ -202,6 +207,7 @@ extension LazySequenceProtocol {
     return self.compactMap(transform)
   }
 }
+#endif
 
 extension String {
   /// A view of a string's contents as a collection of characters.

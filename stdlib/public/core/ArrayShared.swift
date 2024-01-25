@@ -122,7 +122,7 @@ extension Collection {
       } else {
         result += ", "
       }
-      debugPrint(item, terminator: "", to: &result)
+      //debugPrint(item, terminator: "", to: &result)
     }
     result += type != nil ? "])" : "]"
     return result

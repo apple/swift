@@ -377,7 +377,11 @@ extension _StringGuts {
 
 extension Unicode.Scalar {
   fileprivate var _isLinkingConsonant: Bool {
+    #if $Embedded
+    fatalError("unicode data not available in embedded Swift")
+    #else
     _swift_stdlib_isLinkingConsonant(value)
+    #endif
   }
 
   fileprivate var _isVirama: Bool {

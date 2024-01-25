@@ -722,6 +722,7 @@ extension ConstantVPrintFInterpolation {
   @inlinable
   @_optimize(none)
   @_semantics("oslog.requires_constant_arguments")
+  @_unavailableInEmbedded
   public mutating func appendInterpolation(
     _ value: @autoclosure @escaping () -> Any.Type
   ) {
@@ -812,7 +813,7 @@ public struct ConstantVPrintFMessage :
 internal func constant_vprintf_backend_recurse(
   fmt: UnsafePointer<CChar>,
   argumentClosures: ArraySlice<(([Int]) -> ()) -> ()>,
-  args: inout [CVarArg]
+  args: inout [Int]
 ) {
   if let closure = argumentClosures.first {
     closure { newArg in
@@ -835,7 +836,7 @@ internal func constant_vprintf_backend(
   fmt: UnsafePointer<CChar>,
   argumentClosures: [(([Int]) -> ()) -> ()]
 ) {
-  var args:[CVarArg] = []
+  var args:[Int] = []
   if let closure = argumentClosures.first {
     closure { newArg in
       args.append(contentsOf: newArg)

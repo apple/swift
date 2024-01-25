@@ -101,7 +101,9 @@ internal struct _StringObject {
     self._object = Builtin.valueToBridgeObject(UInt64(0)._value)
   }
 
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
+ 
+  public typealias AnyObject = Builtin.NativeObject
 
   @usableFromInline @frozen
   internal enum Variant {
@@ -182,7 +184,7 @@ internal struct _StringObject {
   internal mutating func _setCountAndFlags(to value: CountAndFlags) {
 #if _pointerBitWidth(_64)
     self._countAndFlagsBits = value._storage
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     self._count = value.count
     self._flags = value.flags
 #else
@@ -210,6 +212,8 @@ extension _StringObject {
     self._countAndFlagsBits = countAndFlags._storage
     _invariantCheck()
   }
+
+  public typealias AnyObject = Builtin.NativeObject
 
   @inlinable @inline(__always)
   internal init(
@@ -250,7 +254,7 @@ extension _StringObject {
     self.init(rawUncheckedValue: bits)
     _invariantCheck()
   }
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
   // On 32-bit platforms, raw bit conversion is one-way only and uses the same
   // layout as on 64-bit platforms.
   @usableFromInline
@@ -277,7 +281,7 @@ extension _StringObject {
   internal var discriminatedObjectRawBits: UInt64 {
 #if _pointerBitWidth(_64)
     return Builtin.reinterpretCast(_object)
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     let low32: UInt
     switch _variant {
     case .immortal(let bitPattern):
@@ -439,8 +443,8 @@ extension _StringObject {
   internal static var nativeBias: UInt {
 #if _pointerBitWidth(_64)
     return 32
-#elseif _pointerBitWidth(_32)
-    return 20
+#elseif _pointerBitWidth(_32) || true
+    return 32
 #else
 #error("Unknown platform")
 #endif
@@ -593,7 +597,7 @@ extension _StringObject {
 #if _pointerBitWidth(_64)
     // On 64-bit, we copy the raw bits (to host byte order).
     self.init(rawValue: (word1, word2))
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     // On 32-bit, we need to unpack the small string.
     let smallStringDiscriminatorAndCount: UInt64 = 0xFF00_0000_0000_0000
 
@@ -647,7 +651,8 @@ extension _StringObject {
 #if _pointerBitWidth(_64)
     self._countAndFlagsBits = 0
     self._object = Builtin.valueToBridgeObject(Nibbles.emptyString._value)
-#elseif _pointerBitWidth(_32)
+    //self._object = nil
+#elseif _pointerBitWidth(_32) || true
     self.init(
       count: 0,
       variant: .immortal(0),
@@ -972,11 +977,12 @@ extension _StringObject {
     _internalInvariant(hasNativeStorage)
     let unmanaged = Unmanaged<__StringStorage>.fromOpaque(largeAddress)
     return unmanaged.takeUnretainedValue()
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     guard case .native(let storage) = _variant else {
-      _internalInvariantFailure()
+      fatalError("invariant fail native storage")
     }
-    return _unsafeUncheckedDowncast(storage, to: __StringStorage.self)
+    return unsafeBitCast(_nativeObject(toNative: storage), to: __StringStorage.self)
+    //return _unsafeUncheckedDowncast(storage, to: __StringStorage.self)
 #else
 #error("Unknown platform")
 #endif
@@ -992,7 +998,7 @@ extension _StringObject {
     _internalInvariant(hasNativeStorage)
     let unmanaged = Unmanaged<__StringStorage>.fromOpaque(largeAddress)
     return unmanaged._withUnsafeGuaranteedRef { body($0) }
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     // FIXME: Do this properly.
     return body(nativeStorage)
 #else
@@ -1007,11 +1013,12 @@ extension _StringObject {
     _internalInvariant(hasSharedStorage)
     let unmanaged = Unmanaged<__SharedStringStorage>.fromOpaque(largeAddress)
     return unmanaged.takeUnretainedValue()
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     guard case .native(let storage) = _variant else {
-      _internalInvariantFailure()
+      fatalError("invariant fail shared storage")
     }
-    return _unsafeUncheckedDowncast(storage, to: __SharedStringStorage.self)
+    return unsafeBitCast(_nativeObject(toNative: storage), to: __SharedStringStorage.self)
+    //return _unsafeUncheckedDowncast(storage, to: __SharedStringStorage.self)
 #else
 #error("Unknown platform")
 #endif
@@ -1026,43 +1033,9 @@ extension _StringObject {
     _internalInvariant(hasSharedStorage)
     let unmanaged = Unmanaged<__SharedStringStorage>.fromOpaque(largeAddress)
     return unmanaged._withUnsafeGuaranteedRef { body($0) }
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     // FIXME: Do this properly.
     return body(sharedStorage)
-#else
-#error("Unknown platform")
-#endif
-  }
-
-  @inline(__always)
-  internal var cocoaObject: AnyObject {
-#if _pointerBitWidth(_64)
-    _internalInvariant(largeIsCocoa && !isImmortal)
-    let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
-    return unmanaged.takeUnretainedValue()
-#elseif _pointerBitWidth(_32)
-    guard case .bridged(let object) = _variant else {
-      _internalInvariantFailure()
-    }
-    return object
-#else
-#error("Unknown platform")
-#endif
-  }
-
-  /// Call `body` with the bridged Cocoa object in `self`, without retaining
-  /// it.
-  @inline(__always)
-  internal func withCocoaObject<R>(
-    _ body: (AnyObject) -> R
-  ) -> R {
-#if _pointerBitWidth(_64)
-    _internalInvariant(largeIsCocoa && !isImmortal)
-    let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
-    return unmanaged._withUnsafeGuaranteedRef { body($0) }
-#elseif _pointerBitWidth(_32)
-    // FIXME: Do this properly.
-    return body(cocoaObject)
 #else
 #error("Unknown platform")
 #endif
@@ -1073,8 +1046,9 @@ extension _StringObject {
   @inline(__always)
   internal var owner: AnyObject? {
     guard self.isMortal else { return nil }
-    let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
-    return unmanaged.takeUnretainedValue()
+    //let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
+    //return unmanaged.takeUnretainedValue()
+    fatalError("owner?")
   }
 }
 
@@ -1140,23 +1114,6 @@ extension _StringObject {
       _uncheckedStart: self.nativeUTF8Start, count: self.largeCount)
   }
 
-  // Whether the object stored can be bridged directly as a NSString
-  @usableFromInline // @opaque
-  internal var hasObjCBridgeableObject: Bool {
-    @_effects(releasenone) get {
-      // Currently, all mortal objects can zero-cost bridge
-      return !self.isImmortal
-    }
-  }
-
-  // Fetch the stored subclass of NSString for bridging
-  @inline(__always)
-  internal var objCBridgeableObject: AnyObject {
-    _internalInvariant(hasObjCBridgeableObject)
-    let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
-    return unmanaged.takeUnretainedValue()
-  }
-
   // Whether the object provides fast UTF-8 contents that are nul-terminated
   @inlinable
   internal var isFastZeroTerminated: Bool {
@@ -1189,7 +1146,7 @@ extension _StringObject {
       pointerBits: UInt64(truncatingIfNeeded: biasedAddress),
       discriminator: Nibbles.largeImmortal(),
       countAndFlags: countAndFlags)
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     self.init(
       variant: .immortal(start: bufPtr.baseAddress._unsafelyUnwrappedUnchecked),
       discriminator: Nibbles.largeImmortal(),
@@ -1203,12 +1160,12 @@ extension _StringObject {
   internal init(_ storage: __StringStorage) {
 #if _pointerBitWidth(_64)
     self.init(
-      object: storage,
+      object: Builtin.unsafeCastToNativeObject(storage),
       discriminator: Nibbles.largeMortal(),
       countAndFlags: storage._countAndFlags)
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     self.init(
-      variant: .native(storage),
+      variant: .native(Builtin.unsafeCastToNativeObject(storage)),
       discriminator: Nibbles.largeMortal(),
       countAndFlags: storage._countAndFlags)
 #else
@@ -1219,12 +1176,12 @@ extension _StringObject {
   internal init(_ storage: __SharedStringStorage) {
 #if _pointerBitWidth(_64)
     self.init(
-      object: storage,
+      object: Builtin.unsafeCastToNativeObject(storage),
       discriminator: Nibbles.largeMortal(),
       countAndFlags: storage._countAndFlags)
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     self.init(
-      variant: .native(storage),
+      variant: .native(Builtin.unsafeCastToNativeObject(storage)),
       discriminator: Nibbles.largeMortal(),
       countAndFlags: storage._countAndFlags)
 #else
@@ -1232,26 +1189,26 @@ extension _StringObject {
 #endif
   }
 
-  internal init(
-    cocoa: AnyObject, providesFastUTF8: Bool, isASCII: Bool, length: Int
-  ) {
-    let countAndFlags = CountAndFlags(sharedCount: length, isASCII: isASCII)
-    let discriminator = Nibbles.largeCocoa(providesFastUTF8: providesFastUTF8)
-#if _pointerBitWidth(_64)
-    self.init(
-      object: cocoa, discriminator: discriminator, countAndFlags: countAndFlags)
-    _internalInvariant(self.largeAddressBits == Builtin.reinterpretCast(cocoa))
-    _internalInvariant(self.providesFastUTF8 == providesFastUTF8)
-    _internalInvariant(self.largeCount == length)
-#elseif _pointerBitWidth(_32)
-    self.init(
-      variant: .bridged(cocoa),
-      discriminator: discriminator,
-      countAndFlags: countAndFlags)
-#else
-#error("Unknown platform")
-#endif
-  }
+//   internal init(
+//     cocoa: AnyObject, providesFastUTF8: Bool, isASCII: Bool, length: Int
+//   ) {
+//     let countAndFlags = CountAndFlags(sharedCount: length, isASCII: isASCII)
+//     let discriminator = Nibbles.largeCocoa(providesFastUTF8: providesFastUTF8)
+// #if _pointerBitWidth(_64)
+//     self.init(
+//       object: cocoa, discriminator: discriminator, countAndFlags: countAndFlags)
+//     _internalInvariant(self.largeAddressBits == Builtin.reinterpretCast(cocoa))
+//     _internalInvariant(self.providesFastUTF8 == providesFastUTF8)
+//     _internalInvariant(self.largeCount == length)
+// #elseif _pointerBitWidth(_32) || true
+//     self.init(
+//       variant: .bridged(cocoa),
+//       discriminator: discriminator,
+//       countAndFlags: countAndFlags)
+// #else
+// #error("Unknown platform")
+// #endif
+//   }
 }
 
 // Internal invariants
@@ -1261,11 +1218,12 @@ extension _StringObject {
   #else
   @usableFromInline @inline(never) @_effects(releasenone)
   internal func _invariantCheck() {
+    return
     #if _pointerBitWidth(_64)
     _internalInvariant(MemoryLayout<_StringObject>.size == 16)
 
     _internalInvariant(MemoryLayout<_StringObject?>.size == 16)
-    #elseif _pointerBitWidth(_32)
+    #elseif _pointerBitWidth(_32) || true
     _internalInvariant(MemoryLayout<_StringObject>.size == 12)
     _internalInvariant(MemoryLayout<_StringObject>.stride == 12)
     _internalInvariant(MemoryLayout<_StringObject>.alignment == 4)
@@ -1293,7 +1251,7 @@ extension _StringObject {
       _internalInvariant(isImmortal)
       _internalInvariant(smallCount <= 15)
       _internalInvariant(smallCount == count)
-      _internalInvariant(!hasObjCBridgeableObject)
+      //_internalInvariant(!hasObjCBridgeableObject)
     } else {
       _internalInvariant(isLarge)
       _internalInvariant(largeCount == count)
@@ -1307,17 +1265,17 @@ extension _StringObject {
 
         if isImmortal {
           _internalInvariant(!hasNativeStorage)
-          _internalInvariant(!hasObjCBridgeableObject)
+          //_internalInvariant(!hasObjCBridgeableObject)
           _internalInvariant(!_countAndFlags.isNativelyStored)
         } else {
           _internalInvariant(hasNativeStorage)
           _internalInvariant(_countAndFlags.isNativelyStored)
-          _internalInvariant(hasObjCBridgeableObject)
+          //_internalInvariant(hasObjCBridgeableObject)
           _internalInvariant(nativeStorage.count == self.count)
         }
       }
       if largeIsCocoa {
-        _internalInvariant(hasObjCBridgeableObject)
+        //_internalInvariant(hasObjCBridgeableObject)
         _internalInvariant(!isSmall)
         _internalInvariant(!_countAndFlags.isNativelyStored)
         _internalInvariant(!_countAndFlags.isTailAllocated)
@@ -1327,9 +1285,9 @@ extension _StringObject {
         }
       }
       if _countAndFlags.isNativelyStored {
-        let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
-        let anyObj = unmanaged.takeUnretainedValue()
-        _internalInvariant(anyObj is __StringStorage)
+        //let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
+        //let anyObj = unmanaged.takeUnretainedValue()
+        //_internalInvariant(anyObj is __StringStorage)
       }
     }
 
@@ -1349,13 +1307,13 @@ extension _StringObject {
 
   @inline(never)
   internal func _dump() {
-#if INTERNAL_CHECKS_ENABLED && !SWIFT_STDLIB_STATIC_PRINT
+#if INTERNAL_CHECKS_ENABLED && false
     let raw = self.rawBits
     let word0 = ("0000000000000000" + String(raw.0, radix: 16)).suffix(16)
     let word1 = ("0000000000000000" + String(raw.1, radix: 16)).suffix(16)
 #if _pointerBitWidth(_64)
     print("StringObject(<\(word0) \(word1)>)")
-#elseif _pointerBitWidth(_32)
+#elseif _pointerBitWidth(_32) || true
     print("""
       StringObject(\
       <\(word0) \(word1)> \

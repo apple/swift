@@ -319,7 +319,7 @@ extension _StringGuts {
   ) -> String.Index {
     let i = ensureMatchingEncoding(i)
     _precondition(
-      ifLinkedOnOrAfter: .v5_7_0,
+      //ifLinkedOnOrAfter: .v5_7_0,
       i._encodedOffset <= count,
       "String index is out of bounds")
     return i
@@ -334,7 +334,7 @@ extension _StringGuts {
   ) -> String.Index {
     if isFastScalarIndex(i) {
       _precondition(
-        ifLinkedOnOrAfter: .v5_7_0,
+        //ifLinkedOnOrAfter: .v5_7_0,
         i._encodedOffset <= count,
         "String index is out of bounds")
       return i
@@ -370,7 +370,7 @@ extension _StringGuts {
       isFastScalarIndex(range.lowerBound), isFastScalarIndex(range.upperBound)
     {
       _precondition(
-        ifLinkedOnOrAfter: .v5_7_0,
+        //ifLinkedOnOrAfter: .v5_7_0,
         range.upperBound._encodedOffset <= count,
         "String index range is out of bounds")
       return range
@@ -390,7 +390,7 @@ extension _StringGuts {
   ) -> String.Index {
     if isFastCharacterIndex(i) {
       _precondition(
-        ifLinkedOnOrAfter: .v5_7_0,
+        //ifLinkedOnOrAfter: .v5_7_0,
         i._encodedOffset <= count,
         "String index is out of bounds")
       return i
