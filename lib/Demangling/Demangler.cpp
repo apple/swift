@@ -1775,6 +1775,13 @@ NodePointer Demangler::popTypeList() {
 }
 
 NodePointer Demangler::popProtocol() {
+  auto checkingForInverse = [&](NodePointer Proto) {
+    if (nextIf('i')) {
+      return createWithChild(Node::Kind::Inverse, Proto);
+    }
+    return Proto;
+  };
+
   if (NodePointer Type = popNode(Node::Kind::Type)) {
     if (Type->getNumChildren() < 1)
       return nullptr;
@@ -1782,20 +1789,20 @@ NodePointer Demangler::popProtocol() {
     if (!isProtocolNode(Type))
       return nullptr;
 
-    return Type;
+    return checkingForInverse(Type);
   }
   
   if (NodePointer SymbolicRef = popNode(Node::Kind::ProtocolSymbolicReference)){
-    return SymbolicRef;
+    return checkingForInverse(SymbolicRef);
   } else if (NodePointer SymbolicRef =
                  popNode(Node::Kind::ObjectiveCProtocolSymbolicReference)) {
-    return SymbolicRef;
+    return checkingForInverse(SymbolicRef);
   }
 
   NodePointer Name = popNode(isDeclName);
   NodePointer Ctx = popContext();
   NodePointer Proto = createWithChildren(Node::Kind::Protocol, Ctx, Name);
-  return createType(Proto);
+  return checkingForInverse(createType(Proto));
 }
 
 NodePointer Demangler::popAnyProtocolConformanceList() {

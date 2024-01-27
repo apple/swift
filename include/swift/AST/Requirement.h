@@ -277,6 +277,12 @@ struct InverseRequirement {
   static void expandDefaults(ASTContext &ctx,
                              ArrayRef<Type> gps,
                              SmallVectorImpl<StructuralRequirement> &result);
+
+  /// Recomputes which inverses must have been written for the given generic
+  /// signature.
+  static void reconstituteInverses(GenericSignatureImpl const* sig,
+                                ArrayRef<Type> typeParams,
+                                SmallVectorImpl<InverseRequirement> &inverses);
 };
 
 } // end namespace swift

@@ -331,6 +331,7 @@ private:
     case Node::Kind::SugaredParen:
       return true;
 
+    case Node::Kind::Inverse:
     case Node::Kind::Type:
       return isSimpleType(Node->getChild(0));
 
@@ -1508,6 +1509,10 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
                        /*hasName*/ false, "default argument ",
                        (int)Node->getChild(1)->getIndex());
   case Node::Kind::DeclContext:
+    print(Node->getChild(0), depth + 1);
+    return nullptr;
+  case Node::Kind::Inverse:
+    Printer << "~";
     print(Node->getChild(0), depth + 1);
     return nullptr;
   case Node::Kind::Type:

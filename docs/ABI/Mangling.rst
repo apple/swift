@@ -574,8 +574,8 @@ Types
   KNOWN-TYPE-KIND-2 ::= 'T'        // Swift.Task
   KNOWN-TYPE-KIND-2 ::= 't'        // Swift.UnsafeCurrentTask
 
-  protocol ::= context decl-name
-  protocol ::= standard-substitutions
+  protocol ::= context decl-name 'i'?
+  protocol ::= standard-substitutions 'i'?
 
   type ::= 'Bb'                              // Builtin.BridgeObject
   type ::= 'BB'                              // Builtin.UnsafeValueBuffer

@@ -344,6 +344,10 @@ void InverseRequirement::enumerateDefaultedParams(
 
 InvertibleProtocolSet InverseRequirement::expandDefault(Type gp) {
   assert(gp->isTypeParameter());
+
+  if (!gp->getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics))
+    return InvertibleProtocolSet();
+
   return InvertibleProtocolSet::full();
 }
 
@@ -351,9 +355,6 @@ void InverseRequirement::expandDefaults(
     ASTContext &ctx,
     ArrayRef<Type> gps,
     SmallVectorImpl<StructuralRequirement> &result) {
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
-    return;
-
   for (auto gp : gps) {
     auto protos = InverseRequirement::expandDefault(gp);
     for (auto ip : protos) {
@@ -367,6 +368,38 @@ void InverseRequirement::expandDefaults(
                         /*inferred=*/true,
                         /*default=*/true,
                        });
+    }
+  }
+}
+
+/// Recomputes which inverses must have been written for the given generic
+/// signature.
+void InverseRequirement::reconstituteInverses(
+                                GenericSignatureImpl const* sig,
+                                ArrayRef<Type> typeParams,
+                                SmallVectorImpl<InverseRequirement> &inverses) {
+  auto &ctx = sig->getASTContext();
+
+  if (!ctx.LangOpts.hasFeature(swift::Feature::NoncopyableGenerics))
+    return;
+
+  for (auto tp : typeParams) {
+    assert(tp);
+
+    // Any generic parameter with a superclass bound could not have an inverse.
+    if (sig->getSuperclassBound(tp))
+      continue;
+
+    auto defaults = InverseRequirement::expandDefault(tp);
+    for (auto ip : defaults) {
+      auto *proto = ctx.getProtocol(getKnownProtocolKind(ip));
+
+      // If the generic signature reflects the default requirement,
+      // then there was no inverse for this generic parameter.
+      if (sig->requiresProtocol(tp, proto))
+        continue;
+
+      inverses.push_back({tp, proto, SourceLoc()});
     }
   }
 }

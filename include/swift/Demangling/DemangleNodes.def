@@ -376,6 +376,7 @@ NODE(AsyncRemoved)
 
 // Added in Swift 5.TBD
 NODE(ObjectiveCProtocolSymbolicReference)
+NODE(Inverse)
 
 #undef CONTEXT_NODE
 #undef NODE
