@@ -84,7 +84,7 @@ extension _StringGuts {
       result._form = ._native(object: _object.nativeStorage)
       return result
     }
-    fatalError()
+    fatalError("classify")
   }
 
 

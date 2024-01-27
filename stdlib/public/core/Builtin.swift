@@ -729,9 +729,9 @@ func _isUnique_native<T>(_ object: inout T) -> Bool {
   _internalInvariant(
     (_bitPattern(Builtin.reinterpretCast(object)) & _objectPointerSpareBits)
     == 0)
-  #endif
   _internalInvariant(_usesNativeSwiftReferenceCounting(
       type(of: Builtin.reinterpretCast(object) as AnyObject)))
+  #endif
   return Bool(Builtin.isUnique_native(&object))
 }
 
@@ -1091,7 +1091,6 @@ func __abi_openExistential<ExistentialType, ContainedType, ResultType>(
 /// in the function containing the call to this SPI.
 @_transparent
 @_alwaysEmitIntoClient
-@_unavailableInEmbedded
 public // @SPI(OSLog)
 func _getGlobalStringTablePointer(_ constant: String) -> UnsafePointer<CChar> {
   return UnsafePointer<CChar>(Builtin.globalStringTablePointer(constant));

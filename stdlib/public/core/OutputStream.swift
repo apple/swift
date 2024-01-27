@@ -401,6 +401,7 @@ internal func _adHocPrint_unlocked<T, TargetStream: TextOutputStream>(
 
 @usableFromInline
 @_semantics("optimize.sil.specialize.generic.never")
+@_unavailableInEmbedded
 internal func _print_unlocked<T, TargetStream: TextOutputStream>(
   _ value: T, _ target: inout TargetStream
 ) {
@@ -451,6 +452,7 @@ internal func _print_unlocked<T, TargetStream: TextOutputStream>(
 
 @_semantics("optimize.sil.specialize.generic.never")
 @inline(never)
+@_unavailableInEmbedded
 public func _debugPrint_unlocked<T, TargetStream: TextOutputStream>(
     _ value: T, _ target: inout TargetStream
 ) {

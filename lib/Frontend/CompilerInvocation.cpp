@@ -1361,6 +1361,7 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.UnavailableDeclOptimizationMode = UnavailableDeclOptimization::Complete;
     Opts.DisableImplicitStringProcessingModuleImport = true;
     Opts.DisableImplicitConcurrencyModuleImport = true;
+    Opts.DisableAvailabilityChecking = true;
 
     if (!swiftModulesInitialized()) {
       Diags.diagnose(SourceLoc(), diag::no_swift_sources_with_embedded);

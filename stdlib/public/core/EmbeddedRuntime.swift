@@ -158,6 +158,15 @@ func swift_retain_n_(object: UnsafeMutablePointer<HeapObject>, n: UInt32) -> Uns
   return object
 }
 
+@_silgen_name("swift_bridgeObjectRetain")
+public func swift_bridgeObjectRetain(object: Builtin.RawPointer) -> Builtin.RawPointer {
+  let objectBits = UInt(Builtin.ptrtoint_Word(object))
+  if objectBits & 0x8000_0000_0000_0000 != 0 { return object }
+  let untaggedObject = Builtin.inttoptr_Word((objectBits & 0x00ff_ffff_ffff_ffff)._builtinWordValue)
+  return swift_retain(object: untaggedObject)
+}
+
+
 @_silgen_name("swift_release")
 public func swift_release(object: Builtin.RawPointer) {
   if Int(Builtin.ptrtoint_Word(object)) == 0 { return }
@@ -188,6 +197,14 @@ public func swift_release_n_(object: UnsafeMutablePointer<HeapObject>?, n: UInt3
   } else if resultingRefcount < 0 {
     fatalError("negative refcount")
   }
+}
+
+@_silgen_name("swift_bridgeObjectRelease")
+public func swift_bridgeObjectRelease(object: Builtin.RawPointer) {
+  let objectBits = UInt(Builtin.ptrtoint_Word(object))
+  if objectBits & 0x8000_0000_0000_0000 != 0 { return }
+  let untaggedObject = Builtin.inttoptr_Word((objectBits & 0x00ff_ffff_ffff_ffff)._builtinWordValue)
+  swift_release(object: untaggedObject)
 }
 
 

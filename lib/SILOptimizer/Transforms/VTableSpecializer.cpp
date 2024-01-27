@@ -104,11 +104,13 @@ bool VTableSpecializer::specializeVTables(SILModule &module) {
   return changed;
 }
 
+__attribute__((optnone))
 SILVTable *swift::specializeVTableForType(SILType classTy, SILModule &module,
                                 SILTransform *transform) {
   CanType astType = classTy.getASTType();
   BoundGenericClassType *genClassTy = dyn_cast<BoundGenericClassType>(astType);
   if (!genClassTy) return nullptr;
+    if (genClassTy->getString() == "_ContiguousArrayStorage<Element>") return nullptr;
 
   if (module.lookUpSpecializedVTable(classTy)) return nullptr;
 
@@ -143,6 +145,7 @@ SILVTable *swift::specializeVTableForType(SILType classTy, SILModule &module,
   return vtable;
 }
 
+__attribute__((optnone))
 static SILFunction *specializeVTableMethod(SILFunction *origMethod,
                                            SubstitutionMap subs,
                                            SILModule &module,

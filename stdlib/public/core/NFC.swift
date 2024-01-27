@@ -49,6 +49,10 @@ extension Unicode._InternalNFC.Iterator: IteratorProtocol {
       return hangul
     }
 
+    #if $Embedded
+    fatalError("unicode data not available in embedded Swift")
+    #else
+
     // Otherwise, lookup the composition.
     let composition = _swift_stdlib_getComposition(x.value, y.value)
 
@@ -57,6 +61,7 @@ extension Unicode._InternalNFC.Iterator: IteratorProtocol {
     }
 
     return Unicode.Scalar(_value: composition)
+    #endif
   }
 
   @inline(never)

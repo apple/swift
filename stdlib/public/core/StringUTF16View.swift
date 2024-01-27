@@ -277,11 +277,11 @@ extension String.UTF16View: BidirectionalCollection {
     // temporarily allow older binaries to keep invoking undefined behavior as
     // before.
     _precondition(
-      ifLinkedOnOrAfter: .v5_7_0,
+      //ifLinkedOnOrAfter: .v5_7_0,
       start._encodedOffset <= _guts.count,
       "String index is out of bounds")
     _precondition(
-      ifLinkedOnOrAfter: .v5_7_0,
+      //ifLinkedOnOrAfter: .v5_7_0,
       end._encodedOffset <= _guts.count,
       "String index is out of bounds")
 
@@ -366,11 +366,11 @@ extension String.UTF16View: BidirectionalCollection {
     _internalInvariant(_guts.hasMatchingEncoding(start))
 
     _precondition(
-      ifLinkedOnOrAfter: .v5_7_0,
+      //ifLinkedOnOrAfter: .v5_7_0,
       lower._encodedOffset <= _guts.count,
       "String index is out of bounds")
     _precondition(
-      ifLinkedOnOrAfter: .v5_7_0,
+      //ifLinkedOnOrAfter: .v5_7_0,
       upper._encodedOffset <= _guts.count,
       "String index is out of bounds")
 

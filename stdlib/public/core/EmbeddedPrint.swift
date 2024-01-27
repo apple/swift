@@ -33,6 +33,20 @@ public func print(_ string: StaticString, terminator: StaticString = "\n") {
   }
 }
 
+public func print(_ string: String, terminator: StaticString = "\n") {
+  var string = string
+  _ = string.withUTF8 { buf in
+    for c in buf {
+      putchar(CInt(c))
+    }
+  }
+  var p = terminator.utf8Start
+  while p.pointee != 0 {
+    putchar(CInt(p.pointee))
+    p += 1
+  }
+}
+
 func printCharacters(_ buf: UnsafeRawBufferPointer) {
   for c in buf {
     putchar(CInt(c))
@@ -46,7 +60,7 @@ func printCharacters(_ buf: UnsafeBufferPointer<UInt8>) {
 extension BinaryInteger {
   func writeToStdout() {
     if self == (0 as Self) {
-      print("0", terminator: "")
+      putchar(CInt(("0" as Unicode.Scalar).value))
       return
     }
 

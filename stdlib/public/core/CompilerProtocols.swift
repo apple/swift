@@ -792,7 +792,6 @@ public protocol ExpressibleByStringInterpolation
   init(stringInterpolation: StringInterpolation)
 }
 
-#if !$Embedded
 extension ExpressibleByStringInterpolation
   where StringInterpolation == DefaultStringInterpolation {
   
@@ -815,7 +814,6 @@ extension ExpressibleByStringInterpolation
     self.init(stringLiteral: stringInterpolation.make())
   }
 }
-#endif
 
 /// Represents the contents of a string literal with interpolations while it's
 /// being built up.

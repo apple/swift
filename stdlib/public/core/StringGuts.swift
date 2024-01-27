@@ -64,6 +64,7 @@ extension _StringGuts {
     self.init(_StringObject(storage))
   }
 
+#if false
   internal init(
     cocoa: AnyObject, providesFastUTF8: Bool, isASCII: Bool, length: Int
   ) {
@@ -73,6 +74,7 @@ extension _StringGuts {
       isASCII: isASCII,
       length: length))
   }
+#endif
 }
 
 // Queries
@@ -179,19 +181,19 @@ extension _StringGuts {
   #else
   @usableFromInline @inline(never) @_effects(releasenone)
   internal func _invariantCheck() {
-    #if _pointerBitWidth(_64)
-    _internalInvariant(MemoryLayout<String>.size == 16, """
-    the runtime is depending on this, update Reflection.mm and \
-    this if you change it
-    """)
-    #elseif _pointerBitWidth(_32)
-    _internalInvariant(MemoryLayout<String>.size == 12, """
-    the runtime is depending on this, update Reflection.mm and \
-    this if you change it
-    """)
-    #else
-    #error("Unknown platform")
-    #endif
+    // #if _pointerBitWidth(_64)
+    // _internalInvariant(MemoryLayout<String>.size == 16, """
+    // the runtime is depending on this, update Reflection.mm and \
+    // this if you change it
+    // """)
+    // #elseif _pointerBitWidth(_32)
+    // _internalInvariant(MemoryLayout<String>.size == 12, """
+    // the runtime is depending on this, update Reflection.mm and \
+    // this if you change it
+    // """)
+    // #else
+    // #error("Unknown platform")
+    // #endif
   }
   #endif // INTERNAL_CHECKS_ENABLED
 

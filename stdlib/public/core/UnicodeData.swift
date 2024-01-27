@@ -65,6 +65,10 @@ extension Unicode {
         // CCC = 0, NFC_QC = Yes, NFD_QC = Yes
         rawValue = 0
       } else {
+        #if $Embedded
+        fatalError("unicode data not available in embedded Swift")
+        #else
+
         rawValue = _swift_stdlib_getNormData(scalar.value)
 
         // Because we don't store precomposed hangul in our NFD_QC data, these
@@ -73,6 +77,8 @@ extension Unicode {
           // NFD_QC = false
           rawValue |= 0x1
         }
+
+        #endif
       }
     }
 
@@ -170,6 +176,9 @@ extension Unicode {
 
     // A buffer pointer to the UTF8 decomposition string.
     var utf8: UnsafeBufferPointer<UInt8> {
+      #if $Embedded
+      fatalError("unicode data not available in embedded Swift")
+      #else
       let decompPtr = _swift_stdlib_nfd_decompositions._unsafelyUnwrappedUnchecked
 
       // This size is the utf8 length of the decomposition.
@@ -180,10 +189,15 @@ extension Unicode {
         start: decompPtr + index + 1,
         count: size
       )
+      #endif
     }
 
     init(_ scalar: Unicode.Scalar) {
+      #if $Embedded
+      fatalError("unicode data not available in embedded Swift")
+      #else
       rawValue = _swift_stdlib_getDecompositionEntry(scalar.value)
+      #endif
     }
   }
 }

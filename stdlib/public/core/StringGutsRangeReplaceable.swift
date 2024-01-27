@@ -60,6 +60,7 @@ extension _StringGuts {
       defer { _fixLifetime(self) }
       var bits: UInt = _object.largeAddressBits
       return _isUnique_native(&bits)
+      //return false
     }
   }
 }
@@ -350,8 +351,9 @@ extension _StringGuts {
           }
         }
       }
-      return uniqueNativeReplaceSubrange(
-        bounds, with: newElements.lazy.flatMap { $0.utf8 })
+      fatalError("replace") // XXX
+      //return uniqueNativeReplaceSubrange(
+        //bounds, with: newElements.lazy.flatMap { $0.utf8 })
     }
 
     var result = String()
@@ -394,8 +396,9 @@ extension _StringGuts {
         }
       }
       if #available(SwiftStdlib 5.1, *) {
-        return uniqueNativeReplaceSubrange(
-          bounds, with: newElements.lazy.flatMap { $0.utf8 })
+        fatalError("replace 2") // XXX
+        //return uniqueNativeReplaceSubrange(
+          //bounds, with: newElements.lazy.flatMap { $0.utf8 })
       } else {
         // FIXME: The stdlib should not have a deployment target this ancient.
         let c = newElements.reduce(0) { $0 + UTF8.width($1) }
