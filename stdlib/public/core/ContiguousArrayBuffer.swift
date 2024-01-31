@@ -121,8 +121,9 @@ internal final class __StaticArrayStorage
 /// `[Native]Array<Element>`s.
 @inlinable
 internal var _emptyArrayStorage: __EmptyArrayStorage {
-  return Builtin.bridgeFromRawPointer(
-    Builtin.addressof(&_swiftEmptyArrayStorage))
+  Builtin.bridgeFromRawPointer(
+    _swift_stdlib_getEmptyArrayStorage()._rawValue
+  )
 }
 
 // The class that implements the storage for a ContiguousArray<Element>

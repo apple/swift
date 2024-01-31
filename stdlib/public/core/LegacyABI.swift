@@ -87,3 +87,40 @@ extension String.UTF16View {
   @inlinable @inline(__always)
   internal var _shortHeuristic: Int { return 32 }
 }
+
+// Note: These 4 functions are previous setters and modifies for
+// _EachFieldOptions.classType and _EachFieldOptions.ignoreUnknown. These were
+// defined as static vars which allow for shared mutable data when the intention
+// was just an option for an option set which should be constant static data.
+
+@available(SwiftStdlib 5.2, *)
+@usableFromInline
+@_silgen_name("$ss17_EachFieldOptionsV13ignoreUnknownABvsZ")
+@_spi(Reflection)
+internal func _eachFieldOptionsIgnoreUnknownSetter(_: _EachFieldOptions) {
+  fatalError()
+}
+
+@available(SwiftStdlib 5.2, *)
+@usableFromInline
+@_silgen_name("$ss17_EachFieldOptionsV13ignoreUnknownABvMZ")
+@_spi(Reflection)
+internal func _eachFieldOptionsIgnoreUnknownModify(_: UnsafeRawPointer) {
+  fatalError()
+}
+
+@available(SwiftStdlib 5.2, *)
+@usableFromInline
+@_silgen_name("$ss17_EachFieldOptionsV9classTypeABvsZ")
+@_spi(Reflection)
+internal func _eachFieldOptionsClassTypeSetter(_: _EachFieldOptions) {
+  fatalError()
+}
+
+@available(SwiftStdlib 5.2, *)
+@usableFromInline
+@_silgen_name("$ss17_EachFieldOptionsV9classTypeABvMZ")
+@_spi(Reflection)
+internal func _eachFieldOptionsClassTypeModify(_: UnsafeRawPointer) {
+  fatalError()
+}

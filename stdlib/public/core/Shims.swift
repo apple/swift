@@ -27,8 +27,14 @@ internal func _makeSwiftNSFastEnumerationState()
 
 /// A dummy value to be used as the target for `mutationsPtr` in fast
 /// enumeration implementations.
+///
+/// Note: This is marked nonisolated unsafe because we _never_ write to this
+/// value. It is unfortunate that this is not a let, but we need to take the
+/// address of this variable which is currently only possible with vars in
+/// Swift.
 @usableFromInline
-internal var _fastEnumerationStorageMutationsTarget: CUnsignedLong = 0
+internal nonisolated(unsafe)
+var _fastEnumerationStorageMutationsTarget: CUnsignedLong = 0
 
 /// A dummy pointer to be used as `mutationsPtr` in fast enumeration
 /// implementations.

@@ -120,12 +120,19 @@ internal func _connectNSBaseClasses() -> Bool
 
 
 private let _bridgeInitializedSuccessfully = _connectNSBaseClasses()
-internal var _orphanedFoundationSubclassesReparented: Bool = false
+
+// Note: This is marked nonisolated unsafe because we will only ever set this
+// value to true. Even if multiple threads race to call
+// _connectOrphanedFoundationSubclassesIfNeeded, all invocations will write the
+// same value. Readers of this variable should never see an in-between value
+// during a write since this is just a boolean.
+internal nonisolated(unsafe)
+var _orphanedFoundationSubclassesReparented: Bool = false
 
 /// Reparents the SwiftNativeNS*Base classes to be subclasses of their respective
 /// Foundation types, or is false if they couldn't be reparented. Must be run
 /// in order to bridge Swift Strings, Arrays, Dictionaries, Sets, or Enumerators to ObjC.
- internal func _connectOrphanedFoundationSubclassesIfNeeded() -> Void {
+internal func _connectOrphanedFoundationSubclassesIfNeeded() -> Void {
   let bridgeWorks = _bridgeInitializedSuccessfully
   _debugPrecondition(bridgeWorks)
   _orphanedFoundationSubclassesReparented = true

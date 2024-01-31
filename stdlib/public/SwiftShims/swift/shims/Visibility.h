@@ -144,6 +144,8 @@
 # define SWIFT_ATTRIBUTE_FOR_EXPORTS __attribute__((__visibility__("default")))
 # define SWIFT_ATTRIBUTE_FOR_IMPORTS __attribute__((__visibility__("default")))
 
+# define SWIFT_CONSTANT_RELOCATABLE_DATA __attribute__((section("__DATA,__const")))
+
 #elif defined(__ELF__)
 
 // On ELF, we use non-hidden visibility.  For exports, we must use
@@ -159,11 +161,15 @@
 # define SWIFT_ATTRIBUTE_FOR_EXPORTS __attribute__((__visibility__("protected")))
 # define SWIFT_ATTRIBUTE_FOR_IMPORTS __attribute__((__visibility__("default")))
 
+# define SWIFT_CONSTANT_RELOCATABLE_DATA __attribute__((section(".data.rel.ro")))
+
 #elif defined(__CYGWIN__)
 
 // For now, we ignore all this on Cygwin.
 # define SWIFT_ATTRIBUTE_FOR_EXPORTS
 # define SWIFT_ATTRIBUTE_FOR_IMPORTS
+
+# define SWIFT_CONSTANT_RELOCATABLE_DATA
 
 // FIXME: this #else should be some sort of #elif Windows
 #else // !__MACH__ && !__ELF__
@@ -171,6 +177,9 @@
 // On PE/COFF, we use dllimport and dllexport.
 # define SWIFT_ATTRIBUTE_FOR_EXPORTS __declspec(dllexport)
 # define SWIFT_ATTRIBUTE_FOR_IMPORTS __declspec(dllimport)
+
+// FIXME: Is there such section on Windows?
+# define SWIFT_CONSTANT_RELOCATABLE_DATA
 
 #endif
 
