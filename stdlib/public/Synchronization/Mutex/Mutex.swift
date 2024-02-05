@@ -52,7 +52,10 @@ public struct Mutex<Value: ~Copyable>: ~Copyable {
   public init(_ initialValue: consuming Value) {
     value = _Cell(initialValue)
   }
+}
 
+@available(SwiftStdlib 6.0, *)
+extension Mutex {
   /// Attempts to acquire the lock and then calls the given closure if
   /// successful.
   ///
@@ -201,6 +204,30 @@ public struct Mutex<Value: ~Copyable>: ~Copyable {
     _ body: (inout Value) throws(E) -> Result
   ) throws(E) -> Result {
     fatalError()
+  }
+}
+
+@available(SwiftStdlib 6.0, *)
+extension Mutex where Value == Void {
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public borrowing func _unsafeLock() {
+    handle.lock()
+  }
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public borrowing func _unsafeTryLock() -> Bool {
+    handle.tryLock()
+  }
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public borrowing func _unsafeUnlock() {
+    handle.unlock()
   }
 }
 
