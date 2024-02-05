@@ -10,7 +10,7 @@
 #
 #===----------------------------------------------------------------------===#
 
-set(swift_synchronization_sources
+set(SWIFT_SYNCHRONIZATION_ATOMIC_SOURCES
   Atomic.swift
   AtomicBool.swift
   AtomicFloats.swift
@@ -21,11 +21,50 @@ set(swift_synchronization_sources
   AtomicRepresentable.swift
   WordPair.swift
 )
-set(swift_synchronization_gyb_sources
+
+set(SWIFT_SYNCHRONIZATION_SOURCES
+  ${SWIFT_SYNCHRONIZATION_ATOMIC_SOURCES}
+
+  Cell.swift
+  Mutex/Mutex.swift
+)
+
+set(SWIFT_SYNCHRONIZATION_GYB_SOURCES
   AtomicIntegers.swift.gyb
   AtomicStorage.swift.gyb
 )
-set(swift_synchronization_swift_compile_flags
+
+# Darwin dependencies and sources
+
+set(SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES)
+
+if(SWIFT_BUILD_SDK_OVERLAY)
+  set(SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES Darwin)
+endif()
+
+set(SWIFT_SYNCHRONIZATION_DARWIN_SOURCES
+    Mutex/DarwinImpl.swift
+)
+
+# Linux dependencies and sources
+
+set(SWIFT_SYNCHRONIZATION_LINUX_SOURCES
+    Mutex/LinuxImpl.swift
+)
+
+# Windows depdencies and sources
+
+set(SWIFT_SYNCHRONIZATION_WINDOWS_DEPENDENCIES)
+
+if(SWIFT_BUILD_SDK_OVERLAY)
+  set(SWIFT_SYNCHRONIZATION_WINDOWS_DEPENDENCIES WinSDK)
+endif()
+
+set(SWIFT_SYNCHRONIZATION_WINDOWS_SOURCES
+    Mutex/WindowsImpl.swift
+)
+
+set(SWIFT_SYNCHRNOIZATION_SWIFT_FLAGS
   ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
   "-enable-builtin-module"
   "-enable-experimental-feature" "RawLayout"
@@ -33,9 +72,35 @@ set(swift_synchronization_swift_compile_flags
 )
 
 add_swift_target_library(swiftSynchronization ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_STDLIB
-  ${swift_synchronization_sources}
-  GYB_SOURCES ${swift_synchronization_gyb_sources}
-  SWIFT_COMPILE_FLAGS ${swift_synchronization_swift_compile_flags}
+  ${SWIFT_SYNCHRONIZATION_SOURCES}
+
+  GYB_SOURCES
+    ${SWIFT_SYNCHRONIZATION_GYB_SOURCES}
+
+  SWIFT_SOURCES_DEPENDS_MACOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_SOURCES}
+  SWIFT_SOURCES_DEPENDS_IOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_SOURCES}
+  SWIFT_SOURCES_DEPENDS_TVOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_SOURCES}
+  SWIFT_SOURCES_DEPENDS_WATCHOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_SOURCES}
+  SWIFT_SOURCES_DEPENDS_LINUX
+    ${SWIFT_SYNCHRONIZATION_LINUX_SOURCES}
+  SWIFT_SOURCES_DEPENDS_WINDOWS
+    ${SWIFT_SYNCHRONIZATION_WINDOWS_SOURCES}
+
+  SWIFT_MODULE_DEPENDS_OSX
+    ${SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES}
+  SWIFT_MODULE_DEPENDS_IOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES}
+  SWIFT_MODULE_DEPENDS_TVOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES}
+  SWIFT_MODULE_DEPENDS_WATCHOS
+    ${SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES}
+
+  SWIFT_COMPILE_FLAGS
+    ${SWIFT_SYNCHRNOIZATION_SWIFT_FLAGS}
   LINK_FLAGS
     "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
   INSTALL_IN_COMPONENT
@@ -68,11 +133,12 @@ if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB)
       ONLY_SWIFTMODULE
       IS_FRAGILE
       
-      ${swift_synchronization_sources}
-      GYB_SOURCES ${swift_synchronization_gyb_sources}
+      ${SWIFT_SYNCHRONIZATION_ATOMIC_SOURCES}
+      GYB_SOURCES
+        ${SWIFT_SYNCHRONIZATION_GYB_SOURCES}
 
       SWIFT_COMPILE_FLAGS
-        ${swift_synchronization_swift_compile_flags}
+        ${SWIFT_SYNCHRNOIZATION_SWIFT_FLAGS}
         -Xcc -D__MACH__ -Xcc -D__APPLE__ -Xcc -ffreestanding -enable-experimental-feature Embedded
 
       MODULE_DIR "${CMAKE_BINARY_DIR}/lib/swift/embedded"

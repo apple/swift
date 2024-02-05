@@ -1779,6 +1779,42 @@ endfunction()
 #   Presence of a build flavor requires SWIFT_MODULE_DEPENDS_MACCATALYST to be
 #   defined and have values.
 #
+# SWIFT_SOURCES_DEPENDS_MACOS
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_IOS
+#   Sources that are built when this library is being built for iOS
+#
+# SWIFT_SOURCES_DEPENDS_TVOS
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_WATCHOS
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_FREESTANDING
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_FREEBSD
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_OPENBSD
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_LINUX
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_CYGWIN
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_HAIKU
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_WASI
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_WINDOWS
+#   Sources that are built when this library is being built for macOS
+#
 # source1 ...
 #   Sources to add into this library.
 function(add_swift_target_library name)
@@ -1849,7 +1885,19 @@ function(add_swift_target_library name)
         TARGET_SDKS
         SWIFT_COMPILE_FLAGS_MACCATALYST
         SWIFT_MODULE_DEPENDS_MACCATALYST
-        SWIFT_MODULE_DEPENDS_MACCATALYST_UNZIPPERED)
+        SWIFT_MODULE_DEPENDS_MACCATALYST_UNZIPPERED
+        SWIFT_SOURCES_DEPENDS_MACOS
+        SWIFT_SOURCES_DEPENDS_IOS
+        SWIFT_SOURCES_DEPENDS_TVOS
+        SWIFT_SOURCES_DEPENDS_WATCHOS
+        SWIFT_SOURCES_DEPENDS_FREESTANDING
+        SWIFT_SOURCES_DEPENDS_FREEBSD
+        SWIFT_SOURCES_DEPENDS_OPENBSD
+        SWIFT_SOURCES_DEPENDS_LINUX
+        SWIFT_SOURCES_DEPENDS_CYGWIN
+        SWIFT_SOURCES_DEPENDS_HAIKU
+        SWIFT_SOURCES_DEPENDS_WASI
+        SWIFT_SOURCES_DEPENDS_WINDOWS)
 
   cmake_parse_arguments(SWIFTLIB
                         "${SWIFTLIB_options}"
@@ -2091,6 +2139,33 @@ function(add_swift_target_library name)
     if(sdk STREQUAL "IOS_SIMULATOR" AND name STREQUAL "swiftMediaPlayer")
       # message("DISABLING AUTOLINK FOR swiftMediaPlayer")
       list(APPEND swiftlib_link_flags_all "-Xlinker" "-ignore_auto_link")
+    endif()
+
+    # Append SDK specific sources to the full list of sources
+    if(sdk STREQUAL "OSX")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_MACOS})
+    elseif(sdk STREQUAL "IOS" OR sdk STREQUAL "IOS_SIMULATOR")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_IOS})
+    elseif(sdk STREQUAL "TVOS" OR sdk STREQUAL "TVOS_SIMULATOR")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_TVOS})
+    elseif(sdk STREQUAL "WATCHOS" OR sdk STREQUAL "WATCHOS_SIMULATOR")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_WATCHOS})
+    elseif(sdk STREQUAL "FREESTANDING")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_FREESTANDING})
+    elseif(sdk STREQUAL "FREEBSD")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_FREEBSD})
+    elseif(sdk STREQUAL "OPENBSD")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_OPENBSD})
+    elseif(sdk STREQUAL "LINUX" OR sdk STREQUAL "ANDROID")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_LINUX})
+    elseif(sdk STREQUAL "CYGWIN")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_CYGWIN})
+    elseif(sdk STREQUAL "HAIKU")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_HAIKU})
+    elseif(sdk STREQUAL "WASI")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_WASI})
+    elseif(sdk STREQUAL "WINDOWS")
+      list(APPEND SWIFTLIB_SOURCES ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_WINDOWS})
     endif()
 
     # We unconditionally removed "-z,defs" from CMAKE_SHARED_LINKER_FLAGS in
