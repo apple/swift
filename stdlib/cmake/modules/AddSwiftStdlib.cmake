@@ -1786,34 +1786,34 @@ endfunction()
 #   Sources that are built when this library is being built for iOS
 #
 # SWIFT_SOURCES_DEPENDS_TVOS
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for tvOS
 #
 # SWIFT_SOURCES_DEPENDS_WATCHOS
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for watchOS
 #
 # SWIFT_SOURCES_DEPENDS_FREESTANDING
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for freestanding
 #
 # SWIFT_SOURCES_DEPENDS_FREEBSD
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for FreeBSD
 #
 # SWIFT_SOURCES_DEPENDS_OPENBSD
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for OpenBSD
 #
 # SWIFT_SOURCES_DEPENDS_LINUX
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for Linux
 #
 # SWIFT_SOURCES_DEPENDS_CYGWIN
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for Cygwin
 #
 # SWIFT_SOURCES_DEPENDS_HAIKU
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for Haiku
 #
 # SWIFT_SOURCES_DEPENDS_WASI
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for WASI
 #
 # SWIFT_SOURCES_DEPENDS_WINDOWS
-#   Sources that are built when this library is being built for macOS
+#   Sources that are built when this library is being built for Windows
 #
 # source1 ...
 #   Sources to add into this library.

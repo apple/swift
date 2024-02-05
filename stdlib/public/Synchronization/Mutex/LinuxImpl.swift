@@ -108,11 +108,18 @@ internal struct _MutexHandle: ~Copyable {
   borrowing func unlock() {
     // TODO: Is it worth caching this value in TLS?
     let selfId = _gettid()
-    // Unconditionally update the storage to be unlocked. At this point, the
-    // lock is acquirable.
-    let oldValue = storage.exchange(0, ordering: .releasing)
 
-    if _fastPath(oldValue == selfId) {
+    // Attempt to release the lock. We can only atomically release the lock in
+    // user-space when there are no other waiters. If there are waiters, the
+    // waiter bit is set and we need to inform the kernel that we're unlocking.
+    let (exchanged, oldValue) = storage.compareExchange(
+      expected: selfId,
+      desired: 0,
+      successOrdering: .releasing,
+      failureOrdering: .relaxed
+    )
+
+    if _fastPath(exchanged) {
       // No waiters, unlocked!
       return
     }
