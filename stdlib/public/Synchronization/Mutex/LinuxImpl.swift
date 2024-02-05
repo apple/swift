@@ -12,10 +12,6 @@
 
 import SynchronizationShims
 
-@_alwaysEmitIntoClient
-@_extern(c, "gettid")
-func _gettid() -> UInt32
-
 extension Atomic where Value == UInt32 {
   borrowing func wait() {
     _swift_stdlib_wait(.init(rawAddress))
@@ -33,8 +29,8 @@ extension Atomic where Value == UInt32 {
 internal struct _MutexHandle: ~Copyable {
   // There are only 3 different values that storage can hold at a single time.
   // 0: unlocked
-  // _gettid: locked, current thread's id (uncontended)
-  // (_gettid | SWIFT_FUTEX_WAITERS): locked, current thread's id (contended)
+  // TID: locked, current thread's id (uncontended)
+  // (TID | SWIFT_FUTEX_WAITERS): locked, current thread's id (contended)
   @usableFromInline
   let storage: Atomic<UInt32>
 
@@ -49,7 +45,7 @@ internal struct _MutexHandle: ~Copyable {
   @usableFromInline
   borrowing func lock() {
     // TODO: Is it worth caching this value in TLS?
-    let selfId = _gettid()
+    let selfId = _swift_stdlib_gettid()
 
     // Note: We could probably merge this cas into a do/while style loop, but we
     // really want to perform the strong variant before attempting to do weak
@@ -97,7 +93,7 @@ internal struct _MutexHandle: ~Copyable {
   borrowing func tryLock() -> Bool {
     storage.compareExchange(
       expected: 0,
-      desired: _gettid(),
+      desired: _swift_stdlib_gettid(),
       successOrdering: .acquiring,
       failureOrdering: .relaxed
     ).exchanged
@@ -107,7 +103,7 @@ internal struct _MutexHandle: ~Copyable {
   @usableFromInline
   borrowing func unlock() {
     // TODO: Is it worth caching this value in TLS?
-    let selfId = _gettid()
+    let selfId = _swift_stdlib_gettid()
 
     // Attempt to release the lock. We can only atomically release the lock in
     // user-space when there are no other waiters. If there are waiters, the

@@ -23,6 +23,10 @@
 
 #define SWIFT_FUTEX_WAITERS FUTEX_WAITERS
 
+static inline __swift_uint32_t _swift_stdlib_gettid() {
+  return syscall(SYS_gettid);
+}
+
 static inline __swift_bool _swift_stdlib_wait(__swift_uint32_t *lock) {
   return syscall(SYS_futex, lock, FUTEX_LOCK_PI_PRIVATE,
                  /* val */ 0, // this value is ignored by this futex op
