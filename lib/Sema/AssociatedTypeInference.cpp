@@ -162,7 +162,7 @@ checkTypeWitness(Type type, AssociatedTypeDecl *assocType,
       proto->isComputingRequirementSignature())
     return CheckTypeWitnessResult::forError();
 
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)
+  if (!ctx.LangOpts.AssumesNoncopyableGenerics
       && type->isNoncopyable()) {
     // No move-only type can witness an associatedtype requirement.
     // Pretend the failure is a lack of Copyable conformance.

@@ -351,7 +351,7 @@ void InverseRequirement::expandDefaults(
     ASTContext &ctx,
     ArrayRef<Type> gps,
     SmallVectorImpl<StructuralRequirement> &result) {
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (!ctx.LangOpts.AssumesNoncopyableGenerics)
     return;
 
   for (auto gp : gps) {

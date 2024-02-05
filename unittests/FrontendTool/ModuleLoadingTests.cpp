@@ -151,7 +151,7 @@ protected:
     auto bufData = (*bufOrErr)->getBuffer();
     auto validationInfo = serialization::validateSerializedAST(
         bufData, silOpts.EnableOSSAModules,
-        langOpts.hasFeature(Feature::NoncopyableGenerics),
+        langOpts.AssumesNoncopyableGenerics,
         /*requiredSDK*/StringRef());
     ASSERT_EQ(serialization::Status::Valid, validationInfo.status);
     ASSERT_EQ(bufData, moduleBuffer->getBuffer());

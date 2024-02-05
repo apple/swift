@@ -950,12 +950,8 @@ InvertibleAnnotationRequest::evaluate(Evaluator &evaluator,
     break;
   }
 
-  // Legacy support stops here.
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
-    return InverseMarking::forInverse(Kind::None);
-
-  // FIXME: just never allow lexical-lifetimes to be disabled?
-  if (!ctx.supportsMoveOnlyTypes())
+  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)
+      && !ctx.supportsMoveOnlyTypes())
     decl->diagnose(diag::moveOnly_requires_lexical_lifetimes);
 
   /// The invertible protocol being targeted by this annotation request.
@@ -1096,7 +1092,18 @@ InvertibleAnnotationRequest::evaluate(Evaluator &evaluator,
       // Handle non-protocol nominals specially because they infer a ~TARGET
       // based on their generic parameters.
       auto result = searchInheritanceClause(nominal->getInherited());
-      result.inverse.setIfUnset(hasInferredInverseTarget(nominal));
+
+      // Reclassify the explicit inverse in this decl's inheritance clause
+      // as "legacy explicit". We rely on knowing this for feature guards
+      // in the swiftinterface file. See `usesFeatureMoveOnly`.
+      if (result.inverse.is(InverseMarking::Kind::Explicit))
+        result.inverse =
+            result.inverse.with(InverseMarking::Kind::LegacyExplicit);
+
+      // Structs and enums infer an inverse based on its generic params.
+      if (isa<StructDecl, EnumDecl>(nominal))
+        result.inverse.setIfUnset(hasInferredInverseTarget(nominal));
+
       return result;
     }
   }

@@ -6,16 +6,16 @@
 // this test makes sure that decls containing a move-only type are guarded by the $MoveOnly feature flag
 
 // CHECK:       #if compiler(>=5.3) && $MoveOnly
-// CHECK-NEXT:    @_moveOnly public struct MoveOnlyStruct {
+// CHECK-NEXT:    public struct MoveOnlyStruct : ~Copyable {
 
 // CHECK:       #if compiler(>=5.3) && $MoveOnly
-// CHECK-NEXT:    @_moveOnly public struct MoveOnlyStructSupp {
+// CHECK-NEXT:    public struct MoveOnlyStructSupp : ~Copyable {
 
 // CHECK:      #if compiler(>=5.3) && $MoveOnly
-// CHECK-NEXT:   @_moveOnly public enum MoveOnlyEnum {
+// CHECK-NEXT:   public enum MoveOnlyEnum : ~Copyable {
 
 // CHECK:      #if compiler(>=5.3) && $MoveOnly
-// CHECK-NEXT:   @_moveOnly public enum MoveOnlyEnumSupp {
+// CHECK-NEXT:   public enum MoveOnlyEnumSupp : ~Copyable {
 
 // CHECK:      #if compiler(>=5.3) && $MoveOnly
 // CHECK-NEXT:   public func someFn() -> Library.MoveOnlyEnum

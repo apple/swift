@@ -164,11 +164,6 @@ public:
   // Note: This doesn't affect anything in non-SWIFT_BUILD_SWIFT_SYNTAX envs.
   bool IsForASTGen = false;
 
-  // A cached answer to
-  //     Context.LangOpts.hasFeature(Feature::NoncopyableGenerics)
-  // to ensure there's no parsing performance regression.
-  bool EnabledNoncopyableGenerics;
-
   /// Whether we should delay parsing nominal type, extension, and function
   /// bodies.
   bool isDelayedParsingEnabled() const;
@@ -1286,13 +1281,9 @@ public:
   ///
   /// \param allowClassRequirement whether to permit parsing of 'class'
   /// \param allowAnyObject whether to permit parsing of 'AnyObject'
-  /// \param parseTildeCopyable if non-null, permits parsing of `~Copyable`
-  ///   and writes out a valid source location if it was parsed. If null, then a
-  ///   parsing error will be emitted upon the appearance of `~` in the clause.
   ParserStatus parseInheritance(SmallVectorImpl<InheritedEntry> &Inherited,
                                 bool allowClassRequirement,
-                                bool allowAnyObject,
-                                SourceLoc *parseTildeCopyable = nullptr);
+                                bool allowAnyObject);
   ParserStatus parseDeclItem(bool &PreviousHadSemi,
                              llvm::function_ref<void(Decl *)> handler);
   std::pair<std::vector<Decl *>, llvm::Optional<Fingerprint>>

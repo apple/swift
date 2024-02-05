@@ -216,7 +216,7 @@ static bool checkInvertibleConformanceCommon(ProtocolConformance *conformance,
   //    So, if the nominal has `~Copyable` but this conformance is
   //    written in an extension, then we do not raise an error.
   auto marking = nom->getMarking(ip);
-  if (marking.getInverse().getKind() == InverseMarking::Kind::Explicit) {
+  if (marking.getInverse().isPresent()) {
     if (isa<ClassDecl>(nom)) {
       ctx.Diags.diagnose(marking.getInverse().getLoc(),
                          diag::inverse_on_class,

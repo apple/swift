@@ -215,11 +215,43 @@ static void checkInheritanceClause(
     if (inheritedTy->isConstraintType()) {
       auto layout = inheritedTy->getExistentialLayout();
 
-      // An inverse on an extension is an error.
-      if (isa<ExtensionDecl>(decl))
-        if (auto pct = inheritedTy->getAs<ProtocolCompositionType>())
-          if (!pct->getInverses().empty())
+
+      if (auto pct = inheritedTy->getAs<ProtocolCompositionType>()) {
+        auto inverses = pct->getInverses();
+        if (!inverses.empty()) {
+          // Without the language feature enabled, only permit inverses in this
+          // inheritance clause if it's for
+          // - a class with another feature enabled
+          // - a known protocol
+          // - an enum or struct
+          if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+            if (isa<ClassDecl>(decl)
+                && !ctx.LangOpts.hasFeature(Feature::MoveOnlyClasses)) {
+              decl->diagnose(diag::cannot_suppress_here);
+              continue;
+            } else if (auto proto = dyn_cast<ProtocolDecl>(decl)) {
+              if (!proto->getKnownProtocolKind()) {
+                decl->diagnose(diag::cannot_suppress_here);
+                continue;
+              }
+            } else if (!isa<EnumDecl, StructDecl>(decl)) {
+              decl->diagnose(diag::cannot_suppress_here);
+              continue;
+            }
+          }
+
+          // An inverse on an extension is an error.
+          if (isa<ExtensionDecl>(decl))
             decl->diagnose(diag::inverse_extension, inheritedTy);
+
+          // With ~Escapable appearing in an inheritance clause, only permit it
+          // if it's appearing on a known protocol's decl, like Copyable.
+          if (inverses.contains(InvertibleProtocolKind::Escapable) &&
+              (!isa<ProtocolDecl>(decl)
+                  || !cast<ProtocolDecl>(decl)->getKnownProtocolKind()))
+            decl->diagnose(diag::escapable_requires_feature_flag);
+        }
+      }
 
       // Subclass existentials are not allowed except on classes and
       // non-@objc protocols.
@@ -2017,7 +2049,7 @@ static void checkProtocolRefinementRequirements(ProtocolDecl *proto) {
   auto requiredProtos = proto->getGenericSignature()->getRequiredProtocols(
       proto->getSelfInterfaceType());
   const bool EnabledNoncopyableGenerics =
-      proto->getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics);
+      proto->getASTContext().LangOpts.AssumesNoncopyableGenerics;
 
   for (auto *otherProto : requiredProtos) {
     // Every protocol 'P' has an implied requirement 'Self : P'; skip it.
@@ -3210,7 +3242,7 @@ public:
   }
 
   static void diagnoseIncompatibleProtocolsForMoveOnlyType(Decl *decl) {
-    if (decl->getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics))
+    if (decl->getASTContext().LangOpts.AssumesNoncopyableGenerics)
       return; // taken care of elsewhere.
 
     if (auto *nomDecl = dyn_cast<NominalTypeDecl>(decl)) {
@@ -4067,7 +4099,7 @@ public:
       if (!nom || isa<ProtocolDecl>(nom)) {
         DD->diagnose(diag::destructor_decl_outside_class_or_noncopyable);
 
-      } else if (!Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)
+      } else if (!Ctx.LangOpts.AssumesNoncopyableGenerics
                   && !isa<ClassDecl>(nom)
                   && nom->canBeCopyable()) {
         // When we have NoncopyableGenerics, deinits get validated as part of

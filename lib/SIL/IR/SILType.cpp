@@ -1081,7 +1081,7 @@ bool SILType::isMoveOnly(bool orWrapped) const {
     return orWrapped;
 
   // Legacy check.
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.AssumesNoncopyableGenerics) {
     return getASTType()->isNoncopyable();
   }
 

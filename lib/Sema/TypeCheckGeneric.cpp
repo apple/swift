@@ -791,7 +791,7 @@ GenericSignatureRequest::evaluate(Evaluator &evaluator,
     // name of the generic parameter of BuiltinTupleDecl itself.
     if (extraReqs.empty() && !ext->getTrailingWhereClause() &&
         !isa<BuiltinTupleDecl>(extendedNominal) &&
-        !ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+        !ctx.LangOpts.AssumesNoncopyableGenerics) {
       // FIXME: Recover this optimization even with NoncopyableGenerics on.
       return parentSig;
     }

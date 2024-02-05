@@ -5966,7 +5966,7 @@ void TypeChecker::checkConformancesInContext(IterableDeclContext *idc) {
   // The conformance checker bundle that checks all conformances in the context.
   auto &Context = dc->getASTContext();
   const bool NoncopyableGenerics =
-      Context.LangOpts.hasFeature(Feature::NoncopyableGenerics);
+      Context.LangOpts.AssumesNoncopyableGenerics;
   MultiConformanceChecker groupChecker(Context);
 
   ProtocolConformance *SendableConformance = nullptr;

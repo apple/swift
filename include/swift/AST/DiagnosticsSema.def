@@ -7567,6 +7567,9 @@ ERROR(inverse_generic_but_also_conforms, none,
 ERROR(inverse_on_class, none,
       "classes cannot be '~%0'",
       (StringRef))
+ERROR(inverse_without_matching_stdlib, none,
+      "cannot use '~%0' here without a stdlib built with NoncopyableGenerics",
+      (StringRef))
 ERROR(inverse_with_class_constraint, none,
       "composition involving %select{class requirement %2|'AnyObject'}0 "
       "cannot contain '~%1'",

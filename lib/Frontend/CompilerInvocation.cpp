@@ -895,11 +895,6 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
 
   Opts.enableFeature(Feature::LayoutPrespecialization);
 
-  if (SWIFT_ENABLE_EXPERIMENTAL_NONCOPYABLE_GENERICS) {
-    Opts.enableFeature(Feature::NoncopyableGenerics);
-    Opts.EnableExperimentalAssociatedTypeInference = true;
-  }
-
   Opts.EnableAppExtensionLibraryRestrictions |= Args.hasArg(OPT_enable_app_extension_library);
   Opts.EnableAppExtensionRestrictions |= Args.hasArg(OPT_enable_app_extension);
   Opts.EnableAppExtensionRestrictions |= Opts.EnableAppExtensionLibraryRestrictions;
@@ -3277,7 +3272,7 @@ CompilerInvocation::loadFromSerializedAST(StringRef data) {
       serialization::validateSerializedAST(
         data,
         getSILOptions().EnableOSSAModules,
-        LangOpts.hasFeature(Feature::NoncopyableGenerics),
+        LangOpts.AssumesNoncopyableGenerics,
         LangOpts.SDKName,
         &extendedInfo);
 
@@ -3316,7 +3311,7 @@ CompilerInvocation::setUpInputForSILTool(
   auto result = serialization::validateSerializedAST(
       fileBufOrErr.get()->getBuffer(),
       getSILOptions().EnableOSSAModules,
-      LangOpts.hasFeature(Feature::NoncopyableGenerics),
+      LangOpts.AssumesNoncopyableGenerics,
       LangOpts.SDKName,
       &extendedInfo);
   bool hasSerializedAST = result.status == serialization::Status::Valid;

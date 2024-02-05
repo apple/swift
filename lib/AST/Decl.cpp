@@ -4955,7 +4955,7 @@ conformanceExists(TypeDecl const *decl, InvertibleProtocolKind ip) {
 }
 
 TypeDecl::CanBeInvertible::Result TypeDecl::canBeCopyable() const {
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.AssumesNoncopyableGenerics) {
     auto copyable = getMarking(InvertibleProtocolKind::Copyable);
     return !copyable.getInverse() || bool(copyable.getPositive())
          ? CanBeInvertible::Always
@@ -4966,7 +4966,7 @@ TypeDecl::CanBeInvertible::Result TypeDecl::canBeCopyable() const {
 }
 
 TypeDecl::CanBeInvertible::Result TypeDecl::canBeEscapable() const {
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.AssumesNoncopyableGenerics) {
     auto escapable = getMarking(InvertibleProtocolKind::Escapable);
     return !escapable.getInverse() || bool(escapable.getPositive())
          ? CanBeInvertible::Always

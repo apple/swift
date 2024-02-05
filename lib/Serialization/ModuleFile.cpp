@@ -420,7 +420,7 @@ ModuleFile::getModuleName(ASTContext &Ctx, StringRef modulePath,
   serialization::ValidationInfo loadInfo = ModuleFileSharedCore::load(
       "", "", std::move(newBuf), nullptr, nullptr,
       /*isFramework=*/isFramework, Ctx.SILOpts.EnableOSSAModules,
-      Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics),
+      Ctx.LangOpts.AssumesNoncopyableGenerics,
       Ctx.LangOpts.SDKName, Ctx.SearchPathOpts.DeserializedPathRecoverer,
       loadedModuleFile);
   Name = loadedModuleFile->Name.str();

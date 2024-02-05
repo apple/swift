@@ -6593,6 +6593,8 @@ Type ASTContext::getNamedSwiftType(ModuleDecl *module, StringRef name) {
 }
 
 bool ASTContext::supportsMoveOnlyTypes() const {
+  assert(!LangOpts.hasFeature(Feature::NoncopyableGenerics) ||
+          LangOpts.AssumesNoncopyableGenerics);
   // currently the only thing holding back whether the types can appear is this.
   return SILOpts.LexicalLifetimes != LexicalLifetimesOption::Off;
 }

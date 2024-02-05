@@ -69,7 +69,7 @@ ModuleDecl::lookupExistentialConformance(Type type, ProtocolDecl *protocol) {
     return ProtocolConformanceRef::forInvalid();
 
   if (protocol->isSpecificProtocol(KnownProtocolKind::Copyable)
-      && !ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+      && !ctx.LangOpts.AssumesNoncopyableGenerics) {
     // Prior to noncopyable generics, all existentials conform to Copyable.
         return ProtocolConformanceRef(
             ctx.getBuiltinConformance(type, protocol,
@@ -357,7 +357,7 @@ static ProtocolConformanceRef getBuiltinMetaTypeTypeConformance(
     Type type, const AnyMetatypeType *metatypeType, ProtocolDecl *protocol) {
   ASTContext &ctx = protocol->getASTContext();
 
-  if (!ctx.LangOpts.hasFeature(swift::Feature::NoncopyableGenerics) &&
+  if (!ctx.LangOpts.AssumesNoncopyableGenerics &&
       protocol->isSpecificProtocol(KnownProtocolKind::Copyable)) {
     // Only metatypes of Copyable types are Copyable.
     if (metatypeType->getInstanceType()->isNoncopyable()) {
@@ -468,7 +468,7 @@ LookupConformanceInModuleRequest::evaluate(
   if (auto archetype = type->getAs<ArchetypeType>()) {
 
     // Without noncopyable generics, all archetypes are Copyable
-    if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+    if (!ctx.LangOpts.AssumesNoncopyableGenerics)
       if (protocol->isSpecificProtocol(KnownProtocolKind::Copyable))
         return ProtocolConformanceRef(protocol);
 
@@ -614,7 +614,7 @@ LookupConformanceInModuleRequest::evaluate(
                || protocol->isSpecificProtocol(KnownProtocolKind::Escapable)) {
       const auto kp = protocol->getKnownProtocolKind().value();
 
-      if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)
+      if (!ctx.LangOpts.AssumesNoncopyableGenerics
           && kp == KnownProtocolKind::Copyable) {
         // Return an abstract conformance to maintain legacy compatability.
         // We only need to do this until we are properly dealing with or

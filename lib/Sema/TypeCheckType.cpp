@@ -1043,7 +1043,7 @@ static bool didDiagnoseMoveOnlyGenericArgs(ASTContext &ctx,
                                          ArrayRef<Type> genericArgs,
                                          const DeclContext *dc) {
 
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (ctx.LangOpts.AssumesNoncopyableGenerics)
     return false;
 
   bool didEmitDiag = false;
@@ -2499,7 +2499,7 @@ bool TypeResolver::diagnoseInvalidPlaceHolder(OpaqueReturnTypeRepr *repr) {
 bool TypeResolver::diagnoseMoveOnlyGeneric(TypeRepr *repr,
                                            Type unboundTy,
                                            Type genericArgTy) {
-  if (getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (getASTContext().LangOpts.AssumesNoncopyableGenerics)
     return false;
 
   if (genericArgTy->isNoncopyable()) {
@@ -5592,13 +5592,24 @@ NeverNullType TypeResolver::resolveInverseType(InverseTypeRepr *repr,
 
   if (auto kp = ty->getKnownProtocol()) {
     if (auto kind = getInvertibleProtocolKind(*kp)) {
+      auto &ctx = getASTContext();
 
-      // Gate the '~Escapable' type behind a specific flag for now.
+      // Without the feature flag, we only permit an inverse in an inheritance
+      // clause of a nominal type.
+      if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics) &&
+          !options.hasBase(TypeResolverContext::Inherited)) {
+        diagnoseInvalid(repr, repr->getLoc(), diag::cannot_suppress_here);
+        return ErrorType::get(ctx);
+      }
+
+      // Emit an error here if ~Escapable is appearing outside of an inheritance
+      // clause without the feature enabled.
       if (*kind == InvertibleProtocolKind::Escapable &&
-          !getASTContext().LangOpts.hasFeature(Feature::NonescapableTypes)) {
+          !options.hasBase(TypeResolverContext::Inherited) &&
+          !ctx.LangOpts.hasFeature(Feature::NonescapableTypes)) {
         diagnoseInvalid(repr, repr->getLoc(),
                         diag::escapable_requires_feature_flag);
-        return ErrorType::get(getASTContext());
+        return ErrorType::get(ctx);
       }
 
       return ProtocolCompositionType::getInverseOf(getASTContext(), *kind);

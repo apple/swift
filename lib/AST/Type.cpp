@@ -201,7 +201,7 @@ bool TypeBase::isNoncopyable() {
   auto &ctx = canType->getASTContext();
 
   // for legacy-mode queries that are not dependent on conformances to Copyable
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (!ctx.LangOpts.AssumesNoncopyableGenerics)
     return alwaysNoncopyable(canType);
 
   assert(!hasTypeParameter()
@@ -215,7 +215,7 @@ bool TypeBase::isEscapable() {
   auto &ctx = canType->getASTContext();
 
   // for legacy-mode queries that are not dependent on conformances to Escapable
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!ctx.LangOpts.AssumesNoncopyableGenerics) {
     if (auto nom = canType.getAnyNominal())
       return nom->canBeEscapable();
     else
@@ -365,7 +365,7 @@ static void expandDefaultProtocols(
     SmallVectorImpl<ProtocolDecl*> &protocols) {
 
   // Skip unless noncopyable generics is enabled
-  if (!ctx.LangOpts.hasFeature(swift::Feature::NoncopyableGenerics))
+  if (!ctx.LangOpts.AssumesNoncopyableGenerics)
     return;
 
   // Try to add all invertible protocols, unless:

@@ -359,12 +359,10 @@ int main(int argc, char **argv) {
   Invocation.getLangOptions().EnableMemoryBufferImporter = true;
   Invocation.getSILOptions().EnableOSSAModules = EnableOSSAModules;
 
-  if (EnableNoncopyableGenerics)
-    Invocation.getLangOptions()
-      .enableFeature(swift::Feature::NoncopyableGenerics);
-  else
-    Invocation.getLangOptions()
-      .disableFeature(swift::Feature::NoncopyableGenerics);
+  Invocation.getLangOptions()
+    .AssumesNoncopyableGenerics = EnableNoncopyableGenerics;
+  Invocation.getLangOptions()
+      .EnableExperimentalAssociatedTypeInference |= EnableNoncopyableGenerics;
 
   if (!ResourceDir.empty()) {
     Invocation.setRuntimeResourcePath(ResourceDir);

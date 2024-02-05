@@ -6395,7 +6395,7 @@ bool NotCopyableFailure::diagnoseAsError() {
   emitDiagnostic(diag::noncopyable_generics, noncopyableTy);
 
 #ifndef NDEBUG
-  if (getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (getASTContext().LangOpts.AssumesNoncopyableGenerics) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     getLocator()->dump(&getConstraintSystem());

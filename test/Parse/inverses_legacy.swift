@@ -1,29 +1,21 @@
 // RUN: %target-typecheck-verify-swift
 
-protocol Sando { func make() } // expected-note 2{{protocol requires function 'make()'}}
+protocol Sando { func make() } // expected-note {{protocol requires function 'make()'}}
 
-struct BuggerView: ~Escapable {} // expected-error {{can only suppress 'Copyable'}}
+struct BuggerView: ~Escapable {} // expected-error {{type '~Escapable' requires -enable-experimental-feature NonescapableTypes}}
 
-struct S: ~U, // expected-error {{can only suppress 'Copyable'}}
-              // expected-error@-1 {{inheritance from non-protocol type 'U'}}
+struct S: ~U, // expected-error {{type 'U' is not invertible}}
           ~Copyable {}
 
 struct U: // expected-error {{noncopyable struct 'U' cannot conform to 'Sando'}}
           // expected-error@-1 {{type 'U' does not conform to protocol 'Sando'}}
           ~Copyable,
           Sando,
-          ~Copyable // expected-error {{duplicate suppression of 'Copyable'}}
+          ~Copyable
           {}
 
-
-// The expected behavior for '~' in the inheritance clause of a decl not supporting
-// suppression is to emit an error and then to treat it as if it's inheriting from
-// the type, rather than suppressing. That is, it treats it like the '~' wasn't there
-// after emitting an error.
-
-class C: // expected-error {{type 'C' does not conform to protocol 'Sando'}}
-         ~Copyable, // expected-error {{cannot suppress conformances here}}
-         ~Sando // expected-error {{cannot suppress conformances here}}
+class C: ~Copyable, // expected-error {{cannot suppress conformances here}}
+         ~Sando // expected-error {{type 'Sando' is not invertible}}
          {}
 
 protocol Rope<Element>: ~Copyable { // expected-error {{cannot suppress conformances here}}
@@ -32,13 +24,11 @@ protocol Rope<Element>: ~Copyable { // expected-error {{cannot suppress conforma
 }
 
 extension S: ~Copyable {} // expected-error {{cannot suppress conformances here}}
-                          // expected-error@-1 {{noncopyable struct 'S' cannot conform to 'Copyable'}}
+                          // expected-error@-1 {{noncopyable struct 'S' cannot conform to '~Copyable'}}
 
 func takeNoncopyableGeneric<T: ~Copyable>(_ t: T) {} // expected-error {{cannot suppress conformances here}}
 
-@_moveOnly struct ExtraNonCopyable:         // expected-error {{duplicate attribute}}{{1-12=}}
-                                  ~Copyable // expected-note {{attribute already specified here}}
-                                  {}
+@_moveOnly struct ExtraNonCopyable: ~Copyable {}
 
 // basic tests to ensure it's viewed as a noncopyable struct, by using 
 // capabilities only available to them
@@ -61,12 +51,12 @@ public enum MoveOnlyE2<T: Equatable> : ~Copyable {
 func more() {
   let _: any ~Copyable = 19  // expected-error@:14 {{cannot suppress conformances here}}
 
-  let _: any ~Equatable = 19  // expected-error@:14 {{cannot suppress conformances here}}
+  let _: any ~Equatable = 19  // expected-error@:14 {{type 'Equatable' is not invertible}}
 }
 
 func blah<T>(_ t: T) where T: ~Copyable,    // expected-error@:31 {{cannot suppress conformances here}}
 
-                           T: ~Hashable {}  // expected-error@:31 {{cannot suppress conformances here}}
+                           T: ~Hashable {}  // expected-error@:31 {{type 'Hashable' is not invertible}}
 
 func foo<T: ~Copyable>(x: T) {} // expected-error {{cannot suppress conformances here}}
 

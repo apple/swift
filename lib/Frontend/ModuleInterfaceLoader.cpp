@@ -1644,7 +1644,7 @@ void InterfaceSubContextDelegateImpl::inheritOptionsForBuildingInterface(
 
   if (bool(requireNCGenerics)) {
     genericSubInvocation.getLangOptions()
-                        .enableFeature(Feature::NoncopyableGenerics);
+                        .AssumesNoncopyableGenerics = true;
     genericSubInvocation.getLangOptions()
       .EnableExperimentalAssociatedTypeInference = true;
   }
@@ -2300,7 +2300,7 @@ bool ExplicitSwiftModuleLoader::canImportModule(
   auto metaData = serialization::validateSerializedAST(
       (*moduleBuf)->getBuffer(),
       Ctx.SILOpts.EnableOSSAModules,
-      Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics),
+      Ctx.LangOpts.AssumesNoncopyableGenerics,
       Ctx.LangOpts.SDKName);
   versionInfo->setVersion(metaData.userModuleVersion,
                           ModuleVersionSourceKind::SwiftBinaryModule);
@@ -2639,7 +2639,7 @@ bool ExplicitCASModuleLoader::canImportModule(
   }
   auto metaData = serialization::validateSerializedAST(
       (*moduleBuf)->getBuffer(), Ctx.SILOpts.EnableOSSAModules,
-      Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics),
+      Ctx.LangOpts.AssumesNoncopyableGenerics,
       Ctx.LangOpts.SDKName);
   versionInfo->setVersion(metaData.userModuleVersion,
                           ModuleVersionSourceKind::SwiftBinaryModule);

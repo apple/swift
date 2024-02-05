@@ -559,6 +559,13 @@ namespace swift {
     /// Enable implicit lifetime dependence for ~Escapable return types.
     bool EnableExperimentalLifetimeDependenceInference = false;
 
+    /// Whether this compiler makes the assumption NoncopyableGenerics exist.
+    /// This influences whether other modules need to be rebuilt from their
+    /// interface and whether generic parameters automatically get Copyable
+    /// conformances, etc.
+    bool AssumesNoncopyableGenerics =
+        SWIFT_ENABLE_EXPERIMENTAL_NONCOPYABLE_GENERICS;
+
     /// Enables dumping type witness systems from associated type inference.
     bool DumpTypeWitnessSystems = false;
 

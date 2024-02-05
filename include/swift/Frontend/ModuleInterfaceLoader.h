@@ -495,7 +495,7 @@ public:
   RequireNoncopyableGenerics_t(const ASTContext &ctx)
     : RequireNoncopyableGenerics_t(ctx.LangOpts) {}
   RequireNoncopyableGenerics_t(const LangOptions &opts)
-      : value(opts.hasFeature(Feature::NoncopyableGenerics)) {}
+      : value(opts.AssumesNoncopyableGenerics) {}
 
   explicit operator bool() const { return value; }
 };

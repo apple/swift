@@ -1,8 +1,8 @@
 // RUN: %target-swift-emit-silgen -enable-experimental-feature RawLayout %s | %FileCheck %s
 
-// CHECK: @_rawLayout(size: 4, alignment: 4) @_moveOnly struct Lock
-// CHECK: @_rawLayout(like: T) @_moveOnly struct Cell<T>
-// CHECK: @_rawLayout(likeArrayOf: T, count: 8) @_moveOnly struct SmallVectorBuf<T>
+// CHECK: @_rawLayout(size: 4, alignment: 4) struct Lock : ~Copyable
+// CHECK: @_rawLayout(like: T) struct Cell<T> : ~Copyable
+// CHECK: @_rawLayout(likeArrayOf: T, count: 8) struct SmallVectorBuf<T> : ~Copyable
 
 @_rawLayout(size: 4, alignment: 4)
 struct Lock: ~Copyable {

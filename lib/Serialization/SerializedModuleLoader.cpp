@@ -1024,7 +1024,7 @@ bool SerializedModuleLoaderBase::isRequiredOSSAModules() const {
 }
 
 bool SerializedModuleLoaderBase::isRequiredNoncopyableGenerics() const {
-  return Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics);
+  return Ctx.LangOpts.AssumesNoncopyableGenerics;
 }
 
 void swift::serialization::diagnoseSerializedASTLoadFailure(
@@ -1405,7 +1405,7 @@ bool SerializedModuleLoaderBase::canImportModule(
     auto metaData = serialization::validateSerializedAST(
         moduleInputBuffer->getBuffer(),
         Ctx.SILOpts.EnableOSSAModules,
-        Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics),
+        Ctx.LangOpts.AssumesNoncopyableGenerics,
         Ctx.LangOpts.SDKName);
     versionInfo->setVersion(metaData.userModuleVersion,
                             ModuleVersionSourceKind::SwiftBinaryModule);

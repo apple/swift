@@ -1077,7 +1077,7 @@ void NominalTypeDecl::prepareConformanceTable() const {
 
   SmallPtrSet<ProtocolDecl *, 2> protocols;
   const bool haveNoncopyableGenerics =
-      ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics);
+      ctx.LangOpts.AssumesNoncopyableGenerics;
 
   auto addSynthesized = [&](ProtocolDecl *proto) {
     if (!proto)
@@ -1281,8 +1281,7 @@ static SmallVector<ProtocolConformance *, 2> findSynthesizedConformances(
 
     // Triggers synthesis of a possibly conditional conformance.
     // For the unconditional ones, see NominalTypeDecl::prepareConformanceTable
-    if (nominal->getASTContext().LangOpts.hasFeature(
-            Feature::NoncopyableGenerics)) {
+    if (nominal->getASTContext().LangOpts.AssumesNoncopyableGenerics) {
       for (auto ip : InvertibleProtocolSet::full())
         trySynthesize(getKnownProtocolKind(ip));
     }
