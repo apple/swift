@@ -4270,6 +4270,8 @@ ERROR(no_MaxBuiltinFloatType_found,none,
 ERROR(no_member_of_module,none,
       "module %0 has no member named %1", (Identifier, DeclNameRef))
 
+// 'super'.
+
 ERROR(super_no_superclass,none,
       "'super' cannot be used in %select{|extension of }0class %1 because it "
       "has no superclass",
@@ -4280,6 +4282,12 @@ ERROR(super_invalid_context,none,
 ERROR(super_in_nonclass_type,none,
       "'super' cannot be used in non-class type %0",
       (const NominalTypeDecl *))
+
+ERROR(super_in_closure_with_capture,none,
+      "using 'super' in a closure where 'self' is explicitly captured is "
+      "not yet supported", ())
+NOTE(super_in_closure_with_capture_here,none,
+     "'self' explicitly captured here", ())
 
 ERROR(unqualified_init,none,
       "initializer expression requires explicit access"
