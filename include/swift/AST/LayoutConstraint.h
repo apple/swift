@@ -141,7 +141,7 @@ class LayoutConstraintInfo
   }
 
   unsigned getAlignmentInBytes() const {
-    assert(isKnownSizeTrivial());
+    assert(isKnownSizeTrivial() || isTrivialStride());
     if (Alignment)
       return Alignment;
 

@@ -528,12 +528,27 @@ GenericSignature GenericSignature::typeErased(ArrayRef<Type> typeErasedParams) c
             Requirement(RequirementKind::SameType, req.getFirstType(),
                         CanType(BuiltinIntegerType::get(bitWidth, C))));
       } else if (layout->isTrivialStride()) {
-        requirementsErased.push_back(
-            Requirement(RequirementKind::SameType, req.getFirstType(),
-                        CanType(BuiltinVectorType::get(
-                            Ptr->getASTContext(),
-                            BuiltinIntegerType::get(8, Ptr->getASTContext()),
-                            layout->getTrivialStride()))));
+        CanType erasedType;
+
+        auto layoutStride = layout->getTrivialStride();
+        auto layoutAlign = (layout->getAlignmentInBits() + 7) / 8;
+        if (layoutStride == layoutAlign &&
+            llvm::isPowerOf2_32(layout->getTrivialStrideInBits())) {
+          erasedType = CanType(BuiltinIntegerType::get(
+              layout->getAlignmentInBits(), Ptr->getASTContext()));
+        } else {
+          unsigned numElements = layoutStride / layoutAlign;
+          SmallVector<TupleTypeElt, 4> elementTypes;
+          for (unsigned i = 0; i < numElements; i++) {
+            elementTypes.push_back(TupleTypeElt(BuiltinIntegerType::get(
+                layout->getAlignmentInBits(), Ptr->getASTContext())));
+          }
+
+          erasedType =
+              CanType(TupleType::get(elementTypes, Ptr->getASTContext()));
+        }
+        requirementsErased.push_back(Requirement(
+            RequirementKind::SameType, req.getFirstType(), erasedType));
       } else {
         requirementsErased.push_back(req);
       }

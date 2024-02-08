@@ -18,10 +18,6 @@
 
 import pre_specialized_module_layouts
 
-// Helper to prevent return values from getting optimized away
-@inline(never)
-public func consume<T>(_ x: T) {}
-
 public struct ReferenceWrapperStruct {
   let x: AnyObject
 }
@@ -86,30 +82,34 @@ internal func testEmitIntoClient<T>(t: T) {
 
 // OPT: sil @$s22pre_specialize_layouts28usePrespecializedEntryPoints13wrapperStruct11overaligned5array8stride96yAA016ReferenceWrapperI0V_AA011OveralignedmnI0VSaySiGAA8Stride96VtF : $@convention(thin) (@guaranteed ReferenceWrapperStruct, @guaranteed OveralignedReferenceWrapperStruct, @guaranteed Array<Int>, Stride96) -> () {
 // OPT: bb0([[P1:%.*]] : $ReferenceWrapperStruct, [[P2:%.*]] : $OveralignedReferenceWrapperStruct, [[P3:%.*]] : $Array<Int>, [[P4:%.*]] : $Stride96):
-// OPT:   [[F1:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFSi_Ts5 : $@convention(thin) (Int) -> ()
+// OPT:   [[F1:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFSi_Ts5 : $@convention(thin) (Int) -> Int
 // OPT:   apply [[F1]]
-// OPT:   [[F2:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFSd_Ts5 : $@convention(thin) (Double) -> ()
+// OPT:   [[F2:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFSd_Ts5 : $@convention(thin) (Double) -> Double
 // OPT:   apply [[F2]]
-// OPT:   [[F9:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFBi64__Ts5 : $@convention(thin) (Builtin.Int64) -> ()
+// OPT:   [[F9:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFBi64__Ts5 : $@convention(thin) (Builtin.Int64) -> Builtin.Int64
 // OPT:   [[A5:%.*]] = unchecked_trivial_bit_cast {{%.*}} : $UInt64 to $Builtin.Int64
-// OPT:   apply [[F9]]([[A5]]) : $@convention(thin) (Builtin.Int64) -> ()
+// OPT:   apply [[F9]]([[A5]]) : $@convention(thin) (Builtin.Int64) -> Builtin.Int64
 // OPT:   [[A6:%.*]] = unchecked_trivial_bit_cast {{%.*}} : $TwoInt32 to $Builtin.Int64
-// OPT:   apply [[F9]]([[A6]]) : $@convention(thin) (Builtin.Int64) -> ()
-// OPT-macosx:   [[F6:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlF : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> ()
+// OPT:   apply [[F9]]([[A6]]) : $@convention(thin) (Builtin.Int64) -> Builtin.Int64
+// OPT-macosx:   [[F6:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlF : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> @out τ_0_0
 // OPT-macosx:    apply [[F6]]<SomeData>
-// OPT: [[F7:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFyXl_Ts5 : $@convention(thin) (@guaranteed AnyObject) -> ()
+// OPT: [[F7:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFyXl_Ts5 : $@convention(thin) (@guaranteed AnyObject) -> @owned AnyObject
 // OPT: [[A1:%.*]] = unchecked_ref_cast {{%.*}} : $SomeClass to $AnyObject
-// OPT: apply [[F7]]([[A1]]) : $@convention(thin) (@guaranteed AnyObject) -> ()
+// OPT: apply [[F7]]([[A1]]) : $@convention(thin) (@guaranteed AnyObject) -> @owned AnyObject
 // OPT: [[A2:%.*]] = unchecked_bitwise_cast [[P1]] : $ReferenceWrapperStruct to $AnyObject
-// OPT: apply [[F7]]([[A2]]) : $@convention(thin) (@guaranteed AnyObject) -> ()
-// OPT: [[A3:%.*]] = alloc_stack $OveralignedReferenceWrapperStruct
-// OPT: apply {{%.*}}<OveralignedReferenceWrapperStruct>([[A3]])
-// OPT-macosx: [[F8:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFBb_Ts5 : $@convention(thin) (@guaranteed Builtin.BridgeObject) -> ()
+// OPT: apply [[F7]]([[A2]]) : $@convention(thin) (@guaranteed AnyObject) -> @owned AnyObject
+// OPT: alloc_stack $OveralignedReferenceWrapperStruct
+// OPT: apply {{%.*}}<OveralignedReferenceWrapperStruct>
+// OPT-macosx: [[F8:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFBb_Ts5 : $@convention(thin) (@guaranteed Builtin.BridgeObject) -> @owned Builtin.BridgeObject
 // OPT-macosx: [[A4:%.*]] = unchecked_bitwise_cast [[P3]] : $Array<Int> to $Builtin.BridgeObject
-// OPT-macosx: apply [[F8]]([[A4]]) : $@convention(thin) (@guaranteed Builtin.BridgeObject) -> ()
-// OPT:   [[F10:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFBi8_Bv12__Ts5 : $@convention(thin) (Builtin.Vec12xInt8) -> ()
-// OPT:   [[A6:%.*]] = unchecked_trivial_bit_cast [[P4]] : $Stride96 to $Builtin.Vec12xInt8
-// OPT:   apply [[F10]]([[A6]]) : $@convention(thin) (Builtin.Vec12xInt8) -> ()
+// OPT-macosx: apply [[F8]]([[A4]]) : $@convention(thin) (@guaranteed Builtin.BridgeObject) -> @owned Builtin.BridgeObject
+// OPT:   [[F10:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFBi32__Bi32_Bi32_t_Ts5 : $@convention(thin) ((Builtin.Int32, Builtin.Int32, Builtin.Int32)) -> (Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[A6:%.*]] = alloc_stack $(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[A7:%.*]] = unchecked_addr_cast [[A6]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32) to $*Stride96
+// OPT:   store [[P4]] to [[A7]] : $*Stride96
+// OPT:   [[A8:%.*]] = load [[A6]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   apply [[F10]]([[A8]]) : $@convention(thin) ((Builtin.Int32, Builtin.Int32, Builtin.Int32)) -> (Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   dealloc_stack [[A6]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
 // OPT:   [[F3:%.*]] = function_ref @$s30pre_specialized_module_layouts36internalEmitIntoClientPrespecializedyyxlFSi_Ts5 : $@convention(thin) (Int) -> ()
 // OPT:   apply [[F3]]
 // OPT:   [[F4:%.*]] = function_ref @$s30pre_specialized_module_layouts36internalEmitIntoClientPrespecializedyyxlFSd_Ts5 : $@convention(thin) (Double) -> ()
@@ -162,21 +162,21 @@ internal func testEmitIntoClient<T>(t: T) {
 // OPT: } // end sil function '$s30pre_specialized_module_layouts16useInternalThingyyxlFAA9SomeClassC_Tg5'
 
 public func usePrespecializedEntryPoints(wrapperStruct: ReferenceWrapperStruct, overaligned: OveralignedReferenceWrapperStruct, array: [Int], stride96: Stride96) {
-  publicPrespecialized(1)
-  publicPrespecialized(1.0)
-  publicPrespecialized(UInt64(1))
-  publicPrespecialized(TwoInt32())
-  publicPrespecialized(SomeData())
-  publicPrespecialized(SomeClass())
-  publicPrespecialized(wrapperStruct)
+  consume(publicPrespecialized(1))
+  consume(publicPrespecialized(1.0))
+  consume(publicPrespecialized(UInt64(1)))
+  consume(publicPrespecialized(TwoInt32()))
+  consume(publicPrespecialized(SomeData()))
+  consume(publicPrespecialized(SomeClass()))
+  consume(publicPrespecialized(wrapperStruct))
   // should not apply _Class specialization for overaligned struct
-  publicPrespecialized(overaligned)
-  publicPrespecialized(array)
-  publicPrespecialized(stride96)
-  useInternalEmitIntoClientPrespecialized(2)
-  useInternalEmitIntoClientPrespecialized(2.0)
-  useInternalThing(2)
-  useInternalThing(SomeClass())
+  consume(publicPrespecialized(overaligned))
+  consume(publicPrespecialized(array))
+  consume(publicPrespecialized(stride96))
+  consume(useInternalEmitIntoClientPrespecialized(2))
+  consume(useInternalEmitIntoClientPrespecialized(2.0))
+  consume(useInternalThing(2))
+  consume(useInternalThing(SomeClass()))
 }
 
 // OPT: sil @$s22pre_specialize_layouts46usePrespecializedEntryPointsWithMarkerProtocol1ty0a20_specialized_module_C09SomeClassC_tF : $@convention(thin) (@guaranteed SomeClass) -> () {
@@ -188,10 +188,10 @@ public func usePrespecializedEntryPoints(wrapperStruct: ReferenceWrapperStruct, 
 // OPT:   [[R3:%.*]] = apply [[F1]]([[A1]]) : $@convention(thin) (@guaranteed AnyObject) -> @owned AnyObject
 // OPT:   store [[R3]] to [[R2]] : $*AnyObject
 // OPT:   [[A2:%.*]] = load [[R1]] : $*SomeClass
-// OPT:   [[F2:%.*]] = function_ref @$s22pre_specialize_layouts7consumeyyxlF0a20_specialized_module_C09SomeClassC_Tg5 : $@convention(thin) (@guaranteed SomeClass) -> ()
-// OPT:   apply [[F2]]([[A2]]) : $@convention(thin) (@guaranteed SomeClass) -> ()
-// OPT:   strong_release [[A2]] : $SomeClass
-// OPT:   dealloc_stack [[R1]] : $*SomeClass
+// OPT:   [[A3:%.*]] = alloc_stack $SomeClass
+// OPT:   store [[A2]] to [[A3]] : $*SomeClass
+// OPT:   [[F2:%.*]] = function_ref @$s30pre_specialized_module_layouts7consumeyyxlF : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> ()
+// OPT:   apply [[F2]]<SomeClass>([[A3]]) : $@convention(thin) <τ_0_0> (@in_guaranteed τ_0_0) -> ()
 // OPT: } // end sil function '$s22pre_specialize_layouts46usePrespecializedEntryPointsWithMarkerProtocol1ty0a20_specialized_module_C09SomeClassC_tF'
 public func usePrespecializedEntryPointsWithMarkerProtocol(t: SomeClass) {
   consume(publicPrespecializedWithMarkerProtocol(t))
@@ -240,6 +240,33 @@ public func usePresepcializedMultipleIndirectResults(_ c: SomeClass, _ d: SomeOt
   consume(publicPresepcializedMultipleIndirectResults(xs, ys, x))
 }
 
+// OPT: sil @$s22pre_specialize_layouts48usePresepcializedMultipleIndirectResultsStride96__1zyAA0I0V_AEs5Int64VtF : $@convention(thin) (Stride96, Stride96, Int64) -> () {
+// OPT: bb0([[P1:%.*]] : $Stride96, [[P2:%.*]] : $Stride96, [[P3:%.*]] : $Int64):
+// OPT:   [[F1:%.*]] = function_ref @$s30pre_specialized_module_layouts43publicPresepcializedMultipleIndirectResultsyq__s5Int64Vxtx_q_ADtr0_lFBi32__Bi32_Bi32_t_Bi32__Bi32_Bi32_tTs5 : $@convention(thin) ((Builtin.Int32, Builtin.Int32, Builtin.Int32), (Builtin.Int32, Builtin.Int32, Builtin.Int32), Int64) -> (@out (Builtin.Int32, Builtin.Int32, Builtin.Int32), Int64, @out (Builtin.Int32, Builtin.Int32, Builtin.Int32))
+// OPT:   [[R1:%.*]] = alloc_stack $(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[R2:%.*]] = unchecked_addr_cast [[R1]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32) to $*Stride96
+// OPT:   [[R3:%.*]] = alloc_stack $(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[R4:%.*]] = unchecked_addr_cast [[R3]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32) to $*Stride96
+// OPT:   [[A1:%.*]] = alloc_stack $(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[A2:%.*]] = unchecked_addr_cast [[A1]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32) to $*Stride96
+// OPT:   store [[P1]] to [[A2]] : $*Stride96
+// OPT:   [[A3:%.*]] = load [[A1]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[A4:%.*]] = alloc_stack $(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[A5:%.*]] = unchecked_addr_cast [[A4]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32) to $*Stride96
+// OPT:   store [[P2]] to [[A5]] : $*Stride96
+// OPT:   [[A6:%.*]] = load [[A4]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   [[R5:%.*]] = apply [[F1]]([[R1]], [[R3]], [[A3]], [[A6]], [[P3]]) : $@convention(thin) ((Builtin.Int32, Builtin.Int32, Builtin.Int32), (Builtin.Int32, Builtin.Int32, Builtin.Int32), Int64) -> (@out (Builtin.Int32, Builtin.Int32, Builtin.Int32), Int64, @out (Builtin.Int32, Builtin.Int32, Builtin.Int32))
+// OPT:   [[R6:%.*]] = load [[R2]] : $*Stride96
+// OPT:   [[R7:%.*]] = load [[R4]] : $*Stride96
+// OPT:   dealloc_stack [[A4]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   dealloc_stack [[A1]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   dealloc_stack [[R3]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT:   dealloc_stack [[R1]] : $*(Builtin.Int32, Builtin.Int32, Builtin.Int32)
+// OPT: } // end sil function '$s22pre_specialize_layouts48usePresepcializedMultipleIndirectResultsStride96__1zyAA0I0V_AEs5Int64VtF'
+public func usePresepcializedMultipleIndirectResultsStride96(_ x: Stride96, _ y: Stride96, z: Int64) {
+  consume(publicPresepcializedMultipleIndirectResults(x, y, z))
+}
+
 // OPT: sil @$s22pre_specialize_layouts58usePresepcializedMultipleIndirectResultsWithMarkerProtocolyy0a20_specialized_module_C09SomeClassC_AA0n5OtherO0Cs5Int64VtF : $@convention(thin) (@guaranteed SomeClass, @guaranteed SomeOtherClass, Int64) -> () {
 // OPT: {{bb.*}}([[P1:%.*]] : $SomeClass, [[P2:%.*]] : $SomeOtherClass, [[P3:%.*]] : $Int64):
 // OPT:   [[R1:%.*]] = alloc_stack $SomeOtherClass
@@ -280,20 +307,20 @@ public func usePartialApply(y: SomeClass) -> (SomeClass) -> SomeClass {
 // OPT: } // end sil function '$s22pre_specialize_layouts48useLayoutPrespecializedEntryPointWithExistentialyyAA21SomeReferenceProtocol_pF'
 public protocol SomeReferenceProtocol: AnyObject {}
 public func useLayoutPrespecializedEntryPointWithExistential(_ p: any SomeReferenceProtocol) {
-  publicPrespecialized(p)
+  _ = publicPrespecialized(p)
 }
 
 // OPT-macosx: sil [available 10.50] @$s22pre_specialize_layouts40usePrespecializedEntryPointsAvailabilityyyF : $@convention(thin) () -> () {
-// OPT-macosx:  [[F1:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFAA8SomeDataV_Ts5 : $@convention(thin) (SomeData) -> ()
+// OPT-macosx:  [[F1:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFAA8SomeDataV_Ts5 : $@convention(thin) (SomeData) -> SomeData
 // OPT-macosx:  apply [[F1]](
-// OPT-macosx:  [[F2:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyyxlFyXl_Ts5 : $@convention(thin) (@guaranteed AnyObject) -> ()
+// OPT-macosx:  [[F2:%.*]] = function_ref @$s30pre_specialized_module_layouts20publicPrespecializedyxxlFyXl_Ts5 : $@convention(thin) (@guaranteed AnyObject) -> @owned AnyObject
 // OPT-macosx:  [[A1:%.*]] = unchecked_ref_cast {{%.*}} : $SomeClass to $AnyObject
-// OPT-macosx:  apply [[F2]]([[A1]]) : $@convention(thin) (@guaranteed AnyObject) -> ()
+// OPT-macosx:  apply [[F2]]([[A1]]) : $@convention(thin) (@guaranteed AnyObject) -> @owned AnyObject
 // OPT-macosx: } // end sil function '$s22pre_specialize_layouts40usePrespecializedEntryPointsAvailabilityyyF'
 @available(macOS 10.50, *)
 public func usePrespecializedEntryPointsAvailability() {
-  publicPrespecialized(SomeData())
-  publicPrespecialized(SomeClass())
+  _ = publicPrespecialized(SomeData())
+  _ = publicPrespecialized(SomeClass())
 }
 // OPT: sil @$s30pre_specialized_module_layouts16publicInlineableyyxlFSd_Ts5 : $@convention(thin) (Double) -> () {
 // NONE: sil @$s30pre_specialized_module_layouts16publicInlineableyyxlFSd_Ts5 : $@convention(thin) (Double) -> () {

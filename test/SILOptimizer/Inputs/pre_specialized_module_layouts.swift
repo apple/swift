@@ -7,14 +7,21 @@ public final class SomeClass: Sendable {
   public init() {}
 }
 
+// Helper to prevent return values from getting optimized away
+@inline(never)
+public func consume<T>(_ x: T) {
+  withExtendedLifetime(x) {}
+}
+
 @_specialize(exported: true, where T == Int)
 @_specialize(exported: true, where T == Double)
 @_specialize(exported: true, where @_noMetadata T : _Class)
 @_specialize(exported: true, where @_noMetadata T : _BridgeObject)
 @_specialize(exported: true, where @_noMetadata T : _Trivial(64))
-@_specialize(exported: true, where @_noMetadata T : _TrivialStride(96))
+@_specialize(exported: true, where @_noMetadata T : _TrivialStride(96, 32))
 @_specialize(exported: true, availability: macOS 10.50, *; where T == SomeData)
-public func publicPrespecialized<T>(_ t: T) {
+public func publicPrespecialized<T>(_ t: T) -> T {
+  return t
 }
 
 @_specialize(exported: true, where @_noMetadata T : _Class)
@@ -140,6 +147,7 @@ public func useInternalThing<T>(_ t: T) {
 
 @_specialize(exported: true, where @_noMetadata T : _Class, @_noMetadata V : _Class)
 @_specialize(exported: true, where @_noMetadata T : _BridgeObject, @_noMetadata V : _BridgeObject)
+@_specialize(exported: true, where @_noMetadata T : _TrivialStride(96, 32), @_noMetadata V : _TrivialStride(96, 32))
 public func publicPresepcializedMultipleIndirectResults<T, V>(_ t: T, _ v: V, _ x: Int64) -> (V, Int64, T) {
     return (v, x, t)
 }

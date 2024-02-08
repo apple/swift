@@ -1496,6 +1496,7 @@ void Serializer::serializeGenericRequirements(
         alignment = layout->getAlignmentInBits();
       } else if (layout->isTrivialStride()) {
         size = layout->getTrivialStrideInBits();
+        alignment = layout->getAlignmentInBits();
       }
       LayoutRequirementKind rawKind = LayoutRequirementKind::UnknownLayout;
       switch (layout->getKind()) {

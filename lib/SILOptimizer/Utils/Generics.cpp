@@ -2109,6 +2109,10 @@ static void fixUsedVoidType(SILValue VoidVal, SILLocation Loc,
 
 static SILValue fixSpecializedReturnType(SILValue returnVal, SILType returnType,
                                          SILLocation Loc, SILBuilder &Builder) {
+  if (returnType == returnVal->getType()) {
+    return returnVal;
+  }
+
   SILValue newReturnVal;
   if (returnType.isAddress()) {
     newReturnVal = Builder.createUncheckedAddrCast(Loc, returnVal, returnType);
@@ -2141,8 +2145,9 @@ prepareCallArguments(ApplySite AI, SILBuilder &Builder,
                      const TypeReplacements &typeReplacements,
                      SmallVectorImpl<SILValue> &Arguments,
                      SmallVectorImpl<unsigned> &ArgAtIndexNeedsEndBorrow,
-                     SILValue &StoreResultTo,
-                     SILValue &StoreErrorTo) {
+                     SILValue &StoreResultTo, SILValue &StoreErrorTo,
+                     SmallVectorImpl<AllocStackInst *> &AllocStacks,
+                     SmallVectorImpl<std::pair<SILValue, SILValue>> &StoreConversions) {
   /// SIL function conventions for the original apply site with substitutions.
   SILLocation Loc = AI.getLoc();
   auto substConv = AI.getSubstCalleeConv();
@@ -2163,7 +2168,14 @@ prepareCallArguments(ApplySite AI, SILBuilder &Builder,
         auto typeReplacementIt = typeReplacements.getIndirectResultTypes().find(formalIdx);
         if (typeReplacementIt != typeReplacements.getIndirectResultTypes().end()) {
           auto specializedTy = typeReplacementIt->second;
-          if (InputValue->getType().isAddress()) {
+          if (auto *tupleTy = specializedTy->getAs<TupleType>()) {
+            auto allocation = Builder.createAllocStack(
+                Loc, SILType::getPrimitiveObjectType(specializedTy));
+            AllocStacks.push_back(allocation);
+            auto converted = Builder.createUncheckedAddrCast(Loc, allocation, InputValue->getType());
+            StoreConversions.push_back(std::make_pair(InputValue, converted));
+            InputValue = allocation;
+          } else if (InputValue->getType().isAddress()) {
             auto argTy = SILType::getPrimitiveAddressType(specializedTy);
             InputValue = Builder.createUncheckedAddrCast(Loc, InputValue, argTy);
           } else {
@@ -2224,7 +2236,17 @@ prepareCallArguments(ApplySite AI, SILBuilder &Builder,
       auto typeReplacementIt = typeReplacements.getParamTypeReplacements().find(paramIdx);
       if (typeReplacementIt != typeReplacements.getParamTypeReplacements().end()) {
         auto specializedTy = typeReplacementIt->second;
-        if (InputValue->getType().isAddress()) {
+
+        if (auto *tupleTy = specializedTy->getAs<TupleType>()) {
+          auto *allocation = Builder.createAllocStack(
+              Loc, SILType::getPrimitiveObjectType(specializedTy));
+          AllocStacks.push_back(allocation);
+          auto *typed = Builder.createUncheckedAddrCast(Loc, allocation,
+                                                        InputValue->getType());
+          Builder.createCopyAddr(Loc, InputValue, typed, IsTake,
+                                 IsInitialization);
+          InputValue = allocation;
+        } else if (InputValue->getType().isAddress()) {
           auto argTy = SILType::getPrimitiveAddressType(specializedTy);
           InputValue = Builder.createUncheckedAddrCast(Loc, InputValue, argTy);
         } else {
@@ -2307,10 +2329,11 @@ swift::replaceWithSpecializedCallee(ApplySite applySite, SILValue callee,
   SmallVector<unsigned, 4> argsNeedingEndBorrow;
   SILValue resultOut;
   SILValue errorOut;
+  SmallVector<AllocStackInst *, 4> AllocStacks;
+  SmallVector<std::pair<SILValue, SILValue>, 4> StoreConversions;
 
-  prepareCallArguments(applySite, builder, reInfo,
-                       typeReplacements, arguments,
-                       argsNeedingEndBorrow, resultOut, errorOut);
+  prepareCallArguments(applySite, builder, reInfo, typeReplacements, arguments,
+                       argsNeedingEndBorrow, resultOut, errorOut, AllocStacks, StoreConversions);
 
   // Create a substituted callee type.
   //
@@ -2329,136 +2352,146 @@ swift::replaceWithSpecializedCallee(ApplySite applySite, SILValue callee,
   auto calleeSILSubstFnTy = SILType::getPrimitiveObjectType(calleeSubstFnTy);
   SILFunctionConventions substConv(calleeSubstFnTy, builder.getModule());
 
-  switch (applySite.getKind()) {
-  case ApplySiteKind::TryApplyInst: {
-    auto *tai = cast<TryApplyInst>(applySite);
-    SILBasicBlock *resultBlock = tai->getNormalBB();
-    SILBasicBlock *errorBlock = tai->getErrorBB();
-    assert(resultBlock->getSinglePredecessorBlock() == tai->getParent());
-    // First insert the cleanups for our arguments int he appropriate spot.
-    FullApplySite(tai).insertAfterApplication(
-        [&](SILBuilder &argBuilder) {
-          cleanupCallArguments(argBuilder, loc, arguments,
-                               argsNeedingEndBorrow);
-        });
-    auto *newTAI = builder.createTryApply(loc, callee, subs, arguments,
-                                          resultBlock, errorBlock,
-                                          tai->getApplyOptions());
-    if (resultOut) {
-      assert(substConv.useLoweredAddresses());
-      // The original normal result of the try_apply is an empty tuple.
-      assert(resultBlock->getNumArguments() == 1);
-      builder.setInsertionPoint(resultBlock->begin());
-      fixUsedVoidType(resultBlock->getArgument(0), loc, builder);
+  auto res = [&]() -> ApplySite {
+    switch (applySite.getKind()) {
+    case ApplySiteKind::TryApplyInst: {
+      auto *tai = cast<TryApplyInst>(applySite);
+      SILBasicBlock *resultBlock = tai->getNormalBB();
+      SILBasicBlock *errorBlock = tai->getErrorBB();
+      assert(resultBlock->getSinglePredecessorBlock() == tai->getParent());
+      // First insert the cleanups for our arguments int he appropriate spot.
+      FullApplySite(tai).insertAfterApplication([&](SILBuilder &argBuilder) {
+        cleanupCallArguments(argBuilder, loc, arguments, argsNeedingEndBorrow);
+      });
+      auto *newTAI =
+          builder.createTryApply(loc, callee, subs, arguments, resultBlock,
+                                 errorBlock, tai->getApplyOptions());
+      if (resultOut) {
+        assert(substConv.useLoweredAddresses());
+        // The original normal result of the try_apply is an empty tuple.
+        assert(resultBlock->getNumArguments() == 1);
+        builder.setInsertionPoint(resultBlock->begin());
+        fixUsedVoidType(resultBlock->getArgument(0), loc, builder);
 
-      SILValue returnValue = resultBlock->replacePhiArgument(
-            0, resultOut->getType().getObjectType(), OwnershipKind::Owned);
+        auto returnValue = resultBlock->replacePhiArgument(
+          0, resultOut->getType().getObjectType(), OwnershipKind::Owned);
 
-      // Store the direct result to the original result address.
-      builder.emitStoreValueOperation(loc, returnValue, resultOut,
-                                      StoreOwnershipQualifier::Init);
-    }
-    if (errorOut) {
-      assert(substConv.useLoweredAddresses());
-      assert(errorBlock->getNumArguments() == 0);
-      builder.setInsertionPoint(errorBlock->begin());
-
-      SILValue errorValue = errorBlock->createPhiArgument(
-            errorOut->getType().getObjectType(), OwnershipKind::Owned);
-
-      // Store the direct result to the original result address.
-      builder.emitStoreValueOperation(loc, errorValue, errorOut,
-                                      StoreOwnershipQualifier::Init);
-    }
-    return newTAI;
-  }
-  case ApplySiteKind::ApplyInst: {
-    auto *ai = cast<ApplyInst>(applySite);
-    FullApplySite(ai).insertAfterApplication(
-        [&](SILBuilder &argBuilder) {
-          cleanupCallArguments(argBuilder, loc, arguments,
-                               argsNeedingEndBorrow);
-        });
-    auto *newAI =
-        builder.createApply(loc, callee, subs, arguments,
-                            ai->getApplyOptions());
-
-    SILValue returnValue = newAI;
-    if (resultOut) {
-      if (!calleeSILSubstFnTy.isNoReturnFunction(
-              builder.getModule(), builder.getTypeExpansionContext())) {
         // Store the direct result to the original result address.
-        fixUsedVoidType(ai, loc, builder);
-
         builder.emitStoreValueOperation(loc, returnValue, resultOut,
                                         StoreOwnershipQualifier::Init);
-      } else {
-        builder.createUnreachable(loc);
-        // unreachable should be the terminator instruction.
-        // So, split the current basic block right after the
-        // inserted unreachable instruction.
-        builder.getInsertionPoint()->getParent()->split(
-            builder.getInsertionPoint());
       }
-    } else if (typeReplacements.hasResultType()) {
-      returnValue = fixSpecializedReturnType(
-          newAI, *typeReplacements.getResultType(), loc, builder);
-    }
-    ai->replaceAllUsesWith(returnValue);
+      if (errorOut) {
+        assert(substConv.useLoweredAddresses());
+        assert(errorBlock->getNumArguments() == 0);
+        builder.setInsertionPoint(errorBlock->begin());
 
-    return newAI;
-  }
-  case ApplySiteKind::BeginApplyInst: {
-    auto *bai = cast<BeginApplyInst>(applySite);
-    assert(!resultOut);
-    FullApplySite(bai).insertAfterApplication(
-        [&](SILBuilder &argBuilder) {
+        SILValue errorValue = errorBlock->createPhiArgument(
+            errorOut->getType().getObjectType(), OwnershipKind::Owned);
+
+        // Store the direct result to the original result address.
+        builder.emitStoreValueOperation(loc, errorValue, errorOut,
+                                        StoreOwnershipQualifier::Init);
+      }
+
+      return newTAI;
+    }
+    case ApplySiteKind::ApplyInst: {
+      auto *ai = cast<ApplyInst>(applySite);
+      FullApplySite(ai).insertAfterApplication([&](SILBuilder &argBuilder) {
+        cleanupCallArguments(argBuilder, loc, arguments, argsNeedingEndBorrow);
+      });
+      auto *newAI = builder.createApply(loc, callee, subs, arguments,
+                                        ai->getApplyOptions());
+
+      SILValue returnValue = newAI;
+      if (resultOut) {
+        if (!calleeSILSubstFnTy.isNoReturnFunction(
+                builder.getModule(), builder.getTypeExpansionContext())) {
+          // Store the direct result to the original result address.
+          fixUsedVoidType(ai, loc, builder);
+          returnValue = fixSpecializedReturnType(
+              newAI, resultOut->getType().getObjectType(), loc, builder);
+
+          builder.emitStoreValueOperation(loc, returnValue, resultOut,
+                                          StoreOwnershipQualifier::Init);
+        } else {
+          builder.createUnreachable(loc);
+          // unreachable should be the terminator instruction.
+          // So, split the current basic block right after the
+          // inserted unreachable instruction.
+          builder.getInsertionPoint()->getParent()->split(
+              builder.getInsertionPoint());
+        }
+      } else if (typeReplacements.hasResultType()) {
+        returnValue = fixSpecializedReturnType(
+            newAI, *typeReplacements.getResultType(), loc, builder);
+      }
+      ai->replaceAllUsesWith(returnValue);
+
+      return newAI;
+    }
+    case ApplySiteKind::BeginApplyInst: {
+      auto *bai = cast<BeginApplyInst>(applySite);
+      assert(!resultOut);
+      FullApplySite(bai).insertAfterApplication([&](SILBuilder &argBuilder) {
+        cleanupCallArguments(argBuilder, loc, arguments, argsNeedingEndBorrow);
+      });
+      auto *newBAI = builder.createBeginApply(loc, callee, subs, arguments,
+                                              bai->getApplyOptions());
+      for (auto pair : llvm::enumerate(bai->getYieldedValues())) {
+        auto index = pair.index();
+        SILValue oldYield = pair.value();
+        SILValue newYield = newBAI->getYieldedValues()[index];
+
+        auto it = typeReplacements.getYieldTypeReplacements().find(index);
+        if (it != typeReplacements.getYieldTypeReplacements().end()) {
+          SILType newType;
+          if (newYield->getType().isObject()) {
+            newType = SILType::getPrimitiveObjectType(it->second);
+          } else {
+            newType = SILType::getPrimitiveAddressType(it->second);
+          }
+          auto converted =
+              fixSpecializedReturnType(newYield, newType, loc, builder);
+          oldYield->replaceAllUsesWith(converted);
+        }
+      }
+      bai->replaceAllUsesPairwiseWith(newBAI);
+      return newBAI;
+    }
+    case ApplySiteKind::PartialApplyInst: {
+      auto *pai = cast<PartialApplyInst>(applySite);
+      // Let go of borrows introduced for stack closures.
+      if (pai->isOnStack() && pai->getFunction()->hasOwnership()) {
+        pai->visitOnStackLifetimeEnds([&](Operand *op) -> bool {
+          SILBuilderWithScope argBuilder(op->getUser()->getNextInstruction());
           cleanupCallArguments(argBuilder, loc, arguments,
                                argsNeedingEndBorrow);
+          return true;
         });
-    auto *newBAI = builder.createBeginApply(loc, callee, subs, arguments,
-                                            bai->getApplyOptions());
-    for (auto pair : llvm::enumerate(bai->getYieldedValues())) {
-      auto index = pair.index();
-      SILValue oldYield = pair.value();
-      SILValue newYield = newBAI->getYieldedValues()[index];
-
-      auto it = typeReplacements.getYieldTypeReplacements().find(index);
-      if (it != typeReplacements.getYieldTypeReplacements().end()) {
-        SILType newType;
-        if (newYield->getType().isObject()) {
-          newType = SILType::getPrimitiveObjectType(it->second);
-        } else {
-          newType = SILType::getPrimitiveAddressType(it->second);
-        }
-        auto converted =
-            fixSpecializedReturnType(newYield, newType, loc, builder);
-        oldYield->replaceAllUsesWith(converted);
       }
+      auto *newPAI = builder.createPartialApply(
+          loc, callee, subs, arguments,
+          pai->getType().getAs<SILFunctionType>()->getCalleeConvention(),
+          pai->isOnStack());
+      pai->replaceAllUsesWith(newPAI);
+      return newPAI;
     }
-    bai->replaceAllUsesPairwiseWith(newBAI);
-    return newBAI;
-  }
-  case ApplySiteKind::PartialApplyInst: {
-    auto *pai = cast<PartialApplyInst>(applySite);
-    // Let go of borrows introduced for stack closures.
-    if (pai->isOnStack() && pai->getFunction()->hasOwnership()) {
-      pai->visitOnStackLifetimeEnds([&](Operand *op) -> bool {
-        SILBuilderWithScope argBuilder(op->getUser()->getNextInstruction());
-        cleanupCallArguments(argBuilder, loc, arguments, argsNeedingEndBorrow);
-        return true;
-      });
     }
-    auto *newPAI = builder.createPartialApply(
-        loc, callee, subs, arguments,
-        pai->getType().getAs<SILFunctionType>()->getCalleeConvention(),
-        pai->isOnStack());
-    pai->replaceAllUsesWith(newPAI);
-    return newPAI;
-  }
+
+    llvm_unreachable("unhandled kind of apply");
+  }();
+
+  for (auto &pair : StoreConversions) {
+    auto value = builder.createLoad(loc, std::get<1>(pair), LoadOwnershipQualifier::Trivial);
+    builder.createStore(loc, value, std::get<0>(pair), StoreOwnershipQualifier::Trivial);
   }
 
-  llvm_unreachable("unhandled kind of apply");
+  for (AllocStackInst *ASI : reverse(AllocStacks)) {
+    builder.createDeallocStack(ASI->getLoc(), ASI);
+  }
+
+  return res;
 }
 
 namespace {
@@ -2981,11 +3014,27 @@ bool usePrespecialized(
             if (stride.isZero())
               stride = irgen::Size(1);
 
-            if (stride.getValueInBits() == layout->getTrivialStrideInBits()) {
-              newSubs.push_back(CanType(BuiltinVectorType::get(
-                  genericParam->getASTContext(),
-                  BuiltinIntegerType::get(8, genericParam->getASTContext()),
-                  layout->getTrivialStride())));
+            auto layoutStride = layout->getTrivialStride();
+            auto layoutAlign = (layout->getAlignmentInBits() + 7) / 8;
+            if (stride.getValue() == layoutStride &&
+                typeLayout->fixedAlignment(*IGM)->getValue() == layoutAlign) {
+              if (layoutStride == layoutAlign &&
+                  llvm::isPowerOf2_32(layout->getTrivialStrideInBits())) {
+                newSubs.push_back(CanType(
+                    BuiltinIntegerType::get(layout->getAlignmentInBits(),
+                                            genericParam->getASTContext())));
+              } else {
+                unsigned numElements = layoutStride / layoutAlign;
+                SmallVector<TupleTypeElt, 4> elementTypes;
+                for (unsigned i = 0; i < numElements; i++) {
+                  elementTypes.push_back(TupleTypeElt(
+                      BuiltinIntegerType::get(layout->getAlignmentInBits(),
+                                              genericParam->getASTContext())));
+                }
+
+                newSubs.push_back(CanType(TupleType::get(
+                    elementTypes, genericParam->getASTContext())));
+              }
             }
           }
         } else {
