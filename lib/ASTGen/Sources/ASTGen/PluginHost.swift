@@ -12,7 +12,7 @@
 
 import ASTBridging
 import BasicBridging
-import SwiftCompilerPluginMessageHandling
+@_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
 import SwiftSyntax
 import swiftLLVMJSON
 
