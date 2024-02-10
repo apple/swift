@@ -82,7 +82,8 @@ static bool isOpenedAnyObject(Type type) {
 }
 
 SubstitutionMap
-Solution::computeSubstitutions(GenericSignature sig,
+Solution::computeSubstitutions(NullablePtr<ValueDecl> decl,
+                               GenericSignature sig,
                                ConstraintLocator *locator) const {
   if (sig.isNull())
     return SubstitutionMap();
@@ -103,6 +104,7 @@ Solution::computeSubstitutions(GenericSignature sig,
     subs[opened.first] = type;
   }
 
+  auto *DC = constraintSystem->DC;
   auto lookupConformanceFn =
       [&](CanType original, Type replacement,
           ProtocolDecl *protoType) -> ProtocolConformanceRef {
@@ -113,8 +115,24 @@ Solution::computeSubstitutions(GenericSignature sig,
     }
 
     // FIXME: Retrieve the conformance from the solution itself.
-    return getConstraintSystem().DC->getParentModule()->checkConformance(
-        replacement, protoType);
+    auto conformance =
+        DC->getParentModule()->checkConformance(replacement, protoType);
+
+    if (conformance.isInvalid()) {
+      if (auto *funcDecl = dyn_cast<FuncDecl>(decl.getPtrOrNull())) {
+        if (funcDecl->isDistributedActorSystemRemoteCall(
+                /*isVoidResult=*/false)) {
+          // `Res` conformances would be looked by at runtime but are
+          // guaranteed to be there by Sema because all distributed
+          // methods and accessors are checked to conform to
+          // `SerializationRequirement` of `DistributedActorSystem`.
+          if (original->isEqual(funcDecl->getResultInterfaceType()))
+            return ProtocolConformanceRef(protoType);
+        }
+      }
+    }
+
+    return conformance;
   };
 
   return SubstitutionMap::get(sig,
@@ -147,7 +165,7 @@ Solution::resolveConcreteDeclRef(ValueDecl *decl,
 
   // Get the generic signature of the decl and compute the substitutions.
   auto sig = decl->getInnermostDeclContext()->getGenericSignatureOfContext();
-  auto subst = computeSubstitutions(sig, locator);
+  auto subst = computeSubstitutions(decl, sig, locator);
 
   maybeInstantiateCXXMethodDefinition(decl);
 
@@ -7121,7 +7139,8 @@ Expr *ExprRewriter::coerceToType(Expr *expr, Type toType,
     auto opaqueLocator = solution.getConstraintSystem().getOpenOpaqueLocator(
         locator, opaqueDecl);
     SubstitutionMap substitutions = solution.computeSubstitutions(
-        opaqueDecl->getOpaqueInterfaceGenericSignature(), opaqueLocator);
+        opaqueDecl, opaqueDecl->getOpaqueInterfaceGenericSignature(),
+        opaqueLocator);
 
     // If we don't have substitutions, this is an opaque archetype from
     // another declaration being manipulated, and not an erasure of a

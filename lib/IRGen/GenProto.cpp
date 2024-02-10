@@ -547,6 +547,14 @@ private:
   // Did the convention decide that the parameter at the given index
   // was a class-pointer source?
   bool isClassPointerSource(unsigned paramIndex);
+
+  // If we are building a protocol witness thunk for a
+  // `DistributedActorSystem.remoteCall` requirement we
+  // need to supply witness tables associated with `Res`
+  // generic parameter which are not expressible on the
+  // requirement because they come from `SerializationRequirement`
+  // associated type.
+  void injectAdHocDistributedRemoteCallRequirements();
 };
 
 } // end anonymous namespace
@@ -720,6 +728,40 @@ bool EmitPolymorphicParameters::isClassPointerSource(unsigned paramIndex) {
     }
   }
   return false;
+}
+
+void EmitPolymorphicParameters::injectAdHocDistributedRemoteCallRequirements() {
+  // FIXME: We need a better way to recognize that function is
+  // a thunk for witness of `remoteCall` requirement.
+  if (!Fn.hasLocation())
+    return;
+
+  auto loc = Fn.getLocation();
+
+  auto *funcDecl = dyn_cast_or_null<FuncDecl>(loc.getAsDeclContext());
+  if (!(funcDecl && funcDecl->isDistributedActorSystemRemoteCall(
+                        /*isVoidReturn=*/false)))
+    return;
+
+  auto sig = funcDecl->getGenericSignature();
+  auto resultInterfaceTy = funcDecl->getResultInterfaceType();
+  auto resultArchetypeTy =
+      getTypeInContext(resultInterfaceTy->getCanonicalType());
+  llvm::Value *resultMetadata = IGF.emitTypeMetadataRef(resultArchetypeTy);
+
+  auto resultRequirements = sig->getLocalRequirements(resultInterfaceTy);
+  for (auto *proto : resultRequirements.protos) {
+    // Lookup the witness table for this protocol dynamically via
+    // swift_conformsToProtocol(<<archetype>>, <<protocol>>)
+    auto *witnessTable = IGF.Builder.CreateCall(
+        IGM.getConformsToProtocolFunctionPointer(),
+        {resultMetadata, IGM.getAddrOfProtocolDescriptor(proto)});
+
+    IGF.setUnscopedLocalTypeData(
+        resultArchetypeTy,
+        LocalTypeDataKind::forAbstractProtocolWitnessTable(proto),
+        witnessTable);
+  }
 }
 
 namespace {
@@ -2574,6 +2616,9 @@ void EmitPolymorphicParameters::emit(EntryPointArgumentEmission &emission,
 
   // Bind all the fulfillments we can from the formal parameters.
   bindParameterSources(getParameter);
+
+  // Inject ad-hoc `remoteCall` requirements if any.
+  injectAdHocDistributedRemoteCallRequirements();
 }
 
 MetadataResponse

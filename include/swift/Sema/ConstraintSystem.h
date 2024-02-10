@@ -1667,11 +1667,15 @@ public:
   /// Compute the set of substitutions for a generic signature opened at the
   /// given locator.
   ///
+  /// \param decl The underlying declaration for which the substitutions are
+  /// computed.
+  ///
   /// \param sig The generic signature.
   ///
   /// \param locator The locator that describes where the substitutions came
   /// from.
-  SubstitutionMap computeSubstitutions(GenericSignature sig,
+  SubstitutionMap computeSubstitutions(NullablePtr<ValueDecl> decl,
+                                       GenericSignature sig,
                                        ConstraintLocator *locator) const;
 
   /// Resolves the contextual substitutions for a reference to a declaration

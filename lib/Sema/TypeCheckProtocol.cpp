@@ -1237,13 +1237,52 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
     }
     bool requiresNonSendable = false;
     if (!solution || solution->Fixes.size()) {
-      /// If the *only* problems are that `@Sendable` attributes are missing,
-      /// allow the match in some circumstances.
-      requiresNonSendable = solution
-          && llvm::all_of(solution->Fixes, [](constraints::ConstraintFix *fix) {
-            return fix->getKind() == constraints::FixKind::AddSendableAttribute;
-          });
-      if (!requiresNonSendable)
+      auto isMatchedAllowed = [&](const constraints::Solution &solution) {
+        /// If the *only* problems are that `@Sendable` attributes are missing,
+        /// allow the match in some circumstances.
+        if (llvm::all_of(solution.Fixes, [](constraints::ConstraintFix *fix) {
+              return fix->getKind() ==
+                     constraints::FixKind::AddSendableAttribute;
+            }))
+          return true;
+
+        auto *funcDecl = dyn_cast<AbstractFunctionDecl>(req);
+        // Conformance requirement between on `Res` and `SerializationRequirement`
+        // of `DistributedActorSystem.remoteCall` are not expressible at the moment
+        // but they are verified by Sema so it's okay to omit them here and lookup
+        // dynamically during IRGen.
+        if (funcDecl && funcDecl->isDistributedActorSystemRemoteCallRequirement(
+                            /*withResult=*/true)) {
+          if (llvm::all_of(solution.Fixes, [&witness](constraints::ConstraintFix
+                                                          *fix) {
+                auto conformance = dyn_cast<MissingConformance>(fix);
+                if (!conformance)
+                  return false;
+
+                auto *locator = fix->getLocator();
+                auto requirement = locator->getLastElementAs<
+                    LocatorPathElt::TypeParameterRequirement>();
+                if (!requirement)
+                  return false;
+
+                auto signature =
+                    locator->findLast<LocatorPathElt::OpenedGeneric>()
+                        ->getSignature();
+
+                auto subject =
+                    signature.getRequirements()[requirement->getIndex()]
+                        .getFirstType();
+                // `Res` is the result type so we can check against that.
+                return subject->isEqual(
+                    cast<FuncDecl>(witness)->getResultInterfaceType());
+              }))
+            return true;
+        }
+        // In all other cases - disallow the match.
+        return false;
+      };
+
+      if (!solution || !isMatchedAllowed(*solution))
         return RequirementMatch(witness, MatchKind::TypeConflict,
                                 witnessType);
     }
@@ -1273,8 +1312,8 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
     auto witnessSig =
       witness->getInnermostDeclContext()->getGenericSignatureOfContext();
     result.WitnessSubstitutions =
-      solution->computeSubstitutions(witnessSig, witnessLocator);
-    
+        solution->computeSubstitutions(witness, witnessSig, witnessLocator);
+
     return result;
   };
 

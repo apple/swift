@@ -249,7 +249,7 @@ import _Concurrency
 /// - [SE-0336: Distributed Actor Isolation](https://github.com/apple/swift-evolution/blob/main/proposals/0336-distributed-actor-isolation.md)
 /// - [SE-0344: Distributed Actor Runtime](https://github.com/apple/swift-evolution/blob/main/proposals/0344-distributed-actor-runtime.md)
 @available(SwiftStdlib 5.7, *)
-public protocol DistributedActorSystem: Sendable {
+public protocol DistributedActorSystem<SerializationRequirement>: Sendable {
   /// The type ID that will be assigned to any distributed actor managed by this actor system.
   ///
   /// ### A note on Codable IDs
@@ -375,47 +375,47 @@ public protocol DistributedActorSystem: Sendable {
   /// that are associated with this specific invocation.
   func makeInvocationEncoder() -> InvocationEncoder
 
-//  /// Invoked by the Swift runtime when making a remote call.
-//  ///
-//  /// The `arguments` are the arguments container that was previously created
-//  /// by `makeInvocationEncoder` and has been populated with all arguments.
-//  ///
-//  /// This method should perform the actual remote function call, and await for its response.
-//  ///
-//  /// ## Errors
-//  /// This method is allowed to throw because of underlying transport or serialization errors,
-//  /// as well as by re-throwing the error received from the remote callee (if able to).
-//  func remoteCall<Act, Err, Res>(
-//      on actor: Act,
-//      target: RemoteCallTarget,
-//      invocation: inout InvocationEncoder,
-//      throwing: Err.Type,
-//      returning: Res.Type
-//  ) async throws -> Res
-//      where Act: DistributedActor,
-//            Act.ID == ActorID,
-//            Err: Error,
-//            Res: SerializationRequirement
+  /// Invoked by the Swift runtime when making a remote call.
+  ///
+  /// The `arguments` are the arguments container that was previously created
+  /// by `makeInvocationEncoder` and has been populated with all arguments.
+  ///
+  /// This method should perform the actual remote function call, and await for its response.
+  ///
+  /// ## Errors
+  /// This method is allowed to throw because of underlying transport or serialization errors,
+  /// as well as by re-throwing the error received from the remote callee (if able to).
+  func remoteCall<Act, Err, Res>(
+      on actor: Act,
+      target: RemoteCallTarget,
+      invocation: inout InvocationEncoder,
+      throwing: Err.Type,
+      returning: Res.Type
+  ) async throws -> Res
+      where Act: DistributedActor,
+            Act.ID == ActorID,
+            Err: Error
+//          Res: SerializationRequirement
 
-//  /// Invoked by the Swift runtime when making a remote call.
-//  ///
-//  /// The `arguments` are the arguments container that was previously created
-//  /// by `makeInvocationEncoder` and has been populated with all arguments.
-//  ///
-//  /// This method should perform the actual remote function call, and await for its response.
-//  ///
-//  /// ## Errors
-//  /// This method is allowed to throw because of underlying transport or serialization errors,
-//  /// as well as by re-throwing the error received from the remote callee (if able to).
-//  func remoteCallVoid<Act, Err>(
-//      on actor: Act,
-//      target: RemoteCallTarget,
-//      invocation: inout InvocationEncoder,
-//      throwing: Err.Type
-//  ) async throws -> Res
-//      where Act: DistributedActor,
-//            Act.ID == ActorID,
-//            Err: Error
+  /// Invoked by the Swift runtime when making a remote call.
+  ///
+  /// The `arguments` are the arguments container that was previously created
+  /// by `makeInvocationEncoder` and has been populated with all arguments.
+  ///
+  /// This method should perform the actual remote function call, and await for its response.
+  ///
+  /// ## Errors
+  /// This method is allowed to throw because of underlying transport or serialization errors,
+  /// as well as by re-throwing the error received from the remote callee (if able to).
+  func remoteCallVoid<Act, Err>(
+      on actor: Act,
+      target: RemoteCallTarget,
+      invocation: inout InvocationEncoder,
+      throwing: Err.Type
+  ) async throws
+      where Act: DistributedActor,
+            Act.ID == ActorID,
+            Err: Error
 
   // Implementation notes:
   // The `metatype` must be the type of `Value`, and it must conform to

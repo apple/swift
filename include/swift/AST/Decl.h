@@ -7458,6 +7458,9 @@ public:
            getSILSynthesizeKind() == SILSynthesizeKind::DistributedActorFactory;
   }
 
+  /// Determines whether this function is `DistributedActorSystem::remoteCall{Void}`.
+  bool isDistributedActorSystemRemoteCallRequirement(bool withResult) const;
+
   /// Determines whether this function is a 'remoteCall' function,
   /// which is used as ad-hoc protocol requirement by the
   /// 'DistributedActorSystem' protocol.

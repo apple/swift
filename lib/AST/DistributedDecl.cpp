@@ -384,6 +384,39 @@ bool swift::checkDistributedSerializationRequirementIsExactlyCodable(
 /********************* Ad-hoc protocol requirement checks *********************/
 /******************************************************************************/
 
+bool AbstractFunctionDecl::isDistributedActorSystemRemoteCallRequirement(
+    bool withResult) const {
+  auto &ctx = getASTContext();
+  auto *DC = getDeclContext();
+
+  auto expectedName =
+      withResult ? DeclName(ctx, ctx.Id_remoteCall,
+                            {ctx.Id_on, ctx.Id_target, ctx.Id_invocation,
+                             ctx.Id_throwing, ctx.Id_returning})
+                 : DeclName(ctx, ctx.Id_remoteCallVoid,
+                            {ctx.Id_on, ctx.Id_target, ctx.Id_invocation,
+                             ctx.Id_throwing});
+
+  if (getName() != expectedName)
+    return false;
+
+  if (!DC->isTypeContext() || !isGeneric())
+    return false;
+
+  auto declaredIn = DC->getSelfProtocolDecl();
+  if (!(declaredIn && declaredIn == ctx.getDistributedActorSystemDecl()))
+    return false;
+
+  auto genericParams = getGenericParams();
+  if (genericParams->size() != (withResult ? 3 : 2))
+    return false;
+
+  if (!hasThrows() || !hasAsync())
+    return false;
+
+  return true;
+}
+
 bool AbstractFunctionDecl::isDistributedActorSystemRemoteCall(bool isVoidReturn) const {
   auto &C = getASTContext();
   auto module = getParentModule();

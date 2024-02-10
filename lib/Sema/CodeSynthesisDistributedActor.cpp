@@ -12,24 +12,25 @@
 
 #include "TypeCheckDistributed.h"
 
-#include "TypeChecker.h"
+#include "DerivedConformances.h"
 #include "TypeCheckType.h"
+#include "TypeChecker.h"
+#include "swift/AST/ASTMangler.h"
 #include "swift/AST/ASTPrinter.h"
 #include "swift/AST/Availability.h"
+#include "swift/AST/DistributedDecl.h"
+#include "swift/AST/ExistentialLayout.h"
 #include "swift/AST/Expr.h"
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/Initializer.h"
+#include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/TypeCheckRequests.h"
-#include "swift/AST/NameLookupRequests.h"
-#include "swift/AST/ASTMangler.h"
-#include "swift/AST/DistributedDecl.h"
 #include "swift/Basic/Defer.h"
 #include "swift/ClangImporter/ClangModule.h"
 #include "swift/Sema/ConstraintSystem.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
-#include "DerivedConformances.h"
 
 using namespace swift;
 
@@ -748,11 +749,8 @@ static FuncDecl *createDistributedThunkFunction(FuncDecl *func) {
 /*********************** CODABLE CONFORMANCE **********************************/
 /******************************************************************************/
 
-static NormalProtocolConformance*
-addDistributedActorCodableConformance(
-    ClassDecl *actor, ProtocolDecl *proto) {
-  assert(proto->isSpecificProtocol(swift::KnownProtocolKind::Decodable) ||
-         proto->isSpecificProtocol(swift::KnownProtocolKind::Encodable));
+static NormalProtocolConformance *
+addDistributedActorCodableConformance(ClassDecl *actor, ProtocolDecl *proto) {
   auto &C = actor->getASTContext();
   auto module = actor->getParentModule();
 
@@ -760,6 +758,32 @@ addDistributedActorCodableConformance(
   if (!actor->isDistributedActor()) {
     return nullptr;
   }
+
+  if (actor->isGeneric()) {
+    auto idTy =
+        C.getAssociatedTypeOfDistributedSystemOfActor(actor, C.Id_ActorID);
+    if (idTy->hasError()) {
+      return nullptr;
+    }
+    auto encodableConf = module->lookupConformance(
+        idTy, C.getProtocol(swift::KnownProtocolKind::Encodable),
+        /*allowMissing=*/true);
+    auto decodableConf = module->lookupConformance(
+        idTy, C.getProtocol(swift::KnownProtocolKind::Decodable),
+        /*allowMissing=*/true);
+
+    // the system's ID is not codable, thus the actor isn't as well -- don't add
+    // the conformance.
+    if (encodableConf.isInvalid()) {
+      return nullptr;
+    }
+    if (decodableConf.isInvalid()) {
+      return nullptr;
+    }
+  }
+
+  assert(proto->isSpecificProtocol(swift::KnownProtocolKind::Decodable) ||
+         proto->isSpecificProtocol(swift::KnownProtocolKind::Encodable));
 
   // === Does the actor explicitly conform to the protocol already?
   auto explicitConformance =

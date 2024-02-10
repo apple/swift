@@ -516,6 +516,19 @@ deriveDistributedActorType_ActorSystem(
   assert(derived.Nominal->isDistributedActor());
   auto &C = derived.Context;
 
+
+  // If the actor is generic over ActorSystem,
+  // we don't need to synthesize the typealias.
+  if (derived.Nominal->getGenericSignature()) {
+    auto genSig = derived.Nominal->getGenericSignature();
+    for (auto param : genSig.getGenericParams()) {
+      if (param->getName() == C.Id_ActorSystem) {
+        return nullptr;
+      }
+    }
+  }
+
+
   // Look for a type DefaultDistributedActorSystem within the parent context.
   auto defaultDistributedActorSystemLookup = TypeChecker::lookupUnqualified(
       derived.getConformanceContext()->getModuleScopeContext(),
