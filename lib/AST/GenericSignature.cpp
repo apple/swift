@@ -986,12 +986,8 @@ void GenericSignature::verify(ArrayRef<Requirement> reqts) const {
           llvm::errs() << "\n";
           abort();
         }
-        // FIXME: Same-element rewrite rules are of the form [element].T => U,
-        // which turns into a same-type requirement repeat U == each T. The
-        // pack element must always be on the left side of the rule, so type
-        // parameters can appear out of order in the final same-type requirement.
-        if (firstType->isParameterPack() == secondType->isParameterPack() &&
-            compareDependentTypes(firstType, secondType) >= 0) {
+
+        if (compareDependentTypes(firstType, secondType) >= 0) {
           llvm::errs() << "Out-of-order type parameters: ";
           reqt.dump(llvm::errs());
           llvm::errs() << "\n";

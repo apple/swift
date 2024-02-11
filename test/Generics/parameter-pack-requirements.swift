@@ -146,7 +146,7 @@ func sameElementConcrete<each T>(
 ) where repeat each T == Int {}
 
 // CHECK-LABEL: sameElementGeneric
-// CHECK-NEXT: Generic signature: <each T, U where repeat U == each T>
+// CHECK-NEXT: Generic signature: <each T, U where repeat each T == U>
 func sameElementGeneric<each T, U>(
   _: repeat each T
 ) where repeat each T == U {}
@@ -165,7 +165,7 @@ func dependentSameElementGeneric<each C: Collection, Element>(
 
 // FIXME: Either 'repeat each T: P' or 'U: P' should be redundant.
 // CHECK-LABEL: sameElementRedundantConformance
-// CHECK-NEXT: Generic signature: <each T, U where repeat each T : P, U : P, repeat U == each T>
+// CHECK-NEXT: Generic signature: <each T, U where repeat each T : P, repeat each T == U, U : P>
 func sameElementRedundantConformance<each T, U>(
   t: repeat each T,
   u: U
