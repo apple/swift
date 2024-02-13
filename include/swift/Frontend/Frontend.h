@@ -658,6 +658,9 @@ public:
   /// i.e. if it can be found.
   bool canImportSwiftBacktracing() const;
 
+  /// Whether the Cxx library can be imported
+  bool canImportCxx() const;
+
   /// Whether the CxxShim library can be imported
   /// i.e. if it can be found.
   bool canImportCxxShim() const;
