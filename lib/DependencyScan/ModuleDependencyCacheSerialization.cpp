@@ -574,12 +574,12 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       cache.configureForContextHash(getContextHash());
       unsigned pcmOutputPathID, mappedPCMPathID, moduleMapPathID, contextHashID,
           commandLineArrayID, fileDependenciesArrayID, capturedPCMArgsArrayID,
-          CASFileSystemRootID, clangIncludeTreeRootID, moduleCacheKeyID;
+          CASFileSystemRootID, clangIncludeTreeRootID, moduleCacheKeyID, isSystem;
       ClangModuleDetailsLayout::readRecord(
           Scratch, pcmOutputPathID, mappedPCMPathID, moduleMapPathID,
           contextHashID, commandLineArrayID, fileDependenciesArrayID,
           capturedPCMArgsArrayID, CASFileSystemRootID, clangIncludeTreeRootID,
-          moduleCacheKeyID);
+          moduleCacheKeyID, isSystem);
       auto pcmOutputPath = getIdentifier(pcmOutputPathID);
       if (!pcmOutputPath)
         llvm::report_fatal_error("Bad pcm output path");
@@ -615,7 +615,7 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       auto moduleDep = ModuleDependencyInfo::forClangModule(
           *pcmOutputPath, *mappedPCMPath, *moduleMapPath, *contextHash,
           *commandLineArgs, *fileDependencies, *capturedPCMArgs,
-          *rootFileSystemID, *clangIncludeTreeRoot, *moduleCacheKey);
+          *rootFileSystemID, *clangIncludeTreeRoot, *moduleCacheKey, isSystem);
 
       // Add dependencies of this module
       for (const auto &moduleName : *currentModuleImports)
@@ -1064,7 +1064,7 @@ void ModuleDependenciesCacheSerializer::writeModuleInfo(
         getArrayID(moduleID, ModuleIdentifierArrayKind::CapturedPCMArgs),
         getIdentifier(clangDeps->CASFileSystemRootID),
         getIdentifier(clangDeps->CASClangIncludeTreeRootID),
-        getIdentifier(clangDeps->moduleCacheKey));
+        getIdentifier(clangDeps->moduleCacheKey), clangDeps->IsSystem);
 
     break;
   }

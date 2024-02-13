@@ -403,6 +403,9 @@ public:
   /// CASID for the Root of ClangIncludeTree. Empty if not used.
   std::string CASClangIncludeTreeRootID;
 
+  /// Whether this is a "system" module.
+  bool IsSystem;
+
   ClangModuleDependencyStorage(const std::string &pcmOutputPath,
                                const std::string &mappedPCMPath,
                                const std::string &moduleMapFile,
@@ -412,7 +415,8 @@ public:
                                const std::vector<std::string> &capturedPCMArgs,
                                const std::string &CASFileSystemRootID,
                                const std::string &clangIncludeTreeRoot,
-                               const std::string &moduleCacheKey)
+                               const std::string &moduleCacheKey,
+                               bool IsSystem)
       : ModuleDependencyInfoStorageBase(ModuleDependencyKind::Clang,
                                         moduleCacheKey),
         pcmOutputPath(pcmOutputPath), mappedPCMPath(mappedPCMPath),
@@ -420,7 +424,7 @@ public:
         buildCommandLine(buildCommandLine), fileDependencies(fileDependencies),
         capturedPCMArgs(capturedPCMArgs),
         CASFileSystemRootID(CASFileSystemRootID),
-        CASClangIncludeTreeRootID(clangIncludeTreeRoot) {}
+        CASClangIncludeTreeRootID(clangIncludeTreeRoot), IsSystem(IsSystem) {}
 
   ModuleDependencyInfoStorageBase *clone() const override {
     return new ClangModuleDependencyStorage(*this);
@@ -549,11 +553,12 @@ public:
       const std::vector<std::string> &capturedPCMArgs,
       const std::string &CASFileSystemRootID,
       const std::string &clangIncludeTreeRoot,
-      const std::string &moduleCacheKey) {
+      const std::string &moduleCacheKey,
+      bool IsSystem) {
     return ModuleDependencyInfo(std::make_unique<ClangModuleDependencyStorage>(
         pcmOutputPath, mappedPCMPath, moduleMapFile, contextHash,
         nonPathCommandLine, fileDependencies, capturedPCMArgs,
-        CASFileSystemRootID, clangIncludeTreeRoot, moduleCacheKey));
+        CASFileSystemRootID, clangIncludeTreeRoot, moduleCacheKey, IsSystem));
   }
 
   /// Describe a placeholder dependency swift module.
