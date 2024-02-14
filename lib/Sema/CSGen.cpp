@@ -1607,9 +1607,22 @@ namespace {
         return E->getType();
 
       // Resolve the super type of 'self'.
-      return getSuperType(E->getSelf(), E->getLoc(),
-                          diag::super_not_in_class_method,
-                          diag::super_with_no_base_class);
+      auto *selfDecl = E->getSelf();
+
+      DeclContext *typeContext = selfDecl->getDeclContext()->getParent();
+      assert(typeContext);
+
+      auto selfTy =
+          CS.DC->mapTypeIntoContext(typeContext->getDeclaredInterfaceType());
+      auto superclassTy = selfTy->getSuperclass();
+
+      if (!superclassTy)
+        return Type();
+
+      if (selfDecl->getInterfaceType()->is<MetatypeType>())
+        superclassTy = MetatypeType::get(superclassTy);
+
+      return superclassTy;
     }
 
     Type
@@ -3298,37 +3311,6 @@ namespace {
       return resultType;
     }
 
-    Type getSuperType(VarDecl *selfDecl,
-                      SourceLoc diagLoc,
-                      Diag<> diag_not_in_class,
-                      Diag<> diag_no_base_class) {
-      DeclContext *typeContext = selfDecl->getDeclContext()->getParent();
-      assert(typeContext && "constructor without parent context?!");
-
-      auto &de = CS.getASTContext().Diags;
-      ClassDecl *classDecl = typeContext->getSelfClassDecl();
-      if (!classDecl) {
-        de.diagnose(diagLoc, diag_not_in_class);
-        return Type();
-      }
-      if (!classDecl->hasSuperclass()) {
-        de.diagnose(diagLoc, diag_no_base_class);
-        return Type();
-      }
-
-      auto selfTy = CS.DC->mapTypeIntoContext(
-        typeContext->getDeclaredInterfaceType());
-      auto superclassTy = selfTy->getSuperclass();
-
-      if (!superclassTy)
-        return Type();
-
-      if (selfDecl->getInterfaceType()->is<MetatypeType>())
-        superclassTy = MetatypeType::get(superclassTy);
-
-      return superclassTy;
-    }
-    
     Type visitRebindSelfInConstructorExpr(RebindSelfInConstructorExpr *expr) {
       // The result is void.
       return TupleType::getEmpty(CS.getASTContext());

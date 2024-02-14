@@ -27,8 +27,6 @@ func foo() {
     // expected-error @-1 {{cannot find 'skview' in scope}}
 }
 
-super.init() // expected-error {{'super' cannot be used outside of class members}}
-
 switch state { // expected-error {{cannot find 'state' in scope}}
   let duration : Int = 0 // expected-error {{all statements inside a switch must be covered by a 'case' or 'default'}}
   case 1:

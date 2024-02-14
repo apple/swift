@@ -821,22 +821,10 @@ BridgedParamDecl BridgedParamDecl_createParsed(
     BridgedSourceLoc cArgNameLoc, BridgedIdentifier cParamName,
     BridgedSourceLoc cParamNameLoc, BridgedNullableTypeRepr opaqueType,
     BridgedNullableExpr opaqueDefaultValue) {
-  auto *declContext = cDeclContext.unbridged();
-
-  auto *defaultValue = opaqueDefaultValue.unbridged();
-  DefaultArgumentKind defaultArgumentKind;
-
-  if (declContext->getParentSourceFile()->Kind == SourceFileKind::Interface &&
-      isa<SuperRefExpr>(defaultValue)) {
-    defaultValue = nullptr;
-    defaultArgumentKind = DefaultArgumentKind::Inherited;
-  } else {
-    defaultArgumentKind = getDefaultArgKind(defaultValue);
-  }
-
-  auto *paramDecl = new (cContext.unbridged()) ParamDecl(
-      cSpecifierLoc.unbridged(), cArgNameLoc.unbridged(), cArgName.unbridged(),
-      cParamNameLoc.unbridged(), cParamName.unbridged(), declContext);
+  auto *paramDecl = ParamDecl::createParsed(
+      cContext.unbridged(), cSpecifierLoc.unbridged(), cArgNameLoc.unbridged(),
+      cArgName.unbridged(), cParamNameLoc.unbridged(), cParamName.unbridged(),
+      opaqueDefaultValue.unbridged(), cDeclContext.unbridged());
 
   if (auto type = opaqueType.unbridged()) {
     paramDecl->setTypeRepr(type);
@@ -877,9 +865,6 @@ BridgedParamDecl BridgedParamDecl_createParsed(
       break;
     }
   }
-
-  paramDecl->setDefaultExpr(defaultValue, /*isTypeChecked*/ false);
-  paramDecl->setDefaultArgumentKind(defaultArgumentKind);
 
   return paramDecl;
 }

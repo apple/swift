@@ -37,30 +37,13 @@ void Parser::DefaultArgumentInfo::setFunctionContext(
   }
 }
 
-static ParserStatus parseDefaultArgument(
-    Parser &P, Parser::DefaultArgumentInfo *defaultArgs, unsigned argIndex,
-    Expr *&init, bool &hasInheritedDefaultArg,
-    Parser::ParameterContextKind paramContext) {
+static ParserStatus
+parseDefaultArgument(Parser &P, Parser::DefaultArgumentInfo *defaultArgs,
+                     unsigned argIndex, Expr *&init,
+                     Parser::ParameterContextKind paramContext) {
   assert(P.Tok.is(tok::equal) ||
        (P.Tok.isBinaryOperator() && P.Tok.getText() == "=="));
   SourceLoc equalLoc = P.consumeToken();
-
-  if (P.SF.Kind == SourceFileKind::Interface) {
-    // Swift module interfaces don't synthesize inherited initializers and
-    // instead include them explicitly in subclasses. Since the
-    // \c DefaultArgumentKind of these initializers is \c Inherited, this is
-    // represented textually as `= super` in the interface.
-
-    // If we're in a module interface and the default argument is exactly
-    // `super` (i.e. the token after that is `,` or `)` which end a parameter)
-    // report an inherited default argument to the caller and return.
-    if (P.Tok.is(tok::kw_super) && P.peekToken().isAny(tok::comma, tok::r_paren)) {
-      hasInheritedDefaultArg = true;
-      P.consumeToken(tok::kw_super);
-      defaultArgs->HasDefaultArgument = true;
-      return ParserStatus();
-    }
-  }
 
   // Enter a fresh default-argument context with a meaningless parent.
   // We'll change the parent to the function later after we've created
@@ -460,9 +443,8 @@ Parser::parseParameterClause(SourceLoc &leftParenLoc,
             .fixItReplace(EqualLoc, "=");
       }
 
-      status |= parseDefaultArgument(
-          *this, defaultArgs, defaultArgIndex, param.DefaultArg,
-          param.hasInheritedDefaultArg, paramContext);
+      status |= parseDefaultArgument(*this, defaultArgs, defaultArgIndex,
+                                     param.DefaultArg, paramContext);
     }
 
     // If we haven't made progress, don't add the parameter.
@@ -524,10 +506,9 @@ mapParsedParameters(Parser &parser,
                          Identifier argName, SourceLoc argNameLoc,
                          Identifier paramName, SourceLoc paramNameLoc)
   -> ParamDecl * {
-    auto param = new (ctx) ParamDecl(paramInfo.SpecifierLoc,
-                                     argNameLoc, argName,
-                                     paramNameLoc, paramName,
-                                     parser.CurDeclContext);
+    auto param = ParamDecl::createParsed(
+        ctx, paramInfo.SpecifierLoc, argNameLoc, argName, paramNameLoc,
+        paramName, paramInfo.DefaultArg, parser.CurDeclContext);
     param->getAttrs() = paramInfo.Attrs;
 
     bool parsingEnumElt
@@ -682,8 +663,7 @@ mapParsedParameters(Parser &parser,
                            param.FirstName, param.FirstNameLoc);
     }
 
-    assert (((!param.DefaultArg &&
-              !param.hasInheritedDefaultArg) ||
+    assert ((!param.DefaultArg ||
              paramContext == Parser::ParameterContextKind::Function ||
              paramContext == Parser::ParameterContextKind::Operator ||
              paramContext == Parser::ParameterContextKind::Initializer ||
@@ -691,14 +671,6 @@ mapParsedParameters(Parser &parser,
              paramContext == Parser::ParameterContextKind::Subscript ||
              paramContext == Parser::ParameterContextKind::Macro) &&
             "Default arguments are only permitted on the first param clause");
-
-    if (param.DefaultArg) {
-      DefaultArgumentKind kind = getDefaultArgKind(param.DefaultArg);
-      result->setDefaultArgumentKind(kind);
-      result->setDefaultExpr(param.DefaultArg, /*isTypeChecked*/ false);
-    } else if (param.hasInheritedDefaultArg) {
-      result->setDefaultArgumentKind(DefaultArgumentKind::Inherited);
-    }
 
     elements.push_back(result);
 

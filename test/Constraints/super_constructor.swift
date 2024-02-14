@@ -1,11 +1,5 @@
 // RUN: %target-typecheck-verify-swift -parse-as-library 
 
-struct S {
-  init() {
-    super.init() // expected-error{{'super' cannot be used outside of class members}}
-  }
-}
-
 class D : B {
   func foo() {
     super.init() // expected-error{{'super.init' cannot be called outside of an initializer}}
@@ -45,10 +39,6 @@ class B {
   init(a:UnicodeScalar) { // expected-note {{candidate expects value of type 'UnicodeScalar' (aka 'Unicode.Scalar') for parameter #1}}
   }
   init(b:UnicodeScalar) { // expected-note {{candidate expects value of type 'UnicodeScalar' (aka 'Unicode.Scalar') for parameter #1}}
-  }
-
-  init(z:Float) { // expected-note{{candidate expects value of type 'Float' for parameter #1}}
-    super.init() // expected-error{{'super' members cannot be referenced in a root class}}
   }
 }
 
