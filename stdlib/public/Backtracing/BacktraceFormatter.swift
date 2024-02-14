@@ -545,12 +545,12 @@ public struct BacktraceFormatter {
     if let index = index {
       columns.append(options._theme.frameIndex("\(index)"))
     }
-    columns.append(options._theme.programCounter(pc))
     if options._showFrameAttributes {
       columns.append(attrs.map(
                        options._theme.frameAttribute
                      ).joined(separator: " "))
     }
+    columns.append(options._theme.programCounter(pc))
 
     return columns
   }

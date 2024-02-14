@@ -6,6 +6,7 @@ Contents
 .. toctree::
    :maxdepth: 1
 
+   Backtracing
    Generics
    StoredAndComputedVariables
    SIL

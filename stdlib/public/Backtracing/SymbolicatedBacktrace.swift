@@ -336,7 +336,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
                                  with owner: CSSymbolOwnerRef,
                                  isInline: Bool,
                                  symbol: CSSymbolRef,
-                                 sourceInfo: CSSourceInfoRef,
+                                 sourceInfo: CSSourceInfoRef?,
                                  images: [Backtrace.Image]) -> Frame {
     if CSIsNull(symbol) {
       return Frame(captured: capturedFrame, symbol: nil)
@@ -349,7 +349,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
 
     let location: SourceLocation?
 
-    if !CSIsNull(sourceInfo) {
+    if let sourceInfo = sourceInfo, !CSIsNull(sourceInfo) {
       let path = CSSourceInfoGetPath(sourceInfo) ?? "<unknown>"
       let line = CSSourceInfoGetLineNumber(sourceInfo)
       let column = CSSourceInfoGetColumn(sourceInfo)
@@ -390,6 +390,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
                                    images: [Backtrace.Image]?,
                                    sharedCacheInfo: Backtrace.SharedCacheInfo?,
                                    showInlineFrames: Bool,
+                                   showSourceLocations: Bool,
                                    useSymbolCache: Bool)
     -> SymbolicatedBacktrace? {
 
@@ -449,7 +450,7 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
 
                 first = false
               }
-            } else {
+            } else if showSourceLocations {
               let symbol = CSSymbolOwnerGetSymbolWithAddress(owner, address)
               let sourceInfo = CSSymbolOwnerGetSourceInfoWithAddress(owner,
                                                                      address)
@@ -459,6 +460,15 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
                                        isInline: false,
                                        symbol: symbol,
                                        sourceInfo: sourceInfo,
+                                       images: theImages))
+            } else {
+              let symbol = CSSymbolOwnerGetSymbolWithAddress(owner, address)
+
+              frames.append(buildFrame(from: frame,
+                                       with: owner,
+                                       isInline: false,
+                                       symbol: symbol,
+                                       sourceInfo: nil,
                                        images: theImages))
             }
         }
@@ -500,21 +510,29 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
         }
 
         if let theSymbol = elf32Image?.lookupSymbol(address: relativeAddress) {
-          var location = try? elf32Image!.sourceLocation(for: relativeAddress)
+          var location: SourceLocation?
 
-          for inline in elf32Image!.inlineCallSites(at: relativeAddress) {
-            let fakeSymbol = Symbol(imageIndex: imageNdx,
-                                    imageName: theImages[imageNdx].name,
-                                    rawName: inline.rawName ?? "<unknown>",
-                                    offset: 0,
-                                    sourceLocation: location)
-            frames.append(Frame(captured: frame,
-                                symbol: fakeSymbol,
-                                inlined: true))
+          if showSourceLocations || showInlineFrames {
+            location = try? elf32Image!.sourceLocation(for: relativeAddress)
+          } else {
+            location = nil
+          }
 
-            location = SourceLocation(path: inline.filename,
-                                      line: inline.line,
-                                      column: inline.column)
+          if showInlineFrames {
+            for inline in elf32Image!.inlineCallSites(at: relativeAddress) {
+              let fakeSymbol = Symbol(imageIndex: imageNdx,
+                                      imageName: theImages[imageNdx].name,
+                                      rawName: inline.rawName ?? "<unknown>",
+                                      offset: 0,
+                                      sourceLocation: location)
+              frames.append(Frame(captured: frame,
+                                  symbol: fakeSymbol,
+                                  inlined: true))
+
+              location = SourceLocation(path: inline.filename,
+                                        line: inline.line,
+                                        column: inline.column)
+            }
           }
 
           symbol = Symbol(imageIndex: imageNdx,
@@ -523,21 +541,29 @@ public struct SymbolicatedBacktrace: CustomStringConvertible {
                           offset: theSymbol.offset,
                           sourceLocation: location)
         } else if let theSymbol = elf64Image?.lookupSymbol(address: relativeAddress) {
-          var location = try? elf64Image!.sourceLocation(for: relativeAddress)
+          var location: SourceLocation?
 
-          for inline in elf64Image!.inlineCallSites(at: relativeAddress) {
-            let fakeSymbol = Symbol(imageIndex: imageNdx,
-                                    imageName: theImages[imageNdx].name,
-                                    rawName: inline.rawName ?? "<unknown>",
-                                    offset: 0,
-                                    sourceLocation: location)
-            frames.append(Frame(captured: frame,
-                                symbol: fakeSymbol,
-                                inlined: true))
+          if showSourceLocations || showInlineFrames {
+            location = try? elf64Image!.sourceLocation(for: relativeAddress)
+          } else {
+            location = nil
+          }
 
-            location = SourceLocation(path: inline.filename,
-                                      line: inline.line,
-                                      column: inline.column)
+          if showInlineFrames {
+            for inline in elf64Image!.inlineCallSites(at: relativeAddress) {
+              let fakeSymbol = Symbol(imageIndex: imageNdx,
+                                      imageName: theImages[imageNdx].name,
+                                      rawName: inline.rawName ?? "<unknown>",
+                                      offset: 0,
+                                      sourceLocation: location)
+              frames.append(Frame(captured: frame,
+                                  symbol: fakeSymbol,
+                                  inlined: true))
+
+              location = SourceLocation(path: inline.filename,
+                                        line: inline.line,
+                                        column: inline.column)
+            }
           }
 
           symbol = Symbol(imageIndex: imageNdx,

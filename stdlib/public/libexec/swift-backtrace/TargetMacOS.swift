@@ -46,13 +46,18 @@ extension thread_extended_info {
   }
 }
 
+enum SomeBacktrace {
+  case raw(Backtrace)
+  case symbolicated(SymbolicatedBacktrace)
+}
+
 struct TargetThread {
   typealias ThreadID = UInt64
 
   var id: ThreadID
   var context: HostContext?
   var name: String
-  var backtrace: SymbolicatedBacktrace
+  var backtrace: SomeBacktrace
 }
 
 class Target {
@@ -134,7 +139,8 @@ class Target {
       (flags & UInt32(CS_PLATFORM_BINARY | CS_PLATFORM_PATH)) != 0
   }
 
-  init(crashInfoAddr: UInt64, limit: Int?, top: Int, cache: Bool) {
+  init(crashInfoAddr: UInt64, limit: Int?, top: Int, cache: Bool,
+       symbolicate: SwiftBacktrace.Symbolication) {
     pid = getppid()
 
     if Self.isPlatformBinary(pid: pid) {
@@ -185,10 +191,13 @@ class Target {
     images = Backtrace.captureImages(for: task)
     sharedCacheInfo = Backtrace.captureSharedCacheInfo(for: task)
 
-    fetchThreads(limit: limit, top: top, cache: cache)
+    fetchThreads(limit: limit, top: top, cache: cache, symbolicate: symbolicate)
   }
 
-  func fetchThreads(limit: Int?, top: Int, cache: Bool) {
+  func fetchThreads(
+    limit: Int?, top: Int, cache: Bool,
+    symbolicate: SwiftBacktrace.Symbolication
+  ) {
     var threadPorts: thread_act_array_t? = nil
     var threadCount: mach_msg_type_number_t = 0
     let kr = task_threads(task,
@@ -260,24 +269,56 @@ class Target {
         exit(1)
       }
 
-      guard let symbolicated = backtrace.symbolicated(with: images,
-                                                      sharedCacheInfo: sharedCacheInfo,
-                                                      useSymbolCache: cache) else {
-        print("unable to symbolicate backtrace from context for thread \(ndx)",
-              to: &standardError)
-        exit(1)
+      let shouldSymbolicate: Bool
+      let showInlineFrames: Bool
+      let showSourceLocations: Bool
+      switch symbolicate {
+        case .off:
+          shouldSymbolicate = false
+          showInlineFrames = false
+          showSourceLocations = false
+        case .fast:
+          shouldSymbolicate = true
+          showInlineFrames = false
+          showSourceLocations = false
+        case .full:
+          shouldSymbolicate = true
+          showInlineFrames = true
+          showSourceLocations = true
       }
 
-      threads.append(TargetThread(id: info.thread_id,
-                                  context: ctx,
-                                  name: threadName,
-                                  backtrace: symbolicated))
+      if shouldSymbolicate {
+        guard let symbolicated = backtrace.symbolicated(
+                with: images,
+                sharedCacheInfo: sharedCacheInfo,
+                showInlineFrames: showInlineFrames,
+                showSourceLocations: showSourceLocations,
+                useSymbolCache: cache) else {
+          print("unable to symbolicate backtrace from context for thread \(ndx)",
+                to: &standardError)
+          exit(1)
+        }
+
+        threads.append(TargetThread(id: info.thread_id,
+                                    context: ctx,
+                                    name: threadName,
+                                    backtrace: .symbolicated(symbolicated)))
+      } else {
+        threads.append(TargetThread(id: info.thread_id,
+                                    context: ctx,
+                                    name: threadName,
+                                    backtrace: .raw(backtrace)))
+      }
 
       mach_port_deallocate(mach_task_self_, ports[Int(ndx)])
     }
   }
 
-  public func redoBacktraces(limit: Int?, top: Int, cache: Bool) {
+  public func redoBacktraces(
+    limit: Int?, top: Int,
+    cache: Bool,
+    symbolicate: SwiftBacktrace.Symbolication
+  ) {
     for (ndx, thread) in threads.enumerated() {
       guard let context = thread.context else {
         continue
@@ -293,15 +334,40 @@ class Target {
         continue
       }
 
-      guard let symbolicated = backtrace.symbolicated(with: images,
-                                                      sharedCacheInfo: sharedCacheInfo,
-                                                      useSymbolCache: cache) else {
-        print("swift-backtrace: unable to symbolicate backtrace from context for thread \(ndx)",
-              to: &standardError)
-        continue
+      let shouldSymbolicate: Bool
+      let showInlineFrames: Bool
+      let showSourceLocations: Bool
+      switch symbolicate {
+        case .off:
+          shouldSymbolicate = false
+          showInlineFrames = false
+          showSourceLocations = false
+        case .fast:
+          shouldSymbolicate = true
+          showInlineFrames = false
+          showSourceLocations = false
+        case .full:
+          shouldSymbolicate = true
+          showInlineFrames = true
+          showSourceLocations = true
       }
 
-      threads[ndx].backtrace = symbolicated
+      if shouldSymbolicate {
+        guard let symbolicated = backtrace.symbolicated(
+                with: images,
+                sharedCacheInfo: sharedCacheInfo,
+                showInlineFrames: showInlineFrames,
+                showSourceLocations: showSourceLocations,
+                useSymbolCache: cache) else {
+          print("swift-backtrace: unable to symbolicate backtrace from context for thread \(ndx)",
+                to: &standardError)
+          continue
+        }
+
+        threads[ndx].backtrace = .symbolicated(symbolicated)
+      } else {
+        threads[ndx].backtrace = .raw(backtrace)
+      }
     }
   }
 

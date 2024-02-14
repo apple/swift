@@ -96,6 +96,12 @@ enum class OutputTo {
   Stderr = 2,
 };
 
+enum class Symbolication {
+  Off = 0,
+  Fast = 1,
+  Full = 2,
+};
+
 struct BacktraceSettings {
   UnwindAlgorithm  algorithm;
   OnOffTty         enabled;
@@ -112,6 +118,7 @@ struct BacktraceSettings {
   Preset           preset;
   bool             cache;
   OutputTo         outputTo;
+  Symbolication    symbolicate;
   const char      *swiftBacktracePath;
 };
 

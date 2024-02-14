@@ -1,5 +1,7 @@
 // RUN: %target-typecheck-verify-swift
 
+// REQUIRES: rdar112865148
+
 // REQUIRES: libdispatch
 // UNSUPPORTED: OS=linux-gnu
 // UNSUPPORTED: OS=linux-android
