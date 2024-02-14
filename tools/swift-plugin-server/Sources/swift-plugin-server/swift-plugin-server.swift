@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-import SwiftCompilerPluginMessageHandling
+@_spi(PluginMessage) import SwiftCompilerPluginMessageHandling
 import SwiftSyntaxMacros
 import swiftLLVMJSON
 import CSwiftPluginServer
