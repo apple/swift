@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-irgen %s | %FileCheck %s
+// RUN: %target-swift-frontend -emit-irgen %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize
 
 import Builtin
 
@@ -6,6 +6,47 @@ sil @marker : $(Builtin.Int64) -> ()
 
 sil @coro_ret : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64)
 sil @coro_ret_pair : $@yield_once @convention(thin) () -> (@yields Builtin.Int64, Builtin.Int64, Builtin.Int64)
+
+// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc ptr @test_simple
+// CHECK-32-SAME:  ptr noalias dereferenceable([[BUFFER_SIZE:16]]) %0)
+// CHECK-64-SAME:  (ptr noalias dereferenceable([[BUFFER_SIZE:32]]) %0)
+// CHECK-SAME:  [[CORO_ATTRIBUTES:#[0-9]+]]
+sil @test_simple : $@yield_once () -> (Builtin.Int64) {
+entry:
+  // CHECK-32:      [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:4]], ptr %0, ptr @"$sBi64_IetAd_TC", ptr @malloc, ptr @free)
+  // CHECK-64:      [[ID:%.*]] = call token @llvm.coro.id.retcon.once(i32 [[BUFFER_SIZE]], i32 [[BUFFER_ALIGN:8]], ptr %0, ptr @"$sBi64_IetAd_TC", ptr @malloc, ptr @free)
+  // CHECK-NEXT:    [[BEGIN:%.*]] = call ptr @llvm.coro.begin(token [[ID]], ptr null)
+
+  // CHECK-NEXT:    call swiftcc void @marker(i64 1000)
+  %marker = function_ref @marker : $@convention(thin) (Builtin.Int64) -> ()
+  %1000 = integer_literal $Builtin.Int64, 1000
+  apply %marker(%1000) : $@convention(thin) (Builtin.Int64) -> ()
+  
+  // CHECK-NEXT:    [[IS_UNWIND:%.*]] = call i1 (...) @llvm.coro.suspend.retcon.i1()
+  // CHECK-NEXT:    br i1 [[IS_UNWIND]], label [[UNWIND_BB:%.*]], label [[RESUME_BB:%.*]]
+  yield (), resume resume, unwind unwind
+
+resume:
+  // CHECK:         call swiftcc void @marker(i64 2000)
+  %2000 = integer_literal $Builtin.Int64, 2000
+  apply %marker(%2000) : $@convention(thin) (Builtin.Int64) -> ()
+  // CHECK:         br label %coro.end
+  return %2000 : $Builtin.Int64
+
+unwind:
+  // CHECK:         call swiftcc void @marker(i64 3000)
+  %3000 = integer_literal $Builtin.Int64, 3000
+  apply %marker(%3000) : $@convention(thin) (Builtin.Int64) -> ()
+  // CHECK:         br label %coro.end
+  unwind
+
+  // CHECK:       coro.end:
+  // CHECK: [[RESULT:%.*]] = phi i64 [ 2000, [[RESUME_BB]] ], [ undef, [[UNWIND_BB]] ]
+  // CHECK: [[TOKEN:%.*]] = call token (...) @llvm.coro.end.results(i64 [[RESULT]])
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token [[TOKEN]])
+  // CHECK-NEXT:    unreachable
+}
+
 
 // CHECK-LABEL: test_coro_ret
 sil @test_coro_ret : $() -> (Builtin.Int64, Builtin.Int64, Builtin.Int64) {

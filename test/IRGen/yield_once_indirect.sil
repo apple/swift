@@ -60,13 +60,9 @@ resume:
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
   dealloc_stack %temp : $*Indirect<C>
 
-  // CHECK-NEXT:    br label %coro.end.normal
+  // CHECK-NEXT:    br label %coro.end
   %ret = tuple ()
   return %ret : $()
-
-  // CHECK:       coro.end.normal:
-  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token none)
-  // CHECK-NEXT:    unreachable
 
 unwind:
   // CHECK:         call swiftcc void @marker(i32 3000)
@@ -76,11 +72,11 @@ unwind:
   // CHECK-NEXT:    call void @llvm.lifetime.end.p0(i64 {{.*}}, ptr [[TEMP]])
   dealloc_stack %temp : $*Indirect<C>
 
-  // CHECK-NEXT:    br label %coro.end.unwind
+  // CHECK-NEXT:    br label %coro.end
   unwind
 
-  // CHECK:       coro.end.unwind:
-  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 true, token none)
+  // CHECK:       coro.end:
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token none)
   // CHECK-NEXT:    unreachable
 }
 

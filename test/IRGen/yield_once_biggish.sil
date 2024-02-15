@@ -77,23 +77,19 @@ resume:
   // CHECK:         call swiftcc void @marker(i32 2000)
   %2000 = integer_literal $Builtin.Int32, 2000
   apply %marker(%2000) : $@convention(thin) (Builtin.Int32) -> ()
-  // CHECK:         br label %coro.end.normal
+  // CHECK:         br label %coro.end
   %ret = tuple ()
   return %ret : $()
-
-  // CHECK:       coro.end.normal:
-  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token none)
-  // CHECK-NEXT:    unreachable
 
 unwind:
   // CHECK:         call swiftcc void @marker(i32 3000)
   %3000 = integer_literal $Builtin.Int32, 3000
   apply %marker(%3000) : $@convention(thin) (Builtin.Int32) -> ()
-  // CHECK:         br label %coro.end.unwind
+  // CHECK:         br label %coro.end
   unwind
 
-  // CHECK:       coro.end.unwind:
-  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 true, token none)
+  // CHECK:       coro.end:
+  // CHECK:         call i1 @llvm.coro.end(ptr [[BEGIN]], i1 false, token none)
   // CHECK-NEXT:    unreachable
 }
 

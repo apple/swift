@@ -159,6 +159,8 @@ public:
     return CoroutineExitBlock;
   }
 
+  SmallVector<llvm::Value *, 1> coroutineResults;
+  
   void setCoroutineExitBlock(llvm::BasicBlock *block) {
     assert(CoroutineExitBlock == nullptr && "already set exit BB");
     assert(block != nullptr && "setting a null exit BB");

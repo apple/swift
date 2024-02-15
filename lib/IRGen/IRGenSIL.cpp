@@ -4122,20 +4122,46 @@ void IRGenSILFunction::visitUnreachableInst(swift::UnreachableInst *i) {
 }
 
 void IRGenFunction::emitCoroutineOrAsyncExit(bool isUnwind) {
-  // Create end block and branch to it.
-  auto coroEndBB = createBasicBlock(isUnwind ? "coro.end.unwind" : "coro.end");
-  Builder.CreateBr(coroEndBB);
+  // LLVM's retcon lowering is a bit imcompatible with Swift
+  // model. Essentially it assumes that unwind destination is kind of terminal -
+  // it cannot return back to caller and must somehow terminate the process /
+  // thread. Therefore we are always use normal LLVM coroutine termination.
+  // However, for yield_once coroutines we need also specify undef results on
+  // unwind path. Eventually, we'd get rid of these crazy phis...
 
-  // Emit the block.
+  // If the coroutine exit block already exists, just branch to it.
+  auto *coroEndBB = getCoroutineExitBlock();
+  auto *unwindBB = Builder.GetInsertBlock();
+
+  // If the coroutine exit block already exists, just branch to it.
+  if (coroEndBB) {
+    Builder.CreateBr(coroEndBB);
+
+    if (!isAsync()) {
+      // If there are any result values we need to add undefs for all values
+      // coming from unwind block
+      for (auto &phi : coroutineResults)
+        cast<llvm::PHINode>(phi)->addIncoming(llvm::UndefValue::get(phi->getType()),
+                                              unwindBB);
+    }
+
+    return;
+  }
+
+  // Otherwise, create it and branch to it.
+  coroEndBB = createBasicBlock("coro.end");
+  setCoroutineExitBlock(coroEndBB);
+  Builder.CreateBr(coroEndBB);
   Builder.emitBlock(coroEndBB);
+
   if (isAsync())
     Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_async,
-                                { getCoroutineHandle(),
-                                  isUnwind ? Builder.getTrue() : Builder.getFalse()});
+                                { getCoroutineHandle(), Builder.getFalse()});
   else
+    // Do not bother about results here, normal result emission code would
+    // update token value.
     Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
-                                { getCoroutineHandle(),
-                                  isUnwind ? Builder.getTrue() : Builder.getFalse(),
+                                { getCoroutineHandle(), Builder.getFalse(),
                                   llvm::ConstantTokenNone::get(Builder.getContext())});
 
   Builder.CreateUnreachable();
@@ -4335,7 +4361,7 @@ void IRGenSILFunction::visitThrowAddrInst(swift::ThrowAddrInst *i) {
 }
 
 void IRGenSILFunction::visitUnwindInst(swift::UnwindInst *i) {
-  // Just call coro.end marking unwind return
+  // Call coro.end marking unwind return
   emitCoroutineOrAsyncExit(true);
 }
 

@@ -5829,25 +5829,15 @@ void irgen::emitYieldOnceCoroutineResult(IRGenFunction &IGF, Explosion &result,
   auto &Builder = IGF.Builder;
   auto &IGM = IGF.IGM;
 
-  // Create coroutine exit block and branch to it.
-  auto coroEndBB = IGF.createBasicBlock("coro.end.normal");
-  IGF.setCoroutineExitBlock(coroEndBB);
-  Builder.CreateBr(coroEndBB);
-
-  // Emit the block.
-  Builder.emitBlock(coroEndBB);
-  auto handle = IGF.getCoroutineHandle();
-
-  llvm::Value *resultToken = nullptr;
+  // Prepare coroutine result values
+  auto &coroResults = IGF.coroutineResults;
+  assert(coroResults.empty() && "must only be single return");
   if (result.empty()) {
     assert(IGM.getTypeInfo(returnResultType)
-               .nativeReturnValueSchema(IGM)
-               .empty() &&
+           .nativeReturnValueSchema(IGM)
+           .empty() &&
            "Empty explosion must match the native calling convention");
-    // No results: just use none token
-    resultToken = llvm::ConstantTokenNone::get(Builder.getContext());
   } else {
-    // Capture results via `coro_end_results` intrinsic
     result = IGF.coerceValueTo(returnResultType, result, funcResultType);
     auto &nativeSchema =
       IGM.getTypeInfo(funcResultType).nativeReturnValueSchema(IGM);
@@ -5856,19 +5846,93 @@ void irgen::emitYieldOnceCoroutineResult(IRGenFunction &IGF, Explosion &result,
     Explosion native = nativeSchema.mapIntoNative(IGM, IGF, result,
                                                   funcResultType,
                                                   false /* isOutlined */);
-    SmallVector<llvm::Value *, 1> args;
     for (unsigned i = 0, e = native.size(); i != e; ++i)
-      args.push_back(native.claimNext());
-
-    resultToken =
-      Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, args);
+      coroResults.push_back(native.claimNext());
   }
 
-  Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
+  auto coroEndBB = IGF.getCoroutineExitBlock();
+  auto handle = IGF.getCoroutineHandle();
+  bool newEndBlock = false;
+  if (!coroEndBB) {
+    coroEndBB = IGF.createBasicBlock("coro.end");
+    IGF.setCoroutineExitBlock(coroEndBB);
+    newEndBlock = true;
+  }
+
+  // If there are coroutine results, then we need to capture them via
+  // @llvm.coro_end_results intrinsics. However, since unwind blocks would
+  // jump to the same block, we wrap values into phi nodes.
+  Builder.CreateBr(coroEndBB);
+
+  // Emit the end block.
+  llvm::BasicBlock *returnBB = Builder.GetInsertBlock();
+
+  if (newEndBlock) {
+    Builder.emitBlock(coroEndBB);
+
+    llvm::Value *resultToken = nullptr;
+    if (coroResults.empty()) {
+      // No results: just use none token
+      resultToken = llvm::ConstantTokenNone::get(Builder.getContext());
+    } else {
+      // Otherwise, wrap result values into singleton phi nodes
+      for (auto &val : coroResults) {
+        auto *phi = Builder.CreatePHI(val->getType(), 0);
+        phi->addIncoming(val, returnBB);
+        val = phi;
+      }
+
+      // Capture results via result token
+      resultToken =
+        Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, coroResults);
+
+        Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
                               {handle,
                                /*is unwind*/ Builder.getFalse(),
                                resultToken});
-  Builder.CreateUnreachable();
+        Builder.CreateUnreachable();
+    }
+  } else {
+    if (coroResults.empty()) {
+      // No results, we do not need to change anything around existing coro.end
+      return;
+    }
+
+    // Otherwise, we'd need to insert new coro.end.results intrinsics capturing
+    // result values.  However, we'd need to wrap results into phi nodes adding
+    // undef for all values coming from incoming unwind blocks.
+
+    // Find coro.end intrinsic
+    llvm::CallInst *coroEndCall = nullptr;
+    for (llvm::Instruction &inst : coroEndBB->instructionsWithoutDebug()) {
+      if (auto *CI = dyn_cast<llvm::CallInst>(&inst)) {
+        if (CI->getIntrinsicID() == llvm::Intrinsic::coro_end) {
+          coroEndCall = CI;
+          break;
+        }
+      }
+    }
+
+    assert(coroEndCall && isa<llvm::ConstantTokenNone>(coroEndCall->getArgOperand(2)) &&
+           "invalid unwind coro.end call");
+
+    Builder.SetInsertPoint(&*coroEndBB->getFirstInsertionPt());
+
+    for (auto &val : coroResults) {
+      auto *phi = Builder.CreatePHI(val->getType(), llvm::pred_size(coroEndBB));
+      for (auto *predBB : llvm::predecessors(coroEndBB))
+        phi->addIncoming(predBB == returnBB ? val : llvm::UndefValue::get(val->getType()),
+                         predBB);
+
+      val = phi;
+    }
+
+    // Capture results via result token and replace coro.end token operand
+    auto *resultToken =
+      Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, coroResults);
+    coroEndCall->setArgOperand(2, resultToken);
+    Builder.SetInsertPoint(returnBB);
+  }
 }
 
 FunctionPointer
