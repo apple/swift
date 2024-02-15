@@ -410,6 +410,13 @@ static bool buildModuleFromInterface(CompilerInstance &Instance) {
   bool IgnoreAdjacentModules = Instance.hasASTContext() &&
                                Instance.getASTContext().IgnoreAdjacentModules;
 
+  // When caching is enabled, the explicit module build dependencies are
+  // discovered by dependency scanner and the swiftmodule is already rebuilt
+  // ignoring candidate module. There is no need to serialized dependencies for
+  // validation purpose.
+  bool ShouldSerializeDeps =
+      !Instance.getInvocation().getCASOptions().EnableCaching;
+
   // If an explicit interface build was requested, bypass the creation of a new
   // sub-instance from the interface which will build it in a separate thread,
   // and isntead directly use the current \c Instance for compilation.
@@ -422,8 +429,7 @@ static bool buildModuleFromInterface(CompilerInstance &Instance) {
     return ModuleInterfaceLoader::buildExplicitSwiftModuleFromSwiftInterface(
         Instance, Invocation.getClangModuleCachePath(),
         FEOpts.BackupModuleInterfaceDir, PrebuiltCachePath, ABIPath, InputPath,
-        Invocation.getOutputFilename(),
-        /* shouldSerializeDeps */ true,
+        Invocation.getOutputFilename(), ShouldSerializeDeps,
         Invocation.getSearchPathOptions().CandidateCompiledModules);
 
   return ModuleInterfaceLoader::buildSwiftModuleFromSwiftInterface(
