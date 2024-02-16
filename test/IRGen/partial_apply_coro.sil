@@ -17,8 +17,6 @@ import Swift
 //
 // CHECK: define {{.*}} void @yield1.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %{{.*}}, i1 %[[UNWIND:.*]])
 // CHECK-NEXT: entryresume.0:
-// CHECK-NEXT:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK-NEXT:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK-NEXT:   ret void
 // CHECK-NEXT: }
 //
@@ -129,11 +127,10 @@ bb0(%0 : $Float):
 //
 // CHECK: define {{.*}} i64 @yield2.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %[[CTX:.*]], i1 %[[UNWIND:.*]])
 // CHECK-NEXT: entryresume.0:
-// CHECK-NEXT:   %[[NOUNWIND]] = xor i1 %[[UNWIND]], true
-// CHECK-NEXT:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK-NEXT:   %[[FRAME:.*]] = getelementptr inbounds %yield2.Frame, ptr %[[CTX]], i32 0, i32 0
 // CHECK-NEXT:   %[[RET:.*]] = load i64, ptr %[[FRAME]], align 8
-// CHECK-NEXT:   ret i64 %[[RET]]
+// CHECK-NEXT:   %[[RET_SEL:.*]] = select i1 %[[UNWIND]], i64 undef, i64 %[[RET]]
+// CHECK-NEXT:   ret i64 %[[RET_SEL]]
 // CHECK-NEXT: }
 //
 sil [ossa] @yield2 : $@yield_once(Int, Float) -> (Int, @yields Float) {
@@ -250,8 +247,6 @@ bb0(%0 : $Int, %1 : $Float):
 //
 // CHECK: define {{.*}} void @yieldgen1.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %{{.*}}, i1 %[[UNWIND:.*]])
 // CHECK: entryresume.0:
-// CHECK:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK:   ret void
 // CHECK: }
 //
@@ -360,11 +355,10 @@ bb0(%0 : $Float):
 //
 // CHECK: define {{.*}} ptr @yieldgen2.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %[[CTX:.*]], i1 %[[UNWIND:.*]])
 // CHECK: entryresume.0:
-// CHECK:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK:   %[[FRAME:.*]] = getelementptr inbounds %yieldgen2.Frame, ptr %[[CTX]], i32 0, i32 0
 // CHECK:   %[[ARG0:.*]] = load ptr, ptr %[[FRAME]], align 8
-// CHECK:   ret ptr %[[ARG0]]
+// CHECK:   %[[RET_SEL:.*]] = select i1 %[[UNWIND]], ptr undef, ptr %[[ARG0]]
+// CHECK:   ret ptr %[[RET_SEL]]
 // CHECK: }
 //
 sil @yieldgen2 : $@yield_once @convention(thin) <T : F> (T) -> (@yields T, T) {
@@ -474,8 +468,6 @@ sil @$s13partial_apply10SwiftClassCfD : $@convention(method) (SwiftClass) -> ()
 //
 // CHECK: define {{.*}} void @partially_applyable_to_class.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %{{.*}}, i1 %[[UNWIND:.*]])
 // CHECK: entryresume.0:
-// CHECK:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK:   ret void
 // CHECK: }
 //
@@ -617,11 +609,10 @@ entry(%a : $SwiftClass):
 //
 // CHECK: define {{.*}} ptr @partially_applyable_to_two_classes.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %[[CTX:.*]], i1 %[[UNWIND:.*]])
 // CHECK: entryresume.0:
-// CHECK:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK:   %[[FRAME:.*]] = getelementptr inbounds %partially_applyable_to_two_classes.Frame, ptr %[[CTX]], i32 0, i32 0
 // CHECK:   %[[ARG:.*]] = load ptr, ptr %[[FRAME]], align 8
-// CHECK:   ret ptr %[[ARG]]
+// CHECK:   %[[RET_SEL:.*]] = select i1 %[[UNWIND]], ptr undef, ptr %[[ARG]]
+// CHECK:   ret ptr %[[RET_SEL]]
 // CHECK: }
 //
 sil @partially_applyable_to_two_classes : $@convention(thin) @yield_once (@guaranteed SwiftClass, @guaranteed SwiftClass) -> (@yields SwiftClass, SwiftClass) {
@@ -714,8 +705,6 @@ entry(%a : $SwiftClass, %b: $SwiftClass):
 //
 // CHECK: define {{.*}} void @generic_captured_param.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %[[CTX:.*]], i1 %[[UNWIND:.*]])
 // CHECK: entryresume.0:
-// CHECK:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK:   ret void
 // CHECK: }
 //
@@ -1411,11 +1400,10 @@ sil public_external @receive_closure2 : $@yield_once @convention(thin) <C where 
 //
 // CHECK: define {{.*}} ptr @parametric_casting_closure.resume.0(ptr noalias noundef nonnull align 8 dereferenceable(32) %[[CTX:.*]], i1 %[[UNWIND:.*]])
 // CHECK: entryresume.0:
-// CHECK:   %[[NOUNWIND:.*]] = xor i1 %[[UNWIND]], true
-// CHECK:   call void @llvm.assume(i1 %[[NOUNWIND]])
 // CHECK:   %[[FRAME:.*]] = getelementptr inbounds %parametric_casting_closure.Frame, ptr %[[CTX]], i32 0, i32 0
 // CHECK:   %[[RET:.*]] = load ptr, ptr %[[FRAME]], align 8
-// CHECK:   ret ptr %[[RET]]
+// CHECK:   %[[RET_SEL:.*]] = select i1 %[[UNWIND]], ptr undef, ptr %[[RET]]
+// CHECK:   ret ptr %[[RET_SEL]]
 // CHECK: }
 //
 sil @parametric_casting_closure : $@yield_once @convention(thin) <C where C : Base> (@guaranteed Base) -> (@owned C, @yields C) {
