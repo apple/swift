@@ -153,6 +153,10 @@ bool BridgedASTType::SILFunctionType_hasSelfParam() const {
   return unbridged()->castTo<swift::SILFunctionType>()->hasSelfParam();
 }
 
+bool BridgedASTType::SILFunctionType_isTrivialNoescape() const {
+  return unbridged()->castTo<swift::SILFunctionType>()->isTrivialNoEscape();
+}
+
 BridgedYieldInfoArray BridgedASTType::SILFunctionType_getYields() const {
   return unbridged()->castTo<swift::SILFunctionType>()->getYields();
 }
@@ -260,6 +264,10 @@ bool BridgedType::isNoEscapeFunction() const {
 
 bool BridgedType::containsNoEscapeFunction() const {
   return unbridged().containsNoEscapeFunction();
+}
+
+bool BridgedType::isThickFunction() const {
+  return unbridged().isThickFunction();
 }
 
 bool BridgedType::isAsyncFunction() const {
@@ -377,6 +385,10 @@ SwiftInt BridgedType::getNumTupleElements() const {
 
 BridgedType BridgedType::getTupleElementType(SwiftInt idx) const {
   return unbridged().getTupleElementType(idx);
+}
+
+BridgedStringRef BridgedType::getTupleElementName(SwiftInt idx) const {
+  return {unbridged().getTupleElementName(idx)};
 }
 
 BridgedType BridgedType::getFunctionTypeWithNoEscape(bool withNoEscape) const {
@@ -530,6 +542,10 @@ bool BridgedSubstitutionMap::isEmpty() const {
   return unbridged().empty();
 }
 
+bool BridgedSubstitutionMap::hasAnySubstitutableParams() const {
+  return unbridged().hasAnySubstitutableParams();
+}
+
 //===----------------------------------------------------------------------===//
 //                                BridgedLocation
 //===----------------------------------------------------------------------===//
@@ -633,6 +649,10 @@ bool BridgedFunction::isTransparent() const {
 
 bool BridgedFunction::isAsync() const {
   return getFunction()->isAsync();
+}
+
+bool BridgedFunction::isReabstractionThunk() const {
+  return getFunction()->isThunk() == swift::IsReabstractionThunk;
 }
 
 bool BridgedFunction::isGlobalInitFunction() const {
@@ -1085,6 +1105,10 @@ bool BridgedInstruction::PartialApplyInst_isOnStack() const {
   return getAs<swift::PartialApplyInst>()->isOnStack();
 }
 
+BridgedValue BridgedInstruction::ThinToThickFunctionInst_getCallee() const {
+  return {getAs<swift::ThinToThickFunctionInst>()->getCallee()};
+}
+
 bool BridgedInstruction::AllocStackInst_hasDynamicLifetime() const {
   return getAs<swift::AllocStackInst>()->hasDynamicLifetime();
 }
@@ -1281,6 +1305,10 @@ BridgedASTType BridgedInstruction::ApplySite_getSubstitutedCalleeType() const {
 
 SwiftInt BridgedInstruction::ApplySite_getNumArguments() const {
   return swift::ApplySite(unbridged()).getNumArguments();
+}
+
+bool BridgedInstruction::ApplySite_isCalleeNoReturn() const {
+  return swift::ApplySite(unbridged()).isCalleeNoReturn();
 }
 
 SwiftInt BridgedInstruction::FullApplySite_numIndirectResultArguments() const {

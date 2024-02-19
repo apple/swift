@@ -13,12 +13,14 @@
 #define DEBUG_TYPE "sil-passmanager"
 
 #include "swift/SILOptimizer/PassManager/PassManager.h"
+#include "../../IRGen/IRGenModule.h"
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/SILOptimizerRequests.h"
 #include "swift/Demangling/Demangle.h"
-#include "../../IRGen/IRGenModule.h"
+#include "swift/Demangling/Demangler.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/DynamicCasts.h"
+#include "swift/SIL/SILBridging.h"
 #include "swift/SIL/SILCloner.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILModule.h"
@@ -27,8 +29,10 @@
 #include "swift/SILOptimizer/OptimizerBridging.h"
 #include "swift/SILOptimizer/PassManager/PrettyStackTrace.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
-#include "swift/SILOptimizer/Utils/Devirtualize.h"
+#include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/ConstantFolding.h"
+#include "swift/SILOptimizer/Utils/Devirtualize.h"
+#include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "swift/SILOptimizer/Utils/OptimizerStatsUtils.h"
 #include "swift/SILOptimizer/Utils/SILInliner.h"
 #include "swift/SILOptimizer/Utils/SILOptFunctionBuilder.h"
@@ -1569,6 +1573,23 @@ void SwiftPassInvocation::endVerifyFunction() {
 SwiftPassInvocation::~SwiftPassInvocation() {}
 
 //===----------------------------------------------------------------------===//
+//                           SIL Bridging
+//===----------------------------------------------------------------------===//
+bool BridgedFunction::mayBindDynamicSelf() const {
+  return swift::mayBindDynamicSelf(getFunction());
+}
+
+bool BridgedInstruction::ApplyInst_isTrapNoReturnFunction() const {
+  auto *ai = getAs<swift::ApplyInst>();
+  return swift::isTrapNoReturnFunction(ai);
+}
+
+bool BridgedInstruction::TermInst_isSafeNonExitTerminator() const {
+  auto *ti = getAs<swift::TermInst>();
+  return swift::isSafeNonExitTerminator(ti);
+}
+
+//===----------------------------------------------------------------------===//
 //                           OptimizerBridging
 //===----------------------------------------------------------------------===//
 
@@ -1991,4 +2012,32 @@ void SILPassManager::runSwiftModuleVerification() {
   for (SILFunction &f : *Mod) {
     runSwiftFunctionVerification(&f);
   }
+}
+
+BridgedFunctionSignatureSpecializationMangler::
+    BridgedFunctionSignatureSpecializationMangler(
+        BridgedSpecializationPass bridgedSpecializationPass, bool isSerialized,
+        BridgedFunction function) {
+  auto specializationPass = static_cast<swift::Demangle::SpecializationPass>(
+      static_cast<SwiftUInt>(bridgedSpecializationPass));
+  IsSerialized_t isSerialized_t = isSerialized ? IsSerialized : IsNotSerialized;
+
+  this->specializationMangler =
+      new swift::Mangle::FunctionSignatureSpecializationMangler(
+          specializationPass, isSerialized_t, function.getFunction());
+}
+
+void BridgedFunctionSignatureSpecializationMangler::setArgumentClosureProp(
+    SwiftUInt argIndex, BridgedInstruction instruction) const {
+  if (auto *pai = instruction.getAs<PartialApplyInst>()) {
+    specializationMangler->setArgumentClosureProp(argIndex, pai);
+  } else {
+    auto *tttfi = instruction.getAs<ThinToThickFunctionInst>();
+    specializationMangler->setArgumentClosureProp(argIndex, tttfi);
+  }
+}
+
+BridgedOwnedString
+BridgedFunctionSignatureSpecializationMangler::mangle() const {
+  return {specializationMangler->mangle()};
 }

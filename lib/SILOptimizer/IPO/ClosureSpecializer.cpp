@@ -56,7 +56,9 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "closure-specialization"
+#include "swift/SILOptimizer/IPO/ClosureSpecializer.h"
 #include "swift/Basic/Range.h"
+#include "swift/Demangling/Demangle.h"
 #include "swift/Demangling/Demangler.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILCloner.h"
@@ -101,6 +103,101 @@ llvm::cl::opt<bool> EliminateDeadClosures(
 
 static bool isSupportedClosureKind(const SILInstruction *I) {
   return isa<ThinToThickFunctionInst>(I) || isa<PartialApplyInst>(I);
+}
+
+static const int SpecializationLevelLimit = 2;
+
+static int getSpecializationLevelRecursive(StringRef funcName,
+                                           Demangler &parent) {
+  using namespace Demangle;
+
+  Demangler demangler;
+  demangler.providePreallocatedMemory(parent);
+
+  // Check for this kind of node tree:
+  //
+  // kind=Global
+  //   kind=FunctionSignatureSpecialization
+  //     kind=SpecializationPassID, index=1
+  //     kind=FunctionSignatureSpecializationParam
+  //       kind=FunctionSignatureSpecializationParamKind, index=5
+  //       kind=FunctionSignatureSpecializationParamPayload, text="..."
+  //
+  Node *root = demangler.demangleSymbol(funcName);
+  if (!root)
+    return 0;
+  if (root->getKind() != Node::Kind::Global)
+    return 0;
+  Node *funcSpec = root->getFirstChild();
+  if (!funcSpec || funcSpec->getNumChildren() < 2)
+    return 0;
+  if (funcSpec->getKind() != Node::Kind::FunctionSignatureSpecialization)
+    return 0;
+
+  // Match any function specialization. We check for constant propagation at the
+  // parameter level.
+  Node *param = funcSpec->getChild(0);
+  if (param->getKind() != Node::Kind::SpecializationPassID)
+    return SpecializationLevelLimit + 1; // unrecognized format
+
+  unsigned maxParamLevel = 0;
+  for (unsigned paramIdx = 1; paramIdx < funcSpec->getNumChildren();
+       ++paramIdx) {
+    Node *param = funcSpec->getChild(paramIdx);
+    if (param->getKind() != Node::Kind::FunctionSignatureSpecializationParam)
+      return SpecializationLevelLimit + 1; // unrecognized format
+
+    // A parameter is recursive if it has a kind with index and type payload
+    if (param->getNumChildren() < 2)
+      continue;
+
+    Node *kindNd = param->getChild(0);
+    if (kindNd->getKind() !=
+        Node::Kind::FunctionSignatureSpecializationParamKind) {
+      return SpecializationLevelLimit + 1; // unrecognized format
+    }
+    auto kind = FunctionSigSpecializationParamKind(kindNd->getIndex());
+    if (kind != FunctionSigSpecializationParamKind::ConstantPropFunction)
+      continue;
+    Node *payload = param->getChild(1);
+    if (payload->getKind() !=
+        Node::Kind::FunctionSignatureSpecializationParamPayload) {
+      return SpecializationLevelLimit + 1; // unrecognized format
+    }
+    // Check if the specialized function is a specialization itself.
+    unsigned paramLevel =
+        1 + getSpecializationLevelRecursive(payload->getText(), demangler);
+    if (paramLevel > maxParamLevel)
+      maxParamLevel = paramLevel;
+  }
+  return maxParamLevel;
+}
+
+//===----------------------------------------------------------------------===//
+//                     Publicly visible for bridging
+//===----------------------------------------------------------------------===//
+
+int swift::getSpecializationLevel(SILFunction *f) {
+  Demangle::StackAllocatedDemangler<1024> demangler;
+  return getSpecializationLevelRecursive(f->getName(), demangler);
+}
+
+bool swift::isDifferentiableFuncComponent(
+    SILFunction *f, AutoDiffFunctionComponent expectedComponent) {
+  Demangle::Context Ctx;
+  if (auto *root = Ctx.demangleSymbolAsNode(f->getName())) {
+    if (auto *node =
+            root->findByKind(Demangle::Node::Kind::AutoDiffFunctionKind, 3)) {
+      if (node->hasIndex()) {
+        auto component = (char)node->getIndex();
+        if (component == (char)expectedComponent) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1082,82 +1179,6 @@ static bool canSpecializeFullApplySite(FullApplySiteKind kind) {
     return false;
   }
   llvm_unreachable("covered switch");
-}
-
-const int SpecializationLevelLimit = 2;
-
-static int getSpecializationLevelRecursive(StringRef funcName, Demangler &parent) {
-  using namespace Demangle;
-
-  Demangler demangler;
-  demangler.providePreallocatedMemory(parent);
-
-  // Check for this kind of node tree:
-  //
-  // kind=Global
-  //   kind=FunctionSignatureSpecialization
-  //     kind=SpecializationPassID, index=1
-  //     kind=FunctionSignatureSpecializationParam
-  //       kind=FunctionSignatureSpecializationParamKind, index=5
-  //       kind=FunctionSignatureSpecializationParamPayload, text="..."
-  //
-  Node *root = demangler.demangleSymbol(funcName);
-  if (!root)
-    return 0;
-  if (root->getKind() != Node::Kind::Global)
-    return 0;
-  Node *funcSpec = root->getFirstChild();
-  if (!funcSpec || funcSpec->getNumChildren() < 2)
-    return 0;
-  if (funcSpec->getKind() != Node::Kind::FunctionSignatureSpecialization)
-    return 0;
-
-  // Match any function specialization. We check for constant propagation at the
-  // parameter level.
-  Node *param = funcSpec->getChild(0);
-  if (param->getKind() != Node::Kind::SpecializationPassID)
-    return SpecializationLevelLimit + 1; // unrecognized format
-
-  unsigned maxParamLevel = 0;
-  for (unsigned paramIdx = 1; paramIdx < funcSpec->getNumChildren();
-       ++paramIdx) {
-    Node *param = funcSpec->getChild(paramIdx);
-    if (param->getKind() != Node::Kind::FunctionSignatureSpecializationParam)
-      return SpecializationLevelLimit + 1; // unrecognized format
-
-    // A parameter is recursive if it has a kind with index and type payload
-    if (param->getNumChildren() < 2)
-      continue;
-
-    Node *kindNd = param->getChild(0);
-    if (kindNd->getKind()
-        != Node::Kind::FunctionSignatureSpecializationParamKind) {
-      return SpecializationLevelLimit + 1; // unrecognized format
-    }
-    auto kind = FunctionSigSpecializationParamKind(kindNd->getIndex());
-    if (kind != FunctionSigSpecializationParamKind::ConstantPropFunction)
-      continue;
-    Node *payload = param->getChild(1);
-    if (payload->getKind()
-        != Node::Kind::FunctionSignatureSpecializationParamPayload) {
-      return SpecializationLevelLimit + 1; // unrecognized format
-    }
-    // Check if the specialized function is a specialization itself.
-    unsigned paramLevel =
-      1 + getSpecializationLevelRecursive(payload->getText(), demangler);
-    if (paramLevel > maxParamLevel)
-      maxParamLevel = paramLevel;
-  }
-  return maxParamLevel;
-}
-
-/// If \p function is a function-signature specialization for a constant-
-/// propagated function argument, returns 1.
-/// If \p function is a specialization of such a specialization, returns 2.
-/// And so on.
-static int getSpecializationLevel(SILFunction *f) {
-  Demangle::StackAllocatedDemangler<1024> demangler;
-  return getSpecializationLevelRecursive(f->getName(), demangler);
 }
 
 bool SILClosureSpecializerTransform::gatherCallSites(

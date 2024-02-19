@@ -500,7 +500,7 @@ bool swift::splitAllCondBrCriticalEdgesWithNonTrivialArgs(
   return true;
 }
 
-static bool isSafeNonExitTerminator(TermInst *ti) {
+bool swift::isSafeNonExitTerminator(TermInst *ti) {
   switch (ti->getTermKind()) {
   case TermKind::BranchInst:
   case TermKind::CondBranchInst:
@@ -529,7 +529,7 @@ static bool isSafeNonExitTerminator(TermInst *ti) {
   llvm_unreachable("Unhandled TermKind in switch.");
 }
 
-static bool isTrapNoReturnFunction(ApplyInst *ai) {
+bool swift::isTrapNoReturnFunction(ApplyInst *ai) {
   const char *fatalName = MANGLE_AS_STRING(
       MANGLE_SYM(s18_fatalErrorMessageyys12StaticStringV_AcCSutF));
   auto *fn = ai->getReferencedFunctionOrNull();

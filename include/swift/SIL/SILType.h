@@ -549,6 +549,13 @@ public:
     // Handle whatever AST types are known to hold functions. Namely tuples.
     return ty->isNoEscape();
   }
+  
+  bool isThickFunction() const {
+    if (auto *fTy = getASTType()->getAs<SILFunctionType>()) {
+      return fTy->getRepresentation() == SILFunctionType::Representation::Thick;
+    }
+    return false;
+  }
 
   bool isAsyncFunction() const {
     if (auto *fTy = getASTType()->getAs<SILFunctionType>()) {
@@ -659,6 +666,13 @@ public:
   /// category as the base type.
   SILType getTupleElementType(intptr_t index) const {
     return SILType(castTo<TupleType>().getElementType(index), getCategory());
+  }
+
+  /// Given that this is a tuple type, return the name of the
+  /// given tuple element.  The result will have the same value
+  /// category as the base type.
+  StringRef getTupleElementName(intptr_t index) const {
+    return castTo<TupleType>()->getElement(index).getName().str();
   }
 
   /// Given that this is a pack type, return the lowered type of the
