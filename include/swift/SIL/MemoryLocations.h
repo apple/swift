@@ -188,13 +188,9 @@ private:
   /// init_existential_addr and open_existential_addr.
   bool handleNonTrivialProjections;
 
-  /// If true, also analyze trivial memory locations.
-  bool handleTrivialLocations;
-
 public:
-  MemoryLocations(bool handleNonTrivialProjections, bool handleTrivialLocations) :
-    handleNonTrivialProjections(handleNonTrivialProjections),
-    handleTrivialLocations(handleTrivialLocations) {}
+  MemoryLocations(bool handleNonTrivialProjections)
+      : handleNonTrivialProjections(handleNonTrivialProjections) {}
 
   MemoryLocations(const MemoryLocations &) = delete;
   MemoryLocations &operator=(const MemoryLocations &) = delete;

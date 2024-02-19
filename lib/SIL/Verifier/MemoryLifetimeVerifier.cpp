@@ -139,11 +139,9 @@ class MemoryLifetimeVerifier {
   }
 
 public:
-  MemoryLifetimeVerifier(SILFunction *function, CalleeCache *calleeCache) :
-    function(function),
-    calleeCache(calleeCache),
-    locations(/*handleNonTrivialProjections*/ true,
-              /*handleTrivialLocations*/ true) {}
+  MemoryLifetimeVerifier(SILFunction *function, CalleeCache *calleeCache)
+      : function(function), calleeCache(calleeCache),
+        locations(/*handleNonTrivialProjections*/ true) {}
 
   /// The main entry point to verify the lifetime of all memory locations in
   /// the function.
