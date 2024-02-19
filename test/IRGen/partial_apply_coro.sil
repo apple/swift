@@ -1,5 +1,5 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -g -I %t -emit-ir %s -o - | %FileCheck %s --check-prefix=CHECK
+// RUN: %target-swift-frontend -Onone -g -I %t -emit-ir %s -o - | %FileCheck %s --check-prefix=CHECK
 
 // REQUIRES: concurrency
 
