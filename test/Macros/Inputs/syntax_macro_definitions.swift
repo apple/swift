@@ -2199,6 +2199,7 @@ public struct SingleMemberStubMacro: DeclarationMacro {
   }
 }
 
+
 public struct FakeCodeItemMacro: DeclarationMacro, PeerMacro {
   public static func expansion(
     of node: some FreestandingMacroExpansionSyntax,

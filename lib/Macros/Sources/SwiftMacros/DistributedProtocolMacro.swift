@@ -9,14 +9,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-import SwiftSyntax
+@_spi(RawSyntax) import SwiftSyntax
 import SwiftSyntaxMacros
 import SwiftDiagnostics
 import SwiftOperators
 import SwiftSyntaxBuilder
 
+
 /// Introduces:
-/// - `distributed actor $MyDistributedActor<ActorSystem>`
+/// - `distributed actor $MyDistributedActor<ActorSystem>: $MyDistributedActor, _DistributedActorStub where ...`
+/// - `extension MyDistributedActor where Self: _DistributedActorStub {}`
 public struct DistributedProtocolMacro: ExtensionMacro, PeerMacro {
   public static func expansion(
     of node: AttributeSyntax,
@@ -26,30 +28,17 @@ public struct DistributedProtocolMacro: ExtensionMacro, PeerMacro {
     in context: some MacroExpansionContext
   ) throws -> [ExtensionDeclSyntax] {
     guard let proto = declaration.as(ProtocolDeclSyntax.self) else {
+      let message: ErrorMessage = "must be attached to  a protocol"
+      context.diagnose(node: node, error: message)
       return []
     }
 
-    let requirements =
-      proto.memberBlock.members.map { member in
-        member.trimmed
-      }
-    let requirementStubs = requirements
-      .map { req in
-        """
-        \(req) {
-            if #available(SwiftStdlib 5.11, *) {
-              Distributed._distributedStubFatalError()
-            } else {
-              fatalError()
-            }
-        }
-        """
-      }.joined(separator: "\n    ")
+    let access = proto.accessLevelString
 
     let extensionDecl: DeclSyntax =
       """
-      extension \(proto.name) {
-        \(raw: requirementStubs)
+      extension \(proto.name.trimmed) where Self: Distributed._DistributedActorStub {
+        \(raw: proto.distributedRequirementStubs(access: access))
       }
       """
     return [extensionDecl.cast(ExtensionDeclSyntax.self)]
@@ -68,40 +57,86 @@ public struct DistributedProtocolMacro: ExtensionMacro, PeerMacro {
     let serializationRequirementType =
       "Codable"
 
-    let requirements =
-      proto.memberBlock.members.map { member in
-        member.trimmed
-      }
-    let requirementStubs = requirements
-      .map { req in
-        """
-        \(req) {
-            if #available(SwiftStdlib 5.11, *) {
-              Distributed._distributedStubFatalError()
-            } else {
-              fatalError()
-            }
-        }
-        """
-      }.joined(separator: "\n    ")
+    let access = proto.accessLevelString
 
-    let extensionDecl: DeclSyntax =
-      """
-      extension \(proto.name) where Self: _DistributedActorStub {
-        \(raw: requirementStubs)
-      }
-      """
-    
     let stubActorDecl: DeclSyntax =
       """
-      distributed actor $\(proto.name)<ActorSystem>: \(proto.name), _DistributedActorStub
+      \(raw: access)distributed actor $\(proto.name.trimmed)<ActorSystem>: \(proto.name.trimmed), 
+        Distributed._DistributedActorStub
         where ActorSystem: DistributedActorSystem<any \(raw: serializationRequirementType)>, 
           ActorSystem.ActorID: \(raw: serializationRequirementType) 
-      { }
+      {
+        \(raw: proto.distributedRequirementStubs(access: access))
+      }
       """
 
-    // return [extensionDecl, stubActorDecl]
     return [stubActorDecl]
   }
 
+}
+
+// ===== ---------------------------------------------------------------------
+// MARK: - Diagnostics
+
+fileprivate struct ErrorMessage: DiagnosticMessage, ExpressibleByStringInterpolation {
+  init(stringLiteral value: String) {
+    self.message = value
+  }
+  var message: String
+  var diagnosticID: MessageID { .init(domain: "DistributedActorProtocol", id: "DistributedActorProtocol")}
+  var severity: DiagnosticSeverity { .error }
+}
+
+extension MacroExpansionContext {
+  fileprivate func diagnose(node: some SyntaxProtocol, error message: ErrorMessage) {
+    diagnose(Diagnostic(node: node, message: message))
+  }
+}
+
+// ===== ---------------------------------------------------------------------
+// MARK: - Syntax helpers
+
+extension ProtocolDeclSyntax {
+  fileprivate var protocolRequirements: [MemberBlockItemSyntax] {
+    memberBlock.members.map { member in
+      member.trimmed
+    }
+  }
+
+  fileprivate func distributedRequirementStubs(access: String) -> String {
+    return protocolRequirements
+      .map { req in
+        """
+        \(access)\(req) {
+            if #available(SwiftStdlib 5.11, *) {
+              Distributed._distributedStubFatalError()
+            } else {
+              fatalError("distributed method stud: \\(#function)")
+            }
+        }
+        """
+      }
+      .joined(separator: "\n    ")
+  }
+
+  fileprivate var accessLevelString: String {
+    for modifier in modifiers {
+      for token in modifier.tokens(viewMode: .all) {
+        switch token.tokenKind {
+        case .keyword(.public),
+             .keyword(.package),
+             .keyword(.internal),
+             .keyword(.fileprivate),
+             .keyword(.private):
+          if let text = token.tokenKind.defaultText {
+            return "\(text) "
+          } else {
+            return ""
+          }
+        default: continue
+        }
+      }
+    }
+    return ""
+  }
 }
