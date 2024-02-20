@@ -3604,16 +3604,7 @@ internal struct InstantiateKeyPathBuffer: KeyPathPatternVisitor {
     self.patternArgs = patternArgs
     self.base = root
 
-    // FIXME: This will not work on arm64e.
-    let metadataPtr = unsafeBitCast(root, to: UnsafeRawPointer.self)
-    let vwtPtr = metadataPtr.load(
-      fromByteOffset: 0 &- MemoryLayout<Int>.size,
-      as: UnsafeRawPointer.self
-    )
-    self.maxSize = vwtPtr.load(fromByteOffset: 0x40, as: Int.self)
-
-    // FIXME: The following doesn't work as it crashes the compiler in IRGen.
-    //self.maxSize = _openExistential(root, do: _getTypeSize(_:))
+    self.maxSize = _openExistential(root, do: _getTypeSize(_:))
   }
 
   // Track the triviality of the resulting object data.
@@ -3919,14 +3910,7 @@ internal struct InstantiateKeyPathBuffer: KeyPathPatternVisitor {
     pushDest(metadata)
     base = metadata
 
-    // FIXME: This will not work on arm64e.
-    let metadataPtr = unsafeBitCast(metadata, to: UnsafeRawPointer.self)
-    let vwtPtr = metadataPtr.load(
-      fromByteOffset: 0 &- MemoryLayout<Int>.size,
-      as: UnsafeRawPointer.self
-    )
-    let size = vwtPtr.load(fromByteOffset: 0x40, as: Int.self)
-    //let size = _openExistential(metadata, do: _getTypeSize(_:))
+    let size = _openExistential(metadata, do: _getTypeSize(_:))
 
     maxSize = Swift.max(maxSize, size)
   }
