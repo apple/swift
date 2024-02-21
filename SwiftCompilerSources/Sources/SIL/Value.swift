@@ -116,6 +116,8 @@ extension Value {
 
   public var uses: UseList { UseList(bridged.getFirstUse()) }
   
+  public var firstUse: Operand? { Operand(bridged: bridged.getFirstUse()) }
+  
   // Default implementation for all values which have a parent block, like instructions and arguments.
   public var parentFunction: Function { parentBlock.parentFunction }
 

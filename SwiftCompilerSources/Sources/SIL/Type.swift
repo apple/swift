@@ -58,6 +58,7 @@ public struct Type : CustomStringConvertible, NoReflectionChildren {
   public var isMetatype: Bool { bridged.isMetatype() }
   public var isNoEscapeFunction: Bool { bridged.isNoEscapeFunction() }
   public var containsNoEscapeFunction: Bool { bridged.containsNoEscapeFunction() }
+  public var isThickFunction: Bool { bridged.isThickFunction() }
   public var isAsyncFunction: Bool { bridged.isAsyncFunction() }
 
   public var canBeClass: BridgedType.TraitResult { bridged.canBeClass() }
@@ -96,6 +97,12 @@ public struct Type : CustomStringConvertible, NoReflectionChildren {
   }
 
   public var tupleElements: TupleElementArray { TupleElementArray(type: self) }
+
+  public var numTupleElements: Int { bridged.getNumTupleElements() }
+
+  public func getTupleElementName(at index: Int) -> String {
+    String(bridged.getTupleElementName(index))
+  }
 
   /// Can only be used if the type is in fact a nominal type (`isNominal` is true).
   /// Returns nil if the nominal is a resilient type because in this case the complete list

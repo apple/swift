@@ -59,6 +59,10 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     entryBlock.arguments.lazy.map { $0 as! FunctionArgument }
   }
 
+  public func argument(at: Int) -> FunctionArgument {
+    entryBlock.arguments[at] as! FunctionArgument
+  }
+
   /// All instructions of all blocks.
   public var instructions: LazySequence<FlattenSequence<LazyMapSequence<BasicBlockList, InstructionList>>> {
     blocks.lazy.flatMap { $0.instructions }
@@ -82,6 +86,8 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
   public var isTransparent: Bool { bridged.isTransparent() }
 
   public var isAsync: Bool { bridged.isAsync() }
+
+  public var isReabstractionThunk: Bool { bridged.isReabstractionThunk() }
 
   /// True if this is a `[global_init]` function.
   ///
@@ -318,6 +324,12 @@ extension Function {
     }
   }
 
+  public var hasIllegalEffectForSpecialization: Bool {
+    switch bridged.getEffectAttribute() {
+      case .ReadNone, .ReadOnly, .ReleaseNone: return true
+      default: return false
+    }
+  }
   // Only to be called by PassContext
   public func _modifyEffects(_ body: (inout FunctionEffects) -> ()) {
     body(&effects)

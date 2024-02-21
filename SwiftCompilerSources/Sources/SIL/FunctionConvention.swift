@@ -25,7 +25,7 @@ public struct FunctionConvention : CustomStringConvertible {
   let bridgedFunctionType: BridgedASTType
   let hasLoweredAddresses: Bool
 
-  init(for bridgedFunctionType: BridgedASTType, in function: Function) {
+  public init(for bridgedFunctionType: BridgedASTType, in function: Function) {
     assert(!bridgedFunctionType.hasTypeParameter(), "requires contextual type")
     self.bridgedFunctionType = bridgedFunctionType
     self.hasLoweredAddresses = function.hasLoweredAddresses
@@ -68,6 +68,10 @@ public struct FunctionConvention : CustomStringConvertible {
     bridgedFunctionType.SILFunctionType_hasSelfParam()
   }
 
+  public var isTrivialNoescape: Bool {
+    bridgedFunctionType.SILFunctionType_isTrivialNoescape()
+  }
+  
   public var yields: Yields {
     Yields(bridged: bridgedFunctionType.SILFunctionType_getYields(),
       hasLoweredAddresses: hasLoweredAddresses)

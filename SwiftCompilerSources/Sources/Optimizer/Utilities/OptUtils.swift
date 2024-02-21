@@ -394,6 +394,27 @@ extension LoadInst {
   }
 }
 
+extension PartialApplyInst {
+  var isPartialApplyOfReabstractionThunk: Bool {
+    // A partial_apply of a reabstraction thunk either has a single capture
+    // (a function) or two captures (function and dynamic Self type).
+    if self.numArguments == 1 || self.numArguments == 2 {  
+      // Make sure the callee is a `function_ref` instruction
+      if let fun = self.referencedFunction {
+        // Make sure we have a reabstraction thunk.
+        if fun.isReabstractionThunk {
+          let calleeType = self.callee.type
+          // The argument should be a closure.
+          if calleeType.isReferenceCounted(in: self.parentFunction) || calleeType.isThickFunction {
+            return true      
+          }
+        }
+      }
+    }
+    return false
+  }
+}
+
 extension FunctionPassContext {
   /// Returns true if any blocks were removed.
   func removeDeadBlocks(in function: Function) -> Bool {
@@ -536,6 +557,63 @@ extension Function {
     }
     return nil
   }
+
+  var mayBindDynamicSelf: Bool {
+    self.bridged.mayBindDynamicSelf()
+  }
+
+  enum NonFailureExitBBsSearchResult {
+    case allBlocksNotUnderstood
+    case allBlocksUnderstood([BasicBlock])
+  }
+
+  func findAllNonFailureExitBBs() -> NonFailureExitBBsSearchResult {
+    var nonFailureExitBBs: [BasicBlock] = []
+
+    for block in self.blocks {
+      let termInst = block.terminator
+
+      // If we know that this terminator is not an exit terminator, continue.
+      if termInst.isSafeNonExitTerminator {
+        continue
+      }
+
+      // A return inst is always a non-failure exit bb.
+      if termInst.isFunctionExiting {
+        nonFailureExitBBs.append(block)
+        continue
+      }
+
+      // If we don't have an unreachable inst at this point, this is a terminator
+      // we don't understand. Be conservative and return false.
+      if !(termInst is UnreachableInst) {
+        return .allBlocksNotUnderstood
+      }
+
+      // Ok, at this point we know we have a terminator. If it is the only
+      // instruction in our bb, it is a failure bb. continue...
+      if let firstInst = block.instructions.first {
+        if firstInst === termInst {
+          continue
+        }
+      }
+
+      // If the unreachable is preceded by a no-return apply inst, then it is a
+      // non-failure exit bb. Add it to our list and continue.
+      let instBeforeUnreachable = block.instructions.reversed().dropFirst().first!
+      if let ai = instBeforeUnreachable as? ApplyInst {
+        if ai.isCalleeNoReturn && !ai.isTrapNoReturnFunction {
+          nonFailureExitBBs.append(block)
+          continue
+        }
+      }
+
+      // Otherwise, it must be a failure bb where we leak, continue.
+      continue
+    }
+
+    return .allBlocksUnderstood(nonFailureExitBBs)
+  } 
 }
 
 extension FullApplySite {
