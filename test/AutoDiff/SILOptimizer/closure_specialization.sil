@@ -1,0 +1,116 @@
+// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage canonical
+
+import Builtin
+import Swift
+import SwiftShims
+
+import _Differentiation
+
+// ===================== Gathering callsites and corresponding closures ===================== //
+
+//////////////////////////////
+// Single closure call site //
+//////////////////////////////
+sil @$vjpMultiply : $@convention(thin) (Float, Float, Float) -> (Float, Float) 
+
+sil private @$pullback_f : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float {
+bb0(%0 : $Float, %1 : $@callee_guaranteed (Float) -> (Float, Float)):
+  %2 = apply %1(%0) : $@callee_guaranteed (Float) -> (Float, Float) // users: %5, %4
+  strong_release %1 : $@callee_guaranteed (Float) -> (Float, Float) // id: %3
+  %4 = tuple_extract %2 : $(Float, Float), 0      // user: %7
+  %5 = tuple_extract %2 : $(Float, Float), 1      // user: %6
+  %6 = struct_extract %5 : $Float, #Float._value  // user: %8
+  %7 = struct_extract %4 : $Float, #Float._value  // user: %8
+  %8 = builtin "fadd_FPIEEE32"(%6 : $Builtin.FPIEEE32, %7 : $Builtin.FPIEEE32) : $Builtin.FPIEEE32 // user: %9
+  %9 = struct $Float (%8 : $Builtin.FPIEEE32)     // users: %11, %10
+  debug_value %9 : $Float, let, name "x", argno 1 // id: %10
+  return %9 : $Float                              // id: %11
+}
+
+// reverse-mode derivative of f(_:)
+sil hidden @$s4test1fyS2fFTJrSpSr : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float) {
+bb0(%0 : $Float):
+  specify_test "closure_specialize_gather_call_sites"
+  // CHECK-LABEL: Specializing closures in function: $s4test1fyS2fFTJrSpSr
+  // CHECK: PartialApply call site:   %8 = partial_apply [callee_guaranteed] %7(%6) : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float // user: %9
+  // CHECK: Passed in closures:
+  // CHECK: 1.   %6 = partial_apply [callee_guaranteed] %5(%0, %0) : $@convention(thin) (Float, Float, Float) -> (Float, Float) // user: %8
+
+  debug_value %0 : $Float, let, name "x", argno 1 // id: %1
+  %2 = struct_extract %0 : $Float, #Float._value  // users: %3, %3
+  %3 = builtin "fmul_FPIEEE32"(%2 : $Builtin.FPIEEE32, %2 : $Builtin.FPIEEE32) : $Builtin.FPIEEE32 // user: %4
+  %4 = struct $Float (%3 : $Builtin.FPIEEE32)     // user: %9
+  // function_ref closure #1 in static Float._vjpMultiply(lhs:rhs:)
+  %5 = function_ref @$vjpMultiply : $@convention(thin) (Float, Float, Float) -> (Float, Float) // user: %6
+  %6 = partial_apply [callee_guaranteed] %5(%0, %0) : $@convention(thin) (Float, Float, Float) -> (Float, Float) // user: %8
+  // function_ref pullback of f(_:)
+  %7 = function_ref @$pullback_f : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float // user: %8
+  %8 = partial_apply [callee_guaranteed] %7(%6) : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float // user: %9
+  %9 = tuple (%4 : $Float, %8 : $@callee_guaranteed (Float) -> Float) // user: %10
+  return %9 : $(Float, @callee_guaranteed (Float) -> Float) // id: %10
+}
+
+///////////////////////////////
+// Multiple closure callsite //
+///////////////////////////////
+sil @$_vjpSin : $@convention(thin) (Float, Float) -> Float // user: %6
+sil @$_vjpCos : $@convention(thin) (Float, Float) -> Float // user: %10
+sil @$_vjpMultiply : $@convention(thin) (Float, Float, Float) -> (Float, Float)
+
+// pullback of g(_:)
+sil private @$pullback_g : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float {
+bb0(%0 : $Float, %1 : $@callee_guaranteed (Float) -> Float, %2 : $@callee_guaranteed (Float) -> Float, %3 : $@callee_guaranteed (Float) -> (Float, Float)):
+  %4 = apply %3(%0) : $@callee_guaranteed (Float) -> (Float, Float) // users: %7, %6
+  strong_release %3 : $@callee_guaranteed (Float) -> (Float, Float) // id: %5
+  %6 = tuple_extract %4 : $(Float, Float), 0      // user: %10
+  %7 = tuple_extract %4 : $(Float, Float), 1      // user: %8
+  %8 = apply %2(%7) : $@callee_guaranteed (Float) -> Float // user: %12
+  strong_release %2 : $@callee_guaranteed (Float) -> Float // id: %9
+  %10 = apply %1(%6) : $@callee_guaranteed (Float) -> Float // user: %13
+  strong_release %1 : $@callee_guaranteed (Float) -> Float // id: %11
+  %12 = struct_extract %8 : $Float, #Float._value // user: %14
+  %13 = struct_extract %10 : $Float, #Float._value // user: %14
+  %14 = builtin "fadd_FPIEEE32"(%13 : $Builtin.FPIEEE32, %12 : $Builtin.FPIEEE32) : $Builtin.FPIEEE32 // user: %15
+  %15 = struct $Float (%14 : $Builtin.FPIEEE32)   // users: %17, %16
+  debug_value %15 : $Float, let, name "x", argno 1 // id: %16
+  return %15 : $Float                             // id: %17
+}
+
+// reverse-mode derivative of g(_:)
+sil hidden @$s4test1gyS2fFTJrSpSr : $@convention(thin) (Float) -> (Float, @owned @callee_guaranteed (Float) -> Float) {
+bb0(%0 : $Float):
+  specify_test "closure_specialize_gather_call_sites"
+  // CHECK-LABEL: Specializing closures in function: $s4test1gyS2fFTJrSpSr
+  // CHECK: PartialApply call site:   %16 = partial_apply [callee_guaranteed] %15(%6, %10, %14) : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float // user: %17
+  // CHECK: Passed in closures:
+  // CHECK: 1.   %6 = partial_apply [callee_guaranteed] %5(%0) : $@convention(thin) (Float, Float) -> Float // user: %16
+  // CHECK: 2.   %10 = partial_apply [callee_guaranteed] %9(%0) : $@convention(thin) (Float, Float) -> Float // user: %16
+  // CHECK: 3.   %14 = partial_apply [callee_guaranteed] %13(%8, %4) : $@convention(thin) (Float, Float, Float) -> (Float, Float) // user: %16
+
+  debug_value %0 : $Float, let, name "x", argno 1 // id: %1
+  %2 = struct_extract %0 : $Float, #Float._value  // users: %7, %3
+  %3 = builtin "int_sin_FPIEEE32"(%2 : $Builtin.FPIEEE32) : $Builtin.FPIEEE32 // users: %11, %4
+  %4 = struct $Float (%3 : $Builtin.FPIEEE32)     // user: %14
+  // function_ref closure #1 in _vjpSin(_:)
+  %5 = function_ref @$_vjpSin : $@convention(thin) (Float, Float) -> Float // user: %6
+  %6 = partial_apply [callee_guaranteed] %5(%0) : $@convention(thin) (Float, Float) -> Float // user: %16
+  %7 = builtin "int_cos_FPIEEE32"(%2 : $Builtin.FPIEEE32) : $Builtin.FPIEEE32 // users: %11, %8
+  %8 = struct $Float (%7 : $Builtin.FPIEEE32)     // user: %14
+  // function_ref closure #1 in _vjpCos(_:)
+  %9 = function_ref @$_vjpCos : $@convention(thin) (Float, Float) -> Float // user: %10
+  %10 = partial_apply [callee_guaranteed] %9(%0) : $@convention(thin) (Float, Float) -> Float // user: %16
+  %11 = builtin "fmul_FPIEEE32"(%3 : $Builtin.FPIEEE32, %7 : $Builtin.FPIEEE32) : $Builtin.FPIEEE32 // user: %12
+  %12 = struct $Float (%11 : $Builtin.FPIEEE32)   // user: %17
+  // function_ref closure #1 in static Float._vjpMultiply(lhs:rhs:)
+  %13 = function_ref @$_vjpMultiply : $@convention(thin) (Float, Float, Float) -> (Float, Float) // user: %14
+  %14 = partial_apply [callee_guaranteed] %13(%8, %4) : $@convention(thin) (Float, Float, Float) -> (Float, Float) // user: %16
+  // function_ref pullback of g(_:)
+  %15 = function_ref @$pullback_g : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float // user: %16
+  %16 = partial_apply [callee_guaranteed] %15(%6, %10, %14) : $@convention(thin) (Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> Float, @owned @callee_guaranteed (Float) -> (Float, Float)) -> Float // user: %17
+  %17 = tuple (%12 : $Float, %16 : $@callee_guaranteed (Float) -> Float) // user: %18
+  return %17 : $(Float, @callee_guaranteed (Float) -> Float) // id: %18
+}
