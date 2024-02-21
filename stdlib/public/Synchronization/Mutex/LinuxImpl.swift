@@ -13,7 +13,7 @@
 import SynchronizationShims
 
 extension Atomic where Value == UInt32 {
-  borrowing func wait() {
+  borrowing func wait() -> Bool {
     _swift_stdlib_wait(.init(rawAddress))
   }
 
@@ -75,7 +75,15 @@ internal struct _MutexHandle: ~Copyable {
       // Block until unlock has been called. This will return early if the call
       // to unlock happened between attempting to acquire and attempting to
       // wait while nobody else managed to acquire it yet.
-      storage.wait()
+      //
+      // Once we return from this, if the return value is 0 or false, then it
+      // means the kernel was able to successfully acquire the lock. This can
+      // occur when we fail the initial compare and exchange, but the mutex was
+      // unlocked before we called 'wait'.
+      if !storage.wait() {
+        // Locked!
+        return
+      }
 
       (exchanged, state) = storage.weakCompareExchange(
         expected: 0,
@@ -136,5 +144,7 @@ internal struct _MutexHandle: ~Copyable {
 
     // Wake up the next highest priority waiter.
     storage.wake()
+
+    // Unlocked!
   }
 }
