@@ -1226,7 +1226,7 @@ bb0(%0 : $Builtin.Int32, %1 : @guaranteed $Builtin.NativeObject):
   %0a = alloc_stack $Builtin.Int32
   store %0 to [trivial] %0a : $*Builtin.Int32
   (%0r, %0token) = begin_apply %f<Builtin.Int32>(%0a) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @in_guaranteed T
-  end_apply %0token
+  end_apply %0token as $()
   dealloc_stack %0a : $*Builtin.Int32
 
   %1b = alloc_stack $Builtin.NativeObject
@@ -1234,7 +1234,7 @@ bb0(%0 : $Builtin.Int32, %1 : @guaranteed $Builtin.NativeObject):
   store %1c to [init] %1b : $*Builtin.NativeObject
   (%1result, %1token) = begin_apply %f<Builtin.NativeObject>(%1b) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @in_guaranteed T
 
-  end_apply %1token
+  end_apply %1token as $()
   destroy_addr %1b : $*Builtin.NativeObject
   dealloc_stack %1b : $*Builtin.NativeObject
 
@@ -1253,7 +1253,7 @@ bb0(%0 : $Builtin.Int32, %1 : @guaranteed $Builtin.NativeObject):
   %0a = alloc_stack $Builtin.Int32
   store %0 to [trivial] %0a : $*Builtin.Int32
   (%0r, %0token) = begin_apply %f<Builtin.Int32>(%0a) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @in T
-  end_apply %0token
+  end_apply %0token as $()
   dealloc_stack %0a : $*Builtin.Int32
 
   %1b = alloc_stack $Builtin.NativeObject
@@ -1262,7 +1262,7 @@ bb0(%0 : $Builtin.Int32, %1 : @guaranteed $Builtin.NativeObject):
   (%1result, %1token) = begin_apply %f<Builtin.NativeObject>(%1b) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @in T
   destroy_addr %1result : $*Builtin.NativeObject
 
-  end_apply %1token
+  end_apply %1token as $()
   destroy_addr %1b : $*Builtin.NativeObject
   dealloc_stack %1b : $*Builtin.NativeObject
 
@@ -1281,7 +1281,7 @@ bb0(%0 : $Builtin.Int32, %1 : @guaranteed $Builtin.NativeObject):
   %0a = alloc_stack $Builtin.Int32
   store %0 to [trivial] %0a : $*Builtin.Int32
   (%0r, %0token) = begin_apply %f<Builtin.Int32>(%0a) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @inout T
-  end_apply %0token
+  end_apply %0token as $()
   dealloc_stack %0a : $*Builtin.Int32
 
   %1b = alloc_stack $Builtin.NativeObject
@@ -1289,7 +1289,7 @@ bb0(%0 : $Builtin.Int32, %1 : @guaranteed $Builtin.NativeObject):
   store %1c to [init] %1b : $*Builtin.NativeObject
   (%1result, %1token) = begin_apply %f<Builtin.NativeObject>(%1b) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @inout T
 
-  end_apply %1token
+  end_apply %1token as $()
   destroy_addr %1b : $*Builtin.NativeObject
   dealloc_stack %1b : $*Builtin.NativeObject
 

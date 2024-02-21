@@ -1526,7 +1526,7 @@ bb0(%0 : $*Int, %1 : $*Dictionary<Int, Int>):
   %mod = function_ref @$sSD_7defaultq_x_q_yXKtciM : $@yield_once @convention(method) <τ_0_0, τ_0_1 where τ_0_0 : Hashable> (@in_guaranteed τ_0_0, @noescape @callee_guaranteed () -> @out τ_0_1, @inout Dictionary<τ_0_0, τ_0_1>) -> @yields @inout τ_0_1
   %access = begin_access [modify] [static] %0 : $*Int // expected-error {{overlapping accesses, but modification requires exclusive access; consider copying to a local variable}}
   (%yield, %token) = begin_apply %mod<Int, Int>(%access, %cvt, %1) : $@yield_once @convention(method) <τ_0_0, τ_0_1 where τ_0_0 : Hashable> (@in_guaranteed τ_0_0, @noescape @callee_guaranteed () -> @out τ_0_1, @inout Dictionary<τ_0_0, τ_0_1>) -> @yields @inout τ_0_1
-  end_apply %token
+  end_apply %token as $()
   end_access %access : $*Int
   destroy_value %cvt : $@noescape @callee_guaranteed () -> @out Int
   destroy_value %pa : $@callee_guaranteed () -> @out Int
@@ -1579,7 +1579,7 @@ bb0(%0 : $*Dictionary<Int, Int>, %1 : $Int, %2 : $*Int):
   %20 = function_ref @$sSD_7defaultq_x_q_yXKtciM : $@yield_once @convention(method) <τ_0_0, τ_0_1 where τ_0_0 : Hashable> (@in_guaranteed τ_0_0, @noescape @callee_guaranteed () -> @out τ_0_1, @inout Dictionary<τ_0_0, τ_0_1>) -> @yields @inout τ_0_1
   (%21, %22) = begin_apply %20<Int, Int>(%14, %18, %13) : $@yield_once @convention(method) <τ_0_0, τ_0_1 where τ_0_0 : Hashable> (@in_guaranteed τ_0_0, @noescape @callee_guaranteed () -> @out τ_0_1, @inout Dictionary<τ_0_0, τ_0_1>) -> @yields @inout τ_0_1
   assign %1 to %21 : $*Int
-  end_apply %22
+  end_apply %22 as $()
   destroy_value %18 : $@noescape @callee_guaranteed () -> @out Int
   end_access %13 : $*Dictionary<Int, Int>
   dealloc_stack %14 : $*Int

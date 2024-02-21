@@ -126,7 +126,7 @@ bb2:
 // CHECK-NEXT:    [[CORO:%.*]] = function_ref @$s9coroutineSb_Tg5 : $@yield_once @convention(thin) (Bool) -> @yields @inout Bool
 // CHECK-NEXT:    [[LOAD:%.*]] = load [trivial] [[TEMP]] : $*Bool
 // CHECK-NEXT:    ([[ADDR:%.*]], [[TOKEN:%.*]]) = begin_apply [[CORO]]([[LOAD]])
-// CHECK-NEXT:    end_apply [[TOKEN]]
+// CHECK-NEXT:    end_apply [[TOKEN]] as $()
 // CHECK-NEXT:    dealloc_stack [[TEMP]] : $*Bool
 // CHECK-NEXT:    [[RV:%.*]] = tuple ()
 // CHECK-NEXT:    return [[RV]] : $()
@@ -137,7 +137,7 @@ bb0(%0 : $Bool):
   %temp = alloc_stack $Bool
   store %0 to [trivial] %temp : $*Bool
   (%addr, %token) = begin_apply %coro<Bool>(%temp) : $@yield_once @convention(thin) <T> (@in T) -> @yields @inout T
-  end_apply %token
+  end_apply %token as $()
   dealloc_stack %temp : $*Bool
   %rv = tuple ()
   return %rv : $()

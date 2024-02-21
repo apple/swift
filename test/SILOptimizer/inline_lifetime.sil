@@ -666,7 +666,7 @@ sil [ossa] @caller_owned_callee_coro_owned : $@convention(thin) (@owned C) -> ()
 bb0(%instance : @owned $C):
   %callee_coro_owned = function_ref @callee_coro_owned : $@yield_once @convention(thin) (@owned C) -> @yields @inout C
   (%addr, %continuation) = begin_apply %callee_coro_owned(%instance) : $@yield_once @convention(thin) (@owned C) -> @yields @inout C
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -693,7 +693,7 @@ sil [ossa] @caller_owned_callee_coro_guaranteed : $@convention(thin) (@owned C) 
 bb0(%instance : @owned $C):
   %callee_coro_guaranteed = function_ref @callee_coro_guaranteed : $@yield_once @convention(thin) (@guaranteed C) -> @yields @inout C
   (%addr, %continuation) = begin_apply %callee_coro_guaranteed(%instance) : $@yield_once @convention(thin) (@guaranteed C) -> @yields @inout C
-  end_apply %continuation
+  end_apply %continuation as $()
   destroy_value %instance : $C
   %retval = tuple ()
   return %retval : $()
@@ -707,7 +707,7 @@ bb0(%instance : @guaranteed $C):
   %copy = copy_value %instance : $C
   %callee_coro_owned = function_ref @callee_coro_owned : $@yield_once @convention(thin) (@owned C) -> @yields @inout C
   (%addr, %continuation) = begin_apply %callee_coro_owned(%copy) : $@yield_once @convention(thin) (@owned C) -> @yields @inout C
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -733,7 +733,7 @@ sil [ossa] @caller_guaranteed_callee_coro_guaranteed : $@convention(thin) (@guar
 bb0(%instance : @guaranteed $C):
   %callee_coro_guaranteed = function_ref @callee_coro_guaranteed : $@yield_once @convention(thin) (@guaranteed C) -> @yields @inout C
   (%addr, %continuation) = begin_apply %callee_coro_guaranteed(%instance) : $@yield_once @convention(thin) (@guaranteed C) -> @yields @inout C
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -754,7 +754,7 @@ sil hidden [ossa] @caller_trivial_callee_coro_trivial : $@convention(thin) (S) -
 bb0(%instance : $S):
   %callee_coro_trivial = function_ref @callee_coro_trivial : $@yield_once @convention(thin) (S) -> @yields @inout S
   (%addr, %continuation) = begin_apply %callee_coro_trivial(%instance) : $@yield_once @convention(thin) (S) -> @yields @inout S
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -771,7 +771,7 @@ sil hidden [ossa] @caller_in_callee_coro_in : $@convention(thin) (@in S) -> () {
 bb0(%instance : $*S):
   %callee_coro_in = function_ref @callee_coro_in : $@yield_once @convention(thin) (@in S) -> @yields @inout S
   (%addr, %continuation) = begin_apply %callee_coro_in(%instance) : $@yield_once @convention(thin) (@in S) -> @yields @inout S
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -783,7 +783,7 @@ sil hidden [ossa] @caller_inguaranteed_callee_coro_inguaranteed : $@convention(t
 bb0(%instance : $*T):
   %callee_coro_inguaranteed = function_ref @callee_coro_inguaranteed : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @inout T
   (%addr_out, %continuation) = begin_apply %callee_coro_inguaranteed<T>(%instance) : $@yield_once @convention(thin) <T> (@in_guaranteed T) -> @yields @inout T
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   return %retval : $()
 }

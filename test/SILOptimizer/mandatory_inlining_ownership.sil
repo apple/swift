@@ -501,7 +501,7 @@ bb0(%0 : @guaranteed $Klass):
   %6 = copy_value %0 : $Klass
   %12 = function_ref @begin_apply_callee : $@yield_once @convention(method) (@guaranteed Klass) -> @yields @inout Builtin.Int32
   (%13, %14) = begin_apply %12(%6) : $@yield_once @convention(method) (@guaranteed Klass) -> @yields @inout Builtin.Int32
-  end_apply %14
+  end_apply %14 as $()
   destroy_value %6 : $Klass
   %19 = tuple ()
   return %19 : $()
@@ -532,7 +532,7 @@ bb0(%0 : @guaranteed $Klass):
   cond_br undef, bb1, bb2
 
 bb1:
-  end_apply %14
+  end_apply %14 as $()
   br bb3
 
 bb2:
@@ -574,7 +574,7 @@ bb0(%0 : @owned $C2):
   br bb1
 
 bb1:
-  end_apply %tok
+  end_apply %tok as $()
   destroy_value %0 : $C2
   %9999 = tuple()
   return %9999 : $()
@@ -606,7 +606,7 @@ bb0(%0 : @owned $C2):
   cond_br undef, bb1, bb2
 
 bb1:
-  end_apply %tok
+  end_apply %tok as $()
   br bb3
 
 bb2:

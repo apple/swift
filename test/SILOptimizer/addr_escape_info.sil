@@ -293,7 +293,7 @@ bb0(%0 : $X):
   %6 = function_ref @inout_class_argument : $@convention(thin) (@inout X) -> ()
   %7 = apply %6(%4) : $@convention(thin) (@inout X) -> ()
 
-  end_apply %5
+  end_apply %5 as $()
   dealloc_stack %1 : $*X
   %r = tuple ()
   return %r : $()

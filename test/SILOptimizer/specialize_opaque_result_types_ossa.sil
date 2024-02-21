@@ -61,7 +61,7 @@ bb0(%0 : $*Optional<τ_0_0.Element>, %1 : $*IndexingIterator<τ_0_0>):
 
   %29 = init_enum_data_addr %0 : $*Optional<τ_0_0.Element>, #Optional.some!enumelt
   copy_addr %27 to [init] %29 : $*τ_0_0.Element
-  end_apply %28
+  end_apply %28 as $()
   destroy_addr %22 : $*τ_0_0.Index
   destroy_addr %24 : $*τ_0_0
   dealloc_stack %24 : $*τ_0_0

@@ -55,7 +55,7 @@ sil [ossa] @test_overloaded_subscript : $@convention(thin) (@guaranteed B, B.Ind
 bb0(%0 : @guaranteed $B, %1 : $B.Index):
   %reader = class_method %0 : $B, #B.subscript!read : (B) -> (B.Index) -> (), $@convention(method) @yield_once (B.Index, @guaranteed B) -> @yields @guaranteed B.Element
   (%element, %token) = begin_apply %reader(%1, %0) : $@convention(method) @yield_once (B.Index, @guaranteed B) -> @yields @guaranteed B.Element
-  end_apply %token
+  end_apply %token as $()
 
   %result = tuple ()
   return %result : $()

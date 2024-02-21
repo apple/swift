@@ -57,7 +57,7 @@ bb0(%0 : $Int, %1 : $Float):
   %coro = function_ref @yield : $@convention(thin) @yield_once (Int, Float) -> (@yields Int, @yields Float)
   (%int, %float, %token) = begin_apply %coro(%0, %1) : $@convention(thin) @yield_once (Int, Float) -> (@yields Int, @yields Float)
 
-  end_apply %token
+  end_apply %token as $()
   %r = tuple ()
   return %r : $()
 }

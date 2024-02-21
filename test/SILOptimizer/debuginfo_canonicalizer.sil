@@ -58,7 +58,7 @@ bb0(%0 : $Klass):
   %f = function_ref @yieldOnceCoroutine : $@yield_once @convention(method) (@guaranteed Klass) -> @yields @inout Int64
   (%3, %4) = begin_apply %f(%0) : $@yield_once @convention(method) (@guaranteed Klass) -> @yields @inout Int64
   %9999 = tuple()
-  end_apply %4
+  end_apply %4 as $()
   return %9999 : $()
 }
 
@@ -86,7 +86,7 @@ bb0(%0 : $Klass):
   cond_br undef, bb1, bb2
 
 bb1:
-  end_apply %token
+  end_apply %token as $()
   br bb3
 
 bb2:
@@ -124,7 +124,7 @@ bb0(%0 : $Klass):
   cond_br undef, bb1, bb2
 
 bb1:
-  end_apply %token
+  end_apply %token as $()
   br bb3
 
 bb2:

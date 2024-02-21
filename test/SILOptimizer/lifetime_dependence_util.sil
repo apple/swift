@@ -107,7 +107,7 @@ entry(%0 : @owned $C, %1 : @owned $D, %2 : @guaranteed $D, %3 : $*D, %4 : $*D):
 // CHECK-NEXT: Yield: (**%{{.*}}**, %{{.*}}) = begin_apply %{{.*}}(%{{.*}}) : $@yield_once @convention(method) (@guaranteed D) -> @yields @guaranteed C
 // CHECK-NEXT: Dependent:   %{{.*}} = mark_dependence [nonescaping] %{{.*}} : $C on %{{.*}} : $C
 // CHECK-NEXT: begin:      (%{{.*}}, %{{.*}}) = begin_apply %{{.*}}(%{{.*}}) : $@yield_once @convention(method) (@guaranteed D) -> @yields @guaranteed C
-// CHECK-NEXT: ends:       end_apply %{{.*}}
+// CHECK-NEXT: ends:       %{{.*}} = end_apply %{{.*}} as $()
 // CHECK: dependence_scope: lifetime_dependence_scope with: %yield_mark
 
   %zero = integer_literal $Builtin.Int1, 0
@@ -155,7 +155,7 @@ entry(%0 : @owned $C, %1 : @owned $D, %2 : @guaranteed $D, %3 : $*D, %4 : $*D):
 
   destroy_value %inout_arg_mark : $C
   end_access %access : $*C
-  end_apply %token
+  end_apply %token as $()
   end_borrow %borrow : $D
   destroy_value %move : $D
   %99 = tuple()
@@ -236,7 +236,7 @@ bb0(%0 : @guaranteed $NE):
 
 // CHECK-LABEL: dependence_coroutine: lifetime_dependence_use with: %0
 // CHECK: LifetimeDependence uses of: %0 = argument of bb0 : $NE
-// CHECK-NEXT: Leaf use: operand #0 of   end_apply %{{.*}}
+// CHECK-NEXT: Leaf use: operand #0 of   %{{.*}} = end_apply %{{.*}} as $()
 // CHECK-NEXT: dependence_coroutine: lifetime_dependence_use with: %0
 sil [ossa] @dependence_coroutine : $@convention(thin) (@guaranteed NE) -> () {
 bb0(%0 : @guaranteed $NE):
@@ -244,7 +244,7 @@ bb0(%0 : @guaranteed $NE):
   %coroutine = function_ref @coroutine : $@yield_once @convention(method) (@guaranteed NE) -> @yields @guaranteed NE
   (%yield, %token) = begin_apply %coroutine(%0) : $@yield_once @convention(method) (@guaranteed NE) -> @yields @guaranteed NE
   %copy = copy_value %yield : $NE
-  end_apply %token
+  end_apply %token as $()
   destroy_value %copy : $NE
   %99 = tuple()
   return %99 : $()

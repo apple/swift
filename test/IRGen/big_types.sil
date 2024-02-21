@@ -89,8 +89,7 @@ unwind:
 // CHECK-NEXT:    // function_ref
 // CHECK-NEXT:    [[USE:%.*]] = function_ref @use_big_struct : $@convention(thin) (@in_guaranteed BigStruct) -> ()
 // CHECK-NEXT:    apply [[USE]]([[TEMP]])
-// CHECK-NEXT:    end_apply [[TOKEN]]
-// CHECK-NEXT:    [[RET:%.*]] = tuple ()
+// CHECK-NEXT:    [[RET:%.*]] = end_apply [[TOKEN]] as $()
 // CHECK-NEXT:    dealloc_stack [[TEMP]] : $*BigStruct
 // CHECK-NEXT:    return [[RET]] : $()
 sil @use_yield_big : $@convention(thin) () -> () {
@@ -99,8 +98,7 @@ entry:
   (%big, %token) = begin_apply %yield_big() : $@convention(thin) @yield_once() -> (@yields BigStruct)
   %use_big = function_ref @use_big_struct : $@convention(thin) (BigStruct) -> ()
   apply %use_big(%big) : $@convention(thin) (BigStruct) -> ()
-  end_apply %token
-  %ret = tuple ()
+  %ret = end_apply %token as $()
   return %ret : $()
 }
 
@@ -116,7 +114,7 @@ bb0:
   yield %3 : $*Optional<@callee_guaranteed (@guaranteed BigStruct) -> ()>, resume bb1, unwind bb2
 
 bb1:
-  end_apply %4
+  end_apply %4 as $()
   %7 = tuple ()
   return %7 : $()
 

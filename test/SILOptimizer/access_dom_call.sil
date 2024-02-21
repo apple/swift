@@ -138,7 +138,7 @@ bb0(%0 : $C):
   (%3, %4) = begin_apply %m(%0) : $@yield_once @convention(method) (@guaranteed C) -> @yields @inout Int64
   %a2 = begin_access [read] [dynamic] [no_nested_conflict] %ra : $*Int64
   end_access %a2 : $*Int64
-  end_apply %4
+  end_apply %4 as $()
   %v = tuple ()
   return %v : $()
 }
@@ -155,7 +155,7 @@ bb0(%0 : $C):
   %ra = ref_element_addr %0 : $C, #C.field         // user: %3
   %a1 = begin_access [read] [dynamic] %ra : $*Int64
   end_access %a1 : $*Int64
-  end_apply %4
+  end_apply %4 as $()
   %a2 = begin_access [read] [dynamic] [no_nested_conflict] %ra : $*Int64
   end_access %a2 : $*Int64
   %v = tuple ()
@@ -174,7 +174,7 @@ bb0(%0 : $C):
   %ra = ref_element_addr %0 : $C, #C.field         // user: %3
   %a1 = begin_access [read] [dynamic] %ra : $*Int64
   end_access %a1 : $*Int64
-  end_apply %4
+  end_apply %4 as $()
   %a2 = begin_access [modify] [dynamic] [no_nested_conflict] %ra : $*Int64
   end_access %a2 : $*Int64
   %v = tuple ()
@@ -203,7 +203,7 @@ bb3:
   %ra = ref_element_addr %0 : $C, #C.field         // user: %3
   %a1 = begin_access [modify] [dynamic] [no_nested_conflict] %ra : $*Int64
   end_access %a1 : $*Int64
-  end_apply %4
+  end_apply %4 as $()
   %cond = integer_literal $Builtin.Int1, 1
   cond_br %cond, bb2, bb4
 

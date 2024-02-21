@@ -602,7 +602,7 @@ sil [ossa] @nohoist_over_end_apply_use : $@convention(thin) (@inout X, @owned X)
 entry(%addr : $*X, %instance : @owned $X):
   %coro = function_ref @coro : $@yield_once @convention(thin) (@inout X) -> @yields ()
   (%empty, %continuation) = begin_apply %coro(%addr) : $@yield_once @convention(thin) (@inout X) -> @yields ()
-  end_apply %continuation
+  end_apply %continuation as $()
   %retval = tuple ()
   store %instance to [assign] %addr : $*X
   return %retval : $()

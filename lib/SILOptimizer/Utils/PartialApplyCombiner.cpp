@@ -206,6 +206,10 @@ void PartialApplyCombiner::processSingleApply(FullApplySite paiAI) {
     builder.createTryApply(paiAI.getLoc(), callee, subs, argList,
                            tai->getNormalBB(), tai->getErrorBB(),
                            tai->getApplyOptions());
+  } else if (auto *bai = dyn_cast<BeginApplyInst>(paiAI)) {
+    auto *newBAI = builder.createBeginApply(paiAI.getLoc(), callee, subs,
+                                            argList, bai->getApplyOptions());
+    callbacks.replaceAllInstUsesPairwiseWith(bai, newBAI);
   } else {
     auto *apply = cast<ApplyInst>(paiAI);
     auto *newAI = builder.createApply(paiAI.getLoc(), callee, subs, argList,

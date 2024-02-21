@@ -1175,3 +1175,33 @@ bb0(%0 : $Int):
 
 sil [ossa] @closure2 : $@convention(thin) (Int) -> ()
 
+sil [ossa] @yield1 : $@yield_once(Float) -> (@yields Float) {
+bb0(%0 : $Float):
+  yield (%0 : $Float), resume bb1, unwind bb2
+
+bb1:
+  %r = tuple ()
+  return %r : $()
+
+bb2:
+  unwind
+}
+
+// CHECK-LABEL: sil [ossa] @coro_apply1
+// CHECK: %[[REF:.*]] = function_ref @yield1 : $@yield_once @convention(thin) (Float) -> @yields Float
+// CHECK: (%{{.*}}, %[[CONT:.*]]) = begin_apply %[[REF]](%{{.*}}) : $@yield_once @convention(thin) (Float) -> @yields Float
+// CHECK: %{{.*}} = end_apply %[[CONT]] as $()
+// CHECK-LABEL: } // end sil function 'coro_apply1'
+sil [ossa] @coro_apply1 : $(Float) -> () {
+bb0(%0 : $Float):
+  %coro = function_ref @yield1 : $@convention(thin) @yield_once (Float) -> (@yields Float)
+  %pa = partial_apply [callee_guaranteed] %coro(%0) : $@convention(thin) @yield_once (Float) -> (@yields Float)
+
+  (%float, %token) = begin_apply %pa() : $@callee_guaranteed @yield_once () -> (@yields Float)
+
+  end_apply %token as $()
+  destroy_value %pa : $@callee_guaranteed @yield_once () -> (@yields Float)
+
+  %r = tuple ()
+  return %r : $()
+}

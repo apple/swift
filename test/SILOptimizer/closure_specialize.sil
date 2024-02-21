@@ -907,7 +907,7 @@ bb0(%0 : $Int):
   cond_br undef, bb1, bb2
 
 bb1:
-  end_apply %token
+  end_apply %token as $()
   br bb3
 
 bb2:

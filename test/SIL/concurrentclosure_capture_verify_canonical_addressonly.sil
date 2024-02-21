@@ -79,7 +79,7 @@ bb0(%0 : $*T):
   // function_ref inoutUserOptKlass(_:)
   %28 = function_ref @$s37concurrentfunction_capturediagnostics17inoutUserOptKlassyyAA0F0CSgzF : $@convention(thin) (@inout FakeOptional<Klass>) -> () // user: %29
   %29 = apply %28(%26) : $@convention(thin) (@inout FakeOptional<Klass>) -> ()
-  end_apply %27                                   // id: %30
+  end_apply %27 as $()                             // id: %30
   end_access %24 : $*T                            // id: %31
   destroy_value %8 : $<τ_0_0 where τ_0_0 : MyProt> { var τ_0_0 } <T> // id: %32
   destroy_addr %2 : $*F                           // id: %33

@@ -432,6 +432,7 @@ private:
     case Node::Kind::ImplFunctionConvention:
     case Node::Kind::ImplFunctionConventionName:
     case Node::Kind::ImplFunctionType:
+    case Node::Kind::ImplCoroutineKind:
     case Node::Kind::ImplInvocationSubstitutions:
     case Node::Kind::ImplPatternSubstitutions:
     case Node::Kind::ImplicitClosure:
@@ -2753,6 +2754,13 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
     return nullptr;
   case Node::Kind::ImplErasedIsolation:
     Printer << "@isolated(any)";
+    return nullptr;    
+  case Node::Kind::ImplCoroutineKind:
+    // Skip if text is empty.
+    if (Node->getText().empty())
+      return nullptr;
+    // Otherwise, print with leading @.
+    Printer << '@' << Node->getText();
     return nullptr;
   case Node::Kind::ImplConvention:
     Printer << Node->getText();

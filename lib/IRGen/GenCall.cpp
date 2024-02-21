@@ -656,9 +656,6 @@ namespace {
 }
 
 void SignatureExpansion::expandCoroutineResult(bool forContinuation) {
-  assert(FnType->getNumResults() == 0 &&
-         "having both normal and yield results is currently unsupported");
-
   // The return type may be different for the ramp function vs. the
   // continuations.
   if (forContinuation) {
@@ -666,14 +663,27 @@ void SignatureExpansion::expandCoroutineResult(bool forContinuation) {
     case SILCoroutineKind::None:
       llvm_unreachable("should have been filtered out before here");
 
-    // Yield-once coroutines just return void from the continuation.
-    case SILCoroutineKind::YieldOnce:
-      ResultIRType = IGM.VoidTy;
+    // Yield-once coroutines may optionaly return a value from the continuation.
+    case SILCoroutineKind::YieldOnce: {
+      auto fnConv = getSILFuncConventions();
+
+      assert(fnConv.getNumIndirectSILResults() == 0);
+      // Ensure that no parameters were added before to correctly record their ABI
+      // details.
+      assert(ParamIRTypes.empty());
+
+      // Expand the direct result.
+      const TypeInfo *directResultTypeInfo;
+      std::tie(ResultIRType, directResultTypeInfo) = expandDirectResult();
+
       return;
+    }
 
     // Yield-many coroutines yield the same types from the continuation
     // as they do from the ramp function.
     case SILCoroutineKind::YieldMany:
+      assert(FnType->getNumResults() == 0 &&
+             "having both normal and yield results is currently unsupported");
       break;
     }
   }
@@ -3377,7 +3387,8 @@ void CallEmission::emitYieldsToExplosion(Explosion &out) {
 
       // If it's formally indirect, then we should just add that pointer
       // to the output.
-      if (schema.isFormalIndirect()) {
+      if (schema.isFormalIndirect() ||
+          !isa<LoadableTypeInfo>(schema.getTypeInfo())) {
         out.add(pointer);
         continue;
       }
@@ -4117,6 +4128,12 @@ bool irgen::addNativeArgument(IRGenFunction &IGF,
   }
   auto paramType = IGF.IGM.silConv.getSILType(
       origParamInfo, fnTy, IGF.IGM.getMaximalTypeExpansionContext());
+
+  if (!isa<LoadableTypeInfo>(IGF.getTypeInfo(paramType))) {
+    out.add(in.claimNext());
+    return false;
+  }
+
   auto &ti = cast<LoadableTypeInfo>(IGF.getTypeInfo(paramType));
   auto schema = ti.getSchema();
   auto &nativeSchema = ti.nativeParameterValueSchema(IGF.IGM);
@@ -5812,6 +5829,117 @@ void irgen::emitAsyncReturn(IRGenFunction &IGF, AsyncContextLayout &asyncLayout,
     nativeResults = nativeResultsStorage;
   }
   emitAsyncReturn(IGF, asyncLayout, fnType, nativeResults);
+}
+
+void irgen::emitYieldOnceCoroutineResult(IRGenFunction &IGF, Explosion &result,
+                                         SILType funcResultType, SILType returnResultType) {
+  auto &Builder = IGF.Builder;
+  auto &IGM = IGF.IGM;
+
+  // Prepare coroutine result values
+  auto &coroResults = IGF.coroutineResults;
+  assert(coroResults.empty() && "must only be single return");
+  if (result.empty()) {
+    assert(IGM.getTypeInfo(returnResultType)
+           .nativeReturnValueSchema(IGM)
+           .empty() &&
+           "Empty explosion must match the native calling convention");
+  } else {
+    result = IGF.coerceValueTo(returnResultType, result, funcResultType);
+    auto &nativeSchema =
+      IGM.getTypeInfo(funcResultType).nativeReturnValueSchema(IGM);
+    assert(!nativeSchema.requiresIndirect());
+
+    Explosion native = nativeSchema.mapIntoNative(IGM, IGF, result,
+                                                  funcResultType,
+                                                  false /* isOutlined */);
+    for (unsigned i = 0, e = native.size(); i != e; ++i)
+      coroResults.push_back(native.claimNext());
+  }
+
+  auto coroEndBB = IGF.getCoroutineExitBlock();
+  auto handle = IGF.getCoroutineHandle();
+  bool newEndBlock = false;
+  if (!coroEndBB) {
+    coroEndBB = IGF.createBasicBlock("coro.end");
+    IGF.setCoroutineExitBlock(coroEndBB);
+    newEndBlock = true;
+  }
+
+  // If there are coroutine results, then we need to capture them via
+  // @llvm.coro_end_results intrinsics. However, since unwind blocks would
+  // jump to the same block, we wrap values into phi nodes.
+  Builder.CreateBr(coroEndBB);
+
+  // Emit the end block.
+  llvm::BasicBlock *returnBB = Builder.GetInsertBlock();
+
+  if (newEndBlock) {
+    Builder.emitBlock(coroEndBB);
+
+    llvm::Value *resultToken = nullptr;
+    if (coroResults.empty()) {
+      // No results: just use none token
+      resultToken = llvm::ConstantTokenNone::get(Builder.getContext());
+    } else {
+      // Otherwise, wrap result values into singleton phi nodes
+      for (auto &val : coroResults) {
+        auto *phi = Builder.CreatePHI(val->getType(), 0);
+        phi->addIncoming(val, returnBB);
+        val = phi;
+      }
+
+      // Capture results via result token
+      resultToken =
+        Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, coroResults);
+
+        Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
+                              {handle,
+                               /*is unwind*/ Builder.getFalse(),
+                               resultToken});
+        Builder.CreateUnreachable();
+    }
+  } else {
+    if (coroResults.empty()) {
+      // No results, we do not need to change anything around existing coro.end
+      return;
+    }
+
+    // Otherwise, we'd need to insert new coro.end.results intrinsics capturing
+    // result values.  However, we'd need to wrap results into phi nodes adding
+    // undef for all values coming from incoming unwind blocks.
+
+    // Find coro.end intrinsic
+    llvm::CallInst *coroEndCall = nullptr;
+    for (llvm::Instruction &inst : coroEndBB->instructionsWithoutDebug()) {
+      if (auto *CI = dyn_cast<llvm::CallInst>(&inst)) {
+        if (CI->getIntrinsicID() == llvm::Intrinsic::coro_end) {
+          coroEndCall = CI;
+          break;
+        }
+      }
+    }
+
+    assert(coroEndCall && isa<llvm::ConstantTokenNone>(coroEndCall->getArgOperand(2)) &&
+           "invalid unwind coro.end call");
+
+    Builder.SetInsertPoint(&*coroEndBB->getFirstInsertionPt());
+
+    for (auto &val : coroResults) {
+      auto *phi = Builder.CreatePHI(val->getType(), llvm::pred_size(coroEndBB));
+      for (auto *predBB : llvm::predecessors(coroEndBB))
+        phi->addIncoming(predBB == returnBB ? val : llvm::UndefValue::get(val->getType()),
+                         predBB);
+
+      val = phi;
+    }
+
+    // Capture results via result token and replace coro.end token operand
+    auto *resultToken =
+      Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, coroResults);
+    coroEndCall->setArgOperand(2, resultToken);
+    Builder.SetInsertPoint(returnBB);
+  }
 }
 
 FunctionPointer

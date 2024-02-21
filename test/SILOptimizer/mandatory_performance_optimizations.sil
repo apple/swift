@@ -186,7 +186,7 @@ sil [no_locks] @inline_begin_apply : $@convention(thin) () -> Int32 {
 bb0:
   %0 = function_ref @yield_int_value : $@convention(thin) @yield_once () -> (@yields Int32)
   (%1, %2) = begin_apply %0() : $@convention(thin) @yield_once () -> (@yields Int32)
-  end_apply %2
+  end_apply %2 as $()
   return %1 : $Int32
 }
 
@@ -199,10 +199,10 @@ bb0:
   (%1, %2) = begin_apply %0() : $@convention(thin) @yield_once () -> (@yields Int32)
   cond_br undef, bb1, bb2
 bb1:
-  end_apply %2
+  end_apply %2 as $()
   br bb3
 bb2:
-  end_apply %2
+  end_apply %2 as $()
   br bb3
 bb3:
   return %1 : $Int32

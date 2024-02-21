@@ -129,7 +129,7 @@ bb0(%0 : @owned $C, %1 : $Builtin.Int64):
   %15 = class_method %14 : $C, #C.float!modify : (C) -> () -> (), $@yield_once @convention(method) (@guaranteed C) -> @yields @inout Builtin.Int64
   (%16, %17) = begin_apply %15(%14) : $@yield_once @convention(method) (@guaranteed C) -> @yields @inout Builtin.Int64
   store %1 to [trivial] %16 : $*Builtin.Int64
-  end_apply %17
+  end_apply %17 as $()
   end_borrow %14 : $C
   destroy_value %0 : $C
   %23 = tuple ()

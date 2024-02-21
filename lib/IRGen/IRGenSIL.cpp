@@ -1406,7 +1406,7 @@ public:
   void visitBeginApplyInst(BeginApplyInst *i);
   void visitEndApplyInst(EndApplyInst *i);
   void visitAbortApplyInst(AbortApplyInst *i);
-  void visitEndApply(BeginApplyInst *i, bool isAbort);
+  void visitEndApply(BeginApplyInst *i, EndApplyInst *ei = nullptr);
   
   void visitUnreachableInst(UnreachableInst *i);
   void visitBranchInst(BranchInst *i);
@@ -4115,38 +4115,55 @@ void IRGenSILFunction::visitStringLiteralInst(swift::StringLiteralInst *i) {
 
 void IRGenSILFunction::visitUnreachableInst(swift::UnreachableInst *i) {
   if (isAsync()) {
-    emitCoroutineOrAsyncExit();
+    emitCoroutineOrAsyncExit(false);
     return;
   }
   Builder.CreateUnreachable();
 }
 
-void IRGenFunction::emitCoroutineOrAsyncExit() {
-  // The LLVM coroutine representation demands that there be a
-  // unique call to llvm.coro.end.
+void IRGenFunction::emitCoroutineOrAsyncExit(bool isUnwind) {
+  // LLVM's retcon lowering is a bit imcompatible with Swift
+  // model. Essentially it assumes that unwind destination is kind of terminal -
+  // it cannot return back to caller and must somehow terminate the process /
+  // thread. Therefore we are always use normal LLVM coroutine termination.
+  // However, for yield_once coroutines we need also specify undef results on
+  // unwind path. Eventually, we'd get rid of these crazy phis...
 
   // If the coroutine exit block already exists, just branch to it.
-  if (auto coroEndBB = CoroutineExitBlock) {
+  auto *coroEndBB = getCoroutineExitBlock();
+  auto *unwindBB = Builder.GetInsertBlock();
+
+  // If the coroutine exit block already exists, just branch to it.
+  if (coroEndBB) {
     Builder.CreateBr(coroEndBB);
+
+    if (!isAsync()) {
+      // If there are any result values we need to add undefs for all values
+      // coming from unwind block
+      for (auto &phi : coroutineResults)
+        cast<llvm::PHINode>(phi)->addIncoming(llvm::UndefValue::get(phi->getType()),
+                                              unwindBB);
+    }
+
     return;
   }
 
   // Otherwise, create it and branch to it.
-  auto coroEndBB = createBasicBlock("coro.end");
-  CoroutineExitBlock = coroEndBB;
+  coroEndBB = createBasicBlock("coro.end");
+  setCoroutineExitBlock(coroEndBB);
   Builder.CreateBr(coroEndBB);
-
-  // Emit the block.
   Builder.emitBlock(coroEndBB);
-  auto handle = getCoroutineHandle();
+
   if (isAsync())
     Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_async,
-                                {handle,
-                                 /*is unwind*/ Builder.getFalse()});
+                                { getCoroutineHandle(), Builder.getFalse()});
   else
+    // Do not bother about results here, normal result emission code would
+    // update token value.
     Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
-                                {handle,
-                                 /*is unwind*/ Builder.getFalse()});
+                                { getCoroutineHandle(), Builder.getFalse(),
+                                  llvm::ConstantTokenNone::get(Builder.getContext())});
+
   Builder.CreateUnreachable();
 }
 
@@ -4154,13 +4171,6 @@ static void emitReturnInst(IRGenSILFunction &IGF,
                            SILType resultTy,
                            Explosion &result,
                            CanSILFunctionType fnType) {
-  // If we're generating a coroutine, just call coro.end.
-  if (IGF.isCoroutine() && !IGF.isAsync()) {
-    assert(result.empty() &&
-           "coroutines do not currently support non-void returns");
-    IGF.emitCoroutineOrAsyncExit();
-    return;
-  }
   SILFunctionConventions conv(IGF.CurSILFn->getLoweredFunctionType(),
                               IGF.getSILModule());
 
@@ -4174,6 +4184,24 @@ static void emitReturnInst(IRGenSILFunction &IGF,
     }
     return llvm::ConstantPointerNull::get(IGF.IGM.Int8PtrTy);
   };
+
+  // If we're generating a coroutine, just call coro.end.
+  if (IGF.isCoroutine() && !IGF.isAsync()) {
+    if (fnType->getCoroutineKind() == SILCoroutineKind::YieldOnce) {
+      assert(IGF.CurSILFn->getLoweredFunctionType()->getLanguage() ==
+             SILFunctionLanguage::Swift);
+      auto funcResultType = IGF.CurSILFn->mapTypeIntoContext(
+        conv.getSILResultType(IGF.IGM.getMaximalTypeExpansionContext()));
+
+      emitYieldOnceCoroutineResult(IGF, result, funcResultType, resultTy);
+      return;
+    }
+
+    assert(result.empty() &&
+           "coroutines do not currently support non-void returns");
+    IGF.emitCoroutineOrAsyncExit(false);
+    return;
+  }
 
   // The invariant on the out-parameter is that it's always zeroed, so
   // there's nothing to do here.
@@ -4333,9 +4361,8 @@ void IRGenSILFunction::visitThrowAddrInst(swift::ThrowAddrInst *i) {
 }
 
 void IRGenSILFunction::visitUnwindInst(swift::UnwindInst *i) {
-  // Just call coro.end; there's no need to distinguish 'unwind'
-  // and 'return' at the LLVM level.
-  emitCoroutineOrAsyncExit();
+  // Call coro.end marking unwind return
+  emitCoroutineOrAsyncExit(true);
 }
 
 void IRGenSILFunction::visitYieldInst(swift::YieldInst *i) {
@@ -4372,15 +4399,16 @@ void IRGenSILFunction::visitBeginApplyInst(BeginApplyInst *i) {
 }
 
 void IRGenSILFunction::visitEndApplyInst(EndApplyInst *i) {
-  visitEndApply(i->getBeginApply(), false);
+  visitEndApply(i->getBeginApply(), i);
 }
 
 void IRGenSILFunction::visitAbortApplyInst(AbortApplyInst *i) {
-  visitEndApply(i->getBeginApply(), true);
+  visitEndApply(i->getBeginApply());
 }
 
-void IRGenSILFunction::visitEndApply(BeginApplyInst *i, bool isAbort) {
+void IRGenSILFunction::visitEndApply(BeginApplyInst *i, EndApplyInst *ei) {
   const auto &coroutine = getLoweredCoroutine(i->getTokenResult());
+  bool isAbort = ei == nullptr;
 
   auto sig = Signature::forCoroutineContinuation(IGM, i->getOrigCalleeType());
 
@@ -4388,7 +4416,6 @@ void IRGenSILFunction::visitEndApply(BeginApplyInst *i, bool isAbort) {
   auto continuation = coroutine.Continuation;
   continuation = Builder.CreateBitCast(continuation,
                                        sig.getType()->getPointerTo());
-
 
   auto schemaAndEntity =
     getCoroutineResumeFunctionPointerAuth(IGM, i->getOrigCalleeType());
@@ -4398,10 +4425,21 @@ void IRGenSILFunction::visitEndApply(BeginApplyInst *i, bool isAbort) {
   auto callee = FunctionPointer::createSigned(i->getOrigCalleeType(),
                                               continuation, pointerAuth, sig);
 
-  Builder.CreateCall(callee, {
-    coroutine.Buffer.getAddress(),
-    llvm::ConstantInt::get(IGM.Int1Ty, isAbort)
-  });
+  auto *call = Builder.CreateCall(callee, {
+      coroutine.Buffer.getAddress(),
+      llvm::ConstantInt::get(IGM.Int1Ty, isAbort)
+    });
+
+  if (!isAbort) {
+    auto resultType = call->getType();
+    if (!resultType->isVoidTy()) {
+      Explosion e;
+      // FIXME: Do we need to handle ABI-related conversions here?
+      // It seems we cannot have C function convention for coroutines, etc.
+      extractScalarResults(*this, resultType, call, e);
+      setLoweredExplosion(ei, e);
+    }
+  }
 
   coroutine.Temporaries.destroyAll(*this);
 
@@ -6515,8 +6553,12 @@ void IRGenSILFunction::visitConvertFunctionInst(swift::ConvertFunctionInst *i) {
       fnType->getRepresentation() != SILFunctionType::Representation::Block) {
     auto *fn = temp.claimNext();
     Explosion res;
-    auto sig = IGM.getSignature(fnType);
-    res.add(Builder.CreateBitCast(fn, sig.getType()->getPointerTo()));
+    auto &fnTI = IGM.getTypeInfoForLowered(fnType);
+    auto &fnNative = fnTI.nativeReturnValueSchema(IGM);
+    llvm::Value *newFn =
+        Builder.CreateBitCast(fn, fnNative.getExpandedType(IGM));
+    extractScalarResults(*this, newFn->getType(), newFn, res);
+
     setLoweredExplosion(i, res);
     return;
   }

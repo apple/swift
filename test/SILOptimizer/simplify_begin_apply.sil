@@ -22,7 +22,7 @@ bb0:
   %0 = alloc_ref $Bar
   %1 = class_method %0 : $Bar, #Bar.field!read : (Bar) -> () -> (), $@yield_once @convention(method) (@guaranteed Bar) -> @yields Int
   (%2, %3) = begin_apply %1(%0) : $@yield_once @convention(method) (@guaranteed Bar) -> @yields Int
-  end_apply %3
+  end_apply %3 as $()
   return %2 : $Int
 }
 

@@ -664,7 +664,7 @@ bb0(%0 : $*Optional<String>):
 sil [ossa] @begin_apply_in_no_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @in U
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -673,7 +673,7 @@ entry:
 sil [ossa] @begin_apply_in_use_after_end_apply : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @in U
-  end_apply %token
+  end_apply %token as $()
   apply undef<Inner>(%instance) : $@convention(thin) <U> (@in U) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -683,7 +683,7 @@ entry:
 sil [ossa] @begin_apply_in_constant_no_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @in_constant U
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -692,7 +692,7 @@ entry:
 sil [ossa] @begin_apply_in_constant_use_after_end_apply : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @in_constant U
-  end_apply %token
+  end_apply %token as $()
   apply undef<Inner>(%instance) : $@convention(thin) <U> (@in_constant U) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -703,7 +703,7 @@ sil [ossa] @begin_apply_in_guaranteed_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @in_guaranteed U
   destroy_addr %instance : $*Inner
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -712,7 +712,7 @@ entry:
 sil [ossa] @begin_apply_in_guaranteed_use_after_end_apply : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @in_guaranteed U
-  end_apply %token
+  end_apply %token as $()
   apply undef<Inner>(%instance) : $@convention(thin) <U> (@in_guaranteed U) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -723,7 +723,7 @@ sil [ossa] @begin_apply_inout_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout U
   destroy_addr %instance : $*Inner
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -732,7 +732,7 @@ entry:
 sil [ossa] @begin_apply_inout_use_after_end_apply : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout U
-  end_apply %token
+  end_apply %token as $()
   apply undef<Inner>(%instance) : $@convention(thin) <U> (@inout U) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -743,7 +743,7 @@ sil [ossa] @begin_apply_inout_aliasable_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout_aliasable U
   destroy_addr %instance : $*Inner
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -752,7 +752,7 @@ entry:
 sil [ossa] @begin_apply_inout_aliasable_use_after_end_apply : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout_aliasable U
-  end_apply %token
+  end_apply %token as $()
   apply undef<Inner>(%instance) : $@convention(thin) <U> (@inout_aliasable U) -> ()
   %retval = tuple ()
   return %retval : $()
@@ -762,7 +762,7 @@ entry:
 sil [ossa] @begin_apply_inout_no_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout U
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }
@@ -771,7 +771,7 @@ entry:
 sil [ossa] @begin_apply_inout_aliasable_no_destroy : $@convention(thin) () -> () {
 entry:
   (%instance, %token) = begin_apply undef<Inner>() : $@yield_once @convention(thin) <U> () -> @yields @inout_aliasable U
-  end_apply %token
+  end_apply %token as $()
   %retval = tuple ()
   return %retval : $()
 }

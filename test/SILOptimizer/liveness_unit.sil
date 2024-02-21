@@ -136,13 +136,13 @@ bb0(%0 : @owned $D):
 // CHECK-LABEL: testGuaranteedResult: ssa_liveness
 // CHECK: SSA lifetime analysis: %0 = argument of bb0 : $D
 // CHECK: bb0: LiveWithin
-// CHECK: last user:   end_apply
+// CHECK: last user: %{{.*}} = end_apply
 sil [ossa] @testGuaranteedResult : $@convention(thin) (@guaranteed D) -> () {
 bb0(%0 : @guaranteed $D):
   specify_test "ssa_liveness @argument[0]"
   %2 = class_method %0 : $D, #D.borrowed!read : (D) -> () -> (), $@yield_once @convention(method) (@guaranteed D) -> @yields @guaranteed C
   (%3, %4) = begin_apply %2(%0) : $@yield_once @convention(method) (@guaranteed D) -> @yields @guaranteed C
-  end_apply %4
+  end_apply %4 as $()
   %99 = tuple()
   return %99 : $()
 }

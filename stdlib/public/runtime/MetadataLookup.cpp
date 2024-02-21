@@ -2004,7 +2004,9 @@ public:
 
   TypeLookupErrorOr<BuiltType> createImplFunctionType(
       Demangle::ImplParameterConvention calleeConvention,
+      Demangle::ImplCoroutineKind coroutineKind,
       llvm::ArrayRef<Demangle::ImplFunctionParam<BuiltType>> params,
+      llvm::ArrayRef<Demangle::ImplFunctionYield<BuiltType>> yields,
       llvm::ArrayRef<Demangle::ImplFunctionResult<BuiltType>> results,
       llvm::Optional<Demangle::ImplFunctionResult<BuiltType>> errorResult,
       ImplFunctionTypeFlags flags) {

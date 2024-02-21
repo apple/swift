@@ -372,7 +372,7 @@ bb0(%0 : $*Int32):
   (%4, %5) = begin_apply %3(%0) : $@yield_once @convention(thin) (@in Int32) -> @yields Int32
   cond_br undef, bb1, bb2
 bb1:
-  end_apply %5
+  end_apply %5 as $()
   dealloc_stack %1 : $*Int32
   return %4 : $Int32
 bb2:

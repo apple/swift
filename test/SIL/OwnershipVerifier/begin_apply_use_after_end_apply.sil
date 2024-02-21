@@ -15,7 +15,7 @@ sil @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
 // CHECK-LABEL: Error#: 0. Begin Error in Function: 'guaranteed_coroutine_caller'
 // CHECK: Found outside of lifetime use?!
 // CHECK: Value: (**%3**, %4) = begin_apply %0() : $@yield_once @convention(thin) () -> @yields @guaranteed Klass // user: %6
-// CHECK: Consuming User:   end_apply %4                                    // id: %5
+// CHECK: Consuming User: %5 = end_apply %4 as $()
 // CHECK: Non Consuming User:   %6 = apply %2(%3) : $@convention(thin) (@guaranteed Klass) -> ()
 // CHECK: Block: bb0
 // CHECK: Error#: 0. End Error in Function: 'guaranteed_coroutine_caller'
@@ -46,21 +46,21 @@ bb0:
   %user_func = function_ref @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
 
   (%0a, %0b) = begin_apply %0() : $@yield_once @convention(thin) () -> @yields @guaranteed Klass
-  end_apply %0b
+  end_apply %0b as $()
   apply %user_func(%0a) : $@convention(thin) (@guaranteed Klass) -> ()
 
   (%val1, %tok1) = begin_apply %1() : $@yield_once @convention(thin) () -> @yields @owned Klass
-  end_apply %tok1
+  end_apply %tok1 as $()
   apply %user_func(%val1) : $@convention(thin) (@guaranteed Klass) -> ()
 
   (%val2, %tok2) = begin_apply %1() : $@yield_once @convention(thin) () -> @yields @owned Klass
   destroy_value %val2 : $Klass
-  end_apply %tok2
+  end_apply %tok2 as $()
   apply %user_func(%val2) : $@convention(thin) (@guaranteed Klass) -> ()
 
   (%val3, %tok3) = begin_apply %1() : $@yield_once @convention(thin) () -> @yields @owned Klass
   apply %user_func(%val3) : $@convention(thin) (@guaranteed Klass) -> ()
-  end_apply %tok3
+  end_apply %tok3 as $()
 
   %9999 = tuple()
   return %9999 : $()

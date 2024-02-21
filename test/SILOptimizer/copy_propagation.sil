@@ -275,7 +275,7 @@ bb0(%0 : $*Struct):
   (%6, %7) = begin_apply %5<Struct, Int>(%0, %4) : $@yield_once @convention(thin) <τ_0_0, τ_0_1> (@inout τ_0_0, @guaranteed WritableKeyPath<τ_0_0, τ_0_1>) -> @yields @inout τ_0_1
   %8 = function_ref @modifyInt : $@convention(thin) (@inout Int) -> ()
   %9 = apply %8(%6) : $@convention(thin) (@inout Int) -> ()
-  end_apply %7
+  end_apply %7 as $()
   destroy_value %4 : $WritableKeyPath<Struct, Int>
   destroy_value %2 : $WritableKeyPath<Struct, Int>
   %13 = tuple ()
