@@ -690,7 +690,8 @@ RewriteSystem::getMinimizedGenericSignatureRules() const {
       continue;
     }
 
-    if (rule.getLHS()[0].getKind() != Symbol::Kind::GenericParam)
+    if (rule.getLHS()[0].getKind() != Symbol::Kind::PackElement &&
+        rule.getLHS()[0].getKind() != Symbol::Kind::GenericParam)
       continue;
 
     rules.push_back(ruleID);

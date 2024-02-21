@@ -133,6 +133,10 @@ public:
     Symbols.push_back(symbol);
   }
 
+  void prepend(Symbol symbol) {
+    Symbols.insert(Symbols.begin(), symbol);
+  }
+
   void append(Term other) {
     Symbols.append(other.begin(), other.end());
   }
@@ -167,6 +171,10 @@ public:
 
   std::reverse_iterator<Symbol *> rbegin() { return Symbols.rbegin(); }
   std::reverse_iterator<Symbol *> rend() { return Symbols.rend(); }
+  
+  Symbol front() const {
+    return Symbols.front();
+  }
 
   Symbol back() const {
     return Symbols.back();

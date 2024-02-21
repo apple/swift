@@ -278,6 +278,7 @@ RequirementMachine::getLongestValidPrefix(const MutableTerm &term) const {
     case Symbol::Kind::ConcreteType:
     case Symbol::Kind::ConcreteConformance:
     case Symbol::Kind::Shape:
+    case Symbol::Kind::PackElement:
       llvm::errs() <<"Invalid symbol in a type term: " << term << "\n";
       abort();
     }
@@ -789,6 +790,7 @@ void RequirementMachine::verify(const MutableTerm &term) const {
       switch (symbol.getKind()) {
       case Symbol::Kind::Protocol:
       case Symbol::Kind::GenericParam:
+      case Symbol::Kind::PackElement:
         erased.add(symbol);
         continue;
 
@@ -828,6 +830,7 @@ void RequirementMachine::verify(const MutableTerm &term) const {
     case Symbol::Kind::Superclass:
     case Symbol::Kind::ConcreteType:
     case Symbol::Kind::ConcreteConformance:
+    case Symbol::Kind::PackElement:
       llvm::errs() << "Bad interior symbol " << symbol << " in " << term << "\n";
       abort();
       break;

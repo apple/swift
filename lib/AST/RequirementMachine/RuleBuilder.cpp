@@ -379,6 +379,14 @@ void RuleBuilder::addRequirement(const Requirement &req,
                    : Context.getSubstitutionSchemaFromType(
                         otherType, proto, result));
 
+      // If 'T' is a parameter pack, this is a same-element
+      // requirement that becomes the following rewrite rule:
+      //
+      //   [element].T.[concrete: C<X, Y>] => [element].T
+      if (subjectType->isParameterPack()) {
+        subjectTerm.prepend(Symbol::forPackElement(Context));
+      }
+
       constraintTerm = subjectTerm;
       constraintTerm.add(Symbol::forConcreteType(otherType, result, Context));
       break;
@@ -389,6 +397,16 @@ void RuleBuilder::addRequirement(const Requirement &req,
                             otherType, *substitutions)
                       : Context.getMutableTermForType(
                             otherType, proto));
+
+    if (subjectType->isParameterPack() != otherType->isParameterPack()) {
+      // This is a same-element requirement.
+      if (subjectType->isParameterPack()) {
+        subjectTerm.prepend(Symbol::forPackElement(Context));
+      } else {
+        constraintTerm.prepend(Symbol::forPackElement(Context));
+      }
+    }
+
     break;
   }
   }

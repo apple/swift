@@ -298,6 +298,9 @@ getTypeForSymbolRange(const Symbol *begin, const Symbol *end,
         // member type rooted at Self; handle the associated type below.
         break;
 
+      case Symbol::Kind::PackElement:
+        continue;
+
       case Symbol::Kind::Name:
       case Symbol::Kind::Layout:
       case Symbol::Kind::Superclass:

@@ -123,6 +123,8 @@ public:
 
   bool isCircularConformanceRule() const;
 
+  bool isSameElementRule() const;
+
   /// See above for an explanation of these predicates.
   bool isPermanent() const {
     return Permanent;

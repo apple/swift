@@ -986,13 +986,13 @@ InferredGenericSignatureRequest::evaluate(
         if (reduced->hasError() || reduced->isEqual(genericParam))
           continue;
 
-        if (reduced->isTypeParameter()) {
-          // If one side is a parameter pack and the other is not, this is a
-          // same-element requirement that cannot be expressed with only one
-          // type parameter.
-          if (genericParam->isParameterPack() != reduced->isParameterPack())
-            continue;
+        // If one side is a parameter pack and the other is not, this is a
+        // same-element requirement that cannot be expressed with only one
+        // type parameter.
+        if (genericParam->isParameterPack() != reduced->isParameterPack())
+          continue;
 
+        if (reduced->isTypeParameter()) {
           ctx.Diags.diagnose(loc, diag::requires_generic_params_made_equal,
                              genericParam, result->getSugaredType(reduced))
             .warnUntilSwiftVersion(6);

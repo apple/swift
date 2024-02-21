@@ -990,6 +990,7 @@ void GenericSignature::verify(ArrayRef<Requirement> reqts) const {
           llvm::errs() << "\n";
           dumpAndAbort();
         }
+
         if (compareDependentTypes(firstType, secondType) >= 0) {
           llvm::errs() << "Out-of-order type parameters: ";
           reqt.dump(llvm::errs());

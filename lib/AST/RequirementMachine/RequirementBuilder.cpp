@@ -248,15 +248,34 @@ void RequirementBuilder::addRequirementRules(ArrayRef<unsigned> rules) {
       case Symbol::Kind::AssociatedType:
       case Symbol::Kind::GenericParam:
       case Symbol::Kind::Shape:
+      case Symbol::Kind::PackElement:
         break;
       }
 
       llvm_unreachable("Invalid symbol kind");
     }
 
+    MutableTerm constraintTerm = MutableTerm(rule.getLHS());
+    MutableTerm subjectTerm = MutableTerm(rule.getRHS());
+
+    RewriteContext &ctx = this->System.getRewriteContext();
+
+    // Drop the [element] symbol from lhs to determine if we need to swap the
+    // sides.
+    if (constraintTerm[0].getKind() == Symbol::Kind::PackElement) {
+      constraintTerm =
+          MutableTerm(constraintTerm.begin() + 1, constraintTerm.end());
+
+      // Make sure that the shorter term is ordered first.
+      if (constraintTerm.compare(subjectTerm, ctx) == -1) {
+        MutableTerm tempTerm = subjectTerm;
+        subjectTerm = constraintTerm;
+        constraintTerm = tempTerm;
+      }
+    }
+
     assert(rule.getLHS().back().getKind() != Symbol::Kind::Protocol);
 
-    MutableTerm constraintTerm(rule.getLHS());
     if (constraintTerm.back().getKind() == Symbol::Kind::Shape) {
       assert(rule.getRHS().back().getKind() == Symbol::Kind::Shape);
       // Strip off the shape symbol from the constraint term.
@@ -264,8 +283,14 @@ void RequirementBuilder::addRequirementRules(ArrayRef<unsigned> rules) {
                                    constraintTerm.end() - 1);
     }
 
+    if (constraintTerm.front().getKind() == Symbol::Kind::PackElement) {
+      // Strip off the element symbol from the constraint term.
+      constraintTerm = MutableTerm(constraintTerm.begin() + 1,
+                                   constraintTerm.end());
+    }
+
     auto constraintType = Map.getTypeForTerm(constraintTerm, GenericParams);
-    Components[rule.getRHS()].Members.push_back(constraintType);
+    Components[Term::get(subjectTerm, ctx)].Members.push_back(constraintType);
   };
 
   if (Debug) {
@@ -332,6 +357,10 @@ void RequirementBuilder::processConnectedComponents() {
       subjectTerm = MutableTerm(subjectTerm.begin(), subjectTerm.end() - 1);
     } else {
       kind = RequirementKind::SameType;
+      if (subjectTerm.front().getKind() == Symbol::Kind::PackElement) {
+        // Strip off the element symbol from the subject term.
+        subjectTerm = MutableTerm(subjectTerm.begin() + 1, subjectTerm.end());
+      }
     }
 
     auto subjectType = Map.getTypeForTerm(subjectTerm, GenericParams);
