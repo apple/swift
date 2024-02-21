@@ -30,4 +30,11 @@ internal struct _Cell<Value: ~Copyable>: ~Copyable {
   init(_ initialValue: consuming Value) {
     Builtin.initialize(initialValue, rawAddress)
   }
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @inlinable
+  deinit {
+    Builtin.destroy(Value.self, rawAddress)
+  }
 }

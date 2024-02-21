@@ -44,7 +44,7 @@ internal struct _MutexHandle: ~Copyable {
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   borrowing func lock() {
-    // TODO: Is it worth caching this value in TLS?
+    // Note: This is being TLS cached.
     let selfId = _swift_stdlib_gettid()
 
     // Note: We could probably merge this cas into a do/while style loop, but we
@@ -101,6 +101,8 @@ internal struct _MutexHandle: ~Copyable {
   borrowing func tryLock() -> Bool {
     storage.compareExchange(
       expected: 0,
+
+      // Note: This is being TLS cached.
       desired: _swift_stdlib_gettid(),
       successOrdering: .acquiring,
       failureOrdering: .relaxed
@@ -110,7 +112,7 @@ internal struct _MutexHandle: ~Copyable {
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   borrowing func unlock() {
-    // TODO: Is it worth caching this value in TLS?
+    // Note: This is being TLS cached.
     let selfId = _swift_stdlib_gettid()
 
     // Attempt to release the lock. We can only atomically release the lock in

@@ -24,7 +24,8 @@
 #define SWIFT_FUTEX_WAITERS FUTEX_WAITERS
 
 static inline __swift_uint32_t _swift_stdlib_gettid() {
-  return syscall(SYS_gettid);
+  static __thread tid = syscall(SYS_gettid);
+  return tid;
 }
 
 static inline __swift_bool _swift_stdlib_wait(__swift_uint32_t *lock) {

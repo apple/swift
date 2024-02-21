@@ -10,8 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-import Builtin
-
 /// A synchronization primitive that protects shared mutable state via
 /// mutual exclusion.
 ///

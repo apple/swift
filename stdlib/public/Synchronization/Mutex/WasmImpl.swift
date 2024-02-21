@@ -10,6 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Note: All atomic accesses on WASM are sequentially consistent regardless of
+// what ordering we tell LLVM to use.
+
 @_extern(c, "llvm.wasm32.memory.atomic.wait32")
 func _swift_stdlib_wait(
   on: UnsafePointer<UInt32>,
@@ -34,6 +37,18 @@ extension Atomic where Value == UInt32 {
   borrowing func wake() {
     // Only wake up 1 thread
     _swift_stdlib_wake(on: .init(rawAddress), count: 1)
+  }
+}
+
+@available(SwiftStdlib 6.0, *)
+extension _MutexHandle {
+  @available(SwiftStdlib 6.0, *)
+  @frozen
+  @usableFromInline
+  internal enum State: UInt32, AtomicRepresentable {
+    case unlocked
+    case locked
+    case contended
   }
 }
 
@@ -75,7 +90,11 @@ internal struct _MutexHandle: ~Copyable {
       // If we're not already contended, go ahead and transition the mutex state
       // into being contended. If when we do this that the value stored there
       // was unlocked, then we know we unintentionally acquired the lock. A
-      // weird quirk is that 
+      // weird quirk that occurs if this happens is that we go directly from
+      // .unlocked -> .contended when in fact the lock may not be contended.
+      // We may be able to do another atomic access and change it to .locked if
+      // acquired it, but it may cause more problems than just potentially
+      // calling wake with no waiters.
       if state != .contended, storage.exchange(
         .contended,
         ordering: .acquiring
@@ -128,16 +147,5 @@ internal struct _MutexHandle: ~Copyable {
     storage.wake()
 
     // Unlocked!
-  }
-}
-
-extension _MutexHandle {
-  @available(SwiftStdlib 6.0, *)
-  @frozen
-  @usableFromInline
-  internal enum State: UInt32, AtomicRepresentable {
-    case unlocked
-    case locked
-    case contended
   }
 }
