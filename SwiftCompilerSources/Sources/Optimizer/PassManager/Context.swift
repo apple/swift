@@ -270,14 +270,6 @@ struct FunctionPassContext : MutatingContext {
     NominalTypeDecl(_bridged: _bridged.getSwiftArrayDecl())
   }
 
-  func specializationLevel(for function: Function)-> Int {
-    _bridged.ClosureSpecializer_getSpecializationLevel(function.bridged)
-  }
-
-  func isAutodiffVJP(function: Function) -> Bool {
-    _bridged.ClosureSpecializer_isAutodiffVJP(function.bridged)
-  }
-
   func loadFunction(name: StaticString, loadCalleesRecursively: Bool) -> Function? {
     return name.withUTF8Buffer { (nameBuffer: UnsafeBufferPointer<UInt8>) in
       let nameStr = BridgedStringRef(data: nameBuffer.baseAddress, count: nameBuffer.count)

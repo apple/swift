@@ -574,6 +574,8 @@ struct BridgedFunction {
   BRIDGED_INLINE void setIsPerformanceConstraint(bool isPerfConstraint) const;
   BRIDGED_INLINE bool isResilientNominalDecl(BridgedNominalTypeDecl decl) const;
   BRIDGED_INLINE BridgedType getLoweredType(BridgedASTType type) const;
+  bool isAutodiffVJP() const;
+  SwiftInt specializationLevel() const;
 
   enum class ParseEffectsMode {
     argumentEffectsFromSource,

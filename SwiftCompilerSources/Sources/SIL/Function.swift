@@ -31,6 +31,10 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     hasher.combine(ObjectIdentifier(self))
   }
 
+  public var isAutodiffVJP: Bool { bridged.isAutodiffVJP() }
+
+  public var specializationLevel: Int { bridged.specializationLevel() }
+  
   public var hasOwnership: Bool { bridged.hasOwnership() }
 
   public var hasLoweredAddresses: Bool { bridged.hasLoweredAddresses() }

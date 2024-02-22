@@ -24,7 +24,6 @@
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
-#include "swift/SILOptimizer/IPO/ClosureSpecializer.h"
 #include "swift/SILOptimizer/OptimizerBridging.h"
 #include "swift/SILOptimizer/PassManager/PassManager.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
@@ -479,17 +478,6 @@ bool BridgedPassContext::enableMoveInoutStackProtection() const {
 BridgedPassContext::AssertConfiguration BridgedPassContext::getAssertConfiguration() const {
   swift::SILModule *mod = invocation->getPassManager()->getModule();
   return (AssertConfiguration)mod->getOptions().AssertConfig;
-}
-
-SwiftInt BridgedPassContext::ClosureSpecializer_getSpecializationLevel(
-    BridgedFunction function) const {
-  return swift::getSpecializationLevel(function.getFunction());
-}
-
-bool BridgedPassContext::ClosureSpecializer_isAutodiffVJP(
-    BridgedFunction function) const {
-  return swift::isDifferentiableFuncComponent(
-      function.getFunction(), swift::AutoDiffFunctionComponent::VJP);
 }
 
 static_assert((int)BridgedPassContext::SILStage::Raw == (int)swift::SILStage::Raw);

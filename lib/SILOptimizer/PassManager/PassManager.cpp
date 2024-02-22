@@ -26,6 +26,7 @@
 #include "swift/SIL/SILModule.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/FunctionOrder.h"
+#include "swift/SILOptimizer/IPO/ClosureSpecializer.h"
 #include "swift/SILOptimizer/OptimizerBridging.h"
 #include "swift/SILOptimizer/PassManager/PrettyStackTrace.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
@@ -45,7 +46,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/ManagedStatic.h"
-
 #include <fstream>
 
 using namespace swift;
@@ -2028,7 +2028,7 @@ BridgedFunctionSignatureSpecializationMangler::
 }
 
 void BridgedFunctionSignatureSpecializationMangler::setArgumentClosureProp(
-    SwiftUInt argIndex, BridgedInstruction instruction) const {
+    SwiftInt argIndex, BridgedInstruction instruction) const {
   if (auto *pai = instruction.getAs<PartialApplyInst>()) {
     specializationMangler->setArgumentClosureProp(argIndex, pai);
   } else {
@@ -2040,4 +2040,13 @@ void BridgedFunctionSignatureSpecializationMangler::setArgumentClosureProp(
 BridgedOwnedString
 BridgedFunctionSignatureSpecializationMangler::mangle() const {
   return {specializationMangler->mangle()};
+}
+
+bool BridgedFunction::isAutodiffVJP() const {
+  return swift::isDifferentiableFuncComponent(
+      getFunction(), swift::AutoDiffFunctionComponent::VJP);
+}
+
+SwiftInt BridgedFunction::specializationLevel() const {
+  return swift::getSpecializationLevel(getFunction());
 }

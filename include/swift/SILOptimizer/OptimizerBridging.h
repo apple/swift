@@ -200,7 +200,7 @@ struct BridgedFunctionSignatureSpecializationMangler {
   SWIFT_IMPORT_UNSAFE BridgedFunctionSignatureSpecializationMangler(
       BridgedSpecializationPass specializationPass, bool isSerialized,
       BridgedFunction function);
-  void setArgumentClosureProp(SwiftUInt argIndex,
+  void setArgumentClosureProp(SwiftInt argIndex,
                               BridgedInstruction instruction) const;
   SWIFT_IMPORT_UNSAFE BridgedOwnedString mangle() const;
 };
@@ -368,13 +368,6 @@ struct BridgedPassContext {
   BRIDGED_INLINE bool enableMoveInoutStackProtection() const;
   BRIDGED_INLINE AssertConfiguration getAssertConfiguration() const;
   bool enableSimplificationFor(BridgedInstruction inst) const;
-
-  // ClosureSpecializer
-  BRIDGED_INLINE SwiftInt
-  ClosureSpecializer_getSpecializationLevel(BridgedFunction function) const;
-
-  BRIDGED_INLINE bool
-  ClosureSpecializer_isAutodiffVJP(BridgedFunction function) const;
 };
 
 bool FullApplySite_canInline(BridgedInstruction apply);

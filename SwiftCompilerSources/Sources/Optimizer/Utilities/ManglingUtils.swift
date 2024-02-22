@@ -10,22 +10,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-import SIL
 import OptimizerBridging
+import SIL
 
 /// The mangler for functions where arguments or effects are specialized.
 struct FunctionSignatureSpecializationMangler {
-    private var bridged: BridgedFunctionSignatureSpecializationMangler
+  private var bridged: BridgedFunctionSignatureSpecializationMangler
 
-    init(specializationPass: SpecializationPass, isSerialized: Bool, function: Function) {
-        bridged = BridgedFunctionSignatureSpecializationMangler(specializationPass, isSerialized, function.bridged)
-    }
+  init(specializationPass: SpecializationPass, isSerialized: Bool, function: Function) {
+    bridged = BridgedFunctionSignatureSpecializationMangler(
+      specializationPass, isSerialized, function.bridged)
+  }
 
-    public func setArgumentClosureProp(argIndex: UInt, instruction: BridgedInstruction) {
-        bridged.setArgumentClosureProp(argIndex, instruction)
-    }
+  public func setArgumentClosureProp(argIndex: Int, instruction: Instruction) {
+    bridged.setArgumentClosureProp(argIndex, instruction.bridged)
+  }
 
-    public func mangle() -> String {
-        return String(taking: bridged.mangle())
-    }    
+  public func mangle() -> String {
+    return String(taking: bridged.mangle())
+  }
 }
