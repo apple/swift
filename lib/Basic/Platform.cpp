@@ -210,7 +210,17 @@ StringRef swift::getPlatformNameForTriple(const llvm::Triple &triple) {
   case llvm::Triple::WatchOS:
     return getPlatformNameForDarwin(getDarwinPlatformKind(triple));
   case llvm::Triple::Linux:
-    return triple.isAndroid() ? "android" : "linux";
+    if (triple.isAndroid())
+      return "android";
+    else if (triple.isMusl()) {
+      // The triple for linux-static is <arch>-swift-linux-musl, to distinguish
+      // it from a "normal" musl set-up (ala Alpine).
+      if (triple.getVendor() == llvm::Triple::Swift)
+        return "linux-static";
+      else
+        return "musl";
+    } else
+      return "linux";
   case llvm::Triple::FreeBSD:
     return "freebsd";
   case llvm::Triple::OpenBSD:
