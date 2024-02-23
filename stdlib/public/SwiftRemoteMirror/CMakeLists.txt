@@ -16,4 +16,6 @@ add_swift_target_library(swiftRemoteMirror
                          SWIFT_COMPILE_FLAGS ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
                          DARWIN_INSTALL_NAME_DIR "${SWIFTLIB_DARWIN_INSTALL_NAME_DIR}"
                          INSTALL_IN_COMPONENT
-                           swift-remote-mirror)
+                           swift-remote-mirror
+
+                         TARGET_SDKS NOT LINUX_STATIC)
