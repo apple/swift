@@ -160,8 +160,9 @@ add_swift_target_library(swiftMusl ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OV
       ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
       ${swift_platform_compile_flags}
     LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
-    TARGET_SDKS MUSL
-    INSTALL_IN_COMPONENT sdk-overlay)
+    TARGET_SDKS LINUX_STATIC
+    INSTALL_IN_COMPONENT sdk-overlay
+    DEPENDS musl_modulemap)
 
 add_swift_target_library(swiftWASILibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ${swift_platform_sources}
@@ -196,6 +197,80 @@ add_swift_target_library(swiftCRT ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVE
     LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
     TARGET_SDKS WINDOWS
     INSTALL_IN_COMPONENT sdk-overlay)
+
+foreach(sdk ${SWIFT_SDKS})
+  # Add more platforms supporting Musl to these checks,
+  if(NOT "${sdk}" STREQUAL "LINUX_STATIC")
+    continue()
+  endif()
+
+  set(musl_modulemap "musl.modulemap")
+  set(musl_header "SwiftMusl.h")
+
+  foreach(arch ${SWIFT_SDK_${sdk}_ARCHITECTURES})
+    set(arch_subdir "${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}")
+    set(module_dir "${SWIFTLIB_DIR}/${arch_subdir}")
+    set(module_dir_static "${SWIFTSTATICLIB_DIR}/${arch_subdir}")
+
+    set(musl_modulemap_out "${module_dir}/${musl_modulemap}")
+    set(musl_modulemap_out_static "${module_dir_static}/${musl_modulemap}")
+    set(musl_header_out "${module_dir}/${musl_header}")
+    set(musl_header_out_static "${module_dir_static}/${musl_header}")
+
+    add_custom_command_target(
+      copy_musl_modulemap
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy"
+          ${CMAKE_CURRENT_LIST_DIR}/${musl_modulemap}
+          ${musl_modulemap_out}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy"
+          ${CMAKE_CURRENT_LIST_DIR}/${musl_header}
+          ${musl_header_out}
+      OUTPUT ${musl_modulemap_out} ${musl_header_out}
+      COMMENT "Copying Musl modulemap to resources")
+
+    list(APPEND musl_modulemap_target_list ${copy_musl_modulemap})
+
+    if(SWIFT_BUILD_STATIC_STDLIB OR SWIFT_SDK_${sdk}_STATIC_ONLY)
+      add_custom_command_target(
+        copy_musl_modulemap_static
+        COMMAND
+          "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir_static}
+        COMMAND
+          "${CMAKE_COMMAND}" "-E" "copy"
+            ${CMAKE_CURRENT_LIST_DIR}/${musl_modulemap}
+            ${musl_modulemap_out_static}
+        COMMAND
+          "${CMAKE_COMMAND}" "-E" "copy"
+            ${CMAKE_CURRENT_LIST_DIR}/${musl_header}
+            ${musl_header_out_static}
+        OUTPUT ${musl_modulemap_out_static} ${musl_header_out_static}
+        COMMENT "Copying Musl modulemap to static resources")
+
+      list(APPEND musl_modulemap_target_list ${copy_musl_modulemap_static})
+
+      swift_install_in_component(FILES "${musl_modulemap_out_static}"
+                                 DESTINATION "lib/swift_static/${arch_subdir}"
+                                 COMPONENT sdk-overlay)
+      swift_install_in_component(FILES "${musl_header_out_static}"
+                                 DESTINATION "lib/swift_static/${arch_subdir}"
+                                 COMPONENT sdk-overlay)
+    endif()
+
+    swift_install_in_component(FILES "${musl_modulemap_out}"
+                               DESTINATION "lib/swift/${arch_subdir}"
+                               COMPONENT sdk-overlay)
+    swift_install_in_component(FILES "${musl_header_out}"
+                               DESTINATION "lib/swift/${arch_subdir}"
+                               COMPONENT sdk-overlay)
+  endforeach()
+endforeach()
+add_custom_target(musl_modulemap DEPENDS ${musl_modulemap_target_list})
+set_property(TARGET musl_modulemap PROPERTY FOLDER "Miscellaneous")
+add_dependencies(sdk-overlay musl_modulemap)
 
 set(glibc_modulemap_target_list)
 foreach(sdk ${SWIFT_SDKS})
@@ -237,7 +312,7 @@ foreach(sdk ${SWIFT_SDKS})
         FLAGS "-DCMAKE_SDK=${sdk}")
     list(APPEND glibc_modulemap_target_list ${glibc_header_target})
 
-    if(SWIFT_BUILD_STATIC_STDLIB)
+    if(SWIFT_BUILD_STATIC_STDLIB OR SWIFT_SDK_${sdk}_STATIC_ONLY)
       add_custom_command_target(
         copy_glibc_modulemap_header_static
         COMMAND
@@ -286,7 +361,7 @@ foreach(sdk ${SWIFT_SDKS})
                                DESTINATION "lib/swift/${arch_subdir}"
                                COMPONENT sdk-overlay)
 
-    if(SWIFT_BUILD_STATIC_STDLIB)
+    if(SWIFT_BUILD_STATIC_STDLIB OR SWIFT_SDK_${sdk}_STATIC_ONLY)
       swift_install_in_component(FILES "${glibc_modulemap_out}"
                                  DESTINATION "lib/swift_static/${arch_subdir}"
                                  COMPONENT sdk-overlay)
