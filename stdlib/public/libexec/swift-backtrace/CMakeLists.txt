@@ -3,11 +3,13 @@
 set(darwin)
 set(wincrt_sdk)
 set(glibc)
+set(musl)
 
 if(SWIFT_BUILD_SDK_OVERLAY)
   set(darwin Darwin)
   set(wincrt_sdk CRT WinSDK)
   set(glibc Glibc)
+  set(musl Musl)
 endif()
 
 # Similarly, we only want the _Backtracing dependency if we're building
@@ -41,9 +43,10 @@ add_swift_target_executable(swift-backtrace BUILD_WITH_LIBEXEC
 
   SWIFT_MODULE_DEPENDS         ${backtracing}
 
-  SWIFT_MODULE_DEPENDS_OSX     ${darwin}
-  SWIFT_MODULE_DEPENDS_WINDOWS ${wincrt_sdk}
-  SWIFT_MODULE_DEPENDS_LINUX   ${glibc}
+  SWIFT_MODULE_DEPENDS_OSX          ${darwin}
+  SWIFT_MODULE_DEPENDS_WINDOWS      ${wincrt_sdk}
+  SWIFT_MODULE_DEPENDS_LINUX        ${glibc}
+  SWIFT_MODULE_DEPENDS_LINUX_STATIC ${musl}
 
   INSTALL_IN_COMPONENT libexec
   COMPILE_FLAGS
@@ -52,7 +55,14 @@ add_swift_target_executable(swift-backtrace BUILD_WITH_LIBEXEC
 
   TARGET_SDKS OSX LINUX)
 
+set(static_target_sdks)
 if(SWIFT_BUILD_STATIC_STDLIB)
+  list(APPEND static_target_sdks "LINUX")
+endif()
+if("LINUX_STATIC" IN_LIST SWIFT_SDKS)
+  list(APPEND static_target_sdks "LINUX_STATIC")
+endif()
+if(static_target_sdks)
   add_swift_target_executable(swift-backtrace-static BUILD_WITH_LIBEXEC
     PREFER_STATIC
 
@@ -60,14 +70,15 @@ if(SWIFT_BUILD_STATIC_STDLIB)
 
     SWIFT_MODULE_DEPENDS         ${backtracing}
 
-    SWIFT_MODULE_DEPENDS_OSX     ${darwin}
-    SWIFT_MODULE_DEPENDS_WINDOWS ${wincrt_sdk}
-    SWIFT_MODULE_DEPENDS_LINUX   ${glibc}
+    SWIFT_MODULE_DEPENDS_OSX          ${darwin}
+    SWIFT_MODULE_DEPENDS_WINDOWS      ${wincrt_sdk}
+    SWIFT_MODULE_DEPENDS_LINUX        ${glibc}
+    SWIFT_MODULE_DEPENDS_LINUX_STATIC ${musl}
 
     INSTALL_IN_COMPONENT libexec
     COMPILE_FLAGS
       ${BACKTRACING_COMPILE_FLAGS}
       -parse-as-library
 
-    TARGET_SDKS LINUX)
+    TARGET_SDKS ${static_target_sdks})
 endif()

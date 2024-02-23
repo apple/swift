@@ -16,6 +16,14 @@
 
 #ifdef __linux__
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE 1
+#endif
+
 #include <linux/capability.h>
 #include <linux/futex.h>
 
