@@ -478,6 +478,21 @@ the compiler itself. This is used on non-Darwin platforms to ensure \
 that it's possible to build the compiler using host tools.")
 
 #
+# User-configurable Linux specific options.
+#
+
+set(SWIFT_MUSL_PATH "/usr/local/musl" CACHE STRING
+  "Path to the directory that contains the Musl headers and libraries. \
+This is only required if we have been asked to build the Musl SDK, and \
+defaults to the default install location for Musl.")
+
+set(SWIFT_SDK_LINUX_STATIC_ARCHITECTURES "" CACHE STRING
+  "The architectures to configure when using the static Linux SDK.")
+
+set(SWIFT_SDK_LINUX_ARCHITECTURES "" CACHE STRING
+  "The architectures to configure when using the Linux SDK.")
+
+#
 # User-configurable Android specific options.
 #
 
@@ -1059,9 +1074,25 @@ if("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "LINUX")
   # Should we build the standard library for the host?
   is_sdk_requested(LINUX swift_build_linux)
   if(swift_build_linux)
-    configure_sdk_unix("Linux" "${SWIFT_HOST_VARIANT_ARCH}")
-    set(SWIFT_PRIMARY_VARIANT_SDK_default  "${SWIFT_HOST_VARIANT_SDK}")
-    set(SWIFT_PRIMARY_VARIANT_ARCH_default "${SWIFT_HOST_VARIANT_ARCH}")
+    if("${SWIFT_SDK_LINUX_ARCHITECTURES}" STREQUAL "")
+      set(SWIFT_SDK_LINUX_ARCHITECTURES "${SWIFT_HOST_VARIANT_ARCH}")
+    endif()
+
+    configure_sdk_unix("Linux" "${SWIFT_SDK_LINUX_ARCHITECTURES}")
+  endif()
+
+  # Should we build it for LINUX_STATIC?
+  is_sdk_requested(LINUX_STATIC swift_build_linux_static)
+  if(swift_build_linux_static)
+    if("${SWIFT_MUSL_PATH}" STREQUAL "")
+      message(FATAL_ERROR "You must set SWIFT_MUSL_PATH to point to the Musl libraries and headers.  Specifically, we expect to find Musl at <SWIFT_MUSL_PATH>/<arch> for each requested architecture.")
+    endif()
+
+    if("${SWIFT_SDK_LINUX_STATIC_ARCHITECTURES}" STREQUAL "")
+      set(SWIFT_SDK_LINUX_STATIC_ARCHITECTURES "aarch64;x86_64")
+    endif()
+
+    configure_sdk_unix("Linux_Static" "${SWIFT_SDK_LINUX_STATIC_ARCHITECTURES}")
   endif()
 
   is_sdk_requested(FREESTANDING swift_build_freestanding)
@@ -1069,6 +1100,10 @@ if("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "LINUX")
     # TODO
     # configure_sdk_unix("FREESTANDING" "${SWIFT_HOST_VARIANT_ARCH}")
   endif()
+
+  # Default is Linux SDK for host
+  set(SWIFT_PRIMARY_VARIANT_SDK_default  "${SWIFT_HOST_VARIANT_SDK}")
+  set(SWIFT_PRIMARY_VARIANT_ARCH_default "${SWIFT_HOST_VARIANT_ARCH}")
 
 elseif("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "FREEBSD")
 

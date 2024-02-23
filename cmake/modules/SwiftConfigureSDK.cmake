@@ -321,10 +321,18 @@ macro(configure_sdk_unix name architectures)
 
   # Static linking is suported on Linux and WASI
   if("${prefix}" STREQUAL "LINUX"
+      OR "${prefix}" STREQUAL "LINUX_STATIC"
       OR "${prefix}" STREQUAL "WASI")
     set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED TRUE)
   else()
     set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED FALSE)
+  endif()
+
+  # For LINUX_STATIC, build static only
+  if("${prefix}" STREQUAL "LINUX_STATIC")
+    set(SWIFT_SDK_${prefix}_STATIC_ONLY TRUE)
+  else()
+    set(SWIFT_SDK_${prefix}_STATIC_ONLY FALSE)
   endif()
 
   # GCC on Linux is usually located under `/usr`.
@@ -343,7 +351,7 @@ macro(configure_sdk_unix name architectures)
     CACHE STRING "Extra flags for compiling the C++ overlay")
 
   set(_default_threading_package "pthreads")
-  if("${prefix}" STREQUAL "LINUX")
+  if("${prefix}" STREQUAL "LINUX" OR "${prefix}" STREQUAL "LINUX_STATIC")
     set(_default_threading_package "linux")
   elseif("${prefix}" STREQUAL "WASI")
     if(SWIFT_ENABLE_WASI_THREADS)
@@ -444,6 +452,9 @@ macro(configure_sdk_unix name architectures)
         else()
           set(SWIFT_SDK_WASI_ARCH_wasm32_TRIPLE "wasm32-unknown-wasi")
         endif()
+      elseif("${prefix}" STREQUAL "LINUX_STATIC")
+        set(SWIFT_SDK_LINUX_STATIC_ARCH_${arch}_TRIPLE "${arch}-swift-linux-musl")
+        set(SWIFT_SDK_LINUX_STATIC_ARCH_${arch}_PATH "${SWIFT_MUSL_PATH}/${arch}")
       else()
         message(FATAL_ERROR "unknown Unix OS: ${prefix}")
       endif()
