@@ -15,6 +15,9 @@ function(_report_sdk prefix)
   message(STATUS "  Swift Standard Library Path: ${SWIFT_SDK_${prefix}_LIB_SUBDIR}")
   message(STATUS "  Threading Package: ${SWIFT_SDK_${prefix}_THREADING_PACKAGE}")
 
+  message(STATUS "  Static linking supported: ${SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED}")
+  message(STATUS "  Static link only: ${SWIFT_SDK_${prefix}_STATIC_ONLY}")
+
   if("${prefix}" STREQUAL "WINDOWS")
     message(STATUS "  UCRT Version: ${UCRTVersion}")
     message(STATUS "  UCRT SDK Path: ${UniversalCRTSdkDir}")
@@ -148,20 +151,23 @@ endfunction()
 # This macro attempts to configure a given SDK. When successful, it
 # defines a number of variables:
 #
-#   SWIFT_SDK_${prefix}_NAME                    Display name for the SDK
-#   SWIFT_SDK_${prefix}_VERSION                 SDK version number (e.g., 10.9, 7.0)
-#   SWIFT_SDK_${prefix}_BUILD_NUMBER            SDK build number (e.g., 14A389a)
-#   SWIFT_SDK_${prefix}_DEPLOYMENT_VERSION      Deployment version (e.g., 10.9, 7.0)
-#   SWIFT_SDK_${prefix}_LIB_SUBDIR              Library subdir for this SDK
-#   SWIFT_SDK_${prefix}_TRIPLE_NAME             Triple name for this SDK
-#   SWIFT_SDK_${prefix}_OBJECT_FORMAT           The object file format (e.g. MACHO)
-#   SWIFT_SDK_${prefix}_USE_ISYSROOT            Whether to use -isysroot
-#   SWIFT_SDK_${prefix}_SHARED_LIBRARY_PREFIX   Shared library prefix for this SDK (e.g. 'lib')
-#   SWIFT_SDK_${prefix}_SHARED_LIBRARY_SUFFIX   Shared library suffix for this SDK (e.g. 'dylib')
-#   SWIFT_SDK_${prefix}_ARCHITECTURES           Architectures (as a list)
-#   SWIFT_SDK_${prefix}_IS_SIMULATOR            Whether this is a simulator target.
-#   SWIFT_SDK_${prefix}_ARCH_${ARCH}_TRIPLE     Triple name
-#   SWIFT_SDK_${prefix}_ARCH_${ARCH}_MODULE     Module triple name for this SDK
+#   SWIFT_SDK_${prefix}_NAME                      Display name for the SDK
+#   SWIFT_SDK_${prefix}_VERSION                   SDK version number (e.g., 10.9, 7.0)
+#   SWIFT_SDK_${prefix}_BUILD_NUMBER              SDK build number (e.g., 14A389a)
+#   SWIFT_SDK_${prefix}_DEPLOYMENT_VERSION        Deployment version (e.g., 10.9, 7.0)
+#   SWIFT_SDK_${prefix}_LIB_SUBDIR                Library subdir for this SDK
+#   SWIFT_SDK_${prefix}_TRIPLE_NAME               Triple name for this SDK
+#   SWIFT_SDK_${prefix}_OBJECT_FORMAT             The object file format (e.g. MACHO)
+#   SWIFT_SDK_${prefix}_USE_ISYSROOT              Whether to use -isysroot
+#   SWIFT_SDK_${prefix}_SHARED_LIBRARY_PREFIX     Shared library prefix for this SDK (e.g. 'lib')
+#   SWIFT_SDK_${prefix}_SHARED_LIBRARY_SUFFIX     Shared library suffix for this SDK (e.g. 'dylib')
+#   SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED  Whether static linking is supported for this SDK
+#   SWIFT_SDK_${prefix}_STATIC_ONLY               Whether to build *only* static libraries
+
+#   SWIFT_SDK_${prefix}_ARCHITECTURES             Architectures (as a list)
+#   SWIFT_SDK_${prefix}_IS_SIMULATOR              Whether this is a simulator target.
+#   SWIFT_SDK_${prefix}_ARCH_${ARCH}_TRIPLE       Triple name
+#   SWIFT_SDK_${prefix}_ARCH_${ARCH}_MODULE       Module triple name for this SDK
 macro(configure_sdk_darwin
     prefix name deployment_version xcrun_name
     triple_name module_name architectures)
@@ -206,6 +212,8 @@ macro(configure_sdk_darwin
   set(SWIFT_SDK_${prefix}_STATIC_LIBRARY_SUFFIX ".a")
   set(SWIFT_SDK_${prefix}_IMPORT_LIBRARY_PREFIX "")
   set(SWIFT_SDK_${prefix}_IMPORT_LIBRARY_SUFFIX "")
+  set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED FALSE)
+  set(SWIFT_SDK_${prefix}_STATIC_ONLY FALSE)
   get_threading_package(${prefix} "darwin" SWIFT_SDK_${prefix}_THREADING_PACKAGE)
 
   set(SWIFT_SDK_${prefix}_ARCHITECTURES ${architectures})
@@ -279,6 +287,7 @@ macro(configure_sdk_unix name architectures)
 
   string(TOUPPER ${name} prefix)
   string(TOLOWER ${name} platform)
+  string(REPLACE "_" "-" platform "${platform}")
 
   set(SWIFT_SDK_${prefix}_NAME "${name}")
   set(SWIFT_SDK_${prefix}_LIB_SUBDIR "${platform}")
@@ -309,6 +318,14 @@ macro(configure_sdk_unix name architectures)
     set(SWIFT_SDK_${prefix}_IMPORT_LIBRARY_SUFFIX "")
   endif()
   set(SWIFT_SDK_${prefix}_USE_ISYSROOT FALSE)
+
+  # Static linking is suported on Linux and WASI
+  if("${prefix}" STREQUAL "LINUX"
+      OR "${prefix}" STREQUAL "WASI")
+    set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED TRUE)
+  else()
+    set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED FALSE)
+  endif()
 
   # GCC on Linux is usually located under `/usr`.
   # However, Ubuntu 20.04 ships with another GCC installation under `/`, which
@@ -464,6 +481,8 @@ macro(configure_sdk_windows name environment architectures)
   set(SWIFT_SDK_${prefix}_STATIC_LIBRARY_SUFFIX ".lib")
   set(SWIFT_SDK_${prefix}_IMPORT_LIBRARY_PREFIX "")
   set(SWIFT_SDK_${prefix}_IMPORT_LIBRARY_SUFFIX ".lib")
+  set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED FALSE)
+  set(SWIFT_SDK_${prefix}_STATIC_ONLY FALSE)
   get_threading_package(${prefix} "win32" SWIFT_SDK_${prefix}_THREADING_PACKAGE)
 
   foreach(arch ${architectures})
@@ -531,6 +550,8 @@ function(configure_target_variant prefix name sdk build_config lib_subdir)
   set(SWIFT_VARIANT_${prefix}_STATIC_LIBRARY_SUFFIX ${SWIFT_SDK_${sdk}_STATIC_LIBRARY_SUFFIX})
   set(SWIFT_VARIANT_${prefix}_IMPORT_LIBRARY_PREFIX ${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX})
   set(SWIFT_VARIANT_${prefix}_IMPORT_LIBRARY_SUFFIX ${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX})
+  set(SWIFT_VARIANT_${prefix}_STATIC_LINKING_SUPPORTED ${SWIFT_SDK_${sdk}_STATIC_LINKING_SUPPORTED})
+  set(SWIFT_VARIANT_${prefix}_STATIC_ONLY ${SWIFT_SDK_${sdk}_STATIC_ONLY})
   get_threading_package(${prefix} ${SWIFT_SDK_${sdk}_THREADING_PACKAGE} SWIFT_VARIANT_${prefix}_THREADING_PACKAGE)
 endfunction()
 
