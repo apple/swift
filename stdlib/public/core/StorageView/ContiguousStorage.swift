@@ -13,10 +13,35 @@
 public protocol ContiguousStorage<Element>: ~Copyable, ~Escapable {
   associatedtype Element: ~Copyable & ~Escapable
 
-//  var storage: StorageView<Element> { get }
-//  var storage: StorageView<Element> { borrowing(self) get }
+  var storage: StorageView<Element> { borrowing get }
 }
 
-extension StorageView: ContiguousStorage where Element: ~Copyable/* & ~Escapable*/ {
-  var storage: Self { self }
+extension StorageView: ContiguousStorage where Element: ~Copyable & ~Escapable {
+  public var storage: Self { self }
+}
+
+extension Array: ContiguousStorage {
+  public var storage: StorageView<Element> {
+    borrowing _read {
+      if let a = _baseAddressIfContiguous {
+        yield StorageView(
+          unsafePointer: a, count: count, owner: self
+        )
+      }
+      else {
+        let a = ContiguousArray(copy self)
+        yield a.storage
+      }
+    }
+  }
+}
+
+extension ContiguousArray: ContiguousStorage {
+  public var storage: StorageView<Element> {
+    borrowing _read {
+      yield StorageView(
+        unsafePointer: _baseAddressIfContiguous!, count: count, owner: self
+      )
+    }
+  }
 }

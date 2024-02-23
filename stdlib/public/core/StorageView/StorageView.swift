@@ -13,7 +13,7 @@
 // A StorageView<Element> represents a span of memory which
 // contains initialized instances of `Element`.
 @frozen
-public struct StorageView<Element: ~Copyable>: Copyable, ~Escapable {
+public struct StorageView<Element: ~Copyable & ~Escapable>: Copyable, ~Escapable {
   @usableFromInline let _start: Index
   @usableFromInline let _count: Int
 
@@ -27,6 +27,12 @@ public struct StorageView<Element: ~Copyable>: Copyable, ~Escapable {
     self._count = count
     return self
   }
+}
+
+@available(*, unavailable)
+extension StorageView: Sendable {}
+
+extension StorageView where Element: ~Copyable {
 
   @inlinable @inline(__always)
   internal init<Owner: ~Escapable & ~Copyable>(
@@ -42,12 +48,6 @@ public struct StorageView<Element: ~Copyable>: Copyable, ~Escapable {
     self.init(_unchecked: start, count: count, owner: owner)
     return self
   }
-}
-
-@available(*, unavailable)
-extension StorageView: Sendable {}
-
-extension StorageView where Element: ~Copyable {
 
   public init<Owner: ~Escapable & ~Copyable>(
     unsafeBufferPointer buffer: UnsafeBufferPointer<Element>,
@@ -117,7 +117,7 @@ extension StorageView where Element: _BitwiseCopyable {
 
 extension StorageView/*: Sequence*/ where Element: Copyable & Escapable {
 
-  borrowing public func makeIterator() -> _borrow(self) Iterator {
+  borrowing public func makeIterator() -> Iterator {
     .init(from: startIndex, to: endIndex, owner: self)
   }
 }
@@ -137,6 +137,20 @@ extension StorageView where Element: Equatable {
     // }
     for o in 0..<count {
       if self[uncheckedOffset: o] != other[uncheckedOffset: o] { return false }
+    }
+    return true
+  }
+
+  public func elementsEqual(_ other: some Collection<Element>) -> Bool {
+    guard count == other.count else { return false }
+    if count == 0 { return true }
+
+    return elementsEqual(AnySequence(other))
+  }
+
+  public func elementsEqual(_ other: some Sequence<Element>) -> Bool {
+    for (index, otherElement) in zip(indices, other) {
+      if self[unchecked: index] != otherElement { return false }
     }
     return true
   }
@@ -219,7 +233,9 @@ extension StorageView where Element: ~Copyable {
   public var endIndex: Index { _start.advanced(by: _count) }
 
   @inlinable @inline(__always)
-  public var count: Int { _count }
+  public var count: Int {
+    borrowing get { self._count }
+  }
 
   @inlinable @inline(__always)
   public var indices: Range<Index> {
@@ -401,13 +417,6 @@ extension StorageView where Element: _BitwiseCopyable {
 //MARK: withUnsafeRaw...
 #if hasFeature(BitwiseCopyable)
 extension StorageView where Element: _BitwiseCopyable {
-
-  //FIXME: mark closure parameter as non-escaping
-  public func withUnsafeRawPointer<R>(
-    _ body: (_ pointer: UnsafeRawPointer, _ count: Int) throws -> R
-  ) rethrows -> R {
-    try body(_start._rawValue, count*MemoryLayout<Element>.stride)
-  }
 
   //FIXME: mark closure parameter as non-escaping
   public func withUnsafeBytes<R>(

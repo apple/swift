@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-extension StorageView where Element: ~Copyable {
+extension StorageView where Element: ~Copyable & ~Escapable{
   @frozen
   public struct Iterator: Copyable, ~Escapable {
     var curPointer: UnsafeRawPointer
@@ -40,19 +40,33 @@ extension StorageView where Element: ~Copyable {
   }
 }
 
-//extension StorageView.Iterator: IteratorProtocol where Element: Copyable & Escapable {
-//
-//  public typealias Element = StorageView.Element
-//
-//  public mutating func next() -> Element? {
-//    guard curPointer < endPointer else { return nil }
-//    defer {
-//      curPointer = curPointer.advanced(by: MemoryLayout<Element>.stride)
-//    }
-//    //TODO: specialize for Element: _BitwiseCopyable
-//    if _isPOD(Element.self) {
-//      return curPointer.loadUnaligned(as: Element.self)
-//    }
-//    return curPointer.load(as: Element.self)
-//  }
-//}
+extension StorageView.Iterator: IteratorProtocol where Element: Copyable & Escapable {
+
+  public typealias Element = StorageView.Element
+}
+
+extension StorageView.Iterator where Element: Copyable & Escapable {
+
+  public mutating func next() -> Element? {
+    guard curPointer < endPointer else { return nil }
+    defer {
+      curPointer = curPointer.advanced(by: MemoryLayout<Element>.stride)
+    }
+    //FIXME: determine whether we need this in a fully-generic context
+    if _isPOD(Element.self) {
+      return curPointer.loadUnaligned(as: Element.self)
+    }
+    return curPointer.load(as: Element.self)
+  }
+}
+
+extension StorageView.Iterator where Element: _BitwiseCopyable {
+
+  public mutating func next() -> Element? {
+    guard curPointer < endPointer else { return nil }
+    defer {
+      curPointer = curPointer.advanced(by: MemoryLayout<Element>.stride)
+    }
+    return curPointer.loadUnaligned(as: Element.self)
+  }
+}
