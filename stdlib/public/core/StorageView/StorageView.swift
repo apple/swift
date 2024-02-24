@@ -13,12 +13,12 @@
 // A StorageView<Element> represents a span of memory which
 // contains initialized instances of `Element`.
 @frozen
-public struct StorageView<Element: ~Copyable & ~Escapable>: Copyable, ~Escapable {
+public struct StorageView<Element: ~Copyable /*& ~Escapable*/>: Copyable, ~Escapable {
   @usableFromInline let _start: Index
   @usableFromInline let _count: Int
 
   @inlinable @inline(__always)
-  internal init<Owner: ~Escapable & ~Copyable>(
+  internal init<Owner: ~Copyable & ~Escapable>(
     _unchecked start: Index,
     count: Int,
     owner: borrowing Owner
@@ -35,7 +35,7 @@ extension StorageView: Sendable {}
 extension StorageView where Element: ~Copyable {
 
   @inlinable @inline(__always)
-  internal init<Owner: ~Escapable & ~Copyable>(
+  internal init<Owner: ~Copyable & ~Escapable>(
     start: Index,
     count: Int,
     owner: borrowing Owner
@@ -49,7 +49,7 @@ extension StorageView where Element: ~Copyable {
     return self
   }
 
-  public init<Owner: ~Escapable & ~Copyable>(
+  public init<Owner: ~Copyable & ~Escapable>(
     unsafeBufferPointer buffer: UnsafeBufferPointer<Element>,
     owner: borrowing Owner
   ) -> _borrow(owner) Self {
@@ -60,7 +60,7 @@ extension StorageView where Element: ~Copyable {
     return self
   }
 
-  public init<Owner: ~Escapable & ~Copyable>(
+  public init<Owner: ~Copyable & ~Escapable>(
     unsafePointer: UnsafePointer<Element>,
     count: Int,
     owner: borrowing Owner
@@ -75,7 +75,7 @@ extension StorageView where Element: ~Copyable {
 extension StorageView where Element: _BitwiseCopyable {
 
   @inlinable
-  internal init<Owner: ~Escapable & ~Copyable>(
+  internal init<Owner: ~Copyable & ~Escapable>(
     start index: Index,
     count: Int,
     owner: borrowing Owner
@@ -85,7 +85,7 @@ extension StorageView where Element: _BitwiseCopyable {
     self._count = count
   }
 
-  public init<Owner: ~Escapable & ~Copyable>(
+  public init<Owner: ~Copyable & ~Escapable>(
     unsafeBytes buffer: UnsafeRawBufferPointer,
     as type: Element.Type,
     owner: borrowing Owner
@@ -101,7 +101,7 @@ extension StorageView where Element: _BitwiseCopyable {
     )
   }
 
-  public init<Owner: ~Escapable & ~Copyable>(
+  public init<Owner: ~Copyable & ~Escapable>(
     unsafeRawPointer: UnsafeRawPointer,
     as type: Element.Type,
     count: Int,

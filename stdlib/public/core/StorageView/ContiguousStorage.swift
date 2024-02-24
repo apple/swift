@@ -11,12 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 public protocol ContiguousStorage<Element>: ~Copyable, ~Escapable {
-  associatedtype Element: ~Copyable & ~Escapable
+  associatedtype Element: ~Copyable /*& ~Escapable*/
 
   var storage: StorageView<Element> { borrowing get }
 }
 
-extension StorageView: ContiguousStorage where Element: ~Copyable & ~Escapable {
+extension StorageView: ContiguousStorage where Element: ~Copyable /*& ~Escapable*/ {
   public var storage: Self { self }
 }
 
