@@ -3558,7 +3558,7 @@ private:
     Ctx.Diags.diagnose(E->getAwaitLoc(), diag::no_async_in_await);
   }
 
-  void diagnoseUncoveredAsyncSite(const Expr *anchor) const {
+  void diagnoseUncoveredAsyncSite(Expr *anchor) const {
     auto asyncPointIter = uncoveredAsync.find(anchor);
     if (asyncPointIter == uncoveredAsync.end())
       return;
@@ -3570,16 +3570,40 @@ private:
       if (const AnyTryExpr *tryExpr = dyn_cast<AnyTryExpr>(autoClosure->getSingleExpressionBody()))
         awaitInsertLoc = tryExpr->getSubExpr()->getStartLoc();
     }
+    
+    auto findShorthandOptionalBinding = [&](Expr *anchor) -> VarDecl * {
+      VarDecl *varDecl = nullptr;
+      if (!anchor->getType()->isOptional())
+        return nullptr;
+      anchor->forEachChildExpr([&](Expr *expr) -> Expr * {
+        if (auto *declRef = dyn_cast<DeclRefExpr>(expr)) {
+          if (declRef && declRef->isImplicit()) {
+            varDecl = dyn_cast<VarDecl>(declRef->getDecl());
+            return nullptr;
+          }
+        }
+        return expr;
+      });
+      return varDecl;
+    };
 
     bool downgradeToWarning = llvm::all_of(errors,
         [&](DiagnosticInfo diag) -> bool {
           return diag.downgradeToWarning;
         });
-
-    Ctx.Diags.diagnose(anchor->getStartLoc(), diag::async_expr_without_await)
-      .warnUntilSwiftVersionIf(downgradeToWarning, 6)
-      .fixItInsert(awaitInsertLoc, "await ")
-      .highlight(anchor->getSourceRange());
+    
+    if (auto varDecl = findShorthandOptionalBinding(anchor)) {
+      Ctx.Diags.diagnose(anchor->getStartLoc(), diag::async_expr_without_await)
+        .warnUntilSwiftVersionIf(downgradeToWarning, 6)
+        .fixItInsertAfter(anchor->getStartLoc(),
+                          (" = await " + varDecl->getName().str()).str())
+        .highlight(anchor->getSourceRange());
+    } else {
+      Ctx.Diags.diagnose(anchor->getStartLoc(), diag::async_expr_without_await)
+        .warnUntilSwiftVersionIf(downgradeToWarning, 6)
+        .fixItInsert(awaitInsertLoc, "await ")
+        .highlight(anchor->getSourceRange());
+    }
 
     for (const DiagnosticInfo &diag: errors) {
       switch (diag.reason.getKind()) {
