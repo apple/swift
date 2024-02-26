@@ -31,6 +31,8 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     hasher.combine(ObjectIdentifier(self))
   }
 
+  public var isTrapNoReturn: Bool { bridged.isTrapNoReturn() }
+
   public var isAutodiffVJP: Bool { bridged.isAutodiffVJP() }
 
   public var specializationLevel: Int { bridged.specializationLevel() }
@@ -63,8 +65,8 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     entryBlock.arguments.lazy.map { $0 as! FunctionArgument }
   }
 
-  public func argument(at: Int) -> FunctionArgument {
-    entryBlock.arguments[at] as! FunctionArgument
+  public func argument(at index: Int) -> FunctionArgument {
+    entryBlock.arguments[index] as! FunctionArgument
   }
 
   /// All instructions of all blocks.
@@ -328,12 +330,6 @@ extension Function {
     }
   }
 
-  public var hasIllegalEffectForSpecialization: Bool {
-    switch bridged.getEffectAttribute() {
-      case .ReadNone, .ReadOnly, .ReleaseNone: return true
-      default: return false
-    }
-  }
   // Only to be called by PassContext
   public func _modifyEffects(_ body: (inout FunctionEffects) -> ()) {
     body(&effects)

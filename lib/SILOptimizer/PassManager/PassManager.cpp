@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cassert>
 #define DEBUG_TYPE "sil-passmanager"
 
 #include "swift/SILOptimizer/PassManager/PassManager.h"
@@ -1579,14 +1580,17 @@ bool BridgedFunction::mayBindDynamicSelf() const {
   return swift::mayBindDynamicSelf(getFunction());
 }
 
-bool BridgedInstruction::ApplyInst_isTrapNoReturnFunction() const {
-  auto *ai = getAs<swift::ApplyInst>();
-  return swift::isTrapNoReturnFunction(ai);
+bool BridgedFunction::isTrapNoReturn() const {
+  return swift::isTrapNoReturnFunction(getFunction());
 }
 
-bool BridgedInstruction::TermInst_isSafeNonExitTerminator() const {
-  auto *ti = getAs<swift::TermInst>();
-  return swift::isSafeNonExitTerminator(ti);
+bool BridgedFunction::isAutodiffVJP() const {
+  return swift::isDifferentiableFuncComponent(
+      getFunction(), swift::AutoDiffFunctionComponent::VJP);
+}
+
+SwiftInt BridgedFunction::specializationLevel() const {
+  return swift::getSpecializationLevel(getFunction());
 }
 
 //===----------------------------------------------------------------------===//
@@ -1770,6 +1774,40 @@ BridgedOwnedString BridgedPassContext::mangleWithDeadArgs(const SwiftInt * _Null
     Mangler.setArgumentDead((unsigned)idx);
   }
   return Mangler.mangle();
+}
+
+BridgedOwnedString BridgedPassContext::mangleWithClosureArgs(
+  BridgedValueArray bridgedClosureArgs,
+  BridgedArrayRef bridgedClosureArgIndices,
+  BridgedFunction applySiteCallee
+) const {
+  auto pass = Demangle::SpecializationPass::ClosureSpecializer;
+  auto isSerialized = applySiteCallee.getFunction()->isSerialized();
+  Mangle::FunctionSignatureSpecializationMangler mangler(
+      pass, isSerialized, applySiteCallee.getFunction());
+
+  llvm::SmallVector<swift::SILValue, 16> closureArgsStorage;
+  auto closureArgs = bridgedClosureArgs.getValues(closureArgsStorage);
+  auto closureArgIndices = bridgedClosureArgIndices.unbridged<SwiftInt>();
+
+  assert(closureArgs.size() == closureArgIndices.size() &&
+         "Number of closures arguments and number of closure indices do not match!");
+
+  for (size_t i = 0; i < closureArgs.size(); i++) {
+    auto closureArg = closureArgs[i];
+    auto closureArgIndex = closureArgIndices[i];
+
+    if (auto *PAI = dyn_cast<PartialApplyInst>(closureArg)) {
+      mangler.setArgumentClosureProp(closureArgIndex,
+                                     const_cast<PartialApplyInst *>(PAI));
+    } else {
+      auto *TTTFI = cast<ThinToThickFunctionInst>(closureArg);
+      mangler.setArgumentClosureProp(closureArgIndex, 
+                                     const_cast<ThinToThickFunctionInst *>(TTTFI));
+    }
+  }
+
+  return mangler.mangle();
 }
 
 BridgedGlobalVar BridgedPassContext::createGlobalVariable(BridgedStringRef name, BridgedType type, bool isPrivate) const {
@@ -2012,34 +2050,6 @@ void SILPassManager::runSwiftModuleVerification() {
   for (SILFunction &f : *Mod) {
     runSwiftFunctionVerification(&f);
   }
-}
-
-BridgedFunctionSignatureSpecializationMangler::
-    BridgedFunctionSignatureSpecializationMangler(
-        BridgedSpecializationPass bridgedSpecializationPass, bool isSerialized,
-        BridgedFunction function) {
-  auto specializationPass = static_cast<swift::Demangle::SpecializationPass>(
-      static_cast<SwiftUInt>(bridgedSpecializationPass));
-  IsSerialized_t isSerialized_t = isSerialized ? IsSerialized : IsNotSerialized;
-
-  this->specializationMangler =
-      new swift::Mangle::FunctionSignatureSpecializationMangler(
-          specializationPass, isSerialized_t, function.getFunction());
-}
-
-void BridgedFunctionSignatureSpecializationMangler::setArgumentClosureProp(
-    SwiftInt argIndex, BridgedInstruction instruction) const {
-  if (auto *pai = instruction.getAs<PartialApplyInst>()) {
-    specializationMangler->setArgumentClosureProp(argIndex, pai);
-  } else {
-    auto *tttfi = instruction.getAs<ThinToThickFunctionInst>();
-    specializationMangler->setArgumentClosureProp(argIndex, tttfi);
-  }
-}
-
-BridgedOwnedString
-BridgedFunctionSignatureSpecializationMangler::mangle() const {
-  return {specializationMangler->mangle()};
 }
 
 bool BridgedFunction::isAutodiffVJP() const {

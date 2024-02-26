@@ -89,46 +89,40 @@ let autodiffClosureSpecialization = FunctionPass(name: "autodiff-closure-special
   // calls and branches.
 }
 
-// =========== AutodiffClosureSpecializer ========== //
+// =========== Top-level functions ========== //
 
 let specializationLevelLimit = 2
 
-struct AutodiffClosureSpecializer {
-  let context: FunctionPassContext
-
-  init(_ context: FunctionPassContext) {
-    self.context = context
+func gatherCallSites(_ context: FunctionPassContext, in caller: Function)
+  -> Stack<CallSite>
+{
+  // We should not look at reabstraction closures twice who we
+  // ultimately ended up using as an argument that we specialize on.
+  var usedReabstractionClosures = InstructionSet(context)
+  defer {
+    usedReabstractionClosures.deinitialize()
   }
 
-  func gatherCallSites(in caller: Function) -> Stack<CallSiteDescriptor> {
-    // We should not look at reabstraction closures twice who we
-    // ultimately ended up using as an argument that we specialize on.
-    var usedReabstractionClosures = InstructionSet(self.context)
-    defer {
-      usedReabstractionClosures.deinitialize()
-    }
+  var callSiteMap = CallSiteMap()
 
-    var callSiteMap = CallSiteMap()
-
-    for inst in caller.instructions {
-      if inst.isSupportedClosure {
-        if !usedReabstractionClosures.contains(inst) {
-          let closure = inst as! SingleValueInstruction
-          let shouldExitEarly = updateCallSites(
-            self.context,
-            for: closure,
-            callSiteMap: &callSiteMap,
-            usedReabstractionClosures: &usedReabstractionClosures
-          )
-          if shouldExitEarly {
-            return callSiteMap.intoCallSites(self.context)
-          }
-        }
+  for inst in caller.instructions {
+    if inst.isSupportedClosure,
+      !usedReabstractionClosures.contains(inst),
+      let closure = inst as? SingleValueInstruction
+    {
+      let shouldExitEarly = updateCallSites(
+        context,
+        for: closure,
+        callSiteMap: &callSiteMap,
+        usedReabstractionClosures: &usedReabstractionClosures
+      )
+      if shouldExitEarly {
+        return callSiteMap.intoCallSites(context)
       }
     }
-
-    return callSiteMap.intoCallSites(self.context)
   }
+
+  return callSiteMap.intoCallSites(context)
 }
 
 // ===================== Utility types, extensions and functions ===================== //
@@ -170,11 +164,11 @@ private struct OrderedDict<Key: Hashable, Value> {
   }
 }
 
-private typealias CallSiteMap = OrderedDict<PartialApplyInst, CallSiteDescriptor>
+private typealias CallSiteMap = OrderedDict<PartialApplyInst, CallSite>
 
 extension CallSiteMap {
-  fileprivate func intoCallSites(_ context: FunctionPassContext) -> Stack<CallSiteDescriptor> {
-    var callSites = Stack<CallSiteDescriptor>(context)
+  fileprivate func intoCallSites(_ context: FunctionPassContext) -> Stack<CallSite> {
+    var callSites = Stack<CallSite>(context)
     callSites.append(contentsOf: self.values)
     return callSites
   }
@@ -182,22 +176,15 @@ extension CallSiteMap {
 
 extension PartialApplyInst {
   /// True, if the closure obtained from this partial_apply is the
-  /// pullback returned from this autodiff VJP
+  /// pullback returned from an autodiff VJP
   fileprivate var isPullbackInResultOfAutodiffVJP: Bool {
-    if !self.parentFunction.isAutodiffVJP {
-      return false
-    }
-
-    if let use = self.result.firstUse {
-      if let tupleInst = use.instruction as? TupleInst {
-        let maybeReturnedTuple = tupleInst.result
-        let vjp = self.parentFunction
-        if let returnInst = vjp.returnInstruction {
-          if maybeReturnedTuple == returnInst.returnedValue {
-            return true
-          }
-        }
-      }
+    if self.parentFunction.isAutodiffVJP,
+      let use = self.uses.singleUse,
+      let tupleInst = use.instruction as? TupleInst,
+      let returnInst = self.parentFunction.returnInstruction,
+      tupleInst == returnInst.returnedValue
+    {
+      return true
     }
 
     return false
@@ -206,33 +193,36 @@ extension PartialApplyInst {
 
 extension Instruction {
   fileprivate var isSupportedClosure: Bool {
-    if !(self is PartialApplyInst || self is ThinToThickFunctionInst) {
-      return false
-    }
-
-    let callee =
-      if self is PartialApplyInst {
-        (self as! PartialApplyInst).callee
-      } else {
-        (self as! ThinToThickFunctionInst).callee
-      }
-
-    if callee is FunctionRefInst {
-      if let pai = self as? PartialApplyInst {
-        return pai.argumentOperands
-          .filter { !$0.value.type.isObject }
-          .allSatisfy { operand in
-            if let convention = pai.convention(of: operand) {
-              return convention == .indirectInout || convention == .indirectInoutAliasable
-            }
-            return false
+    switch self {
+    case let tttf as ThinToThickFunctionInst where tttf.callee is FunctionRefInst:
+      return true
+    case let pai as PartialApplyInst where pai.callee is FunctionRefInst:
+      return pai.argumentOperands
+        .filter { !$0.value.type.isObject }
+        .allSatisfy {
+          if let convention = pai.convention(of: $0) {
+            return convention == .indirectInout || convention == .indirectInoutAliasable
           }
-      }
-    } else {
+          return false
+        }
+    default:
       return false
     }
+  }
+}
 
-    return true
+extension ApplySite {
+  fileprivate var canBeOptimized: Bool {
+    return !(callee is DynamicFunctionRefInst || callee is PreviousDynamicFunctionRefInst)
+  }
+}
+
+extension Function {
+  public var effectAllowsSpecialization: Bool {
+    switch bridged.getEffectAttribute() {
+    case .ReadNone, .ReadOnly, .ReleaseNone: return false
+    default: return true
+    }
   }
 }
 
@@ -267,23 +257,17 @@ private func updateCallSites(
   for use in remainingUses {
     lifeRangeEndpoints.append(use.instruction)
 
-    // If the use is not a partial_apply or if it is, but has
-    // substitutions or cannot be optimized, then we can't specialize
-    // it.
     guard let pai = use.instruction as? PartialApplyInst else {
       continue
     }
 
-    if pai.hasSubstitutions || !pai.canOptimize {
+    if pai.hasSubstitutions
+      || !pai.canBeOptimized
+      || !pai.isPullbackInResultOfAutodiffVJP
+    {
       continue
     }
 
-    if !pai.isPullbackInResultOfAutodiffVJP {
-      continue
-    }
-
-    // If partial apply-site does not have a function_ref definition as
-    // its callee, we cannot do anything here, so continue.
     guard let callee = pai.referencedFunction else {
       continue
     }
@@ -333,19 +317,14 @@ private func updateCallSites(
       continue
     }
 
-    // Gather the parameter info for the closure argument, at the apply site.
-    guard let closureParamInfo = pai.operandConventions[parameter: use.index] else {
-      fatalError("Parameter info not found for operand: \(use)!")
-    }
-
     // We currently only support copying intermediate reabstraction
-    // closures if the closure is ultimately passed trivially.
-    let calleeConv = FunctionConvention(for: closureParamInfo.type, in: callee)
-    let isClosurePassedTrivially = calleeConv.isTrivialNoescape
+    // closures if the final closure is ultimately passed trivially.
+    let closureType = use.value.type
+    let isClosurePassedTrivially = closureType.isNoEscapeFunction && closureType.isThickFunction
 
     // Mark the reabstraction closures as used.
     if haveUsedReabstraction {
-      markReabstractionPartialApplyAsUsed(
+      markReabstractionClosuresAsUsed(
         firstClosure: closure, currentClosure: use.value,
         usedReabstractionClosures: &usedReabstractionClosures
       )
@@ -355,23 +334,12 @@ private func updateCallSites(
       }
     }
 
-    // Get all non-failure exit BBs in the Apply Callee if our partial apply
-    // is guaranteed. If we do not understand one of the exit BBs, bail.
-    //
-    // We need this to make sure that we insert a release in the appropriate
-    // locations to balance the +1 from the creation of the partial apply.
-    //
-    // However, thin_to_thick_function closures don't have a context and
-    // don't need to be released.
-    guard
-      case Function.NonFailureExitBBsSearchResult.allBlocksUnderstood(let nonFailureExitBBs) =
-        callee.findAllNonFailureExitBBs()
-    else {
-      continue
-    }
-
     let onlyHaveThinToThickClosure =
       closure is ThinToThickFunctionInst && !haveUsedReabstraction
+
+    guard let closureParamInfo = pai.operandConventions[parameter: use.index] else {
+      fatalError("Parameter info not found for operand: \(use)!")
+    }
 
     if (closureParamInfo.convention.isGuaranteed || isClosurePassedTrivially)
       && !onlyHaveThinToThickClosure
@@ -379,14 +347,14 @@ private func updateCallSites(
       continue
     }
 
-    // Specializing a readnone, readonly, releasenone function with a
-    // nontrivial context is illegal. Inserting a release in such a function
-    // results in miscompilation after other optimizations.
+    // Functions with a readnone, readonly or releasenone effect and a
+    // nontrivial context cannot be specialized. Inserting a release in such
+    // a function results in miscompilation after other optimizations.
     // For now, the specialization is disabled.
     //
     // TODO: A @noescape closure should never be converted to an @owned
-    // argument regardless of the function attribute.
-    if !onlyHaveThinToThickClosure && callee.hasIllegalEffectForSpecialization {
+    // argument regardless of the function's effect attribute.
+    if !callee.effectAllowsSpecialization && !onlyHaveThinToThickClosure {
       continue
     }
 
@@ -415,7 +383,7 @@ private func updateCallSites(
     }
 
     if callSiteMap[pai] == nil {
-      callSiteMap.insert(key: pai, value: CallSiteDescriptor(applySite: pai))
+      callSiteMap.insert(key: pai, value: CallSite(applySite: pai))
     }
 
     intermediateClosureArgDescriptors.append(
@@ -423,7 +391,7 @@ private func updateCallSites(
         callSite: pai,
         closureArgumentIndex: closureArgumentIndex,
         parameterInfo: closureParamInfo,
-        nonFailureExitBBs: nonFailureExitBBs
+        reachableExitBBs: Array(callee.blocks.filter { $0.isReachableExitBlock })
       )
     )
   }
@@ -457,7 +425,7 @@ private func handleNonApplyUses(
   possibleMarkDependenceBases: ValueSet, haveUsedReabstraction: Bool
 ) {
   var initialUses = Array(closure.uses)
-  var remainingUses = [Operand]()
+  var remainingUses: [Operand] = []
   var lifeRangeEndpoints: [Instruction] = []
   var haveUsedReabstraction = false
 
@@ -490,44 +458,31 @@ private func handleNonApplyUses(
     }
 
     // Look through reabstraction thunks
-    if let pai = use.instruction as? PartialApplyInst {
-      // Only look at reabstraction thunks if the closure obtained
-      // as a result of this partial_apply is not the pullback returned
-      // from this autodiff VJP.
-      if !pai.isPullbackInResultOfAutodiffVJP {
-        // Reabstraction can cause series of partial_apply to be emitted. It
-        // is okay to treat these like conversion instructions. Current
-        // restriction: if the partial_apply does not take ownership of its
-        // argument we don't need to analyze which partial_apply to emit
-        // release for (its all of them).
-        let calleeType = pai.callee.type
-        if pai.isPartialApplyOfReabstractionThunk
-          && pai.isSupportedClosure
-          && calleeType.isNoEscapeFunction
-          && calleeType.isThickFunction
-        {
-          initialUses.append(contentsOf: pai.uses)
-          possibleMarkDependenceBases.insert(pai)
-          haveUsedReabstraction = true
-        }
-        continue
-      }
+    if let pai = use.instruction as? PartialApplyInst,
+      !pai.isPullbackInResultOfAutodiffVJP,
+      pai.isPartialApplyOfReabstractionThunk
+        && pai.isSupportedClosure
+        && pai.callee.type.isNoEscapeFunction
+        && pai.callee.type.isThickFunction
+    {
+      // Reabstraction can cause series of partial_apply to be emitted. It
+      // is okay to treat these like conversion instructions. Current
+      // restriction: if the partial_apply does not take ownership of its
+      // argument we don't need to analyze which partial_apply to emit
+      // release for (its all of them).
+      initialUses.append(contentsOf: pai.uses)
+      possibleMarkDependenceBases.insert(pai)
+      haveUsedReabstraction = true
+      continue
     }
 
     // Look through mark_dependence on partial_apply[stack]
-    if let mdi = use.instruction as? MarkDependenceInst {
-      // We can't copy a closure if the mark_dependence base is not
-      // available in the specialized function.
-      if !possibleMarkDependenceBases.contains(mdi.base) {
-        continue
-      }
-      if mdi.value == use.value
-        && mdi.value.type.isNoEscapeFunction
-        && mdi.value.type.isThickFunction
-      {
-        initialUses.append(contentsOf: mdi.uses)
-        continue
-      }
+    if let mdi = use.instruction as? MarkDependenceInst,
+      possibleMarkDependenceBases.contains(mdi.base),  // We can't copy a closure if the mark_dependence base is not available in the specialized function.
+      mdi.value == use.value && mdi.value.type.isNoEscapeFunction && mdi.value.type.isThickFunction
+    {
+      initialUses.append(contentsOf: mdi.uses)
+      continue
     }
 
     remainingUses.append(use)
@@ -585,15 +540,14 @@ private func isClosureApplied(in callee: Function, closureArgIndex index: Int) -
           return true
         }
 
-        if let faiCallee = fai.referencedFunction {
-          if faiCallee.isAvailableExternally
+        if let faiCallee = fai.referencedFunction,
+          faiCallee.isAvailableExternally
             && !handledFuncs.contains(faiCallee)
             && handledFuncs.count < recursionBudget
-          {
-            handledFuncs.insert(faiCallee)
-            if inner(faiCallee, fai.calleeArgumentIndex(of: use)!, &handledFuncs) {
-              return true
-            }
+        {
+          handledFuncs.insert(faiCallee)
+          if inner(faiCallee, fai.calleeArgumentIndex(of: use)!, &handledFuncs) {
+            return true
           }
         }
       }
@@ -620,7 +574,7 @@ private func isClosureApplied(in callee: Function, closureArgIndex index: Int) -
 ///     `firstClosure` and should be marked as used.
 ///   - usedReabstractionClosures: Set of closures that are reabstracted into a final closure,
 ///     passed in at a callsite.
-private func markReabstractionPartialApplyAsUsed(
+private func markReabstractionClosuresAsUsed(
   firstClosure: Value,
   currentClosure: Value,
   usedReabstractionClosures: inout InstructionSet
@@ -631,28 +585,28 @@ private func markReabstractionPartialApplyAsUsed(
 
   if let pai = currentClosure as? PartialApplyInst {
     usedReabstractionClosures.insert(pai)
-    return markReabstractionPartialApplyAsUsed(
+    return markReabstractionClosuresAsUsed(
       firstClosure: firstClosure, currentClosure: pai.callee,
       usedReabstractionClosures: &usedReabstractionClosures)
   }
 
   if let cvt = currentClosure as? ConvertFunctionInst {
     usedReabstractionClosures.insert(cvt)
-    return markReabstractionPartialApplyAsUsed(
+    return markReabstractionClosuresAsUsed(
       firstClosure: firstClosure, currentClosure: cvt.fromFunction,
       usedReabstractionClosures: &usedReabstractionClosures)
   }
 
   if let cvt = currentClosure as? ConvertEscapeToNoEscapeInst {
     usedReabstractionClosures.insert(cvt)
-    return markReabstractionPartialApplyAsUsed(
+    return markReabstractionClosuresAsUsed(
       firstClosure: firstClosure, currentClosure: cvt.fromFunction,
       usedReabstractionClosures: &usedReabstractionClosures)
   }
 
   if let mdi = currentClosure as? MarkDependenceInst {
     usedReabstractionClosures.insert(mdi)
-    return markReabstractionPartialApplyAsUsed(
+    return markReabstractionClosuresAsUsed(
       firstClosure: firstClosure, currentClosure: mdi.value,
       usedReabstractionClosures: &usedReabstractionClosures)
   }
@@ -688,7 +642,7 @@ struct ClosureArgDescriptor {
   let parameterInfo: ParameterInfo
   /// This is only needed if we have guaranteed parameters. In most cases
   /// it will have only one element, a return inst.
-  var nonFailureExitBBs: [BasicBlock]
+  var reachableExitBBs: [BasicBlock]
 }
 
 /// An intermediate data structure that holds the information about
@@ -701,7 +655,7 @@ private struct IntermediateClosureArgDescriptor {
   let callSite: PartialApplyInst
   let closureArgumentIndex: Int
   let parameterInfo: ParameterInfo
-  let nonFailureExitBBs: [BasicBlock]
+  let reachableExitBBs: [BasicBlock]
 
   public func intoClosureArgDescriptor(
     closureInfo: ClosureInfo
@@ -710,13 +664,13 @@ private struct IntermediateClosureArgDescriptor {
       closureInfo: closureInfo,
       closureArgumentIndex: closureArgumentIndex,
       parameterInfo: parameterInfo,
-      nonFailureExitBBs: nonFailureExitBBs
+      reachableExitBBs: reachableExitBBs
     )
   }
 }
 
 /// Represents a callsite containing one or more closure arguments.
-struct CallSiteDescriptor {
+struct CallSite {
   let applySite: ApplySite
   var closureArgDescriptors: [ClosureArgDescriptor] = []
   var silArgIndexToClosureArgDescIndex: [Int: Int] = [:]
@@ -745,8 +699,7 @@ let gatherCallSitesTest = FunctionTest("closure_specialize_gather_call_sites") {
 
   print("Specializing closures in function: \(function.name)")
   print("===============================================")
-  let closureSpecializer = AutodiffClosureSpecializer(context)
-  var callSites = closureSpecializer.gatherCallSites(in: function)
+  var callSites = gatherCallSites(context, in: function)
   defer {
     callSites.deinitialize()
   }

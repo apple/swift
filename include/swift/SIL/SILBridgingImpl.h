@@ -153,10 +153,6 @@ bool BridgedASTType::SILFunctionType_hasSelfParam() const {
   return unbridged()->castTo<swift::SILFunctionType>()->hasSelfParam();
 }
 
-bool BridgedASTType::SILFunctionType_isTrivialNoescape() const {
-  return unbridged()->castTo<swift::SILFunctionType>()->isTrivialNoEscape();
-}
-
 BridgedYieldInfoArray BridgedASTType::SILFunctionType_getYields() const {
   return unbridged()->castTo<swift::SILFunctionType>()->getYields();
 }
@@ -1103,10 +1099,6 @@ SwiftInt BridgedInstruction::PartialApply_getCalleeArgIndexOfFirstAppliedArg() c
 
 bool BridgedInstruction::PartialApplyInst_isOnStack() const {
   return getAs<swift::PartialApplyInst>()->isOnStack();
-}
-
-BridgedValue BridgedInstruction::ThinToThickFunctionInst_getCallee() const {
-  return {getAs<swift::ThinToThickFunctionInst>()->getCallee()};
 }
 
 bool BridgedInstruction::AllocStackInst_hasDynamicLifetime() const {

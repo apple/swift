@@ -901,7 +901,7 @@ class ConvertFunctionInst : SingleValueInstruction, UnaryInstruction {
 
 final public
 class ThinToThickFunctionInst : SingleValueInstruction, ConversionInstruction {
-  public var callee: Value { bridged.ThinToThickFunctionInst_getCallee().value }
+  public var callee: Value { operand.value }
 
   public var referencedFunction: Function? {
     if let fri = callee as? FunctionRefInst {
@@ -1036,7 +1036,6 @@ final public class PartialApplyInst : SingleValueInstruction, ApplySite {
   }
 
   public var unappliedArgumentCount: Int { bridged.PartialApply_getCalleeArgIndexOfFirstAppliedArg() }
-  public var result: Value { getResult(index: 0) }
 }
 
 final public class ApplyInst : SingleValueInstruction, FullApplySite {
@@ -1050,8 +1049,6 @@ final public class ApplyInst : SingleValueInstruction, FullApplySite {
   public typealias SpecializationInfo = BridgedGenericSpecializationInformation
 
   public var specializationInfo: SpecializationInfo { bridged.ApplyInst_getSpecializationInfo() }
-
-  public var isTrapNoReturnFunction: Bool { bridged.ApplyInst_isTrapNoReturnFunction() }
 }
 
 final public class FunctionExtractIsolationInst : SingleValueInstruction {}
@@ -1376,10 +1373,6 @@ public class TermInst : Instruction {
   }
   
   public var isFunctionExiting: Bool { false }
-
-  public var isSafeNonExitTerminator: Bool {
-    bridged.TermInst_isSafeNonExitTerminator() 
-  }
 }
 
 final public class UnreachableInst : TermInst {

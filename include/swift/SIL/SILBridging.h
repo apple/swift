@@ -279,8 +279,6 @@ struct BridgedASTType {
 
   BRIDGED_INLINE bool SILFunctionType_hasSelfParam() const;
 
-  BRIDGED_INLINE bool SILFunctionType_isTrivialNoescape() const;
-
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE
   BridgedYieldInfoArray SILFunctionType_getYields() const;
 
@@ -574,6 +572,7 @@ struct BridgedFunction {
   BRIDGED_INLINE void setIsPerformanceConstraint(bool isPerfConstraint) const;
   BRIDGED_INLINE bool isResilientNominalDecl(BridgedNominalTypeDecl decl) const;
   BRIDGED_INLINE BridgedType getLoweredType(BridgedASTType type) const;
+  bool isTrapNoReturn() const;
   bool isAutodiffVJP() const;
   SwiftInt specializationLevel() const;
 
@@ -880,14 +879,11 @@ struct BridgedInstruction {
   BRIDGED_INLINE SwiftInt ApplyInst_numArguments() const;
   BRIDGED_INLINE bool ApplyInst_getNonThrowing() const;
   BRIDGED_INLINE bool ApplyInst_getNonAsync() const;
-  bool ApplyInst_isTrapNoReturnFunction() const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedGenericSpecializationInformation ApplyInst_getSpecializationInfo() const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedGenericSpecializationInformation TryApplyInst_getSpecializationInfo() const;
   BRIDGED_INLINE SwiftInt ObjectInst_getNumBaseElements() const;
   BRIDGED_INLINE SwiftInt PartialApply_getCalleeArgIndexOfFirstAppliedArg() const;
   BRIDGED_INLINE bool PartialApplyInst_isOnStack() const;
-  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedValue
-  ThinToThickFunctionInst_getCallee() const;
   BRIDGED_INLINE bool AllocStackInst_hasDynamicLifetime() const;
   BRIDGED_INLINE bool AllocRefInstBase_isObjc() const;
   BRIDGED_INLINE bool AllocRefInstBase_canAllocOnStack() const;
@@ -933,7 +929,6 @@ struct BridgedInstruction {
   BRIDGED_INLINE SwiftInt ApplySite_getNumArguments() const;
   BRIDGED_INLINE bool ApplySite_isCalleeNoReturn() const;
   BRIDGED_INLINE SwiftInt FullApplySite_numIndirectResultArguments() const;
-  bool TermInst_isSafeNonExitTerminator() const;
 
   // =========================================================================//
   //                   VarDeclInst and DebugVariableInst

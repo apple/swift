@@ -98,12 +98,6 @@ public struct Type : CustomStringConvertible, NoReflectionChildren {
 
   public var tupleElements: TupleElementArray { TupleElementArray(type: self) }
 
-  public var numTupleElements: Int { bridged.getNumTupleElements() }
-
-  public func getTupleElementName(at index: Int) -> String {
-    String(bridged.getTupleElementName(index))
-  }
-
   /// Can only be used if the type is in fact a nominal type (`isNominal` is true).
   /// Returns nil if the nominal is a resilient type because in this case the complete list
   /// of fields is not known.
@@ -275,6 +269,10 @@ public struct TupleElementArray : RandomAccessCollection, FormattedLikeArray {
 
   public subscript(_ index: Int) -> Type {
     type.bridged.getTupleElementType(index).type
+  }
+
+  public subscript(nameOf index: Int) -> String {
+    String(type.bridged.getTupleElementName(index))
   }
 }
 
