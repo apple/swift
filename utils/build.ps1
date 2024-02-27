@@ -1079,14 +1079,14 @@ function Build-ZLib([Platform]$Platform, $Arch) {
 
   Build-CMakeProject `
     -Src $SourceCache\zlib `
-    -Bin "$($Arch.BinaryCache)\zlib-1.3" `
-    -InstallTo $LibraryRoot\zlib-1.3\usr `
+    -Bin "$($Arch.BinaryCache)\zlib-1.3.1" `
+    -InstallTo $LibraryRoot\zlib-1.3.1\usr `
     -Arch $Arch `
     -BuildTargets default `
     -Defines @{
       BUILD_SHARED_LIBS = "NO";
-      INSTALL_BIN_DIR = "$LibraryRoot\zlib-1.3\usr\bin\$ArchName";
-      INSTALL_LIB_DIR = "$LibraryRoot\zlib-1.3\usr\lib\$ArchName";
+      INSTALL_BIN_DIR = "$LibraryRoot\zlib-1.3.1\usr\bin\$ArchName";
+      INSTALL_LIB_DIR = "$LibraryRoot\zlib-1.3.1\usr\lib\$ArchName";
     }
 }
 
@@ -1201,8 +1201,8 @@ function Build-CURL([Platform]$Platform, $Arch) {
       USE_WIN32_IDN = "YES";
       USE_WIN32_LARGE_FILES = "YES";
       USE_WIN32_LDAP = "NO";
-      ZLIB_ROOT = "$LibraryRoot\zlib-1.3\usr";
-      ZLIB_LIBRARY = "$LibraryRoot\zlib-1.3\usr\lib\$ArchName\zlibstatic.lib";
+      ZLIB_ROOT = "$LibraryRoot\zlib-1.3.1\usr";
+      ZLIB_LIBRARY = "$LibraryRoot\zlib-1.3.1\usr\lib\$ArchName\zlibstatic.lib";
     }
 }
 
@@ -1332,8 +1332,8 @@ function Build-Foundation([Platform]$Platform, $Arch, [switch]$Test = $false) {
         LIBXML2_LIBRARY = "$LibraryRoot\libxml2-2.11.5\usr\lib\$ShortArch\libxml2s.lib";
         LIBXML2_INCLUDE_DIR = "$LibraryRoot\libxml2-2.11.5\usr\include\libxml2";
         LIBXML2_DEFINITIONS = "/DLIBXML_STATIC";
-        ZLIB_LIBRARY = "$LibraryRoot\zlib-1.3\usr\lib\$ShortArch\zlibstatic.lib";
-        ZLIB_INCLUDE_DIR = "$LibraryRoot\zlib-1.3\usr\include";
+        ZLIB_LIBRARY = "$LibraryRoot\zlib-1.3.1\usr\lib\$ShortArch\zlibstatic.lib";
+        ZLIB_INCLUDE_DIR = "$LibraryRoot\zlib-1.3.1\usr\include";
         dispatch_DIR = "$DispatchBinaryCache\cmake\modules";
       } + $TestingDefines)
   }

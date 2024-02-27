@@ -149,7 +149,7 @@
                 "curl": "curl-8_4_0",
                 "icu": "maint/maint-69",
                 "libxml2": "v2.11.5",
-                "zlib": "v1.3"
+                "zlib": "v1.3.1"
             }
         },
         "release/5.10": {
