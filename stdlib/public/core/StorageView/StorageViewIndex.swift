@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if hasFeature(NonescapableTypes)
+
 extension StorageView where Element: ~Copyable /*& ~Escapable*/ {
   @frozen
   public struct Index {
@@ -75,3 +77,5 @@ extension StorageView.Index: Comparable where Element: ~Copyable /*& ~Escapable*
     return lhs._rawValue < rhs._rawValue
   }
 }
+
+#endif

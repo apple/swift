@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if hasFeature(NonescapableTypes)
+
 public protocol ContiguousStorage<Element>: ~Copyable, ~Escapable {
   associatedtype Element: ~Copyable /*& ~Escapable*/
 
@@ -45,3 +47,5 @@ extension ContiguousArray: ContiguousStorage {
     }
   }
 }
+
+#endif

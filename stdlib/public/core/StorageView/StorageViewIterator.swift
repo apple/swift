@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if hasFeature(NonescapableTypes)
+
 extension StorageView where Element: ~Copyable /*& ~Escapable*/ {
   @frozen
   public struct Iterator: Copyable, ~Escapable {
@@ -68,3 +70,5 @@ extension StorageView.Iterator where Element: _BitwiseCopyable {
     return curPointer.loadUnaligned(as: Element.self)
   }
 }
+
+#endif

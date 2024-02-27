@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#if hasFeature(NonescapableTypes)
+
 // A StorageView<Element> represents a span of memory which
 // contains initialized instances of `Element`.
 @frozen
@@ -609,3 +611,5 @@ extension StorageView where Element: ~Copyable {
     return Self(_unchecked: newStart, count: count&-dc, owner: self)
   }
 }
+
+#endif
