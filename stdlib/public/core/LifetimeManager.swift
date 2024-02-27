@@ -27,6 +27,18 @@ public func withExtendedLifetime<T, Result>(
   return try body()
 }
 
+@_transparent
+public func withExtendedLifetime<
+  T: ~Copyable & ~Escapable,
+  Result: ~Copyable & ~Escapable,
+  E: Error
+>(
+  _ x: borrowing T, _ body: () throws(E) -> Result
+) throws(E) -> Result {
+  defer { _fixLifetime(x) }
+  return try body()
+}
+
 /// Evaluates a closure while ensuring that the given instance is not destroyed
 /// before the closure returns.
 ///
@@ -47,7 +59,7 @@ public func withExtendedLifetime<T, Result>(
 // Fix the lifetime of the given instruction so that the ARC optimizer does not
 // shorten the lifetime of x to be before this point.
 @_transparent
-public func _fixLifetime<T>(_ x: T) {
+public func _fixLifetime<T: ~Copyable & ~Escapable>(_ x: borrowing T) {
   Builtin.fixLifetime(x)
 }
 
