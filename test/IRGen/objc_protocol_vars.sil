@@ -27,6 +27,5 @@ import Foundation
 }
 
 // CHECK-macho: @llvm.used = appending global [{{.*}}] [{{.*}}, ptr @"\01l_OBJC_LABEL_PROTOCOL_$__TtP18objc_protocol_vars1T_", ptr @"\01l_OBJC_PROTOCOL_REFERENCE_$__TtP18objc_protocol_vars1T_", {{.*}}], {{.*}}
-// CHECK-elf: @llvm.compiler.used = appending global [{{.*}}] [{{.*}}, ptr @"\01l_OBJC_LABEL_PROTOCOL_$__TtP18objc_protocol_vars1T_", ptr @"\01l_OBJC_PROTOCOL_REFERENCE_$__TtP18objc_protocol_vars1T_", {{.*}}], {{.*}}
+// CHECK-elf: @llvm.used = appending global [{{.*}}] [{{.*}}, ptr @"\01l_OBJC_LABEL_PROTOCOL_$__TtP18objc_protocol_vars1T_", ptr @"\01l_OBJC_PROTOCOL_REFERENCE_$__TtP18objc_protocol_vars1T_", {{.*}}], {{.*}}
 // CHECK-coff: @llvm.used = appending global [{{.*}}] [{{.*}}, ptr @"\01l_OBJC_LABEL_PROTOCOL_$__TtP18objc_protocol_vars1T_", ptr @"\01l_OBJC_PROTOCOL_REFERENCE_$__TtP18objc_protocol_vars1T_", {{.*}}], {{.*}}
-

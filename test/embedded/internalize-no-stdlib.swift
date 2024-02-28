@@ -26,7 +26,7 @@ public func main() {
 }
 
 // CHECK-ELF: @_swift1_autolink_entries =
-// CHECK-ELF: @llvm.compiler.used = appending global [1 x ptr] [ptr @_swift1_autolink_entries], section "llvm.metadata"
+// CHECK-ELF: @llvm.used = appending global [1 x ptr] [ptr @_swift1_autolink_entries], section "llvm.metadata"
 // CHECK-ELF-NOT: @llvm.used
 
 // CHECK-MACHO-NOT: @llvm.compiler.used
