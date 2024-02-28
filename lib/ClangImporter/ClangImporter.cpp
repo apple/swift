@@ -6013,8 +6013,13 @@ ClangCategoryLookupRequest::evaluate(Evaluator &evaluator,
     llvm::TinyPtrVector<Decl *> results;
     results.push_back(const_cast<ClassDecl *>(CD));
 
+    auto importer =
+       static_cast<ClangImporter *>(CD->getASTContext().getClangModuleLoader());
+    ClangImporter::Implementation &impl = importer->Impl;
+
     for (auto clangExt : clangClass->known_extensions()) {
-      results.push_back(importCategory(clangExt));
+      if (impl.getClangSema().isVisible(clangExt))
+        results.push_back(importCategory(clangExt));
     }
 
     return results;
