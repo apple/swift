@@ -85,6 +85,48 @@ func fill(vector v: inout Vector) {
     v.push_back(CInt(3))
 }
 
+StdVectorTestSuite.test("VectorOfInt.remove(at:)") {
+    var v = Vector()
+    fill(vector: &v)
+
+    let rm1 = v.remove(at: 1)
+    expectEqual(rm1, 2)
+    expectEqual(v.size(), 2)
+    expectEqual(v[0], 1)
+    expectEqual(v[1], 3)
+
+    let rm2 = v.remove(at: 0)
+    expectEqual(rm2, 1)
+    expectEqual(v.size(), 1)
+    expectEqual(v[0], 3)
+}
+
+StdVectorTestSuite.test("VectorOfString.remove(at:)") {
+    var v = VectorOfString()
+    v.push_back(std.string())
+    v.push_back(std.string("123"))
+    v.push_back(std.string("abc"))
+    v.push_back(std.string("qwe"))
+
+    let rm1 = v.remove(at: 3)
+    expectEqual(rm1, std.string("qwe"))
+    expectEqual(v.size(), 3)
+    expectEqual(v[0], std.string())
+    expectEqual(v[1], std.string("123"))
+    expectEqual(v[2], std.string("abc"))
+
+    let rm2 = v.remove(at: 1)
+    expectEqual(rm2, std.string("123"))
+    expectEqual(v.size(), 2)
+
+    v.remove(at: 0)
+    expectEqual(v.size(), 1)
+
+    v.remove(at: 0)
+    expectEqual(v.size(), 0)
+    expectTrue(v.empty())
+}
+
 StdVectorTestSuite.test("VectorOfInt for loop") {
     var v = Vector()
     fill(vector: &v)

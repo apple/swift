@@ -17,10 +17,19 @@ public protocol CxxVector<Element>: ExpressibleByArrayLiteral {
   associatedtype Element
   associatedtype RawIterator: UnsafeCxxRandomAccessIterator
     where RawIterator.Pointee == Element
+  associatedtype RawMutableIterator: UnsafeCxxMutableRandomAccessIterator
+    where RawMutableIterator.Pointee == Element
 
   init()
 
+  /// Do not implement this function manually in Swift.
+  mutating func __beginUnsafe() -> RawIterator
+
   mutating func push_back(_ element: Element)
+
+  /// Do not implement this function manually in Swift.
+  @discardableResult
+  mutating func __eraseUnsafe(_ iterator: RawIterator) -> RawMutableIterator
 }
 
 extension CxxVector {
@@ -37,11 +46,20 @@ extension CxxVector {
       self.push_back(item)
     }
   }
-}
 
-extension CxxVector {
   @inlinable
   public init(arrayLiteral elements: Element...) {
     self.init(elements)
+  }
+
+  @discardableResult
+  @inlinable
+  public mutating func remove(at index: Int) -> Element {
+    // Not using CxxIterator here to avoid making a copy of the collection.
+    var rawIterator = self.__beginUnsafe()
+    rawIterator += RawIterator.Distance(index)
+    let element = rawIterator.pointee
+    self.__eraseUnsafe(rawIterator)
+    return element
   }
 }
