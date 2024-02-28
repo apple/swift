@@ -5904,7 +5904,7 @@ bool Serializer::writeASTBlockEntitiesIfNeeded(
 }
 
 void Serializer::writeAllDeclsAndTypes() {
-  BCBlockRAII restoreBlock(Out, DECLS_AND_TYPES_BLOCK_ID, 8);
+  BCBlockRAII restoreBlock(Out, DECLS_AND_TYPES_BLOCK_ID, DeclTypeAbbrBits);
   using namespace decls_block;
   registerDeclTypeAbbr<BuiltinAliasTypeLayout>();
   registerDeclTypeAbbr<TypeAliasTypeLayout>();

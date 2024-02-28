@@ -312,7 +312,7 @@ private:
   /// This is for Named Lazy Member Loading.
   DeclMemberNamesTable DeclMemberNames;
 
-  enum {NumDeclTypeAbbrCodes = 512};
+  enum { DeclTypeAbbrBits = 9, NumDeclTypeAbbrCodes = (1 << DeclTypeAbbrBits) };
 
   /// The abbreviation code for each record in the "decls-and-types" block.
   ///
