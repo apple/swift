@@ -61,7 +61,7 @@ SWIFT_READONLY
 static inline int _swift_stdlib_memcmp(const void *s1, const void *s2,
                                        __swift_size_t n) {
 // FIXME: Is there a way to identify Glibc specifically?
-#if defined(__gnu_linux__)
+#if defined(__gnu_linux__) && !defined(__musl__)
   extern int memcmp(const void * _Nonnull, const void * _Nonnull, __swift_size_t);
 #else
   extern int memcmp(const void * _Null_unspecified, const void * _Null_unspecified, __swift_size_t);

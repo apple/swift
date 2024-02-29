@@ -38,7 +38,7 @@ foreach(sdk ${SWIFT_SDKS})
   list(APPEND libstdcxx_modulemap_target_list ${copy_libstdcxx_header})
   add_dependencies(swift-stdlib-${SWIFT_SDK_${sdk}_LIB_SUBDIR} ${copy_libstdcxx_header})
 
-  if(SWIFT_BUILD_STATIC_STDLIB)
+  if(SWIFT_BUILD_STATIC_STDLIB OR SWIFT_SDK_${sdk}_STATIC_ONLY)
     add_custom_command_target(
         copy_libstdcxx_modulemap_static
         COMMAND
@@ -73,7 +73,7 @@ foreach(sdk ${SWIFT_SDKS})
       DESTINATION "lib/swift/${SWIFT_SDK_${sdk}_LIB_SUBDIR}"
       COMPONENT sdk-overlay)
 
-  if(SWIFT_BUILD_STATIC_STDLIB)
+  if(SWIFT_BUILD_STATIC_STDLIB OR SWIFT_SDK_${sdk}_STATIC_ONLY)
     swift_install_in_component(FILES "${libstdcxx_modulemap_out_static}"
         DESTINATION "lib/swift_static/${SWIFT_SDK_${sdk}_LIB_SUBDIR}"
         COMPONENT sdk-overlay)

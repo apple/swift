@@ -514,6 +514,19 @@ class BuildScriptInvocation(object):
                 ' '.join(args.darwin_symroot_path_filters)
             ]
 
+        if args.musl_path:
+            impl_args += [
+                "--musl-path=%s" % (args.musl_path, )
+            ]
+        if args.linux_static_arch:
+            impl_args += [
+                "--linux-static-arch=%s" % ';'.join(args.linux_static_arch)
+            ]
+        if args.linux_arch:
+            impl_args += [
+                "--linux-arch=%s" % ';'.join(args.linux_arch)
+            ]
+
         # Compute the set of host-specific variables, which we pass through to
         # the build script via environment variables.
         host_specific_variables = self.compute_host_specific_variables()

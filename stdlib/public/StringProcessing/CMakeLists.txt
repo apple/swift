@@ -15,6 +15,7 @@ set(swift_string_processing_link_libraries
   swift_RegexParser)
 
 set(swift_string_processing_compile_flags)
+
 if(SWIFT_BUILD_STATIC_STDLIB)
   # Explicitly autolink swift_RegexParser because it's imported with @_implementationOnly
   list(APPEND swift_string_processing_compile_flags
