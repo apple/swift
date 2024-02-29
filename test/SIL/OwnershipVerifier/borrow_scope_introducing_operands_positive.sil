@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all=0 -o /dev/null %s 2>&1
+// RUN: %target-sil-opt -update-borrowed-from -enable-sil-verify-all=0 -o /dev/null %s 2>&1
 
 // REQUIRES: asserts
 

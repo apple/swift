@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -cse | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -update-borrowed-from -cse | %FileCheck %s
 sil_stage canonical
 
 import Builtin

@@ -68,7 +68,7 @@ SubstitutionMap getWitnessMethodSubstitutions(SILModule &Module, ApplySite AI,
 ///
 /// Return the new apply and true if the CFG was also modified.
 std::pair<ApplySite, bool>
-tryDevirtualizeApply(ApplySite AI, ClassHierarchyAnalysis *CHA,
+tryDevirtualizeApply(SILPassManager *pm, ApplySite AI, ClassHierarchyAnalysis *CHA,
                      OptRemark::Emitter *ORE = nullptr,
                      bool isMandatory = false);
 bool canDevirtualizeApply(FullApplySite AI, ClassHierarchyAnalysis *CHA);
@@ -86,7 +86,8 @@ CanType getSelfInstanceType(CanType ClassOrMetatypeType);
 ///
 /// Return the new apply and true if the CFG was also modified.
 std::pair<FullApplySite, bool>
-devirtualizeClassMethod(FullApplySite AI, SILValue ClassInstance, ClassDecl *CD,
+devirtualizeClassMethod(SILPassManager *pm,
+                        FullApplySite AI, SILValue ClassInstance, ClassDecl *CD,
                         CanType classType, OptRemark::Emitter *ORE);
 
 /// Attempt to devirtualize the given apply site, which is known to be
@@ -97,7 +98,8 @@ devirtualizeClassMethod(FullApplySite AI, SILValue ClassInstance, ClassDecl *CD,
 ///
 /// Return the new apply and true if the CFG was also modified.
 std::pair<FullApplySite, bool>
-tryDevirtualizeClassMethod(FullApplySite AI, SILValue ClassInstance,
+tryDevirtualizeClassMethod(SILPassManager *pm,
+                           FullApplySite AI, SILValue ClassInstance,
                            ClassDecl *CD, CanType ClassType,
                            OptRemark::Emitter *ORE,
                            bool isEffectivelyFinalMethod = false);
@@ -110,7 +112,8 @@ tryDevirtualizeClassMethod(FullApplySite AI, SILValue ClassInstance,
 /// the original apply site.
 ///
 /// Return the new apply and true if the CFG was also modified.
-std::pair<ApplySite, bool> tryDevirtualizeWitnessMethod(ApplySite AI,
+std::pair<ApplySite, bool> tryDevirtualizeWitnessMethod(SILPassManager *pm,
+                                                        ApplySite AI,
                                                         OptRemark::Emitter *ORE,
                                                         bool isMandatory);
 

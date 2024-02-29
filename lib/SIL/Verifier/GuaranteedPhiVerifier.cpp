@@ -28,12 +28,12 @@ bool GuaranteedPhiVerifier::verifyDependentPhiLifetime(SILPhiArgument *phi,
   dependentPhiToBaseValueMap[phi].insert(baseValue);
 
   // Now, verify whether phi's lifetime is within baseValue's lifetime
-  SmallVector<Operand *, 4> baseValConsumingUses(baseValue->getConsumingUses());
+  SmallVector<Operand *, 4> baseValConsumingUses(lookThroughBorrowedFromUser(baseValue)->getConsumingUses());
   // If the baseValue has no consuming uses, there is nothing more to verify
   if (baseValConsumingUses.empty())
     return false;
 
-  SmallVector<Operand *, 4> phiUses(phi->getUses());
+  SmallVector<Operand *, 4> phiUses(lookThroughBorrowedFromUser(phi)->getUses());
   LinearLifetimeChecker checker(deadEndBlocks);
   // newErrorBuilder is consumed at the end of the checkValue function.
   // Copy initial state from errorBuilder everytime

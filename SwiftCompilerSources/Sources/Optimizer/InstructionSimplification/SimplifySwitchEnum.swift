@@ -48,12 +48,14 @@ extension SwitchEnumInst : OnoneSimplifyable {
       precondition(enumInst.payload == nil || !parentFunction.hasOwnership,
                    "missing payload argument in switch_enum case block")
       builder.createBranch(to: caseBlock)
+      context.erase(instruction: self)
     case 1:
       builder.createBranch(to: caseBlock, arguments: [enumInst.payload!])
+      context.erase(instruction: self)
+      updateBorrowedFrom(for: [Phi(caseBlock.arguments[0])!], context)
     default:
       fatalError("case block of switch_enum cannot have more than 1 argument")
     }
-    context.erase(instruction: self)
 
     if canEraseEnumInst {
       context.erase(instructionIncludingDebugUses: enumInst)

@@ -12,7 +12,7 @@ sil @getC : $@convention(thin) () -> (@owned C)
 // CHECK-LABEL: testReborrow: fieldsensitive-multidefuse-liverange
 // CHECK: FieldSensitive MultiDef lifetime analysis:
 // CHECK:   def in range [0, 1) value:   [[B:%.*]] = load_borrow %0 : $*C
-// CHECK:   def in range [0, 1) value:   [[RB:%.*]] = argument of bb3 : $C
+// CHECK:   def in range [0, 1) value:   [[RB:%.*]] = borrowed {{.*}} from
 // CHECK-NEXT: bb2: LiveWithin
 // CHECK-NEXT: bb3: LiveWithin
 // All users are printed here.
@@ -30,7 +30,7 @@ bb0:
                      @trace[1] 0 1
                      uses:
                      @block[2].instruction[3] true 0 1
-                     @block[3].instruction[0] true 0 1
+                     @block[3].instruction[1] true 0 1
                      """
   %stack = alloc_stack $C
   %getC = function_ref @getC : $@convention(thin) () -> (@owned C)
@@ -49,7 +49,8 @@ bb2:
   debug_value [trace] %borrow2 : $C
   br bb3(%borrow2 : $C)
 
-bb3(%reborrow : @guaranteed $C):
+bb3(%a : @guaranteed $C):
+  %reborrow = borrowed %a : $C from ()
   debug_value [trace] %reborrow : $C
   end_borrow %reborrow : $C
   br bb4

@@ -14,8 +14,9 @@ bb0(%0 : @owned $Builtin.NativeObject, %1 : @unowned $Builtin.NativeObject, %2 :
   br bb1(%0 : $Builtin.NativeObject, %1 : $Builtin.NativeObject, %2a : $Builtin.NativeObject, %3 : $Builtin.Int32)
 
 bb1(%4 : @owned $Builtin.NativeObject, %5 : @unowned $Builtin.NativeObject, %6 : @guaranteed $Builtin.NativeObject, %7 : $Builtin.Int32):
+  %6f = borrowed %6 : $Builtin.NativeObject from (%2 : $Builtin.NativeObject)
   destroy_value %4 : $Builtin.NativeObject
-  end_borrow %6 : $Builtin.NativeObject
+  end_borrow %6f : $Builtin.NativeObject
   %9999 = tuple()
   return %9999 : $()
 }

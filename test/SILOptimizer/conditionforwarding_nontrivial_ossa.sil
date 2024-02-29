@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -sil-print-debuginfo -enable-sil-verify-all %s -condition-forwarding | %FileCheck %s
+// RUN: %target-sil-opt -sil-print-debuginfo -update-borrowed-from -enable-sil-verify-all %s -condition-forwarding | %FileCheck %s
 
 import Builtin
 import Swift

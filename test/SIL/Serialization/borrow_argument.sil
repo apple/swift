@@ -10,14 +10,16 @@ import Builtin
 
 // CHECK-LABEL: sil [serialized] [ossa] @borrow_argument_test : $@convention(thin) (@guaranteed Builtin.NativeObject) -> () {
 // CHECK: bb1([[PHIBBARG:%.*]] : @reborrow @guaranteed $Builtin.NativeObject):
-// CHECK: end_borrow [[PHIBBARG]] : $Builtin.NativeObject
+// CHECK:   [[BF:%.*]] = borrowed [[PHIBBARG]] : $Builtin.NativeObject from (%0 : $Builtin.NativeObject)
+// CHECK:   end_borrow [[BF]] : $Builtin.NativeObject
 sil [serialized] [ossa] @borrow_argument_test : $@convention(thin) (@guaranteed Builtin.NativeObject) -> () {
 bb0(%0 : @guaranteed $Builtin.NativeObject):
   %0a = begin_borrow %0 : $Builtin.NativeObject
   br bb1(%0a : $Builtin.NativeObject)
 
 bb1(%1 : @guaranteed $Builtin.NativeObject):
-  end_borrow %1 : $Builtin.NativeObject
+  %1f = borrowed %1 : $Builtin.NativeObject from (%0 : $Builtin.NativeObject)
+  end_borrow %1f : $Builtin.NativeObject
   %4 = tuple()
   return %4 : $()
 }

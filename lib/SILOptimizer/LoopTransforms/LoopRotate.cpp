@@ -24,6 +24,7 @@
 #include "swift/SILOptimizer/Utils/BasicBlockOptUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/LoopUtils.h"
+#include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 #include "swift/SILOptimizer/Utils/SILSSAUpdater.h"
 #include "swift/SILOptimizer/Utils/SILInliner.h"
 
@@ -41,6 +42,10 @@ static llvm::cl::opt<int> LoopRotateSizeLimit("looprotate-size-limit",
                                               llvm::cl::init(20));
 static llvm::cl::opt<bool> RotateSingleBlockLoop("looprotate-single-block-loop",
                                                  llvm::cl::init(false));
+
+static bool rotateLoop(SILLoop *loop, DominanceInfo *domInfo,
+                       SILLoopInfo *loopInfo, bool rotateSingleBlockLoops,
+                       SILBasicBlock *upToBB, bool shouldVerify);
 
 /// Check whether all operands are loop invariant.
 static bool
@@ -308,7 +313,7 @@ static bool isSingleBlockLoop(SILLoop *L) {
 ///
 /// Note: The code relies on the 'UpTo' basic block to stay within the rotate
 /// loop for termination.
-bool swift::rotateLoop(SILLoop *loop, DominanceInfo *domInfo,
+static bool rotateLoop(SILLoop *loop, DominanceInfo *domInfo,
                        SILLoopInfo *loopInfo, bool rotateSingleBlockLoops,
                        SILBasicBlock *upToBB, bool shouldVerify) {
   assert(loop != nullptr && domInfo != nullptr && loopInfo != nullptr
@@ -411,7 +416,9 @@ bool swift::rotateLoop(SILLoop *loop, DominanceInfo *domInfo,
   }
 
   for (auto &inst : *header) {
-    if (SILInstruction *cloned = inst.clone(preheaderBranch)) {
+    if (auto *bfi = dyn_cast<BorrowedFromInst>(&inst)) {
+      valueMap[bfi] = valueMap[bfi->getBorrowedValue()];
+    } else if (SILInstruction *cloned = inst.clone(preheaderBranch)) {
       mapOperands(cloned, valueMap);
 
       // The actual operand will sort out which result idx to use.
@@ -506,6 +513,7 @@ class LoopRotation : public SILFunctionTransform {
     }
 
     if (changed) {
+      updateBorrowedFrom(PM, f);
       // We preserve loop info and the dominator tree.
       domAnalysis->lockInvalidation();
       loopAnalysis->lockInvalidation();

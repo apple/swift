@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -dont-abort-on-memory-lifetime-errors -o /dev/null %s 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -disable-swift-verification -dont-abort-on-memory-lifetime-errors -o /dev/null %s 2>&1 | %FileCheck %s
 // REQUIRES: asserts
 // REQUIRES: swift_in_compiler
 

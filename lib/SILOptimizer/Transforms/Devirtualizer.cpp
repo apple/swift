@@ -78,7 +78,7 @@ void Devirtualizer::devirtualizeAppliesInFunction(SILFunction &F,
   for (auto Apply : Applies) {
     ApplySite NewInst;
     bool modifiedCFG;
-    std::tie(NewInst, modifiedCFG) = tryDevirtualizeApply(Apply, CHA, &ORE);
+    std::tie(NewInst, modifiedCFG) = tryDevirtualizeApply(getPassManager(), Apply, CHA, &ORE);
     if (!NewInst)
       continue;
 

@@ -422,6 +422,12 @@ llvm::raw_ostream &swift::operator<<(llvm::raw_ostream &os,
 //                                  Operand
 //===----------------------------------------------------------------------===//
 
+void Operand::verify() const {
+  if (isa<BorrowedFromInst>(getUser()) && getOperandNumber() == 0) {
+    assert(isa<SILArgument>(get()) || isa<SILUndef>(get()));
+  }
+}
+
 SILBasicBlock *Operand::getParentBlock() const {
   auto *self = const_cast<Operand *>(this);
   return self->getUser()->getParent();

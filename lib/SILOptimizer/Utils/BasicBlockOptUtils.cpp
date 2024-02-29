@@ -193,6 +193,7 @@ void BasicBlockCloner::updateSSAAfterCloning() {
       ssaUpdater.rewriteUse(*use);
     }
   }
+  updateBorrowedFromPhis(pm, updateSSAPhis);
 }
 
 void BasicBlockCloner::sinkAddressProjections() {

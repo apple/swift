@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -temp-rvalue-opt | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -update-borrowed-from -temp-rvalue-opt | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 

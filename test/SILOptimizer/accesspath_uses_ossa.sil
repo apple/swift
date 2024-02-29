@@ -1,5 +1,5 @@
-// RUN: %target-sil-opt %s -access-storage-dump -enable-access-storage-dump-uses -enable-sil-verify-all -o /dev/null | %FileCheck %s
-// RUN: %target-sil-opt %s -access-path-verification -o /dev/null
+// RUN: %target-sil-opt %s -disable-swift-verification -access-storage-dump -enable-access-storage-dump-uses -enable-sil-verify-all -o /dev/null | %FileCheck %s
+// RUN: %target-sil-opt %s -disable-swift-verification -access-path-verification -o /dev/null
 
 // REQUIRES: PTRSIZE=64
 

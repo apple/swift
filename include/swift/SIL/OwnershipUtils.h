@@ -90,6 +90,10 @@ inline bool isForwardingConsume(SILValue value) {
 //                        Ownership Def-Use Utilities
 //===----------------------------------------------------------------------===//
 
+BorrowedFromInst *getBorrowedFromUser(SILValue v);
+SILValue lookThroughBorrowedFromUser(SILValue v);
+SILValue lookThroughBorrowedFromDef(SILValue v);
+
 /// Whether the specified OSSA-lifetime introducer has a pointer escape.
 ///
 /// precondition: \p value introduces an OSSA-lifetime, either a BorrowedValue

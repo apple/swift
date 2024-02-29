@@ -499,6 +499,8 @@ PASS(ReferenceBindingTransform, "sil-reference-binding-transform",
      "Check/transform reference bindings")
 PASS(DiagnosticDeadFunctionElimination, "sil-diagnostic-dead-function-elim",
      "Eliminate dead functions from early specialization optimizations before we run later diagnostics")
+SWIFT_FUNCTION_PASS(UpdateBorrowedFrom, "update-borrowed-from",
+     "Test pass for update borrowed-from instructions")
 PASS(PruneVTables, "prune-vtables",
      "Mark class methods that do not require vtable dispatch")
 PASS_RANGE(AllPasses, AADumper, PruneVTables)

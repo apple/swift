@@ -1073,7 +1073,10 @@ public:
     removeFromCurrent();
     TheValue = newValue;
     insertIntoCurrent();
+    verify();
   }
+
+  void verify() const;
 
   /// Swap the given operand with the current one.
   void swap(Operand &Op) {

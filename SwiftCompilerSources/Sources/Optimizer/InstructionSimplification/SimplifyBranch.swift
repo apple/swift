@@ -49,7 +49,15 @@ private extension BranchInst {
     let parentBB = parentBlock
 
     for (argIdx, op) in operands.enumerated() {
-      targetBB.arguments[argIdx].uses.replaceAll(with: op.value, context)
+      let arg = targetBB.arguments[argIdx]
+      if let phi = Phi(arg),
+         let bfi = phi.borrowedFrom
+      {
+        bfi.uses.replaceAll(with: op.value, context)
+        context.erase(instruction: bfi)
+      } else {
+        arg.uses.replaceAll(with: op.value, context)
+      }
     }
     targetBB.eraseAllArguments(context)
 

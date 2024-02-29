@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -compute-side-effects -copy-propagation -enable-sil-verify-all %s | %FileCheck %s
+// RUN: %target-sil-opt -update-borrowed-from -compute-side-effects -copy-propagation -enable-sil-verify-all %s | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 
@@ -360,12 +360,13 @@ exit:
 // CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
 // CHECK:         br [[WORK:bb[0-9]+]]([[LIFETIME]] : $C)
 // CHECK:       [[WORK]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $C):
+// CHECK:         [[BF:%.*]] = borrowed [[LIFETIME_2]]
 // CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
 // CHECK:       [[LEFT]]:
-// CHECK:         end_borrow [[LIFETIME_2]]
+// CHECK:         end_borrow [[BF]]
 // CHECK:         br [[EXIT:bb[0-9]+]]
 // CHECK:       [[RIGHT]]:
-// CHECK:         end_borrow [[LIFETIME_2]]
+// CHECK:         end_borrow [[BF]]
 // CHECK:         br [[EXIT]]
 // CHECK:       [[EXIT]]:
 // CHECK:         return [[INSTANCE]]

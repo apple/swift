@@ -767,9 +767,9 @@ getCalleeFunction(SILFunction *F, FullApplySite AI, bool &IsThick,
   return CalleeFunction;
 }
 
-static SILInstruction *tryDevirtualizeApplyHelper(FullApplySite InnerAI,
+static SILInstruction *tryDevirtualizeApplyHelper(SILPassManager *pm, FullApplySite InnerAI,
                                                   ClassHierarchyAnalysis *CHA) {
-  auto NewInst = tryDevirtualizeApply(InnerAI, CHA).first;
+  auto NewInst = tryDevirtualizeApply(pm, InnerAI, CHA).first;
   if (!NewInst)
     return InnerAI.getInstruction();
 
@@ -799,7 +799,8 @@ static SILInstruction *tryDevirtualizeApplyHelper(FullApplySite InnerAI,
 ///
 /// \returns true if successful, false if failed due to circular inlining.
 static bool
-runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder, SILFunction *F,
+runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder, SILPassManager *pm,
+                         SILFunction *F,
                          FullApplySite AI, DenseFunctionSet &FullyInlinedSet,
                          ImmutableFunctionSet::Factory &SetFactory,
                          ImmutableFunctionSet CurrentInliningSet,
@@ -850,7 +851,7 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder, SILFunction *F,
       // *NOTE* If devirtualization succeeds, devirtInst may not be InnerAI,
       // but a casted result of InnerAI or even a block argument due to
       // abstraction changes when calling the witness or class method.
-      auto *devirtInst = tryDevirtualizeApplyHelper(InnerAI, CHA);
+      auto *devirtInst = tryDevirtualizeApplyHelper(pm, InnerAI, CHA);
       // If devirtualization succeeds, make sure we record that this function
       // changed.
       if (devirtInst != InnerAI.getInstruction())
@@ -874,7 +875,7 @@ runOnFunctionRecursively(SILOptFunctionBuilder &FuncBuilder, SILFunction *F,
 
       // Then recursively process it first before trying to inline it.
       if (!runOnFunctionRecursively(
-              FuncBuilder, CalleeFunction, InnerAI, FullyInlinedSet, SetFactory,
+              FuncBuilder, pm, CalleeFunction, InnerAI, FullyInlinedSet, SetFactory,
               CurrentInliningSet, CHA, changedFunctions)) {
         // If we failed due to circular inlining, then emit some notes to
         // trace back the failure if we have more information.
@@ -1035,7 +1036,7 @@ class MandatoryInlining : public SILModuleTransform {
       if (F.wasDeserializedCanonical())
         continue;
 
-      runOnFunctionRecursively(FuncBuilder, &F, FullApplySite(),
+      runOnFunctionRecursively(FuncBuilder, getPassManager(), &F, FullApplySite(),
                                FullyInlinedSet, SetFactory,
                                SetFactory.getEmptySet(), CHA, changedFunctions);
 

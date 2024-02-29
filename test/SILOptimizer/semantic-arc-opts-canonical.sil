@@ -1,5 +1,7 @@
 // RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -semantic-arc-opts %s | %FileCheck %s
 
+// REQUIRES: swift_in_compiler
+
 sil_stage canonical
 
 import Builtin
@@ -462,7 +464,8 @@ bb3:
 // CHECK-NEXT: br bb3([[NONE]] : $FakeOptional<Klass>)
 //
 // CHECK: bb3([[PHI:%.*]] : @guaranteed $FakeOptional<Klass>):
-// CHECK:   switch_enum [[PHI]] : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb5, case #FakeOptional.none!enumelt: bb4
+// CHECK:   [[BF:%.*]] = borrowed [[PHI]]
+// CHECK:   switch_enum [[BF]] : $FakeOptional<Klass>, case #FakeOptional.some!enumelt: bb5, case #FakeOptional.none!enumelt: bb4
 //
 // CHECK: bb4:
 // CHECK-NEXT: br bb6

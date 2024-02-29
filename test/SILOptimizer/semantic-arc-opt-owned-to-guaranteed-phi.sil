@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -semantic-arc-opts %s | %FileCheck %s
+// RUN: %target-sil-opt -update-borrowed-from -semantic-arc-opts %s | %FileCheck %s
 
 class Klass {}
 

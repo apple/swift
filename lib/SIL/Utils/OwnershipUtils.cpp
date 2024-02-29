@@ -34,7 +34,7 @@ bool swift::findPointerEscape(SILValue original) {
 
   ValueWorklist worklist(original->getFunction());
   worklist.push(original);
-  if (auto *phi = SILArgument::asPhi(original)) {
+  if (auto *phi = SILArgument::asPhi(lookThroughBorrowedFromDef(original))) {
     phi->visitTransitiveIncomingPhiOperands([&](auto *phi, auto *operand) {
       worklist.pushIfNotVisited(operand->get());
       return true;
@@ -168,6 +168,7 @@ bool swift::computeIsGuaranteedForwarding(SILValue value) {
   if (value->getOwnershipKind() != OwnershipKind::Guaranteed) {
     return false;
   }
+  value = lookThroughBorrowedFromDef(value);
   // NOTE: canOpcodeForwardInnerGuaranteedValues returns true for transformation
   // terminator results.
   if (canOpcodeForwardInnerGuaranteedValues(value) ||
@@ -185,9 +186,9 @@ bool swift::computeIsGuaranteedForwarding(SILValue value) {
   // OwnershipVerifier.
   bool isGuaranteedForwardingPhi = false;
   phi->visitTransitiveIncomingPhiOperands([&](auto *, auto *op) -> bool {
-    auto opValue = op->get();
-    assert(opValue->getOwnershipKind().isCompatibleWith(
+    assert(op->get()->getOwnershipKind().isCompatibleWith(
         OwnershipKind::Guaranteed));
+    auto opValue = lookThroughBorrowedFromDef(op->get());
     if (canOpcodeForwardInnerGuaranteedValues(opValue) ||
         isa<SILFunctionArgument>(opValue)) {
       isGuaranteedForwardingPhi = true;
@@ -200,6 +201,30 @@ bool swift::computeIsGuaranteedForwarding(SILValue value) {
     return true;
   });
   return isGuaranteedForwardingPhi;
+}
+
+BorrowedFromInst *swift::getBorrowedFromUser(SILValue v) {
+  for (auto *use : v->getUses()) {
+    if (auto *bfi = dyn_cast<BorrowedFromInst>(use->getUser())) {
+      if (use->getOperandNumber() == 0) {
+        return bfi;
+      }
+    }
+  }
+  return nullptr;
+}
+
+SILValue swift::lookThroughBorrowedFromUser(SILValue v) {
+  if (BorrowedFromInst *bfi = getBorrowedFromUser(v))
+    return bfi;
+  return v;
+}
+
+SILValue swift::lookThroughBorrowedFromDef(SILValue v) {
+  while (auto *bfi = dyn_cast<BorrowedFromInst>(v)) {
+    v = bfi->getBorrowedValue();
+  }
+  return v;
 }
 
 //===----------------------------------------------------------------------===//
@@ -908,10 +933,11 @@ void BorrowedValue::getLocalScopeEndingInstructions(
 
 // Note: BorrowedLifetimeExtender assumes no intermediate values between a
 // borrow introducer and its reborrow. The borrowed value must be an operand of
-// the reborrow.
+// the reborrow. Exception: it looks through `borrowed-from` of a reborrow phi.
 bool BorrowedValue::visitLocalScopeEndingUses(
     function_ref<bool(Operand *)> visitor) const {
   assert(isLocalScope() && "Should only call this given a local scope");
+  SILValue v = value;
   switch (kind) {
   case BorrowedValueKind::Invalid:
     llvm_unreachable("Using invalid case?!");
@@ -920,7 +946,7 @@ bool BorrowedValue::visitLocalScopeEndingUses(
   case BorrowedValueKind::LoadBorrow:
   case BorrowedValueKind::BeginBorrow:
   case BorrowedValueKind::Phi:
-    for (auto *use : value->getUses()) {
+    for (auto *use : lookThroughBorrowedFromUser(value)->getUses()) {
       if (use->isLifetimeEnding()) {
         if (!visitor(use))
           return false;
@@ -1689,7 +1715,7 @@ void swift::visitExtendedGuaranteedForwardingPhiBaseValuePairs(
     // then set newBaseValue to the reborrow.
     for (auto &op : phiOp.getBranch()->getAllOperands()) {
       PhiOperand otherPhiOp(&op);
-      if (otherPhiOp.getSource() != currentBaseValue) {
+      if (lookThroughBorrowedFromDef(otherPhiOp.getSource()) != currentBaseValue) {
         continue;
       }
       newBaseValue = otherPhiOp.getValue();
@@ -1986,6 +2012,8 @@ protected:
 
     assert(incomingValue->getOwnershipKind() == OwnershipKind::Guaranteed);
 
+    incomingValue = lookThroughBorrowedFromDef(incomingValue);
+
     // Avoid repeatedly constructing BorrowedValue during use-def
     // traversal. That would be quadratic if it checks all uses for reborrows.
     if (auto *predPhi = dyn_cast<SILPhiArgument>(incomingValue)) {
@@ -2269,7 +2297,7 @@ void swift::visitTransitiveEndBorrows(
 
   while (!worklist.empty()) {
     auto val = worklist.pop();
-    for (auto *consumingUse : val->getConsumingUses()) {
+    for (auto *consumingUse : lookThroughBorrowedFromUser(val)->getConsumingUses()) {
       auto *consumingUser = consumingUse->getUser();
       if (auto *branch = dyn_cast<BranchInst>(consumingUser)) {
         auto *succBlock = branch->getSingleSuccessorBlock();

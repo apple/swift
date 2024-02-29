@@ -26,6 +26,7 @@
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/SILOptimizer/Utils/BasicBlockOptUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
+#include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "swift/SILOptimizer/Utils/SILSSAUpdater.h"
 #include "swift/SILOptimizer/Utils/StackNesting.h"
@@ -1481,6 +1482,7 @@ class ClosureLifetimeFixup : public SILFunctionTransform {
 
     if (fixupClosureLifetimes(*getFunction(), dominanceAnalysis,
                               checkStackNesting, modifiedCFG)) {
+      updateBorrowedFrom(getPassManager(), getFunction());
       if (checkStackNesting){
         modifiedCFG |=
           StackNesting::fixNesting(getFunction()) == StackNesting::Changes::CFG;

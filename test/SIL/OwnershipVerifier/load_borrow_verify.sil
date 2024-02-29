@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s | %FileCheck %s
+// RUN: %target-sil-opt -update-borrowed-from -enable-sil-verify-all %s | %FileCheck %s
 
 // Test that the LoadBorrowImmutabilityChecker accepts these cases.
 // The verification should not bail-out on these, but there's no way

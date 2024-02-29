@@ -639,7 +639,7 @@ bool SILValueOwnershipChecker::
   bool foundGuaranteedForwardingPhiOperand = false;
   bool foundNonGuaranteedForwardingPhiOperand = false;
   phi->visitTransitiveIncomingPhiOperands([&](auto *, auto *operand) -> bool {
-    auto value = operand->get();
+    auto value = lookThroughBorrowedFromDef(operand->get());
     if (canOpcodeForwardInnerGuaranteedValues(value) ||
         isa<SILFunctionArgument>(value)) {
       foundGuaranteedForwardingPhiOperand = true;

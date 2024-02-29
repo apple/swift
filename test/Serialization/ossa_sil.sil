@@ -25,7 +25,7 @@ bb0(%0 : @guaranteed $AnyObject):
 // CHECK:       bb2:
 // CHECK-NEXT:    {{%.*}} = begin_borrow %0 : $X
 // CHECK:       bb3([[ARG:%.*]] : @reborrow @guaranteed $X):
-// CHECK-NEXT:    {{%.*}} = borrowed [[ARG]] : $X from %0 : $X
+// CHECK-NEXT:    {{%.*}} = borrowed [[ARG]] : $X from (%0 : $X)
 // CHECK:       } // end sil function 'reborrowTest'
 sil [serialized] [ossa] @reborrowTest : $@convention(thin) (@owned X) -> () {
 bb0(%0 : @owned $X):
@@ -40,7 +40,7 @@ bb2:
   br bb3(%b2 : $X)
 
 bb3(%r : @reborrow @guaranteed $X):
-  %f = borrowed %r : $X from %0 : $X
+  %f = borrowed %r : $X from (%0 : $X)
   end_borrow %f : $X
   destroy_value %0 : $X
   %9999 = tuple()

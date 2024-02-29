@@ -1,4 +1,6 @@
-// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -update-borrowed-from -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
 
 sil_stage canonical
 
@@ -80,7 +82,7 @@ bb3:
 // CHECK-LABEL: testReborrow: multidef_liveness
 // CHECK: MultiDef lifetime analysis:
 // CHECK:   def value:   [[B:%.*]] = begin_borrow %0 : $C
-// CHECK:   def value:   [[RB:%.*]] = argument of bb3 : $C
+// CHECK:   def value:   [[RB:%.*]] = borrowed {{.*}} from (%0 : $C)
 // CHECK-NEXT: bb2: LiveWithin
 // CHECK-NEXT: bb3: LiveWithin
 // CHECK-NEXT: lifetime-ending user:   br bb3([[B]] : $C)
@@ -225,10 +227,10 @@ bb4(%phi : @owned $C):
 // CHECK-LABEL: testSSADeadRefElementAddr: ssa_liveness
 // CHECK: SSA lifetime analysis: %0 = argument of bb0 : $C
 // CHECK-NEXT: bb0: LiveOut
-// CHECK-NEXT: bb2: LiveOut
 // CHECK-NEXT: bb3: LiveWithin
+// CHECK-NEXT: bb2: LiveOut
 // CHECK-NEXT: bb1: LiveOut
-// CHECK: ref_element_addr %6 : $D, #D.object
+// CHECK: ref_element_addr %7 : $D, #D.object
 // CHECK-NEXT-LABEL: end running test 1 of 1 on testSSADeadRefElementAddr: ssa_liveness
 sil [ossa] @testSSADeadRefElementAddr : $@convention(thin) (@guaranteed C) -> () {
 bb0(%0 : @guaranteed $C):
@@ -285,12 +287,11 @@ bb1(%reborrow : @guaranteed $C, %phi : @guaranteed $PairC):
 // CHECK-LABEL: testSSADeadGuaranteedPhi: ssa_liveness
 // CHECK: SSA lifetime analysis: %0 = argument of bb0 : $C
 // CHECK-NEXT: bb0: LiveOut
-// CHECK-NEXT: bb2: LiveWithin
-// CHECK-NEXT: bb1: LiveWithin
+// CHECK-NEXT: bb3: LiveWithin
+// CHECK-NEXT: bb2: LiveOut
+// CHECK-NEXT: bb1: LiveOut
 // CHECK-NEXT: regular user
-// CHECK: last user:
-// CHECK-SAME: br bb3
-// CHECK-NEXT: last user:   br bb3
+// CHECK: last user:   %7 = borrowed %6 : $D from (%0 : $C)
 // CHECK-NEXT: end running
 sil [ossa] @testSSADeadGuaranteedPhi : $@convention(thin) (@guaranteed C) -> () {
 bb0(%0 : @guaranteed $C):
@@ -315,9 +316,10 @@ bb3(%deadPhi : @guaranteed $D):
 // CHECK-LABEL: testSSADominatedPhi: ssa_liveness
 // CHECK: SSA lifetime analysis: %0 = argument of bb0 : $C
 // CHECK-NEXT: bb0: LiveOut
-// CHECK-NEXT: bb2: LiveOut
 // CHECK-NEXT: bb3: LiveWithin
+// CHECK-NEXT: bb2: LiveOut
 // CHECK-NEXT: bb1: LiveOut
+// CHECK-NEXT: regular user:   %{{.*}} = borrowed %6 : $D from (%0 : $C)
 // CHECK-NEXT: regular user:   %{{.*}} = unchecked_ref_cast %0 : $C to $D
 // CHECK-NEXT: regular user:   br bb3
 // CHECK-NEXT: regular user:   %{{.*}} = load

@@ -16,6 +16,7 @@
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILModule.h"
+#include "swift/SIL/OwnershipUtils.h"
 #include "llvm/ADT/STLExtras.h"
 
 using namespace swift;
@@ -291,7 +292,8 @@ bool SILPhiArgument::visitTransitiveIncomingPhiOperands(
     argument->getIncomingPhiOperands(operands);
 
     for (auto *operand : operands) {
-      SILPhiArgument *forwarded = dyn_cast<SILPhiArgument>(operand->get());
+      SILValue opVal = lookThroughBorrowedFromDef(operand->get());
+      SILPhiArgument *forwarded = dyn_cast<SILPhiArgument>(opVal);
       if (forwarded && forwarded->isPhi()) {
         worklist.insert(forwarded);
       }

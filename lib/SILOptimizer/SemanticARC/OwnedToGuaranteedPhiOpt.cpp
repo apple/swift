@@ -21,6 +21,7 @@
 #include "Transforms.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/STLExtras.h"
+#include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 
 using namespace swift;
 using namespace swift::semanticarc;
@@ -264,6 +265,9 @@ bool swift::semanticarc::tryConvertOwnedPhisToGuaranteedPhis(Context &ctx) {
     madeChange = true;
     ctx.verify();
   }
+
+  if (madeChange)
+    updateBorrowedFrom(ctx.pm, &ctx.fn);
 
   return madeChange;
 }

@@ -1,4 +1,6 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -simplify-cfg | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -update-borrowed-from -simplify-cfg | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
 
 // Declare this SIL to be canonical because some tests break raw SIL
 // conventions. e.g. address-type block args. -enforce-exclusivity=none is also
@@ -355,8 +357,9 @@ bb3(%res : $Builtin.Int32):
 // CHECK:   [[NONE:%.*]] = enum $Optional<B>, #Optional.none!enumelt
 // CHECK:   br bb3([[NONE]] : $Optional<B>)
 // CHECK: bb3([[REWRAP:%.*]] : @guaranteed $Optional<B>):
+// CHECK:   [[BF:%.*]] = borrowed [[REWRAP]] : $Optional<B> from (%1 : $E, %0 : $Optional<B>)
 // CHECK:   [[ECAST:%.*]] = upcast [[EXTR1]] : $E to $B
-// CHECK:   [[OUTTUP:%.*]] = tuple ([[REWRAP]] : $Optional<B>, [[ECAST]] : $B)
+// CHECK:   [[OUTTUP:%.*]] = tuple ([[BF]] : $Optional<B>, [[ECAST]] : $B)
 // CHECK:   apply %{{.*}}([[OUTTUP]]) : $@convention(thin) (@guaranteed (Optional<B>, B)) -> Int
 // CHECK:   return
 // CHECK-LABEL: } // end sil function 'replaceTryApplyGuaranteedTuple'

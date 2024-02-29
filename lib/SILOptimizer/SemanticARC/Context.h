@@ -31,6 +31,7 @@ namespace semanticarc {
 
 struct LLVM_LIBRARY_VISIBILITY Context {
   SILFunction &fn;
+  SILPassManager *pm = nullptr;
   ARCTransformKind transformKind = ARCTransformKind::All;
   DeadEndBlocks &deadEndBlocks;
   ValueLifetimeAnalysis::Frontier lifetimeFrontier;
@@ -119,9 +120,9 @@ struct LLVM_LIBRARY_VISIBILITY Context {
 
   DeadEndBlocks &getDeadEndBlocks() { return deadEndBlocks; }
 
-  Context(SILFunction &fn, DeadEndBlocks &deBlocks, bool onlyMandatoryOpts,
+  Context(SILFunction &fn, SILPassManager *pm, DeadEndBlocks &deBlocks, bool onlyMandatoryOpts,
           InstModCallbacks callbacks)
-      : fn(fn), deadEndBlocks(deBlocks), lifetimeFrontier(),
+      : fn(fn), pm(pm), deadEndBlocks(deBlocks), lifetimeFrontier(),
         addressToExhaustiveWriteListCache(constructCacheValue),
         onlyMandatoryOpts(onlyMandatoryOpts), instModCallbacks(callbacks) {}
 

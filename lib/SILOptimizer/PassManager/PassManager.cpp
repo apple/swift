@@ -1618,8 +1618,9 @@ bool BridgedPassContext::tryDeleteDeadClosure(BridgedInstruction closure, bool n
 
 BridgedPassContext::DevirtResult BridgedPassContext::tryDevirtualizeApply(BridgedInstruction apply,
                                                                           bool isMandatory) const {
-  auto cha = invocation->getPassManager()->getAnalysis<ClassHierarchyAnalysis>();
-  auto result = ::tryDevirtualizeApply(ApplySite(apply.unbridged()), cha,
+  SILPassManager *pm = invocation->getPassManager();
+  auto cha = pm->getAnalysis<ClassHierarchyAnalysis>();
+  auto result = ::tryDevirtualizeApply(pm, ApplySite(apply.unbridged()), cha,
                                        nullptr, isMandatory);
   if (result.first) {
     OptionalBridgedInstruction newApply(result.first.getInstruction()->asSILNode());
