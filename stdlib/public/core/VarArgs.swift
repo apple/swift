@@ -350,7 +350,7 @@ extension OpaquePointer: CVarArg {
   }
 }
 
-extension UnsafePointer: CVarArg {
+extension UnsafePointer: CVarArg where Pointee: ~Copyable {
   /// Transform `self` into a series of machine words that can be
   /// appropriately interpreted by C varargs.
   @inlinable // c-abi
@@ -359,7 +359,7 @@ extension UnsafePointer: CVarArg {
   }
 }
 
-extension UnsafeMutablePointer: CVarArg {
+extension UnsafeMutablePointer: CVarArg where Pointee: ~Copyable {
   /// Transform `self` into a series of machine words that can be
   /// appropriately interpreted by C varargs.
   @inlinable // c-abi

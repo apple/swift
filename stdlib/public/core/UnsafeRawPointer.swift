@@ -10,13 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// A raw pointer for accessing 
-/// untyped data.
+/// A raw pointer for accessing untyped data.
 ///
-/// The `UnsafeRawPointer` type provides no automated memory management, no type safety,
-/// and no alignment guarantees. You are responsible for handling the life
-/// cycle of any memory you work with through unsafe pointers, to avoid leaks
-/// or undefined behavior.
+/// The `UnsafeRawPointer` type provides no automated memory management, no type
+/// safety, and no alignment guarantees. You are responsible for handling the
+/// life cycle of any memory you work with through unsafe pointers, to avoid
+/// leaks or undefined behavior.
 ///
 /// Memory that you manually manage can be either *untyped* or *bound* to a
 /// specific type. You use the `UnsafeRawPointer` type to access and
@@ -26,14 +25,14 @@
 /// Understanding a Pointer's Memory State
 /// ======================================
 ///
-/// The memory referenced by an `UnsafeRawPointer` instance can be in one of several
-/// states. Many pointer operations must only be applied to pointers with
-/// memory in a specific state---you must keep track of the state of the
+/// The memory referenced by an `UnsafeRawPointer` instance can be in one of
+/// several states. Many pointer operations must only be applied to pointers
+/// with memory in a specific state---you must keep track of the state of the
 /// memory you are working with and understand the changes to that state that
-/// different operations perform. Memory can be untyped and uninitialized,
-/// bound to a type and uninitialized, or bound to a type and initialized to a
-/// value. Finally, memory that was allocated previously may have been
-/// deallocated, leaving existing pointers referencing unallocated memory.
+/// different operations perform. Memory can be untyped and uninitialized, bound
+/// to a type and uninitialized, or bound to a type and initialized to a value.
+/// Finally, memory that was allocated previously may have been deallocated,
+/// leaving existing pointers referencing unallocated memory.
 ///
 /// Raw, Uninitialized Memory
 /// -------------------------
@@ -99,8 +98,8 @@
 /// Implicit Casting and Bridging
 /// =============================
 ///
-/// When calling a function or method with an `UnsafeRawPointer` parameter, you can pass
-/// an instance of that specific pointer type, pass an instance of a
+/// When calling a function or method with an `UnsafeRawPointer` parameter, you
+/// can pass an instance of that specific pointer type, pass an instance of a
 /// compatible pointer type, or use Swift's implicit bridging to pass a
 /// compatible pointer.
 ///
@@ -113,8 +112,8 @@
 ///     }
 ///
 /// As is typical in Swift, you can call the `print(address:as:)` function with
-/// an `UnsafeRawPointer` instance. This example passes `rawPointer` as the initial
-/// parameter.
+/// an `UnsafeRawPointer` instance. This example passes `rawPointer` as the
+/// initial parameter.
 ///
 ///     // 'rawPointer' points to memory initialized with `Int` values.
 ///     let rawPointer: UnsafeRawPointer = ...

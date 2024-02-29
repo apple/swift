@@ -157,6 +157,10 @@ split_embedded_sources(
   EMBEDDED Sort.swift
   EMBEDDED StaticString.swift
     NORMAL StaticPrint.swift
+    NORMAL StorageView/ContiguousStorage.swift
+    NORMAL StorageView/StorageView.swift
+    NORMAL StorageView/StorageViewIndex.swift
+    NORMAL StorageView/StorageViewIterator.swift
   EMBEDDED Stride.swift
     NORMAL StringHashable.swift  # ORDER DEPENDENCY: Must precede String.swift
     NORMAL String.swift

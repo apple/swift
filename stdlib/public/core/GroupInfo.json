@@ -195,6 +195,12 @@
     "UnsafeBufferPointerSlice.swift",
     "UnsafeRawBufferPointer.swift"
   ],
+  "StorageView": [
+    "ContiguousStorage.swift",
+    "StorageView.swift",
+    "StorageViewIndex.swift",
+    "StorageViewIterator.swift"
+  ],
   "Protocols": [
     "CompilerProtocols.swift",
     "ShadowProtocols.swift"

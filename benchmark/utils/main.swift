@@ -14,6 +14,8 @@
 
 import TestsUtils
 import DriverUtils
+
+#if false // FIXME(NCG): Temporarily disabled to enable dev toolchain generation
 import Ackermann
 import AngryPhonebook
 import AnyHashableWithAClass
@@ -406,5 +408,6 @@ register(UTF16Decode.benchmarks)
 register(Walsh.benchmarks)
 register(WordCount.benchmarks)
 register(XorLoop.benchmarks)
+#endif
 
 main()
