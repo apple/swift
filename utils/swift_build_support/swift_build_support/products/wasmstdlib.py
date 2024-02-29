@@ -85,7 +85,6 @@ class WasmStdlib(cmake_product.CMakeProduct):
         self.cmake_options.define(
             'SWIFT_STDLIB_SINGLE_THREADED_CONCURRENCY:BOOL', 'TRUE')
         self.cmake_options.define('SWIFT_ENABLE_DISPATCH:BOOL', 'FALSE')
-        self.cmake_options.define('SWIFT_THREADING_PACKAGE:STRING', 'none')
         self.cmake_options.define(
             'SWIFT_STDLIB_SUPPORTS_BACKTRACE_REPORTING:BOOL', 'FALSE')
         self.cmake_options.define('SWIFT_STDLIB_HAS_DLADDR:BOOL', 'FALSE')
@@ -97,6 +96,8 @@ class WasmStdlib(cmake_product.CMakeProduct):
         self.cmake_options.define('SWIFT_PATH_TO_STRING_PROCESSING_SOURCE:PATH',
                                   os.path.join(self.source_dir, '..',
                                                'swift-experimental-string-processing'))
+
+        self.add_extra_cmake_options()
 
         # Test configuration
         self.cmake_options.define('SWIFT_INCLUDE_TESTS:BOOL', 'TRUE')
@@ -118,6 +119,9 @@ class WasmStdlib(cmake_product.CMakeProduct):
         # Configure with WebAssembly target variant, and build with just-built toolchain
         self.build_with_cmake([], self._build_variant, [],
                               prefer_native_toolchain=True)
+
+    def add_extra_cmake_options(self):
+        self.cmake_options.define('SWIFT_THREADING_PACKAGE:STRING', 'none')
 
     def test(self, host_target):
         build_root = os.path.dirname(self.build_dir)
@@ -170,3 +174,12 @@ class WasmStdlib(cmake_product.CMakeProduct):
                 wasisysroot.WasmLLVMRuntimeLibs,
                 wasmkit.WasmKit,
                 swift.Swift]
+
+class WasmThreadsStdlib(WasmStdlib):
+    def add_extra_cmake_options(self):
+        self.cmake_options.define('SWIFT_THREADING_PACKAGE:STRING', 'pthreads')
+        self.cmake_options.define('SWIFT_STDLIB_EXTRA_C_COMPILE_FLAGS:STRING',
+                                  '-mthread-model;posix;-pthread;-ftls-model=local-exec')
+        self.cmake_options.define('SWIFT_STDLIB_EXTRA_SWIFT_COMPILE_FLAGS:STRING',
+                                  '-Xcc;-matomics;-Xcc;-mbulk-memory;-Xcc;-mthread-model;-Xcc;posix;-Xcc;-pthread;-Xcc;-ftls-model=local-exec')
+        self.cmake_options.define('SWIFT_ENABLE_WASI_THREADS:BOOL', 'TRUE')
