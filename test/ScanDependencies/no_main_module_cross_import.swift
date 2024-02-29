@@ -1,6 +1,6 @@
 // RUN: %empty-directory(%t)
 // RUN: mkdir -p %t/clang-module-cache
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/CHeaders/ExtraCModules -I %S/Inputs/Swift -emit-dependencies -emit-dependencies-path %t/deps.d -swift-version 4 -module-name SubE
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/CHeaders/ExtraCModules -I %S/Inputs/Swift -emit-dependencies -emit-dependencies-path %t/deps.d -swift-version 4 -module-name SubE
 // Check the contents of the JSON output
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 

@@ -16,14 +16,14 @@
 // RUN:   -emit-module-interface-path %t/A.swiftinterface -enable-library-evolution -I %t -enable-testing \
 // RUN:   %t/A.swift
 
-// RUN: %target-swift-frontend -scan-dependencies -module-name Test %t/test1.swift \
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-name Test %t/test1.swift \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import -parse-stdlib -enable-testing \
 // RUN:   -o %t/deps1.json -I %t -swift-version 5
 // RUN: %{python} %S/../CAS/Inputs/SwiftDepsExtractor.py %t/deps1.json Test directDependencies | %FileCheck %s --check-prefix TEST1
 // TEST1-DAG: "swiftPrebuiltExternal": "B"
 // TEST1-DAG: "swift": "C"
 
-// RUN: %target-swift-frontend -scan-dependencies -module-name Test %t/test2.swift \
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-name Test %t/test2.swift \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import -parse-stdlib -enable-testing \
 // RUN:   -o %t/deps2.json -I %t -swift-version 5
 // RUN: %{python} %S/../CAS/Inputs/SwiftDepsExtractor.py %t/deps2.json Test directDependencies | %FileCheck %s --check-prefix TEST2
@@ -36,7 +36,7 @@
 // TEST2-A-DAG: "swift": "C"
 
 /// An indirect @testable import is still interface deps.
-// RUN: %target-swift-frontend -scan-dependencies -module-name Test %t/test3.swift \
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-name Test %t/test3.swift \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import -parse-stdlib -enable-testing \
 // RUN:   -o %t/deps3.json -I %t -swift-version 5
 // RUN: %{python} %S/../CAS/Inputs/SwiftDepsExtractor.py %t/deps3.json Test directDependencies | %FileCheck %s --check-prefix TEST3

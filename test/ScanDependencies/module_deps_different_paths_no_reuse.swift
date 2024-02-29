@@ -4,12 +4,12 @@
 // This test ensures that subsequent invocations of the dependency scanner that re-use previous cache state do not re-use cache entries that contain modules found outside of the current scanner invocation's search paths.
 
 // Run the scanner once, emitting the serialized scanner cache, with one set of search paths
-// RUN: %target-swift-frontend -scan-dependencies -serialize-dependency-scan-cache -dependency-scan-cache-path %t/cache.moddepcache -module-cache-path %t/clang-module-cache %s -o %t/deps_initial.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -import-objc-header %S/Inputs/CHeaders/Bridging.h -swift-version 4
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -serialize-dependency-scan-cache -dependency-scan-cache-path %t/cache.moddepcache -module-cache-path %t/clang-module-cache %s -o %t/deps_initial.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -import-objc-header %S/Inputs/CHeaders/Bridging.h -swift-version 4
 // RUN: %validate-json %t/deps_initial.json &>/dev/null
 // RUN: %FileCheck -input-file %t/deps_initial.json %s -check-prefix CHECK-INITIAL-SCAN
 
 // Run the scanner again, but now re-using previously-serialized cache and using a different search path for Swift modules
-// RUN: %target-swift-frontend -scan-dependencies -load-dependency-scan-cache -dependency-scan-cache-path %t/cache.moddepcache -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/SwiftDifferent -import-objc-header %S/Inputs/CHeaders/Bridging.h -swift-version 4
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -load-dependency-scan-cache -dependency-scan-cache-path %t/cache.moddepcache -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/SwiftDifferent -import-objc-header %S/Inputs/CHeaders/Bridging.h -swift-version 4
 // RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck -input-file %t/deps.json %s -check-prefix CHECK-DIFFERENT
 

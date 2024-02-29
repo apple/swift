@@ -4,7 +4,7 @@
 // RUN: mkdir -p %t/clang-module-cache
 // RUN: mkdir -p %t/cas
 
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s \
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/clang-module-cache %s \
 // RUN:   -o %t/deps.json -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift \
 // RUN:   -emit-dependencies -emit-dependencies-path %t/deps.d -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h \
 // RUN:   -swift-version 4 -cache-compile-job \
@@ -23,7 +23,7 @@
 // RUN: %FileCheck %s -check-prefix CHECK-MAKE-DEPS < %t/deps.d
 
 // Ensure that scanning with `-clang-target` makes sure that Swift modules' respective PCM-dependency-build-argument sets do not contain target triples.
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s \
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/clang-module-cache %s \
 // RUN:   -o %t/deps_clang_target.json -I %S/../ScanDependencies/Inputs/CHeaders \
 // RUN:   -I %S/../ScanDependencies/Inputs/Swift -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h \
 // RUN:   -swift-version 4 -clang-target %target-cpu-apple-macosx10.14 -cache-compile-job \

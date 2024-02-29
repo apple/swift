@@ -5,13 +5,10 @@
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import \
 // RUN:   %t/test.swift -o %t/deps.json -swift-version 5 -cache-compile-job -cas-path %t/cas -Xcc -D_VERSION=1 \
 // RUN:   -Xcc -fmodule-map-file=%t/include/module.modulemap -Xcc -ivfsoverlay -Xcc %t/empty.yaml \
-// RUN:   -Xcc -I%t/empty.hmap
+// RUN:   -Xcc -I%t/empty.hmap -module-load-mode prefer-serialized
 
 // RUN: %{python} %S/Inputs/BuildCommandExtractor.py %t/deps.json clang:SwiftShims > %t/shims.cmd
 // RUN: %swift_frontend_plain @%t/shims.cmd
-
-// RUN: %{python} %S/Inputs/BuildCommandExtractor.py %t/deps.json Swift > %t/swift.cmd
-// RUN: %swift_frontend_plain @%t/swift.cmd
 
 // RUN: %{python} %S/Inputs/BuildCommandExtractor.py %t/deps.json clang:_Macro > %t/Macro.cmd
 // RUN: %swift_frontend_plain @%t/Macro.cmd

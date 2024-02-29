@@ -15,7 +15,7 @@
 // RUN: %target-swift-frontend -emit-module -emit-module-path %t/Frameworks/E.framework/Modules/E.swiftmodule/%module-target-triple.swiftmodule -module-cache-path %t.module-cache %t/foo.swift -module-name E
 
 // Run the scan
-// RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -F %t/Frameworks/ -sdk %t
+// RUN: %target-swift-frontend -scan-dependencies -no-scanner-module-validation %s -o %t/deps.json -F %t/Frameworks/ -sdk %t
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 
 import E

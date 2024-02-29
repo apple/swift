@@ -1332,4 +1332,10 @@ def disable_experimental_parser_round_trip : Flag<["-"],
   "disable-experimental-parser-round-trip">,
   HelpText<"Disable round trip through the new swift parser">;
 
+def no_scanner_module_validation: Flag<["-"], "no-scanner-module-validation">,
+    HelpText<"Do not validate binary modules in scanner and delegate the validation to swift-frontend">;
+def module_load_mode: Separate<["-"], "module-load-mode">,
+    MetaVarName<"only-interface|prefer-interface|prefer-serialized|only-serialized">,
+    HelpText<"Module loading mode">;
+
 } // end let Flags = [FrontendOption, NoDriverOption, HelpHidden]

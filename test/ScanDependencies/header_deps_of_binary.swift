@@ -23,7 +23,7 @@
 // RUN: %target-swift-frontend -emit-module -emit-module-path %t/SwiftModules/Foo.swiftmodule %t/foo.swift -module-name Foo -import-objc-header %t/PCH/foo.pch -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import -disable-implicit-swift-modules -explicit-swift-module-map-file %t/map.json
 
 // - Scan main module and ensure that the header dependencies point to .h and not .pch file
-// RUN: %target-swift-frontend -scan-dependencies %t/header_deps_of_binary.swift -I %t/SwiftModules -I %S/Inputs/Swift -I %S/Inputs/CHeaders -o %t/deps.json
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface %t/header_deps_of_binary.swift -I %t/SwiftModules -I %S/Inputs/Swift -I %S/Inputs/CHeaders -o %t/deps.json
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // CHECK: "swift": "FooClient"

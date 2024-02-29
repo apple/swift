@@ -25,6 +25,7 @@
 #include "swift/Basic/Version.h"
 #include "swift/Frontend/ModuleInterfaceLoader.h"
 #include "swift/Option/Options.h"
+#include "swift/Serialization/Validation.h"
 
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/ArgList.h"
@@ -403,12 +404,15 @@ SerializedModuleLoaderBase::getImportsOfModule(
 
   llvm::StringSet<> importedModuleNames;
   std::string importedHeader = "";
-  // Load the module file without validation.
   std::shared_ptr<const ModuleFileSharedCore> loadedModuleFile;
   serialization::ValidationInfo loadInfo = ModuleFileSharedCore::load(
       "", "", std::move(moduleBuf.get()), nullptr, nullptr, isFramework,
       isRequiredOSSAModules,
       SDKName, recoverer, loadedModuleFile);
+
+  // If failed to load, just ignore and return do not found.
+  if (loadInfo.status != serialization::Status::Valid)
+    return std::make_error_code(std::errc::no_such_file_or_directory);
 
   for (const auto &dependency : loadedModuleFile->getDependencies()) {
     if (dependency.isHeader()) {

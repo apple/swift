@@ -7,11 +7,11 @@ import EWrapper
 // Step 1: Build a swift interface into a binary module
 // RUN: %target-swift-frontend -compile-module-from-interface %S/Inputs/Swift/EWrapper.swiftinterface -o %t/EWrapper.swiftmodule -I %t
 // Step 3: scan dependency should give us the binary module and a textual swift dependency from it
-// RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -I %t
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface %s -o %t/deps.json -I %t
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // Step 4: Ensure that round-trip serialization does not affect result
-// RUN: %target-swift-frontend -scan-dependencies -test-dependency-scan-cache-serialization %s -o %t/deps.json -I %t
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -test-dependency-scan-cache-serialization %s -o %t/deps.json -I %t
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 
 // CHECK: "modulePath": "{{.*}}EWrapper.swiftmodule"

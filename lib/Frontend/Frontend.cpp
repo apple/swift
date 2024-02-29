@@ -711,26 +711,7 @@ bool CompilerInstance::setUpModuleLoaders() {
                                                   enableLibraryEvolution,
                                                   getDependencyTracker()));
   }
-  auto MLM = ModuleLoadingMode::PreferSerialized;
-  if (auto forceModuleLoadingMode =
-      llvm::sys::Process::GetEnv("SWIFT_FORCE_MODULE_LOADING")) {
-    if (*forceModuleLoadingMode == "prefer-interface" ||
-        *forceModuleLoadingMode == "prefer-parseable")
-      MLM = ModuleLoadingMode::PreferInterface;
-    else if (*forceModuleLoadingMode == "prefer-serialized")
-      MLM = ModuleLoadingMode::PreferSerialized;
-    else if (*forceModuleLoadingMode == "only-interface" ||
-             *forceModuleLoadingMode == "only-parseable")
-      MLM = ModuleLoadingMode::OnlyInterface;
-    else if (*forceModuleLoadingMode == "only-serialized")
-      MLM = ModuleLoadingMode::OnlySerialized;
-    else {
-      Diagnostics.diagnose(SourceLoc(),
-                           diag::unknown_forced_module_loading_mode,
-                           *forceModuleLoadingMode);
-      return true;
-    }
-  }
+  auto MLM = Invocation.getSearchPathOptions().ModuleLoadMode;
   auto IgnoreSourceInfoFile =
     Invocation.getFrontendOptions().IgnoreSwiftSourceInfo;
   if (Invocation.getLangOptions().EnableMemoryBufferImporter) {

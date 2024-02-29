@@ -152,8 +152,19 @@ SwiftModuleScanner::scanInterfaceFile(Twine moduleInterfacePath,
         std::string InPath = moduleInterfacePath.str();
         auto compiledCandidates =
             getCompiledCandidates(Ctx, realModuleName.str(), InPath);
-        std::vector<std::string> Args(BaseArgs.begin(), BaseArgs.end());
+        if (!compiledCandidates.empty() &&
+            !Ctx.SearchPathOpts.NoScannerModuleValidation) {
+          assert(compiledCandidates.size() == 1 &&
+                 "Should only have 1 candidate module");
+          auto BinaryDep = scanModuleFile(compiledCandidates[0], isFramework);
+          if (!BinaryDep)
+            return BinaryDep.getError();
 
+          Result = *BinaryDep;
+          return std::error_code();
+        }
+
+        std::vector<std::string> Args(BaseArgs.begin(), BaseArgs.end());
         // Add explicit Swift dependency compilation flags
         Args.push_back("-explicit-interface-module-build");
         Args.push_back("-disable-implicit-swift-modules");
