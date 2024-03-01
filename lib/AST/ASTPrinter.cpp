@@ -3898,6 +3898,8 @@ static bool usesFeatureDynamicActorIsolation(Decl *decl) {
 
 static bool usesFeatureBorrowingSwitch(Decl *decl) { return false; }
 
+static bool usesFeatureTrailingComma(Decl *decl) { return false; }
+
 static bool usesFeatureIsolatedAny(Decl *decl) {
   return usesTypeMatching(decl, [](Type type) {
     if (auto fnType = type->getAs<AnyFunctionType>()) {

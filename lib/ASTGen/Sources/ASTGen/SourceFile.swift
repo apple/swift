@@ -61,6 +61,7 @@ extension Parser.ExperimentalFeatures {
     mapFeature(.NonescapableTypes, to: .nonescapableTypes)
     mapFeature(.TransferringArgsAndResults, to: .transferringArgsAndResults)
     mapFeature(.BorrowingSwitch, to: .borrowingSwitch)
+    mapFeature(.TrailingComma, to: .trailingComma)
   }
 }
 

@@ -134,12 +134,6 @@ if 1 != 2, let x : Int? = opt {} // expected-warning {{immutable value 'x' was n
 if 1 != 2, case let x? : Int? = 42 {} // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
 // expected-warning @-1 {{non-optional expression of type 'Int' used in a check for optionals}}
 
-
-
-// Test error recovery.
-// <rdar://problem/19939746> Improve error recovery for malformed if statements
-if 1 != 2, { // expected-error {{cannot convert value of type '() -> ()' to expected condition type 'Bool'}}
-} // expected-error {{expected '{' after 'if' condition}}
 if 1 != 2, 4 == 57 {}
 if 1 != 2, 4 == 57, let x = opt {} // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
 

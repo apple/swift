@@ -167,7 +167,7 @@ func canImportVersioned() {
   let a = 1
 #endif
 
-#if canImport(A,) // expected-error {{unexpected ',' separator}}
+#if canImport(A,)
   let a = 1
 #endif
   

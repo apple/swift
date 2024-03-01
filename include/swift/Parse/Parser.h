@@ -1973,11 +1973,8 @@ public:
   ParserResult<Stmt> parseStmtDiscard();
   ParserResult<Stmt> parseStmtDefer();
   ParserStatus
-  parseStmtConditionElement(SmallVectorImpl<StmtConditionElement> &result,
-                            Diag<> DefaultID, StmtKind ParentKind,
-                            StringRef &BindingKindStr);
-  ParserStatus parseStmtCondition(StmtCondition &Result, Diag<> ID,
-                                  StmtKind ParentKind);
+  parseStmtConditionElement(SmallVectorImpl<StmtConditionElement> &result, Diag<> DefaultID, StmtKind ParentKind, StringRef &BindingKindStr);
+  ParserStatus parseStmtCondition(StmtCondition &Result, Diag<> ID, StmtKind ParentKind);
   ParserResult<PoundAvailableInfo> parseStmtConditionPoundAvailable();
   ParserResult<PoundHasSymbolInfo> parseStmtConditionPoundHasSymbol();
   ParserResult<Stmt> parseStmtIf(LabeledStmtInfo LabelInfo,
