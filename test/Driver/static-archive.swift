@@ -1,3 +1,5 @@
+// UNSUPPORTED: linker_overridden
+
 // RUN: %swiftc_driver -driver-print-jobs -target x86_64-apple-macosx10.9 -emit-library %s -module-name ARCHIVER -static 2>&1 | %FileCheck -check-prefix CHECK-MACOS %s
 
 // CHECK-MACOS: swift
