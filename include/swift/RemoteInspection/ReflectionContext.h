@@ -601,7 +601,7 @@ public:
     auto StrTab = reinterpret_cast<const char *>(StrTabBuf);
     bool Error = false;
     auto findELFSectionByName =
-        [&](llvm::StringRef Name) -> std::pair<RemoteRef<void>, uint64_t> {
+        [&](llvm::StringRef Name, bool Retained) -> std::pair<RemoteRef<void>, uint64_t> {
           if (Error)
             return {nullptr, 0};
           // Now for all the sections, find their name.
@@ -615,6 +615,8 @@ public:
             }
             std::string SecName(Start, StringSize);
             if (SecName != Name)
+              continue;
+            if (Retained != !!(Hdr->sh_flags & llvm::ELF::SHF_GNU_RETAIN))
               continue;
             RemoteAddress SecStart =
                 RemoteAddress(ImageStart.getAddressData() + Hdr->sh_addr);
@@ -649,48 +651,96 @@ public:
 
     SwiftObjectFileFormatELF ObjectFileFormat;
     auto FieldMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::fieldmd));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::fieldmd), true);
     auto AssocTySec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::assocty));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::assocty), true);
     auto BuiltinTySec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::builtin));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::builtin), true);
     auto CaptureSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::capture));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::capture), true);
     auto TypeRefMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::typeref));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::typeref), true);
     auto ReflStrMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::reflstr));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::reflstr), true);
     auto ConformMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::conform));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::conform), true);
     auto MPEnumMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum), true);
 
     if (Error)
       return false;
 
+    std::optional<uint32_t> result = false;
+
     // We succeed if at least one of the sections is present in the
     // ELF executable.
-    if (FieldMdSec.first == nullptr &&
-        AssocTySec.first == nullptr &&
-        BuiltinTySec.first == nullptr &&
-        CaptureSec.first == nullptr &&
-        TypeRefMdSec.first == nullptr &&
-        ReflStrMdSec.first == nullptr &&
-        ConformMdSec.first == nullptr &&
-        MPEnumMdSec.first == nullptr)
+    if (FieldMdSec.first != nullptr ||
+        AssocTySec.first != nullptr ||
+        BuiltinTySec.first != nullptr ||
+        CaptureSec.first != nullptr ||
+        TypeRefMdSec.first != nullptr ||
+        ReflStrMdSec.first != nullptr ||
+        ConformMdSec.first != nullptr ||
+        MPEnumMdSec.first != nullptr) {
+      ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
+                             {AssocTySec.first, AssocTySec.second},
+                             {BuiltinTySec.first, BuiltinTySec.second},
+                             {CaptureSec.first, CaptureSec.second},
+                             {TypeRefMdSec.first, TypeRefMdSec.second},
+                             {ReflStrMdSec.first, ReflStrMdSec.second},
+                             {ConformMdSec.first, ConformMdSec.second},
+                             {MPEnumMdSec.first, MPEnumMdSec.second},
+                             PotentialModuleNames};
+      result = this->addReflectionInfo(info);
+    }
+
+    // Also check for the non-retained versions of the sections; we'll
+    // only return a single reflection info ID if both are found (and it'll
+    // be the one for the retained sections if we have them), but we'll
+    // still add all the reflection information.
+    FieldMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::fieldmd), false);
+    AssocTySec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::assocty), false);
+    BuiltinTySec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::builtin), false);
+    CaptureSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::capture), false);
+    TypeRefMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::typeref), false);
+    ReflStrMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::reflstr), false);
+    ConformMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::conform), false);
+    MPEnumMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum), false);
+
+    if (Error)
       return false;
 
-    ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
-                           {AssocTySec.first, AssocTySec.second},
-                           {BuiltinTySec.first, BuiltinTySec.second},
-                           {CaptureSec.first, CaptureSec.second},
-                           {TypeRefMdSec.first, TypeRefMdSec.second},
-                           {ReflStrMdSec.first, ReflStrMdSec.second},
-                           {ConformMdSec.first, ConformMdSec.second},
-                           {MPEnumMdSec.first, MPEnumMdSec.second},
-                           PotentialModuleNames};
+    if (FieldMdSec.first != nullptr ||
+        AssocTySec.first != nullptr ||
+        BuiltinTySec.first != nullptr ||
+        CaptureSec.first != nullptr ||
+        TypeRefMdSec.first != nullptr ||
+        ReflStrMdSec.first != nullptr ||
+        ConformMdSec.first != nullptr ||
+        MPEnumMdSec.first != nullptr) {
+      ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
+                             {AssocTySec.first, AssocTySec.second},
+                             {BuiltinTySec.first, BuiltinTySec.second},
+                             {CaptureSec.first, CaptureSec.second},
+                             {TypeRefMdSec.first, TypeRefMdSec.second},
+                             {ReflStrMdSec.first, ReflStrMdSec.second},
+                             {ConformMdSec.first, ConformMdSec.second},
+                             {MPEnumMdSec.first, MPEnumMdSec.second},
+                             PotentialModuleNames};
+      auto rid = this->addReflectionInfo(info);
+      if (!result)
+        result = rid;
+    }
 
-    return this->addReflectionInfo(info);
+    return result;
   }
 
   /// Parses metadata information from an ELF image. Because the Section
