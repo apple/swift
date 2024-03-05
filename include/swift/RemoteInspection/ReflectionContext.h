@@ -600,6 +600,29 @@ public:
       return false;
     auto StrTab = reinterpret_cast<const char *>(StrTabBuf);
     bool Error = false;
+
+    // GNU ld and lld both merge sections regardless of the
+    // `SHF_GNU_RETAIN` flag.  gold, presently, does not.  The Swift
+    // compiler has a couple of switches that control whether or not
+    // the reflection sections are stripped; when these are enabled,
+    // it will _not_ set `SHF_GNU_RETAIN` on the reflection metadata
+    // sections.  However, `swiftrt.o` contains declarations of the
+    // sections _with_ the `SHF_GNU_RETAIN` flag set, which makes
+    // sense since at runtime we will only expect to be able to access
+    // reflection metadata that we said we wanted to exist at runtime.
+    //
+    // The upshot is that when linking with gold, we can end up with
+    // two sets of reflection metadata sections.  In a normal build
+    // where the compiler flags are the same for every linked object,
+    // we'll have *either* all retained *or* all un-retained sections
+    // (the retained sections will still exist because of `swiftrt.o`,
+    // but will be empty).  The only time we'd expect to have a mix is
+    // where some code was compiled with a different setting of the
+    // metadata stripping flags.  If that happens, the code below will
+    // simply add both sets of reflection sections, with the retained
+    // ones added first.
+    //
+    // See also https://sourceware.org/bugzilla/show_bug.cgi?id=31415.
     auto findELFSectionByName =
         [&](llvm::StringRef Name, bool Retained) -> std::pair<RemoteRef<void>, uint64_t> {
           if (Error)
