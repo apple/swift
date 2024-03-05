@@ -616,7 +616,7 @@ public:
             std::string SecName(Start, StringSize);
             if (SecName != Name)
               continue;
-            if (Retained != !!(Hdr->sh_flags & llvm::ELF::SHF_GNU_RETAIN))
+            if (Retained != bool(Hdr->sh_flags & llvm::ELF::SHF_GNU_RETAIN))
               continue;
             RemoteAddress SecStart =
                 RemoteAddress(ImageStart.getAddressData() + Hdr->sh_addr);
