@@ -1267,16 +1267,31 @@ void swift::serialization::diagnoseSerializedASTLoadFailureTransitive(
   }
 }
 
+static std::optional<StringRef> getFlagsFromInterfaceFile(StringRef buffer,
+                                                          StringRef prefix) {
+  StringRef line;
+  unsigned lineCount = 0;
+  const unsigned maxLine = 10;
+  while (!buffer.empty()) {
+    std::tie(line, buffer) = buffer.split('\n');
+    if (line.consume_front(prefix))
+      return line;
+
+    if (++lineCount > maxLine)
+      return std::nullopt;
+  }
+
+  return std::nullopt;
+}
+
 bool swift::extractCompilerFlagsFromInterface(StringRef interfacePath,
                                               StringRef buffer,
                                               llvm::StringSaver &ArgSaver,
                                               SmallVectorImpl<const char *> &SubArgs) {
-  SmallVector<StringRef, 1> FlagMatches;
-  auto FlagRe = llvm::Regex("^// swift-module-flags:(.*)$", llvm::Regex::Newline);
-  if (!FlagRe.match(buffer, &FlagMatches))
+  auto FlagMatch = getFlagsFromInterfaceFile(buffer, "// swift-module-flags:");
+  if (!FlagMatch)
     return true;
-  assert(FlagMatches.size() == 2);
-  llvm::cl::TokenizeGNUCommandLine(FlagMatches[1], ArgSaver, SubArgs);
+  llvm::cl::TokenizeGNUCommandLine(*FlagMatch, ArgSaver, SubArgs);
 
   auto intFileName = llvm::sys::path::filename(interfacePath);
 
@@ -1300,28 +1315,22 @@ bool swift::extractCompilerFlagsFromInterface(StringRef interfacePath,
     }
   }
 
-  SmallVector<StringRef, 1> IgnFlagMatches;
-  // Cherry-pick supported options from the ignorable list.
-  auto IgnFlagRe = llvm::Regex("^// swift-module-flags-ignorable:(.*)$",
-                               llvm::Regex::Newline);
-  auto hasIgnorableFlags = IgnFlagRe.match(buffer, &IgnFlagMatches);
-
-  // Check for ignorable-private flags
-  SmallVector<StringRef, 1> IgnPrivateFlagMatches;
-  auto IgnPrivateFlagRe = llvm::Regex("^// swift-module-flags-ignorable-private:(.*)$",
-                               llvm::Regex::Newline);
-  auto hasIgnorablePrivateFlags = IgnPrivateFlagRe.match(buffer, &IgnPrivateFlagMatches);
+  auto IgnFlagMatch =
+      getFlagsFromInterfaceFile(buffer, "// swift-module-flags-ignorable:");
+  auto IgnPrivateFlagMatch = getFlagsFromInterfaceFile(
+      buffer, "// swift-module-flags-ignorable-private:");
 
   // It's OK the interface doesn't have the ignorable list (private or not), we just
   // ignore them all.
-  if (!hasIgnorableFlags && !hasIgnorablePrivateFlags)
+  if (!IgnFlagMatch && !IgnPrivateFlagMatch)
     return false;
 
   SmallVector<const char *, 8> IgnSubArgs;
-  if (hasIgnorableFlags)
-    llvm::cl::TokenizeGNUCommandLine(IgnFlagMatches[1], ArgSaver, IgnSubArgs);
-  if (hasIgnorablePrivateFlags)
-    llvm::cl::TokenizeGNUCommandLine(IgnPrivateFlagMatches[1], ArgSaver, IgnSubArgs);
+  if (IgnFlagMatch)
+    llvm::cl::TokenizeGNUCommandLine(*IgnFlagMatch, ArgSaver, IgnSubArgs);
+  if (IgnPrivateFlagMatch)
+    llvm::cl::TokenizeGNUCommandLine(*IgnPrivateFlagMatch, ArgSaver,
+                                     IgnSubArgs);
 
   std::unique_ptr<llvm::opt::OptTable> table = swift::createSwiftOptTable();
   unsigned missingArgIdx = 0;
