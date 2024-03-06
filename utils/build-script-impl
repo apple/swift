@@ -92,6 +92,11 @@ KNOWN_SETTINGS=(
     android-deploy-device-path                    ""                "Path on an Android device to which built Swift stdlib products will be deployed"
     android-ndk                                   ""                "An absolute path to the NDK that will be used as a libc implementation for Android builds"
 
+    ## Linux Options
+    musl-path                                     "/usr/local/musl" "The path to the Musl headers and libraries"
+    linux-arch                                    ""                "The Linux target architecture(s)"
+    linux-static-arch                             ""                "The fully static Linux target architecture(s)"
+
     ## Darwin Options
     darwin-crash-reporter-client                  ""                "whether to enable CrashReporter integration, default is 1 on Darwin platforms, 0 otherwise"
     darwin-deployment-version-ios                 "11.0"            "minimum deployment target version for iOS"
@@ -128,6 +133,8 @@ KNOWN_SETTINGS=(
     ## Skip Build ...
     skip-build                                    ""                "set to configure as usual while skipping the build step"
     skip-build-android                            ""                "set to skip building Swift stdlibs for Android"
+    skip-build-linux                              ""                "set to skip building Swift stdlibs for Linux"
+    skip-build-linux-static                       ""                "set to skip building Swift stdlibs for statically linked Linux"
     skip-build-wasm                               ""                "set to skip building Swift stdlibs for WebAssembly"
     skip-build-benchmarks                         ""                "set to skip building Swift Benchmark Suite"
     skip-build-clang-tools-extra                  ""                "set to skip building clang-tools-extra as part of llvm"
@@ -483,6 +490,8 @@ function verify_host_is_supported() {
       | linux-powerpc64le       \
       | linux-riscv64           \
       | linux-s390x             \
+      | linux-static-aarch64    \
+      | linux-static-x86_64     \
       | macosx-x86_64           \
       | macosx-arm64            \
       | macosx-arm64e           \
@@ -1089,7 +1098,7 @@ function false_true() {
 CROSS_COMPILE_HOSTS=($CROSS_COMPILE_HOSTS)
 for t in "${CROSS_COMPILE_HOSTS[@]}"; do
     case ${t} in
-        macosx* | iphone* | appletv* | watch* | linux-armv5 | linux-armv6 | linux-armv7 | android-* | openbsd-* )
+        macosx* | iphone* | appletv* | watch* | linux-armv5 | linux-armv6 | linux-armv7 | android-* | openbsd-* | linux-static-* )
             ;;
         *)
             echo "Unknown host to cross-compile for: ${t}"
@@ -1391,6 +1400,14 @@ function swift_c_flags() {
     if [[ $(is_cmake_release_build_type "${SWIFT_BUILD_TYPE}") ]] ; then
         echo -n " -fno-stack-protector"
     fi
+
+    local host=$1
+
+    case $host in
+        linux-static-*)
+            echo -n " -D_GNU_SOURCE -DHAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME"
+            ;;
+    esac
 }
 
 function common_swift_flags() {
@@ -1670,6 +1687,21 @@ for host in "${ALL_HOSTS[@]}"; do
                     cmake_options=(
                         "${cmake_options[@]}"
                         -DCMAKE_TOOLCHAIN_FILE="${OPENBSD_USE_TOOLCHAIN_FILE}"
+                    )
+                fi
+
+                if [[ ! "${SKIP_BUILD_LINUX}" ]]; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_SDK_LINUX_ARCHITECTURES:STRING="${LINUX_ARCH}"
+                    )
+                fi
+
+                if [[ ! "${SKIP_BUILD_LINUX_STATIC}" ]]; then
+                    cmake_options=(
+                        "${cmake_options[@]}"
+                        -DSWIFT_MUSL_PATH:STRING="${MUSL_PATH}"
+                        -DSWIFT_SDK_LINUX_STATIC_ARCHITECTURES:STRING="${LINUX_STATIC_ARCH}"
                     )
                 fi
 
@@ -2450,6 +2482,7 @@ for host in "${ALL_HOSTS[@]}"; do
                   -DENABLE_TESTING:BOOL=NO
 
                   -DBUILD_SHARED_LIBS=$([[ ${product} == foundation_static ]] && echo "NO" || echo "YES")
+                  -DCMAKE_C_FLAGS="$(swift_c_flags ${host}) -lfts"
                 )
 
                 if [[ $(is_cross_tools_host ${host}) ]] ; then
@@ -2493,9 +2526,11 @@ for host in "${ALL_HOSTS[@]}"; do
                   cmake_options=(
                     -DENABLE_SWIFT=YES
                     ${cmake_options[@]}
+                    
                     -DCMAKE_BUILD_TYPE:STRING="${LIBDISPATCH_BUILD_TYPE}"
                     -DCMAKE_C_COMPILER:PATH="${CLANG_BIN}/clang"
                     -DCMAKE_CXX_COMPILER:PATH="${CLANG_BIN}/clang++"
+                    -DCMAKE_C_FLAGS="$(swift_c_flags ${host})"
                     -DCMAKE_SWIFT_COMPILER:PATH="${SWIFTC_BIN}"
                     -DCMAKE_Swift_COMPILER:PATH="${SWIFTC_BIN}"
                     -DCMAKE_Swift_FLAGS:STRING="$(common_swift_flags)"
@@ -3036,7 +3071,7 @@ for host in "${ALL_HOSTS[@]}"; do
                 fi
 
                 case ${host} in
-                  linux-*|freebsd-*|openbsd-*|cygwin-*|haiku-*|android-*) ;;
+                  linux-*|freebsd-*|openbsd-*|cygwin-*|haiku-*|android-*|linux-static-*) ;;
                   *)
                     echo "error: --install-xctest is not supported on this platform"
                     exit 1
