@@ -180,7 +180,7 @@ createClangArgs(const ASTContext &ctx, clang::driver::Driver &clangDriver) {
 
 static bool shouldInjectLibcModulemap(const llvm::Triple &triple) {
   return triple.isOSGlibc() || triple.isOSOpenBSD() || triple.isOSFreeBSD() ||
-         triple.isAndroid() || triple.isOSWASI();
+         triple.isAndroid() || triple.isMusl() || triple.isOSWASI();
 }
 
 static SmallVector<std::pair<std::string, std::string>, 2>
@@ -254,8 +254,9 @@ static void getLibStdCxxFileMapping(
   // We currently only need this when building for Linux.
   if (!triple.isOSLinux())
     return;
-  // Android uses libc++.
-  if (triple.isAndroid())
+  // Android uses libc++, as does our fully static Linux config.
+  if (triple.isAndroid()
+      || (triple.isMusl() && triple.getVendor() == llvm::Triple::Swift))
     return;
 
   // Extract the libstdc++ installation path from Clang driver.
@@ -534,6 +535,9 @@ ClangInvocationFileMapping swift::getClangInvocationFileMapping(
     // WASI Mappings
     libcFileMapping =
         getLibcFileMapping(ctx, "wasi-libc.modulemap", std::nullopt, vfs);
+  } else if (triple.isMusl()) {
+    libcFileMapping =
+        getLibcFileMapping(ctx, "musl.modulemap", StringRef("SwiftMusl.h"), vfs);
   } else {
     // Android/BSD/Linux Mappings
     libcFileMapping = getLibcFileMapping(ctx, "glibc.modulemap",
