@@ -37,10 +37,10 @@ func use(_ o : borrowing BV)
 // CHECK-LABEL: sil hidden @$s4test13bv_borrow_var1p1iySV_SitF : $@convention(thin) (UnsafeRawPointer, Int) -> () {
 // CHECK: [[A:%.*]] = begin_access [read] [static] %{{.*}} : $*NC
 // CHECK: [[L:%.*]] = load [[A]] : $*NC
-// CHECK:   [[R:%.*]] = apply %{{.*}}([[L]]) : $@convention(method) (@guaranteed NC) -> _scope(0) @owned BV
-// CHECK:   [[M:%.*]] = mark_dependence [unresolved] [[R]] : $BV on [[A]] : $*NC
-// CHECK:   end_access [[A]] : $*NC
-// CHECK:   %{{.*}} = apply %{{.*}}([[M]]) : $@convention(thin) (@guaranteed BV) -> ()
+// CHECK: [[R:%.*]] = apply %{{.*}}([[L]]) : $@convention(method) (@guaranteed NC) -> _scope(0) @owned BV
+// CHECK: [[M:%.*]] = mark_dependence [nonescaping] [[R]] : $BV on [[A]] : $*NC
+// CHECK: %{{.*}} = apply %{{.*}}([[M]]) : $@convention(thin) (@guaranteed BV) -> ()
+// CHECK: end_access [[A]] : $*NC
 // CHECK-LABEL: } // end sil function '$s4test13bv_borrow_var1p1iySV_SitF'
 func bv_borrow_var(p: UnsafeRawPointer, i: Int) {
   var nc = NC(p: p, i: i)
