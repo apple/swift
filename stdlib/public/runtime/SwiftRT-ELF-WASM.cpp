@@ -28,7 +28,7 @@ static constexpr const void *__dso_handle = nullptr;
 #if SWIFT_ENABLE_BACKTRACING
 // Drag in a symbol from the backtracer, to force the static linker to include
 // the code.
-static const void *__backtraceRef __attribute__((used))
+static const void *__backtraceRef __attribute__((used, retain))
   = (const void *)swift::runtime::backtrace::_swift_backtrace_isThunkFunction;
 #endif
 
