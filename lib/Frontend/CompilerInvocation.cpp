@@ -2349,9 +2349,7 @@ static bool ParseSILArgs(SILOptions &Opts, ArgList &Args,
       OPT_enable_move_inout_stack_protector, OPT_disable_stack_protector,
       Opts.EnableMoveInoutStackProtection);
   Opts.EnableImportPtrauthFieldFunctionPointers =
-      Args.hasArg(OPT_enable_import_ptrauth_field_function_pointers,
-                  OPT_disable_import_ptrauth_field_function_pointers,
-                  Opts.EnableImportPtrauthFieldFunctionPointers);
+      !Args.hasArg(OPT_disable_import_ptrauth_field_function_pointers);
   Opts.VerifyAll |= Args.hasArg(OPT_sil_verify_all);
   Opts.VerifyNone |= Args.hasArg(OPT_sil_verify_none);
   Opts.DebugSerialization |= Args.hasArg(OPT_sil_debug_serialization);
