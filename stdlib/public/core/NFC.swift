@@ -206,7 +206,7 @@ extension Unicode._InternalNFC.Iterator: IteratorProtocol {
     }
 
     // If we have a leftover composee, make sure to return it.
-    return composee._take()
+    return composee.take()
   }
 }
 

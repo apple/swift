@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2018 - 2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -13,13 +13,23 @@
 /// A value that represents either a success or a failure, including an
 /// associated value in each case.
 @frozen
-public enum Result<Success, Failure: Error> {
+public enum Result<Success: ~Copyable, Failure: Error> {
   /// A success, storing a `Success` value.
   case success(Success)
-  
+
   /// A failure, storing a `Failure` value.
   case failure(Failure)
-  
+}
+
+extension Result: Copyable where Success: Copyable {}
+
+extension Result: Sendable where Success: Sendable & ~Copyable {}
+
+extension Result: Equatable where Success: Equatable, Failure: Equatable {}
+
+extension Result: Hashable where Success: Hashable, Failure: Hashable {}
+
+extension Result {
   /// Returns a new result, mapping any success value using the given
   /// transformation.
   ///
@@ -38,8 +48,8 @@ public enum Result<Success, Failure: Error> {
   ///   instance.
   /// - Returns: A `Result` instance with the result of evaluating `transform`
   ///   as the new success value if this instance represents a success.
-  @inlinable
-  public func map<NewSuccess>(
+  @_alwaysEmitIntoClient
+  public func map<NewSuccess: ~Copyable>(
     _ transform: (Success) -> NewSuccess
   ) -> Result<NewSuccess, Failure> {
     switch self {
@@ -49,7 +59,53 @@ public enum Result<Success, Failure: Error> {
       return .failure(failure)
     }
   }
-  
+
+#if false // FIXME(NCG) Multiple definitions of symbol
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal func map<NewSuccess>(
+    _ transform: (Success) -> NewSuccess
+  ) -> Result<NewSuccess, Failure> {
+    switch self {
+    case let .success(success):
+      return .success(transform(success))
+    case let .failure(failure):
+      return .failure(failure)
+    }
+  }
+#endif
+}
+
+extension Result where Success: ~Copyable {
+  @_alwaysEmitIntoClient
+  public consuming func consumingMap<NewSuccess: ~Copyable>(
+    _ transform: (consuming Success) -> NewSuccess
+  ) -> Result<NewSuccess, Failure> {
+    switch consume self {
+    case let .success(success):
+      return .success(transform(consume success))
+    case let .failure(failure):
+      return .failure(consume failure)
+    }
+  }
+
+#if $BorrowingSwitch
+  @_alwaysEmitIntoClient
+  public borrowing func borrowingMap<NewSuccess: ~Copyable>(
+    _ transform: (borrowing Success) -> NewSuccess
+  ) -> Result<NewSuccess, Failure> {
+    switch self {
+    case .success(_borrowing success):
+      return .success(transform(success))
+    case let .failure(failure):
+      return .failure(failure)
+    }
+  }
+#endif
+}
+
+extension Result where Success: ~Copyable {
   /// Returns a new result, mapping any failure value using the given
   /// transformation.
   ///
@@ -76,8 +132,24 @@ public enum Result<Success, Failure: Error> {
   ///   instance.
   /// - Returns: A `Result` instance with the result of evaluating `transform`
   ///   as the new failure value if this instance represents a failure.
-  @inlinable
-  public func mapError<NewFailure>(
+  @_alwaysEmitIntoClient
+  public consuming func mapError<NewFailure>(
+    _ transform: (Failure) -> NewFailure
+  ) -> Result<Success, NewFailure> {
+    switch consume self {
+    case let .success(success):
+      return .success(consume success)
+    case let .failure(failure):
+      return .failure(transform(failure))
+    }
+  }
+}
+
+extension Result {
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal func mapError<NewFailure>(
     _ transform: (Failure) -> NewFailure
   ) -> Result<Success, NewFailure> {
     switch self {
@@ -87,7 +159,9 @@ public enum Result<Success, Failure: Error> {
       return .failure(transform(failure))
     }
   }
-  
+}
+
+extension Result {
   /// Returns a new result, mapping any success value using the given
   /// transformation and unwrapping the produced result.
   ///
@@ -115,7 +189,7 @@ public enum Result<Success, Failure: Error> {
   /// - Returns: A `Result` instance, either from the closure or the previous
   ///   `.failure`.
   @inlinable
-  public func flatMap<NewSuccess>(
+  public func flatMap<NewSuccess: ~Copyable>(
     _ transform: (Success) -> Result<NewSuccess, Failure>
   ) -> Result<NewSuccess, Failure> {
     switch self {
@@ -125,13 +199,57 @@ public enum Result<Success, Failure: Error> {
       return .failure(failure)
     }
   }
-  
+
+#if false // FIXME(NCG) Multiple definitions of symbol
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal func flatMap<NewSuccess>(
+    _ transform: (Success) -> Result<NewSuccess, Failure>
+  ) -> Result<NewSuccess, Failure> {
+    switch self {
+    case let .success(success):
+      return transform(success)
+    case let .failure(failure):
+      return .failure(failure)
+    }
+  }
+#endif
+}
+
+extension Result where Success: ~Copyable {
+  public consuming func consumingFlatMap<NewSuccess: ~Copyable>(
+    _ transform: (consuming Success) -> Result<NewSuccess, Failure>
+  ) -> Result<NewSuccess, Failure> {
+    switch consume self {
+    case let .success(success):
+      return transform(consume success)
+    case let .failure(failure):
+      return .failure(failure)
+    }
+  }
+
+#if $BorrowingSwitch
+  public borrowing func borrowingFlatMap<NewSuccess: ~Copyable>(
+    _ transform: (borrowing Success) -> Result<NewSuccess, Failure>
+  ) -> Result<NewSuccess, Failure> {
+    switch self {
+    case .success(_borrowing success):
+      return transform(success)
+    case let .failure(failure):
+      return .failure(failure)
+    }
+  }
+#endif
+}
+
+extension Result {
   /// Returns a new result, mapping any failure value using the given
   /// transformation and unwrapping the produced result.
   ///
   /// - Parameter transform: A closure that takes the failure value of the
   ///   instance.
-  /// - Returns: A `Result` instance, either from the closure or the previous 
+  /// - Returns: A `Result` instance, either from the closure or the previous
   ///   `.success`.
   @inlinable
   public func flatMapError<NewFailure>(
@@ -144,7 +262,9 @@ public enum Result<Success, Failure: Error> {
       return transform(failure)
     }
   }
-  
+}
+
+extension Result where Success: ~Copyable {
   /// Returns the success value as a throwing expression.
   ///
   /// Use this method to retrieve the value of this result if it represents a
@@ -162,9 +282,8 @@ public enum Result<Success, Failure: Error> {
   /// - Returns: The success value, if the instance represents a success.
   /// - Throws: The failure value, if the instance represents a failure.
   @_alwaysEmitIntoClient
-  @inlinable
-  public func get() throws(Failure) -> Success {
-    switch self {
+  public consuming func get() throws(Failure) -> Success {
+    switch consume self {
     case let .success(success):
       return success
     case let .failure(failure):
@@ -173,13 +292,12 @@ public enum Result<Success, Failure: Error> {
   }
 }
 
-extension Result {
+extension Result where Success: ~Copyable {
   /// Creates a new result by evaluating a throwing closure, capturing the
   /// returned value as a success, or any thrown error as a failure.
   ///
   /// - Parameter body: A potentially throwing closure to evaluate.
   @_alwaysEmitIntoClient
-  @inlinable
   public init(catching body: () throws(Failure) -> Success) {
     do {
       self = .success(try body())
@@ -191,6 +309,7 @@ extension Result {
 
 extension Result {
   /// ABI: Historical get() throws
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
   @_silgen_name("$ss6ResultO3getxyKF")
   @usableFromInline
   func __abi_get() throws -> Success {
@@ -206,6 +325,7 @@ extension Result {
 
 extension Result where Failure == Swift.Error {
   /// ABI: Historical init(catching:)
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
   @_silgen_name("$ss6ResultOss5Error_pRs_rlE8catchingAByxsAC_pGxyKXE_tcfC")
   @usableFromInline
   init(__abi_catching body: () throws(Failure) -> Success) {
@@ -216,9 +336,3 @@ extension Result where Failure == Swift.Error {
     }
   }
 }
-
-extension Result: Equatable where Success: Equatable, Failure: Equatable { }
-
-extension Result: Hashable where Success: Hashable, Failure: Hashable { }
-
-extension Result: Sendable where Success: Sendable { }

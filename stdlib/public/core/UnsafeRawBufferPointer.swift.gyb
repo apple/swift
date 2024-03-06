@@ -120,6 +120,9 @@ public struct Unsafe${Mutable}RawBufferPointer {
   }
 }
 
+@available(*, unavailable)
+extension Unsafe${Mutable}RawBufferPointer: Sendable {}
+
 %if not mutable:
 extension UnsafeRawBufferPointer {
   /// An iterator over the bytes viewed by a raw buffer pointer.
@@ -135,6 +138,9 @@ extension UnsafeRawBufferPointer {
     }
   }
 }
+
+@available(*, unavailable)
+extension UnsafeRawBufferPointer.Iterator: Sendable { }
 
 extension UnsafeRawBufferPointer.Iterator: IteratorProtocol, Sequence {
   /// Advances to the next byte and returns it, or `nil` if no next byte
@@ -400,6 +406,9 @@ extension Unsafe${Mutable}RawBufferPointer {
     return baseAddress!.load(fromByteOffset: offset, as: T.self)
   }
 
+  // FIXME(NCG): Add a consuming analogue of `load`, like `move(fromByteOffset:as:_:)`
+  // FIXME(NCG): Add a borrow analogue of `load`, like `withBorrow(fromByteOffset:as:_:)`
+
   /// Returns a new instance of the given type, constructed from the raw memory
   /// at the specified offset.
   ///
@@ -443,7 +452,7 @@ extension Unsafe${Mutable}RawBufferPointer {
     return baseAddress!.loadUnaligned(fromByteOffset: offset, as: T.self)
   }
 #endif
-  @inlinable
+
   @_alwaysEmitIntoClient
   public func loadUnaligned<T>(
     fromByteOffset offset: Int = 0,
@@ -508,7 +517,7 @@ extension Unsafe${Mutable}RawBufferPointer {
   // This unavailable implementation uses the expected mangled name
   // of `storeBytes<T>(of:toByteOffset:as:)`, and provides an entry point for
   // any binary linked against the stdlib binary for Swift 5.6 and older.
-  @available(*, unavailable)
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
   @_silgen_name("$sSw10storeBytes2of12toByteOffset2asyx_SixmtlF")
   @usableFromInline func _legacy_se0349_storeBytes<T>(
     of value: T, toByteOffset offset: Int = 0, as type: T.Type
@@ -620,7 +629,8 @@ extension Unsafe${Mutable}RawBufferPointer {
   /// - Parameter buffer: The typed buffer to convert to a raw buffer. The
   ///   buffer's type `T` must be a trivial type.
   @inlinable
-  public init<T>(_ buffer: UnsafeMutableBufferPointer<T>) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init<T: ~Copyable>(_ buffer: UnsafeMutableBufferPointer<T>) {
     self.init(start: buffer.baseAddress,
       count: buffer.count * MemoryLayout<T>.stride)
   }
@@ -631,7 +641,8 @@ extension Unsafe${Mutable}RawBufferPointer {
   /// - Parameter buffer: The typed buffer to convert to a raw buffer. The
   ///   buffer's type `T` must be a trivial type.
   @inlinable
-  public init<T>(_ buffer: UnsafeBufferPointer<T>) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init<T: ~Copyable>(_ buffer: UnsafeBufferPointer<T>) {
     self.init(start: buffer.baseAddress,
       count: buffer.count * MemoryLayout<T>.stride)
   }
@@ -934,7 +945,7 @@ extension Unsafe${Mutable}RawBufferPointer {
   @discardableResult
   @inlinable
   @_alwaysEmitIntoClient
-  public func moveInitializeMemory<T>(
+  public func moveInitializeMemory<T: ~Copyable>(
     as type: T.Type,
     fromContentsOf source: UnsafeMutableBufferPointer<T>
   ) -> UnsafeMutableBufferPointer<T> {
@@ -985,7 +996,6 @@ extension Unsafe${Mutable}RawBufferPointer {
   ///     The returned buffer references memory starting at the same
   ///     base address as this buffer, and its count is equal to `source.count`.
   @discardableResult
-  @inlinable
   @_alwaysEmitIntoClient
   public func moveInitializeMemory<T>(
     as type: T.Type,
@@ -997,8 +1007,8 @@ extension Unsafe${Mutable}RawBufferPointer {
 
   %  end # mutable
 
-  /// Binds this buffer’s memory to the specified type and returns a typed buffer 
-  /// of the bound memory.
+  /// Binds this buffer’s memory to the specified type and returns a typed
+  /// buffer of the bound memory.
   ///
   /// Use the `bindMemory(to:)` method to bind the memory referenced
   /// by this buffer to the type `T`. The memory must be uninitialized or
@@ -1015,9 +1025,11 @@ extension Unsafe${Mutable}RawBufferPointer {
   ///   region is bound to `T`, but has not been modified in any other way.
   ///   The typed buffer references `self.count / MemoryLayout<T>.stride`
   ///   instances of `T`.
+  @inlinable
   @_transparent
+  // FIXME(NCG): @_preInverseGenerics
   @discardableResult
-  public func bindMemory<T>(
+  public func bindMemory<T: ~Copyable>(
     to type: T.Type
   ) -> Unsafe${Mutable}BufferPointer<T> {
     guard let base = _position else {
@@ -1076,7 +1088,7 @@ extension Unsafe${Mutable}RawBufferPointer {
   /// - Returns: The return value, if any, of the `body` closure parameter.
   @inlinable
   @_alwaysEmitIntoClient
-  public func withMemoryRebound<T, Result, E: Error>(
+  public func withMemoryRebound<T: ~Copyable, Result: ~Copyable, E: Error>(
     to type: T.Type,
     _ body: (_ buffer: Unsafe${Mutable}BufferPointer<T>) throws(E) -> Result
   ) throws(E) -> Result {
@@ -1114,7 +1126,7 @@ extension Unsafe${Mutable}RawBufferPointer {
   /// - Returns: A typed pointer to the same memory as this raw pointer.
   @inlinable
   @_alwaysEmitIntoClient
-  public func assumingMemoryBound<T>(
+  public func assumingMemoryBound<T: ~Copyable>(
     to: T.Type
   ) -> Unsafe${Mutable}BufferPointer<T> {
     guard let s = _position else {
@@ -1130,7 +1142,7 @@ extension Unsafe${Mutable}RawBufferPointer {
 %  if Mutable:
   @inlinable
   @_alwaysEmitIntoClient
-  public func withContiguousMutableStorageIfAvailable<R>(
+  public func withContiguousMutableStorageIfAvailable<R: ~Copyable>(
     _ body: (inout UnsafeMutableBufferPointer<Element>) throws -> R
   ) rethrows -> R? {
     try withMemoryRebound(to: Element.self) { b in
@@ -1148,7 +1160,7 @@ extension Unsafe${Mutable}RawBufferPointer {
 %  end
   @inlinable
   @_alwaysEmitIntoClient
-  public func withContiguousStorageIfAvailable<R>(
+  public func withContiguousStorageIfAvailable<R: ~Copyable>(
     _ body: (UnsafeBufferPointer<Element>) throws -> R
   ) rethrows -> R? {
     try withMemoryRebound(to: Element.self) {
@@ -1209,7 +1221,7 @@ extension ${Self} {
 ///     of the closure's execution.
 /// - Returns: The return value, if any, of the `body` closure.
 @inlinable
-public func withUnsafeMutableBytes<T, Result>(
+public func withUnsafeMutableBytes<T/*FIXME(NCG): ~Copyable*/, Result>(
   of value: inout T,
   _ body: (UnsafeMutableRawBufferPointer) throws -> Result
 ) rethrows -> Result
@@ -1244,7 +1256,7 @@ public func withUnsafeMutableBytes<T, Result>(
 ///     `withUnsafeMutableBytes(of:_:)` instead.
 /// - Returns: The return value, if any, of the `body` closure.
 @inlinable
-public func withUnsafeBytes<T, Result>(
+public func withUnsafeBytes<T/*FIXME(NCG): ~Copyable*/, Result>(
   of value: inout T,
   _ body: (UnsafeRawBufferPointer) throws -> Result
 ) rethrows -> Result
@@ -1260,7 +1272,7 @@ public func withUnsafeBytes<T, Result>(
 /// This function is similar to `withUnsafeBytes`, except that it
 /// doesn't trigger stack protection for the pointer.
 @_alwaysEmitIntoClient
-public func _withUnprotectedUnsafeBytes<T, Result>(
+public func _withUnprotectedUnsafeBytes<T/*FIXME(NCG): ~Copyable*/, Result>(
   of value: inout T,
   _ body: (UnsafeRawBufferPointer) throws -> Result
 ) rethrows -> Result
@@ -1290,7 +1302,7 @@ public func _withUnprotectedUnsafeBytes<T, Result>(
 ///     `withUnsafeMutableBytes(of:_:)` instead.
 /// - Returns: The return value, if any, of the `body` closure.
 @inlinable
-public func withUnsafeBytes<T, Result>(
+public func withUnsafeBytes<T/*FIXME(NCG): ~Copyable*/, Result>(
   of value: T,
   _ body: (UnsafeRawBufferPointer) throws -> Result
 ) rethrows -> Result {
@@ -1305,7 +1317,7 @@ public func withUnsafeBytes<T, Result>(
 /// This function is similar to `withUnsafeBytes`, except that it
 /// doesn't trigger stack protection for the pointer.
 @_alwaysEmitIntoClient
-public func _withUnprotectedUnsafeBytes<T, Result>(
+public func _withUnprotectedUnsafeBytes<T/*FIXME(NCG): ~Copyable*/, Result>(
   of value: T,
   _ body: (UnsafeRawBufferPointer) throws -> Result
 ) rethrows -> Result {
@@ -1317,14 +1329,6 @@ public func _withUnprotectedUnsafeBytes<T, Result>(
   let buffer = UnsafeRawBufferPointer(start: addr, count: MemoryLayout<T>.size)
   return try body(buffer)
 }
-
-@available(*, unavailable)
-extension UnsafeRawBufferPointer: Sendable { }
-@available(*, unavailable)
-extension UnsafeRawBufferPointer.Iterator: Sendable { }
-@available(*, unavailable)
-extension UnsafeMutableRawBufferPointer: Sendable { }
-
 
 // ${'Local Variables'}:
 // eval: (read-only-mode 1)

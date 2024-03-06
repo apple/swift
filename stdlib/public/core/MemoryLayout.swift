@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -40,7 +40,9 @@
 ///             byteCount: count * MemoryLayout<Point>.stride,
 ///             alignment: MemoryLayout<Point>.alignment)
 @frozen // namespace
-public enum MemoryLayout<T> {
+public enum MemoryLayout<T: ~Copyable> {}
+
+extension MemoryLayout where T: ~Copyable {
   /// The contiguous memory footprint of `T`, in bytes.
   ///
   /// A type's size does not include any dynamically allocated or out of line
@@ -50,6 +52,7 @@ public enum MemoryLayout<T> {
   /// When allocating memory for multiple instances of `T` using an unsafe
   /// pointer, use a multiple of the type's stride instead of its size.
   @_transparent
+  @_alwaysEmitIntoClient
   public static var size: Int {
     return Int(Builtin.sizeof(T.self))
   }
@@ -62,6 +65,7 @@ public enum MemoryLayout<T> {
   /// trades runtime performance for space efficiency. This value is always
   /// positive.
   @_transparent
+  @_alwaysEmitIntoClient
   public static var stride: Int {
     return Int(Builtin.strideof(T.self))
   }
@@ -71,6 +75,7 @@ public enum MemoryLayout<T> {
   /// Use the `alignment` property for a type when allocating memory using an
   /// unsafe pointer. This value is always positive.
   @_transparent
+  @_alwaysEmitIntoClient
   public static var alignment: Int {
     return Int(Builtin.alignof(T.self))
   }
@@ -80,6 +85,29 @@ public enum MemoryLayout<T> {
 extension MemoryLayout : _BitwiseCopyable {}
 
 extension MemoryLayout {
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal static var size: Int {
+    return Int(Builtin.sizeof(T.self))
+  }
+
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal static var stride: Int {
+    return Int(Builtin.strideof(T.self))
+  }
+
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal static var alignment: Int {
+    return Int(Builtin.alignof(T.self))
+  }
+}
+
+extension MemoryLayout where T: ~Copyable {
   /// Returns the contiguous memory footprint of the given instance.
   ///
   /// The result does not include any dynamically allocated or out of line
@@ -103,7 +131,8 @@ extension MemoryLayout {
   /// - Parameter value: A value representative of the type to describe.
   /// - Returns: The size, in bytes, of the given value's type.
   @_transparent
-  public static func size(ofValue value: T) -> Int {
+  @_alwaysEmitIntoClient
+  public static func size(ofValue value: borrowing T) -> Int {
     return MemoryLayout.size
   }
 
@@ -131,7 +160,8 @@ extension MemoryLayout {
   /// - Parameter value: A value representative of the type to describe.
   /// - Returns: The stride, in bytes, of the given value's type.
   @_transparent
-  public static func stride(ofValue value: T) -> Int {
+  @_alwaysEmitIntoClient
+  public static func stride(ofValue value: borrowing T) -> Int {
     return MemoryLayout.stride
   }
 
@@ -156,10 +186,36 @@ extension MemoryLayout {
   /// - Returns: The default memory alignment, in bytes, of the given value's
   ///   type. This value is always positive.
   @_transparent
-  public static func alignment(ofValue value: T) -> Int {
+  @_alwaysEmitIntoClient
+  public static func alignment(ofValue value: borrowing T) -> Int {
     return MemoryLayout.alignment
   }
+}
 
+extension MemoryLayout {
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal static func size(ofValue value: borrowing T) -> Int {
+    return MemoryLayout.size
+  }
+
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal static func stride(ofValue value: borrowing T) -> Int {
+    return MemoryLayout.stride
+  }
+
+  // TODO: Merge this back into the noncopyable variant once we have @_preInverseGenerics
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
+  @usableFromInline
+  internal static func alignment(ofValue value: borrowing T) -> Int {
+    return MemoryLayout.alignment
+  }
+}
+
+extension MemoryLayout {
   /// Returns the offset of an inline stored property within a type's in-memory
   /// representation.
   ///
@@ -229,12 +285,15 @@ extension MemoryLayout {
   @_transparent
   @_unavailableInEmbedded
   public static func offset(of key: PartialKeyPath<T>) -> Int? {
+    // FIXME(noncopyableGenerics): The new (implicit) `where T: Copyable`
+    // extension constraint currently changes the mangling of this from a
+    // standalone function to an extension method.
     return key._storedInlineOffset
   }
 }
 
 // Not-yet-public alignment conveniences
-extension MemoryLayout {
+extension MemoryLayout where T: ~Copyable {
   internal static var _alignmentMask: Int { return alignment - 1 }
 
   internal static func _roundingUpToAlignment(_ value: Int) -> Int {

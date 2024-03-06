@@ -10,13 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-/// A raw pointer for accessing 
-/// untyped data.
+/// A raw pointer for accessing untyped data.
 ///
-/// The `UnsafeRawPointer` type provides no automated memory management, no type safety,
-/// and no alignment guarantees. You are responsible for handling the life
-/// cycle of any memory you work with through unsafe pointers, to avoid leaks
-/// or undefined behavior.
+/// The `UnsafeRawPointer` type provides no automated memory management, no type
+/// safety, and no alignment guarantees. You are responsible for handling the
+/// life cycle of any memory you work with through unsafe pointers, to avoid
+/// leaks or undefined behavior.
 ///
 /// Memory that you manually manage can be either *untyped* or *bound* to a
 /// specific type. You use the `UnsafeRawPointer` type to access and
@@ -26,14 +25,14 @@
 /// Understanding a Pointer's Memory State
 /// ======================================
 ///
-/// The memory referenced by an `UnsafeRawPointer` instance can be in one of several
-/// states. Many pointer operations must only be applied to pointers with
-/// memory in a specific state---you must keep track of the state of the
+/// The memory referenced by an `UnsafeRawPointer` instance can be in one of
+/// several states. Many pointer operations must only be applied to pointers
+/// with memory in a specific state---you must keep track of the state of the
 /// memory you are working with and understand the changes to that state that
-/// different operations perform. Memory can be untyped and uninitialized,
-/// bound to a type and uninitialized, or bound to a type and initialized to a
-/// value. Finally, memory that was allocated previously may have been
-/// deallocated, leaving existing pointers referencing unallocated memory.
+/// different operations perform. Memory can be untyped and uninitialized, bound
+/// to a type and uninitialized, or bound to a type and initialized to a value.
+/// Finally, memory that was allocated previously may have been deallocated,
+/// leaving existing pointers referencing unallocated memory.
 ///
 /// Raw, Uninitialized Memory
 /// -------------------------
@@ -99,8 +98,8 @@
 /// Implicit Casting and Bridging
 /// =============================
 ///
-/// When calling a function or method with an `UnsafeRawPointer` parameter, you can pass
-/// an instance of that specific pointer type, pass an instance of a
+/// When calling a function or method with an `UnsafeRawPointer` parameter, you
+/// can pass an instance of that specific pointer type, pass an instance of a
 /// compatible pointer type, or use Swift's implicit bridging to pass a
 /// compatible pointer.
 ///
@@ -113,8 +112,8 @@
 ///     }
 ///
 /// As is typical in Swift, you can call the `print(address:as:)` function with
-/// an `UnsafeRawPointer` instance. This example passes `rawPointer` as the initial
-/// parameter.
+/// an `UnsafeRawPointer` instance. This example passes `rawPointer` as the
+/// initial parameter.
 ///
 ///     // 'rawPointer' points to memory initialized with `Int` values.
 ///     let rawPointer: UnsafeRawPointer = ...
@@ -182,7 +181,12 @@ public struct UnsafeRawPointer: _Pointer {
   public init(_ _rawValue: Builtin.RawPointer) {
     self._rawValue = _rawValue
   }
+}
 
+@available(*, unavailable)
+extension UnsafeRawPointer: Sendable {}
+
+extension UnsafeRawPointer {
   /// Creates a new raw pointer from the given typed pointer.
   ///
   /// Use this initializer to explicitly convert `other` to an `UnsafeRawPointer`
@@ -191,7 +195,8 @@ public struct UnsafeRawPointer: _Pointer {
   ///
   /// - Parameter other: The typed pointer to convert.
   @_transparent
-  public init<T>(@_nonEphemeral _ other: UnsafePointer<T>) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init<T: ~Copyable>(@_nonEphemeral _ other: UnsafePointer<T>) {
     _rawValue = other._rawValue
   }
 
@@ -204,11 +209,14 @@ public struct UnsafeRawPointer: _Pointer {
   /// - Parameter other: The typed pointer to convert. If `other` is `nil`, the
   ///   result is `nil`.
   @_transparent
-  public init?<T>(@_nonEphemeral _ other: UnsafePointer<T>?) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init?<T: ~Copyable>(@_nonEphemeral _ other: UnsafePointer<T>?) {
     guard let unwrapped = other else { return nil }
     _rawValue = unwrapped._rawValue
   }
+}
 
+extension UnsafeRawPointer {
   /// Creates a new raw pointer from the given mutable raw pointer.
   ///
   /// Use this initializer to explicitly convert `other` to an `UnsafeRawPointer`
@@ -234,7 +242,9 @@ public struct UnsafeRawPointer: _Pointer {
     guard let unwrapped = other else { return nil }
     _rawValue = unwrapped._rawValue
   }
+}
 
+extension UnsafeRawPointer {
   /// Creates a new raw pointer from the given typed pointer.
   ///
   /// Use this initializer to explicitly convert `other` to an `UnsafeRawPointer`
@@ -243,7 +253,8 @@ public struct UnsafeRawPointer: _Pointer {
   ///
   /// - Parameter other: The typed pointer to convert.
   @_transparent
-  public init<T>(@_nonEphemeral _ other: UnsafeMutablePointer<T>) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init<T: ~Copyable>(@_nonEphemeral _ other: UnsafeMutablePointer<T>) {
     _rawValue = other._rawValue
   }
 
@@ -256,7 +267,8 @@ public struct UnsafeRawPointer: _Pointer {
   /// - Parameter other: The typed pointer to convert. If `other` is `nil`, the
   ///   result is `nil`.
   @_transparent
-  public init?<T>(@_nonEphemeral _ other: UnsafeMutablePointer<T>?) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init?<T: ~Copyable>(@_nonEphemeral _ other: UnsafeMutablePointer<T>?) {
     guard let unwrapped = other else { return nil }
     _rawValue = unwrapped._rawValue
   }
@@ -311,8 +323,9 @@ public struct UnsafeRawPointer: _Pointer {
   ///   The number of bytes in this region is
   ///   `count * MemoryLayout<T>.stride`.
   @_transparent
+  // FIXME(NCG): @_preInverseGenerics
   @discardableResult
-  public func bindMemory<T>(
+  public func bindMemory<T: ~Copyable>(
     to type: T.Type, capacity count: Int
   ) -> UnsafePointer<T> {
     Builtin.bindMemory(_rawValue, count._builtinWordValue, type)
@@ -370,9 +383,8 @@ public struct UnsafeRawPointer: _Pointer {
   ///     the return value for the `withMemoryRebound(to:capacity:_:)` method.
   ///   - pointer: The pointer temporarily bound to `T`.
   /// - Returns: The return value, if any, of the `body` closure parameter.
-  @inlinable
   @_alwaysEmitIntoClient
-  public func withMemoryRebound<T, Result, E: Error>(
+  public func withMemoryRebound<T: ~Copyable, Result: ~Copyable, E: Error>(
     to type: T.Type,
     capacity count: Int,
     _ body: (_ pointer: UnsafePointer<T>) throws(E) -> Result
@@ -398,7 +410,10 @@ public struct UnsafeRawPointer: _Pointer {
   /// - Parameter to: The type `T` that the memory has already been bound to.
   /// - Returns: A typed pointer to the same memory as this raw pointer.
   @_transparent
-  public func assumingMemoryBound<T>(to: T.Type) -> UnsafePointer<T> {
+  // FIXME(NCG): @_preInverseGenerics
+  public func assumingMemoryBound<T: ~Copyable>(
+    to: T.Type
+  ) -> UnsafePointer<T> {
     return UnsafePointer<T>(_rawValue)
   }
 
@@ -417,7 +432,10 @@ public struct UnsafeRawPointer: _Pointer {
   ///   `offset`. The returned instance is memory-managed and unassociated
   ///   with the value in the memory referenced by this pointer.
   @inlinable
-  public func load<T>(fromByteOffset offset: Int = 0, as type: T.Type) -> T {
+  public func load<T>(
+    fromByteOffset offset: Int = 0,
+    as type: T.Type
+  ) -> T {
     _debugPrecondition(0 == (UInt(bitPattern: self + offset)
         & (UInt(MemoryLayout<T>.alignment) - 1)),
       "load from misaligned raw pointer")
@@ -433,6 +451,42 @@ public struct UnsafeRawPointer: _Pointer {
     return Builtin.loadRaw(rawPointer)
 #endif
   }
+
+  // FIXME(NCG): Add a consuming analogue of `load`, like `move(fromByteOffset:as:_:)`
+  // FIXME(NCG): Add a borrow analogue of `load`, like `withBorrow(fromByteOffset:as:_:)`
+
+#if $BitwiseCopyable
+  /// Returns a new instance of the given type, constructed from the raw memory
+  /// at the specified offset.
+  ///
+  /// This function only supports loading trivial types,
+  /// and will trap if this precondition is not met.
+  /// A trivial type does not contain any reference-counted property
+  /// within its in-memory representation.
+  /// The memory at this pointer plus `offset` must be laid out
+  /// identically to the in-memory representation of `T`.
+  ///
+  /// - Note: A trivial type can be copied with just a bit-for-bit copy without
+  ///   any indirection or reference-counting operations. Generally, native
+  ///   Swift types that do not contain strong or weak references or other
+  ///   forms of indirection are trivial, as are imported C structs and enums.
+  ///
+  /// - Parameters:
+  ///   - offset: The offset from this pointer, in bytes. `offset` must be
+  ///     nonnegative. The default is zero.
+  ///   - type: The type of the instance to create.
+  /// - Returns: A new instance of type `T`, read from the raw bytes at
+  ///   `offset`. The returned instance isn't associated
+  ///   with the value in the range of memory referenced by this pointer.
+  @inlinable
+  @_alwaysEmitIntoClient
+  public func loadUnaligned<T: _BitwiseCopyable>(
+    fromByteOffset offset: Int = 0,
+    as type: T.Type
+  ) -> T {
+    return Builtin.loadRaw((self + offset)._rawValue)
+  }
+#endif
 
   /// Returns a new instance of the given type, constructed from the raw memory
   /// at the specified offset.
@@ -456,16 +510,6 @@ public struct UnsafeRawPointer: _Pointer {
   /// - Returns: A new instance of type `T`, read from the raw bytes at
   ///   `offset`. The returned instance isn't associated
   ///   with the value in the range of memory referenced by this pointer.
-#if $BitwiseCopyable
-  @inlinable
-  @_alwaysEmitIntoClient
-  public func loadUnaligned<T : _BitwiseCopyable>(
-    fromByteOffset offset: Int = 0,
-    as type: T.Type
-  ) -> T {
-    return Builtin.loadRaw((self + offset)._rawValue)
-  }
-#endif
   @inlinable
   @_alwaysEmitIntoClient
   public func loadUnaligned<T>(
@@ -505,14 +549,15 @@ extension UnsafeRawPointer {
   /// - Returns: a pointer properly aligned to store a value of type `T`.
   @inlinable
   @_alwaysEmitIntoClient
-  public func alignedUp<T>(for type: T.Type) -> Self {
+  public func alignedUp<T: ~Copyable>(for type: T.Type) -> Self {
     let mask = UInt(Builtin.alignof(T.self)) &- 1
     let bits = (UInt(Builtin.ptrtoint_Word(_rawValue)) &+ mask) & ~mask
     _debugPrecondition(bits != 0, "Overflow in pointer arithmetic")
     return .init(Builtin.inttoptr_Word(bits._builtinWordValue))
   }
 
-  /// Obtain the preceding pointer properly aligned to store a value of type `T`.
+  /// Obtain the preceding pointer properly aligned to store a value of type
+  /// `T`.
   ///
   /// If `self` is properly aligned for accessing `T`,
   /// this function returns `self`.
@@ -522,7 +567,7 @@ extension UnsafeRawPointer {
   /// - Returns: a pointer properly aligned to store a value of type `T`.
   @inlinable
   @_alwaysEmitIntoClient
-  public func alignedDown<T>(for type: T.Type) -> Self {
+  public func alignedDown<T: ~Copyable>(for type: T.Type) -> Self {
     let mask = UInt(Builtin.alignof(T.self)) &- 1
     let bits = UInt(Builtin.ptrtoint_Word(_rawValue)) & ~mask
     _debugPrecondition(bits != 0, "Overflow in pointer arithmetic")
@@ -551,7 +596,8 @@ extension UnsafeRawPointer {
     return .init(Builtin.inttoptr_Word(bits._builtinWordValue))
   }
 
-  /// Obtain the preceding pointer whose bit pattern is a multiple of `alignment`.
+  /// Obtain the preceding pointer whose bit pattern is a multiple of
+  /// `alignment`.
   ///
   /// If the bit pattern of `self` is a multiple of `alignment`,
   /// this function returns `self`.
@@ -577,10 +623,10 @@ extension UnsafeRawPointer {
 /// A raw pointer for accessing and manipulating
 /// untyped data.
 ///
-/// The `UnsafeMutableRawPointer` type provides no automated memory management, no type safety,
-/// and no alignment guarantees. You are responsible for handling the life
-/// cycle of any memory you work with through unsafe pointers, to avoid leaks
-/// or undefined behavior.
+/// The `UnsafeMutableRawPointer` type provides no automated memory management,
+/// no type safety, and no alignment guarantees. You are responsible for
+/// handling the life cycle of any memory you work with through unsafe pointers,
+/// to avoid leaks or undefined behavior.
 ///
 /// Memory that you manually manage can be either *untyped* or *bound* to a
 /// specific type. You use the `UnsafeMutableRawPointer` type to access and
@@ -590,14 +636,14 @@ extension UnsafeRawPointer {
 /// Understanding a Pointer's Memory State
 /// ======================================
 ///
-/// The memory referenced by an `UnsafeMutableRawPointer` instance can be in one of several
-/// states. Many pointer operations must only be applied to pointers with
-/// memory in a specific state---you must keep track of the state of the
+/// The memory referenced by an `UnsafeMutableRawPointer` instance can be in one
+/// of several states. Many pointer operations must only be applied to pointers
+/// with memory in a specific state---you must keep track of the state of the
 /// memory you are working with and understand the changes to that state that
-/// different operations perform. Memory can be untyped and uninitialized,
-/// bound to a type and uninitialized, or bound to a type and initialized to a
-/// value. Finally, memory that was allocated previously may have been
-/// deallocated, leaving existing pointers referencing unallocated memory.
+/// different operations perform. Memory can be untyped and uninitialized, bound
+/// to a type and uninitialized, or bound to a type and initialized to a value.
+/// Finally, memory that was allocated previously may have been deallocated,
+/// leaving existing pointers referencing unallocated memory.
 ///
 /// Raw, Uninitialized Memory
 /// -------------------------
@@ -668,10 +714,10 @@ extension UnsafeRawPointer {
 /// Implicit Casting and Bridging
 /// =============================
 ///
-/// When calling a function or method with an `UnsafeMutableRawPointer` parameter, you can pass
-/// an instance of that specific pointer type, pass an instance of a
-/// compatible pointer type, or use Swift's implicit bridging to pass a
-/// compatible pointer.
+/// When calling a function or method with an `UnsafeMutableRawPointer`
+/// parameter, you can pass an instance of that specific pointer type, pass an
+/// instance of a compatible pointer type, or use Swift's implicit bridging to
+/// pass a compatible pointer.
 ///
 /// For example, the `print(address:as:)` function in the following code sample
 /// takes an `UnsafeMutableRawPointer` instance as its first parameter:
@@ -682,8 +728,8 @@ extension UnsafeRawPointer {
 ///     }
 ///
 /// As is typical in Swift, you can call the `print(address:as:)` function with
-/// an `UnsafeMutableRawPointer` instance. This example passes `rawPointer` as the initial
-/// parameter.
+/// an `UnsafeMutableRawPointer` instance. This example passes `rawPointer` as
+/// the initial parameter.
 ///
 ///     // 'rawPointer' points to memory initialized with `Int` values.
 ///     let rawPointer: UnsafeMutableRawPointer = ...
@@ -728,9 +774,9 @@ extension UnsafeRawPointer {
 ///       // Accessing 'numberPointer' is undefined behavior.
 @frozen
 public struct UnsafeMutableRawPointer: _Pointer {
-  
+
   public typealias Pointee = UInt8
-  
+
   /// The underlying raw pointer.
   /// Implements conformance to the public protocol `_Pointer`.
   public let _rawValue: Builtin.RawPointer
@@ -740,38 +786,45 @@ public struct UnsafeMutableRawPointer: _Pointer {
   public init(_ _rawValue: Builtin.RawPointer) {
     self._rawValue = _rawValue
   }
+}
 
+@available(*, unavailable)
+extension UnsafeMutableRawPointer: Sendable {}
+
+extension UnsafeMutableRawPointer {
   /// Creates a new raw pointer from the given typed pointer.
   ///
-  /// Use this initializer to explicitly convert `other` to an `UnsafeMutableRawPointer`
-  /// instance. This initializer creates a new pointer to the same address as
-  /// `other` and performs no allocation or copying.
+  /// Use this initializer to explicitly convert `other` to an
+  /// `UnsafeMutableRawPointer` instance. This initializer creates a new pointer
+  /// to the same address as `other` and performs no allocation or copying.
   ///
   /// - Parameter other: The typed pointer to convert.
   @_transparent
-  public init<T>(@_nonEphemeral _ other: UnsafeMutablePointer<T>) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init<T: ~Copyable>(@_nonEphemeral _ other: UnsafeMutablePointer<T>) {
     _rawValue = other._rawValue
   }
 
   /// Creates a new raw pointer from the given typed pointer.
   ///
-  /// Use this initializer to explicitly convert `other` to an `UnsafeMutableRawPointer`
-  /// instance. This initializer creates a new pointer to the same address as
-  /// `other` and performs no allocation or copying.
+  /// Use this initializer to explicitly convert `other` to an
+  /// `UnsafeMutableRawPointer` instance. This initializer creates a new pointer
+  /// to the same address as `other` and performs no allocation or copying.
   ///
   /// - Parameter other: The typed pointer to convert. If `other` is `nil`, the
   ///   result is `nil`.
   @_transparent
-  public init?<T>(@_nonEphemeral _ other: UnsafeMutablePointer<T>?) {
+  // FIXME(NCG): @_preInverseGenerics
+  public init?<T: ~Copyable>(@_nonEphemeral _ other: UnsafeMutablePointer<T>?) {
     guard let unwrapped = other else { return nil }
     _rawValue = unwrapped._rawValue
   }
 
   /// Creates a new mutable raw pointer from the given immutable raw pointer.
   ///
-  /// Use this initializer to explicitly convert `other` to an `UnsafeMutableRawPointer`
-  /// instance. This initializer creates a new pointer to the same address as
-  /// `other` and performs no allocation or copying.
+  /// Use this initializer to explicitly convert `other` to an
+  /// `UnsafeMutableRawPointer` instance. This initializer creates a new pointer
+  /// to the same address as `other` and performs no allocation or copying.
   ///
   /// - Parameter other: The immutable raw pointer to convert.
   @_transparent
@@ -781,9 +834,9 @@ public struct UnsafeMutableRawPointer: _Pointer {
 
   /// Creates a new mutable raw pointer from the given immutable raw pointer.
   ///
-  /// Use this initializer to explicitly convert `other` to an `UnsafeMutableRawPointer`
-  /// instance. This initializer creates a new pointer to the same address as
-  /// `other` and performs no allocation or copying.
+  /// Use this initializer to explicitly convert `other` to an
+  /// `UnsafeMutableRawPointer` instance. This initializer creates a new pointer
+  /// to the same address as `other` and performs no allocation or copying.
   ///
   /// - Parameter other: The immutable raw pointer to convert. If `other` is
   ///   `nil`, the result is `nil`.
@@ -804,7 +857,8 @@ public struct UnsafeMutableRawPointer: _Pointer {
   /// `UnsafeMutablePointer.allocate(capacity:)` static method instead.
   ///
   /// - Parameters:
-  ///   - byteCount: The number of bytes to allocate. `byteCount` must not be negative.
+  ///   - byteCount: The number of bytes to allocate. `byteCount` must not be
+  ///     negative.
   ///   - alignment: The alignment of the new region of allocated memory, in
   ///     bytes. `alignment` must be a whole power of 2.
   /// - Returns: A pointer to a newly allocated region of memory. The memory is
@@ -832,7 +886,8 @@ public struct UnsafeMutableRawPointer: _Pointer {
         byteCount._builtinWordValue, alignment._builtinWordValue))
   }
 
-  /// Deallocates the previously allocated memory block referenced by this pointer.
+  /// Deallocates the previously allocated memory block referenced by this
+  /// pointer.
   ///
   /// The memory to be deallocated must be uninitialized or initialized to a
   /// trivial type.
@@ -882,8 +937,9 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///   The number of bytes in this region is
   ///   `count * MemoryLayout<T>.stride`.
   @_transparent
+  // FIXME(NCG): @_preInverseGenerics
   @discardableResult
-  public func bindMemory<T>(
+  public func bindMemory<T: ~Copyable>(
     to type: T.Type, capacity count: Int
   ) -> UnsafeMutablePointer<T> {
     Builtin.bindMemory(_rawValue, count._builtinWordValue, type)
@@ -939,9 +995,8 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///     the return value for the `withMemoryRebound(to:capacity:_:)` method.
   ///   - pointer: The pointer temporarily bound to `T`.
   /// - Returns: The return value, if any, of the `body` closure parameter.
-  @inlinable
   @_alwaysEmitIntoClient
-  public func withMemoryRebound<T, Result, E: Error>(
+  public func withMemoryRebound<T: ~Copyable, Result: ~Copyable, E: Error>(
     to type: T.Type,
     capacity count: Int,
     _ body: (_ pointer: UnsafeMutablePointer<T>) throws(E) -> Result
@@ -967,7 +1022,10 @@ public struct UnsafeMutableRawPointer: _Pointer {
   /// - Parameter to: The type `T` that the memory has already been bound to.
   /// - Returns: A typed pointer to the same memory as this raw pointer.
   @_transparent
-  public func assumingMemoryBound<T>(to: T.Type) -> UnsafeMutablePointer<T> {
+  // FIXME(NCG): @_preInverseGenerics
+  public func assumingMemoryBound<T: ~Copyable>(
+    to: T.Type
+  ) -> UnsafeMutablePointer<T> {
     return UnsafeMutablePointer<T>(_rawValue)
   }
 
@@ -1001,13 +1059,12 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///   - value: The value used to initialize this memory.
   /// - Returns: A typed pointer to the memory referenced by this raw pointer.
   @discardableResult
-  @inlinable
   @_alwaysEmitIntoClient
-  public func initializeMemory<T>(
-    as type: T.Type, to value: T
+  public func initializeMemory<T: ~Copyable>(
+    as type: T.Type, to value: consuming T
   ) -> UnsafeMutablePointer<T> {
     Builtin.bindMemory(_rawValue, (1)._builtinWordValue, type)
-    Builtin.initialize(value, _rawValue)
+    Builtin.initialize(consume value, _rawValue)
     return UnsafeMutablePointer(_rawValue)
   }
 
@@ -1020,8 +1077,8 @@ public struct UnsafeMutableRawPointer: _Pointer {
   /// accessing `T`.
   ///
   /// The following example allocates enough raw memory to hold four instances
-  /// of `Int8`, and then uses the `initializeMemory(as:repeating:count:)` method
-  /// to initialize the allocated memory.
+  /// of `Int8`, and then uses the `initializeMemory(as:repeating:count:)`
+  /// method to initialize the allocated memory.
   ///
   ///     let count = 4
   ///     let bytesPointer = UnsafeMutableRawPointer.allocate(
@@ -1034,15 +1091,16 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///     int8Pointer.deallocate()
   ///
   /// After calling this method on a raw pointer `p`, the region starting at
-  /// `self` and continuing up to `p + count * MemoryLayout<T>.stride` is bound 
-  /// to type `T` and initialized. If `T` is a nontrivial type, you must 
-  /// eventually deinitialize or move from the values in this region to avoid leaks.
+  /// `self` and continuing up to `p + count * MemoryLayout<T>.stride` is bound
+  /// to type `T` and initialized. If `T` is a nontrivial type, you must
+  /// eventually deinitialize or move from the values in this region to avoid
+  /// leaks.
   ///
   /// - Parameters:
   ///   - type: The type to bind this memory to.
   ///   - repeatedValue: The instance to copy into memory.
   ///   - count: The number of copies of `value` to copy into memory. `count`
-  ///     must not be negative. 
+  ///     must not be negative.
   /// - Returns: A typed pointer to the memory referenced by this raw pointer.
   @inlinable
   @discardableResult
@@ -1158,8 +1216,9 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///     must not be negative.
   /// - Returns: A typed pointer to the memory referenced by this raw pointer.
   @inlinable
+  // FIXME(NCG): @_preInverseGenerics
   @discardableResult
-  public func moveInitializeMemory<T>(
+  public func moveInitializeMemory<T: ~Copyable>(
     as type: T.Type, from source: UnsafeMutablePointer<T>, count: Int
   ) -> UnsafeMutablePointer<T> {
     _debugPrecondition(
@@ -1207,7 +1266,10 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///   `offset`. The returned instance is memory-managed and unassociated
   ///   with the value in the memory referenced by this pointer.
   @inlinable
-  public func load<T>(fromByteOffset offset: Int = 0, as type: T.Type) -> T {
+  public func load<T>(
+    fromByteOffset offset: Int = 0,
+    as type: T.Type
+  ) -> T {
     _debugPrecondition(0 == (UInt(bitPattern: self + offset)
         & (UInt(MemoryLayout<T>.alignment) - 1)),
       "load from misaligned raw pointer")
@@ -1223,6 +1285,42 @@ public struct UnsafeMutableRawPointer: _Pointer {
     return Builtin.loadRaw(rawPointer)
 #endif
   }
+
+  // FIXME(NCG): Add a consuming analogue of `load`, like `move(fromByteOffset:as:_:)`
+  // FIXME(NCG): Add a borrow analogue of `load`, like `withBorrow(fromByteOffset:as:_:)`
+
+#if $BitwiseCopyable
+  /// Returns a new instance of the given type, constructed from the raw memory
+  /// at the specified offset.
+  ///
+  /// This function only supports loading trivial types,
+  /// and will trap if this precondition is not met.
+  /// A trivial type does not contain any reference-counted property
+  /// within its in-memory representation.
+  /// The memory at this pointer plus `offset` must be laid out
+  /// identically to the in-memory representation of `T`.
+  ///
+  /// - Note: A trivial type can be copied with just a bit-for-bit copy without
+  ///   any indirection or reference-counting operations. Generally, native
+  ///   Swift types that do not contain strong or weak references or other
+  ///   forms of indirection are trivial, as are imported C structs and enums.
+  ///
+  /// - Parameters:
+  ///   - offset: The offset from this pointer, in bytes. `offset` must be
+  ///     nonnegative. The default is zero.
+  ///   - type: The type of the instance to create.
+  /// - Returns: A new instance of type `T`, read from the raw bytes at
+  ///   `offset`. The returned instance isn't associated
+  ///   with the value in the range of memory referenced by this pointer.
+  @inlinable
+  @_alwaysEmitIntoClient
+  public func loadUnaligned<T: _BitwiseCopyable>(
+    fromByteOffset offset: Int = 0,
+    as type: T.Type
+  ) -> T {
+    return Builtin.loadRaw((self + offset)._rawValue)
+  }
+#endif
 
   /// Returns a new instance of the given type, constructed from the raw memory
   /// at the specified offset.
@@ -1246,16 +1344,6 @@ public struct UnsafeMutableRawPointer: _Pointer {
   /// - Returns: A new instance of type `T`, read from the raw bytes at
   ///   `offset`. The returned instance isn't associated
   ///   with the value in the range of memory referenced by this pointer.
-#if $BitwiseCopyable
-  @inlinable
-  @_alwaysEmitIntoClient
-  public func loadUnaligned<T : _BitwiseCopyable>(
-    fromByteOffset offset: Int = 0,
-    as type: T.Type
-  ) -> T {
-    return Builtin.loadRaw((self + offset)._rawValue)
-  }
-#endif
   @inlinable
   @_alwaysEmitIntoClient
   public func loadUnaligned<T>(
@@ -1274,6 +1362,55 @@ public struct UnsafeMutableRawPointer: _Pointer {
       return temporary.pointee
     }
   }
+
+#if $BitwiseCopyable
+  /// Stores the given value's bytes into raw memory at the specified offset.
+  ///
+  /// The type `T` to be stored must be a trivial type. The memory
+  /// must also be uninitialized, initialized to `T`, or initialized to
+  /// another trivial type that is layout compatible with `T`.
+  ///
+  /// After calling `storeBytes(of:toByteOffset:as:)`, the memory is
+  /// initialized to the raw bytes of `value`. If the memory is bound to a
+  /// type `U` that is layout compatible with `T`, then it contains a value of
+  /// type `U`. Calling `storeBytes(of:toByteOffset:as:)` does not change the
+  /// bound type of the memory.
+  ///
+  /// - Note: A trivial type can be copied with just a bit-for-bit copy without
+  ///   any indirection or reference-counting operations. Generally, native
+  ///   Swift types that do not contain strong or weak references or other
+  ///   forms of indirection are trivial, as are imported C structs and enums.
+  ///
+  /// If you need to store into memory a copy of a value of a type that isn't
+  /// trivial, you cannot use the `storeBytes(of:toByteOffset:as:)` method.
+  /// Instead, you must know either initialize the memory or,
+  /// if you know the memory was already bound to `type`, assign to the memory.
+  /// For example, to replace a value stored in a raw pointer `p`,
+  /// where `U` is the current type and `T` is the new type, use a typed
+  /// pointer to access and deinitialize the current value before initializing
+  /// the memory with a new value:
+  ///
+  ///     let typedPointer = p.bindMemory(to: U.self, capacity: 1)
+  ///     typedPointer.deinitialize(count: 1)
+  ///     p.initializeMemory(as: T.self, repeating: newValue, count: 1)
+  ///
+  /// - Parameters:
+  ///   - value: The value to store as raw bytes.
+  ///   - offset: The offset from this pointer, in bytes. `offset` must be
+  ///     nonnegative. The default is zero.
+  ///   - type: The type of `value`.
+  @inlinable
+  @_alwaysEmitIntoClient
+  public func storeBytes<T: _BitwiseCopyable>(
+    of value: T, toByteOffset offset: Int = 0, as type: T.Type
+  ) {
+#if $BuiltinStoreRaw
+    Builtin.storeRaw(value, (self + offset)._rawValue)
+#else
+    fatalError("Unsupported swift compiler!")
+#endif
+  }
+#endif
 
   /// Stores the given value's bytes into raw memory at the specified offset.
   ///
@@ -1310,19 +1447,6 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///   - offset: The offset from this pointer, in bytes. `offset` must be
   ///     nonnegative. The default is zero.
   ///   - type: The type of `value`.
-#if $BitwiseCopyable
-  @inlinable
-  @_alwaysEmitIntoClient
-  public func storeBytes<T : _BitwiseCopyable>(
-    of value: T, toByteOffset offset: Int = 0, as type: T.Type
-  ) {
-#if $BuiltinStoreRaw
-    Builtin.storeRaw(value, (self + offset)._rawValue)
-#else
-    fatalError("Unsupported swift compiler!")
-#endif
-  }
-#endif
   @inlinable
   @_alwaysEmitIntoClient
   // This custom silgen name is chosen to not interfere with the old ABI
@@ -1355,10 +1479,10 @@ public struct UnsafeMutableRawPointer: _Pointer {
 #endif
   }
 
-  // This unavailable implementation uses the expected mangled name
+  // This obsolete implementation uses the expected mangled name
   // of `storeBytes<T>(of:toByteOffset:as:)`, and provides an entry point for
   // any binary compiled against the stdlib binary for Swift 5.6 and older.
-  @available(*, unavailable)
+  @_spi(SwiftStdlibLegacyABI) @available(swift, obsoleted: 2)
   @_silgen_name("$sSv10storeBytes2of12toByteOffset2asyx_SixmtlF")
   @usableFromInline func _legacy_se0349_storeBytes<T>(
     of value: T, toByteOffset offset: Int = 0, as type: T.Type
@@ -1390,7 +1514,7 @@ public struct UnsafeMutableRawPointer: _Pointer {
   /// Copies the specified number of bytes from the given raw pointer's memory
   /// into this pointer's memory.
   ///
-  /// If the `byteCount` bytes of memory referenced by this pointer are bound to 
+  /// If the `byteCount` bytes of memory referenced by this pointer are bound to
   /// a type `T`, then `T` must be a trivial type, this pointer and `source`
   /// must be properly aligned for accessing `T`, and `byteCount` must be a
   /// multiple of `MemoryLayout<T>.stride`.
@@ -1398,7 +1522,7 @@ public struct UnsafeMutableRawPointer: _Pointer {
   /// The memory in the region `source..<(source + byteCount)` may overlap with
   /// the memory referenced by this pointer.
   ///
-  /// After calling `copyMemory(from:byteCount:)`, the `byteCount` bytes of 
+  /// After calling `copyMemory(from:byteCount:)`, the `byteCount` bytes of
   /// memory referenced by this pointer are initialized to raw bytes. If the
   /// memory is bound to type `T`, then it contains values of type `T`.
   ///
@@ -1406,7 +1530,8 @@ public struct UnsafeMutableRawPointer: _Pointer {
   ///   - source: A pointer to the memory to copy bytes from. The memory in the
   ///     region `source..<(source + byteCount)` must be initialized to a
   ///     trivial type.
-  ///   - byteCount: The number of bytes to copy. `byteCount` must not be negative.
+  ///   - byteCount: The number of bytes to copy. `byteCount` must not be
+  ///     negative.
   @inlinable
   public func copyMemory(from source: UnsafeRawPointer, byteCount: Int) {
     _debugPrecondition(
@@ -1420,7 +1545,8 @@ extension UnsafeMutableRawPointer: Strideable {
   // custom version for raw pointers
   @_transparent
   public func advanced(by n: Int) -> UnsafeMutableRawPointer {
-    return UnsafeMutableRawPointer(Builtin.gepRaw_Word(_rawValue, n._builtinWordValue))
+    return UnsafeMutableRawPointer(
+      Builtin.gepRaw_Word(_rawValue, n._builtinWordValue))
   }
 }
 
@@ -1435,14 +1561,15 @@ extension UnsafeMutableRawPointer {
   /// - Returns: a pointer properly aligned to store a value of type `T`.
   @inlinable
   @_alwaysEmitIntoClient
-  public func alignedUp<T>(for type: T.Type) -> Self {
+  public func alignedUp<T: ~Copyable>(for type: T.Type) -> Self {
     let mask = UInt(Builtin.alignof(T.self)) &- 1
     let bits = (UInt(Builtin.ptrtoint_Word(_rawValue)) &+ mask) & ~mask
     _debugPrecondition(bits != 0, "Overflow in pointer arithmetic")
     return .init(Builtin.inttoptr_Word(bits._builtinWordValue))
   }
 
-  /// Obtain the preceding pointer properly aligned to store a value of type `T`.
+  /// Obtain the preceding pointer properly aligned to store a value of type
+  /// `T`.
   ///
   /// If `self` is properly aligned for accessing `T`,
   /// this function returns `self`.
@@ -1452,7 +1579,7 @@ extension UnsafeMutableRawPointer {
   /// - Returns: a pointer properly aligned to store a value of type `T`.
   @inlinable
   @_alwaysEmitIntoClient
-  public func alignedDown<T>(for type: T.Type) -> Self {
+  public func alignedDown<T: ~Copyable>(for type: T.Type) -> Self {
     let mask = UInt(Builtin.alignof(T.self)) &- 1
     let bits = UInt(Builtin.ptrtoint_Word(_rawValue)) & ~mask
     _debugPrecondition(bits != 0, "Overflow in pointer arithmetic")
@@ -1481,7 +1608,8 @@ extension UnsafeMutableRawPointer {
     return .init(Builtin.inttoptr_Word(bits._builtinWordValue))
   }
 
-  /// Obtain the preceding pointer whose bit pattern is a multiple of `alignment`.
+  /// Obtain the preceding pointer whose bit pattern is a multiple of
+  /// `alignment`.
   ///
   /// If the bit pattern of `self` is a multiple of `alignment`,
   /// this function returns `self`.
@@ -1527,8 +1655,3 @@ extension OpaquePointer {
     self._rawValue = unwrapped._rawValue
   }
 }
-
-@available(*, unavailable)
-extension UnsafeRawPointer: Sendable { }
-@available(*, unavailable)
-extension UnsafeMutableRawPointer: Sendable { }

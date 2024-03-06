@@ -1348,7 +1348,7 @@ def create_argument_parser():
            help='Enable experimental Swift distributed actors.')
 
     option('--enable-experimental-noncopyable-generics', toggle_true,
-           default=False,
+           default=True,
            help='Enable experimental NoncopyableGenerics.')
 
     option('--enable-experimental-string-processing', toggle_true,

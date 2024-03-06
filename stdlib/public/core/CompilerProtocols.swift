@@ -266,7 +266,7 @@ public protocol CaseIterable {
 /// `Optional` type conforms to `ExpressibleByNilLiteral`.
 /// `ExpressibleByNilLiteral` conformance for types that use `nil` for other
 /// purposes is discouraged.
-public protocol ExpressibleByNilLiteral {
+public protocol ExpressibleByNilLiteral: ~Copyable {
   /// Creates an instance initialized with `nil`.
   init(nilLiteral: ())
 }
