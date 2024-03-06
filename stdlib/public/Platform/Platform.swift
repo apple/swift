@@ -344,7 +344,9 @@ public var SIG_IGN: sig_t { return unsafeBitCast(1, to: sig_t.self) }
 public var SIG_ERR: sig_t { return unsafeBitCast(-1, to: sig_t.self) }
 public var SIG_HOLD: sig_t { return unsafeBitCast(3, to: sig_t.self) }
 #elseif os(Linux) || os(FreeBSD) || os(PS4) || os(Android) || os(Haiku)
+#if !canImport(SwiftMusl)
 public typealias sighandler_t = __sighandler_t
+#endif
 
 public var SIG_DFL: sighandler_t? { return nil }
 public var SIG_IGN: sighandler_t {
@@ -487,7 +489,7 @@ extension Duration {
 public var environ: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?> {
   return _swift_stdlib_getEnviron()
 }
-#elseif os(Linux)
+#elseif os(Linux) && !canImport(SwiftMusl)
 public var environ: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?> {
   return __environ
 }

@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -10,102 +10,868 @@
 //
 //===----------------------------------------------------------------------===//
 
-module SwiftMusl [system] {
-  header "stdc-predef.h"
+module _musl [system] {
+  config_macros _GNU_SOURCE, _BSD_SOURCE, _XOPEN_SOURCE, _POSIX_SOURCE, _POSIX_C_SOURCE, _LARGEFILE64_SOURCE, _ALL_SOURCE, _DEFAULT_SOURCE, __STRICT_ANSI__
+
   header "features.h"
 
-  // C standard library
-  header "complex.h"
-  header "ctype.h"
-  header "errno.h"
-  header "fenv.h"
-  header "float.h"
-  header "inttypes.h"
-  header "iso646.h"
-  header "limits.h"
-  header "locale.h"
-  header "math.h"
-  header "pty.h"
-  header "setjmp.h"
-  header "signal.h"
-  header "stdarg.h"
-  header "stdbool.h"
-  header "stddef.h"
-  header "stdint.h"
-  header "stdio.h"
-  header "stdlib.h"
-  header "string.h"
-  header "tgmath.h"
-  header "time.h"
-  header "utmp.h"
+  header "bits/musldefs.h"
 
-  // POSIX
-  header "aio.h"
-  header "arpa/inet.h"
-  header "cpio.h"
-  header "dirent.h"
-  header "dlfcn.h"
-  header "fcntl.h"
-  header "fmtmsg.h"
-  header "fnmatch.h"
-  header "ftw.h"
-  header "glob.h"
-  header "grp.h"
-  header "iconv.h"
-  header "ifaddrs.h"
-  header "langinfo.h"
-  header "libgen.h"
-  header "link.h"
-  header "monetary.h"
-  header "net/if.h"
-  header "netdb.h"
-  header "netinet/in.h"
-  header "netinet/tcp.h"
-  header "nl_types.h"
-  header "poll.h"
-  header "pthread.h"
-  header "pwd.h"
-  header "regex.h"
-  header "sched.h"
-  header "search.h"
-  header "semaphore.h"
-  header "spawn.h"
-  header "strings.h"
-  header "sys/file.h"
-  header "sys/inotify.h"
-  header "sys/ioctl.h"
-  header "sys/ipc.h"
-  header "sys/mman.h"
-  header "sys/mount.h"
-  header "sys/msg.h"
-  header "sys/resource.h"
-  header "sys/select.h"
-  header "sys/sem.h"
-  header "sys/sendfile.h"
-  header "sys/shm.h"
-  header "sys/socket.h"
-  header "sys/stat.h"
-  header "sys/statvfs.h"
-  header "sys/time.h"
-  header "sys/times.h"
-  header "sys/types.h"
-  header "sys/uio.h"
-  header "sys/un.h"
-  header "sys/user.h"
-  header "sys/utsname.h"
-  header "sys/wait.h"
-  header "sysexits.h"
-  header "syslog.h"
-  header "tar.h"
-  header "termios.h"
-  header "ulimit.h"
-  header "unistd.h"
-  header "utime.h"
-  header "utmpx.h"
-  header "wordexp.h"
+  exclude header "bits/alltypes.h"
 
-  // <assert.h>'s use of NDEBUG requires textual inclusion. 
+  // Type declarations live in bits
+  module types {
+    umbrella "bits/types"
+      module * {
+      export *
+    }
+  }
+}
+
+module stdc_assert [system] {
+  config_macros NDEBUG
   textual header "assert.h"
-
   export *
 }
+
+module stdc_float [system] {
+  header "float.h"
+  export *
+}
+
+module stdc_iso646 [system] {
+  header "iso646.h"
+  export *
+}
+
+module stdc_limits [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "limits.h"
+  export *
+}
+
+module stdc_stdalign [system] {
+  header "stdalign.h"
+  export *
+}
+
+module stdc_stdarg [system] {
+  header "stdarg.h"
+  export *
+}
+
+module stdc_stdatomic [system] {
+  header "stdatomic.h"
+  export *
+}
+
+module stdc_stdbool [system] {
+  header "stdbool.h"
+  export *
+}
+
+module stdc_stddef [system] {
+  header "stddef.h"
+  export *
+}
+
+module stdc_stdint [system] {
+  header "stdint.h"
+  export *
+}
+
+module stdc_time [system] {
+  config_macros _POSIX_SOURCE, _POSIX_C_SOURCE, _XOPEN_SOURCE, _GNU_SOURCE, _BSD_SOURCE
+  header "time.h"
+  export *
+}
+
+module stdc_tgmath [system] {
+  header "tgmath.h"
+  export *
+}
+
+module stdc_complex [system] {
+  header "complex.h"
+  export *
+}
+
+module stdc_ctype [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "ctype.h"
+  export *
+}
+
+module stdc_errno [system] {
+  config_macros _GNU_SOURCE
+  header "errno.h"
+  export *
+}
+
+module stdc_fenv [system] {
+  header "fenv.h"
+  export *
+}
+
+module stdc_inttypes [system] {
+  header "inttypes.h"
+  export *
+}
+
+module stdc_locale [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "locale.h"
+  export *
+}
+
+module stdc_math [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _XOPEN_SOURCE
+  header "math.h"
+  export *
+}
+
+module stdc_setjmp [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "setjmp.h"
+  export *
+}
+
+module stdc_signal [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "signal.h"
+  export *
+}
+
+module stdc_stdio [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "stdio.h"
+  export *
+}
+
+module stdc_stdlib [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "stdlib.h"
+  export *
+}
+
+module stdc_stdnoreturn [system] {
+  header "stdnoreturn.h"
+  export *
+}
+
+module stdc_string [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "string.h"
+  export *
+}
+
+module stdc_threads [system] {
+  header "threads.h"
+  export *
+}
+
+module stdc_uchar [system] {
+  header "uchar.h"
+  export *
+}
+
+module stdc_wchar [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "wchar.h"
+  export *
+}
+
+module stdc_wctype [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "wctype.h"
+  export *
+}
+
+// POSIX
+module posix_aio [system] {
+  config_macros _LARGEFILE64_SOURCE
+  header "aio.h"
+  export *
+}
+
+module arpa_inet [system] {
+  header "arpa/inet.h"
+  export *
+}
+
+// Non-POSIX
+module arpa_ftp [system] {
+  header "arpa/ftp.h"
+  export *
+}
+module arpa_nameser [system] {
+  header "arpa/nameser.h"
+  export *
+}
+module arpa_nameser_compat [system] {
+  header "arpa/nameser_compat.h"
+  export *
+}
+module arpa_telnet [system] {
+  header "arpa/telnet.h"
+  export *
+}
+module arpa_tftp [system] {
+  header "arpa/tftp.h"
+  export *
+}
+
+// POSIX
+module posix_cpio [system] {
+  header "cpio.h"
+  export *
+}
+module posix_dirent [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE, _XOPEN_SOURCE
+  header "dirent.h"
+  export *
+}
+module posix_dlfcn [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "dlfcn.h"
+  export *
+
+  link "dl"
+}
+module posix_fcntl [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "fcntl.h"
+  export *
+}
+module posix_fmtmsg [system] {
+  header "fmtmsg.h"
+  export *
+}
+module posix_fnmatch [system] {
+  header "fnmatch.h"
+  export *
+}
+module posix_ftw [system] {
+  config_macros _LARGEFILE64_SOURCE
+  header "ftw.h"
+  export *
+}
+module posix_glob [system] {
+  config_macros _LARGEFILE64_SOURCE
+  header "glob.h"
+  export *
+}
+module posix_grp [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _XOPEN_SOURCE
+  header "grp.h"
+  export *
+}
+module posix_iconv [system] {
+  header "iconv.h"
+  export *
+}
+module posix_langinfo [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "langinfo.h"
+  export *
+}
+module posix_libgen [system] {
+  header "libgen.h"
+  export *
+}
+module posix_monetary [system] {
+  header "monetary.h"
+  export *
+}
+module posix_mqueue [system] {
+  header "mqueue.h"
+  export *
+}
+
+// POSIX
+module net_if [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "net/if.h"
+  export *
+}
+
+// Non-POSIX
+module fts [system] {
+  header "fts.h"
+  export *
+
+  link "fts"
+}
+
+module net_ethernet [system] {
+  header "net/ethernet.h"
+  // Include <netinet/if_ether.h> here because these two headers circularly
+  // depend on one another
+  header "netinet/if_ether.h"
+  export *
+}
+module net_if_arp [system] {
+  header "net/if_arp.h"
+  export *
+}
+module net_route [system] {
+  header "net/route.h"
+  export *
+}
+
+// POSIX
+module posix_netdb [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "netdb.h"
+  export *
+}
+
+// POSIX
+module netinet_in [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "netinet/in.h"
+  export *
+}
+module netinet_tcp [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "netinet/tcp.h"
+  export *
+}
+
+// Non-POSIX
+module netinet_ether [system] {
+  header "netinet/ether.h"
+  export *
+}
+module netinet_icmp6 [system] {
+  header "netinet/icmp6.h"
+  export *
+}
+// Can't have this one as a module because of the circular dependency
+// between netinet/if_ether.h and net/ethernet.h
+//
+// module netinet_if_ether [system] {
+//   header "netinet/if_ether.h"
+//   export *
+// }
+module netinet_igmp [system] {
+  header "netinet/igmp.h"
+  export *
+}
+module netinet_in_systm [system] {
+  header "netinet/in_systm.h"
+  export *
+}
+module netinet_ip [system] {
+  header "netinet/ip.h"
+  export *
+}
+module netinet_ip6 [system] {
+  header "netinet/ip6.h"
+  export *
+}
+module netinet_ip_icmp [system] {
+  header "netinet/ip_icmp.h"
+  export *
+}
+module netinet_udp [system] {
+  config_macros _GNU_SOURCE
+  header "netinet/udp.h"
+  export *
+}
+
+// POSIX
+module posix_nl_types [system] {
+  header "nl_types.h"
+  export *
+}
+module posix_poll [system] {
+  config_macros _GNU_SOURCE
+  header "poll.h"
+  export *
+}
+module posix_pthread [system] {
+  config_macros _GNU_SOURCE
+  header "pthread.h"
+  export *
+
+  link "pthread"
+}
+module posix_pwd [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _XOPEN_SOURCE
+  header "pwd.h"
+  export *
+}
+module posix_regex [system] {
+  header "regex.h"
+  export *
+}
+module posix_sched [system] {
+  config_macros _GNU_SOURCE
+  header "sched.h"
+  export *
+}
+module posix_search [system] {
+  config_macros _GNU_SOURCE
+  header "search.h"
+  export *
+}
+module posix_semaphore [system] {
+  header "semaphore.h"
+  export *
+}
+module posix_spawn [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "spawn.h"
+  export *
+}
+module posix_strings [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "strings.h"
+  export *
+}
+module posix_stropts [system] {
+  header "stropts.h"
+  export *
+}
+
+// POSIX
+module sys_ipc [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "sys/ipc.h"
+  export *
+}
+module sys_mman [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE
+  header "sys/mman.h"
+  export *
+}
+module sys_msg [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "sys/msg.h"
+  export *
+}
+module sys_resource [system] {
+  config_macros _GNU_SOURCE, _LARGEFILE64_SOURCE
+  header "sys/resource.h"
+  export *
+}
+module sys_select [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "sys/select.h"
+  export *
+}
+module sys_sem [system] {
+  config_macros _GNU_SOURCE
+  header "sys/sem.h"
+  export *
+}
+module sys_shm [system] {
+  config_macros _GNU_SOURCE
+  header "sys/shm.h"
+  export *
+}
+module sys_socket [system] {
+  config_macros _GNU_SOURCE
+  header "sys/socket.h"
+  export *
+}
+module sys_stat [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE, _XOPEN_SOURCE
+  header "sys/stat.h"
+  export *
+}
+module sys_statvfs [system] {
+  config_macros _LARGEFILE64_SOURCE
+  header "sys/statvfs.h"
+  export *
+}
+module sys_time [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "sys/time.h"
+  export *
+}
+module sys_times [system] {
+  header "sys/times.h"
+  export *
+}
+module sys_types [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE
+  header "sys/types.h"
+  export *
+}
+module sys_uio [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE
+  header "sys/uio.h"
+  export *
+}
+module sys_un [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "sys/un.h"
+  export *
+}
+module sys_utsname [system] {
+  config_macros _GNU_SOURCE
+  header "sys/utsname.h"
+  export *
+}
+module sys_wait [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _POSIX_C_SOURCE, _POSIX_SOURCE, _XOPEN_SOURCE
+  header "sys/wait.h"
+  export *
+}
+
+// Non-POSIX
+module sys_acct [system] {
+  header "sys/acct.h"
+  export *
+}
+module sys_auxv [system] {
+  header "sys/auxv.h"
+  export *
+}
+module sys_cachectl [system] {
+  header "sys/cachectl.h"
+  export *
+}
+module sys_dir [system] {
+  header "sys/dir.h"
+  export *
+}
+module sys_epoll [system] {
+  header "sys/epoll.h"
+  export *
+}
+module sys_eventfd [system] {
+  header "sys/eventfd.h"
+  export *
+}
+module sys_fanotify [system] {
+  header "sys/fanotify.h"
+  export *
+}
+module sys_file [system] {
+  header "sys/file.h"
+  export *
+}
+module sys_fsuid [system] {
+  header "sys/fsuid.h"
+  export *
+}
+module sys_inotify [system] {
+  header "sys/inotify.h"
+  export *
+}
+module sys_ioctl [system] {
+  header "sys/ioctl.h"
+  export *
+}
+module sys_io [system] {
+  header "sys/io.h"
+  export *
+}
+module sys_klog [system] {
+  header "sys/klog.h"
+  export *
+}
+module sys_membarrier [system] {
+  header "sys/membarrier.h"
+  export *
+}
+module sys_mount [system] {
+  header "sys/mount.h"
+  export *
+}
+module sys_mtio [system] {
+  header "sys/mtio.h"
+  export *
+}
+module sys_param [system] {
+  header "sys/param.h"
+  export *
+}
+module sys_personality [system] {
+  header "sys/personality.h"
+  export *
+}
+module sys_prctl [system] {
+  header "sys/prctl.h"
+  export *
+}
+module sys_procfs [system] {
+  header "sys/procfs.h"
+  export *
+}
+module sys_ptrace [system] {
+  header "sys/ptrace.h"
+  export *
+}
+module sys_quota [system] {
+  header "sys/quota.h"
+  export *
+}
+module sys_random [system] {
+  header "sys/random.h"
+  export *
+}
+module sys_reboot [system] {
+  header "sys/reboot.h"
+  export *
+}
+module sys_reg [system] {
+  header "sys/reg.h"
+  export *
+}
+module sys_sendfile [system] {
+  config_macros _LARGEFILE64_SOURCE
+  header "sys/sendfile.h"
+  export *
+}
+module sys_signalfd [system] {
+  header "sys/signalfd.h"
+  export *
+}
+module sys_statfs [system] {
+  config_macros _LARGEFILE64_SOURCE
+  header "sys/statfs.h"
+  export *
+}
+module sys_stropts [system] {
+  header "sys/stropts.h"
+  export *
+}
+module sys_swap [system] {
+  header "sys/swap.h"
+  export *
+}
+module sys_syscall [system] {
+  header "sys/syscall.h"
+  export *
+}
+module sys_sysinfo [system] {
+  header "sys/sysinfo.h"
+  export *
+}
+module sys_syslog [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "sys/syslog.h"
+  export *
+}
+module sys_sysmacros [system] {
+  header "sys/sysmacros.h"
+  export *
+}
+module sys_timeb [system] {
+  header "sys/timeb.h"
+  export *
+}
+module sys_timerfd [system] {
+  header "sys/timerfd.h"
+  export *
+}
+module sys_timex [system] {
+  header "sys/timex.h"
+  export *
+}
+module sys_ttydefaults [system] {
+  header "sys/ttydefaults.h"
+  export *
+}
+module sys_ucontext [system] {
+  config_macros _GNU_SOURCE, _BSD_SOURCE
+  header "sys/ucontext.h"
+  export *
+}
+module sys_user [system] {
+  header "sys/user.h"
+  export *
+}
+module sys_vfs [system] {
+  header "sys/vfs.h"
+  export *
+}
+module sys_xattr [system] {
+  header "sys/xattr.h"
+  export *
+}
+
+// POSIX
+module posix_syslog [system] {
+  header "syslog.h"
+  export *
+}
+module posix_tar [system] {
+  header "tar.h"
+  export *
+}
+module posix_termios [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "termios.h"
+  export *
+}
+module posix_ucontext [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "ucontext.h"
+  export *
+}
+module posix_unistd [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE, _LARGEFILE64_SOURCE, _XOPEN_SOURCE
+  header "unistd.h"
+  export *
+}
+module posix_ulimit [system] {
+  header "ulimit.h"
+  export *
+}
+module posix_utime [system] {
+  header "utime.h"
+  export *
+}
+module posix_utmpx [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "utmpx.h"
+  export *
+}
+
+// Other, non-standard headers
+module linux_alloca [system] {
+  header "alloca.h"
+  export *
+}
+module linux_ar [system] {
+  header "ar.h"
+  export *
+}
+module linux_byteswap [system] {
+  header "byteswap.h"
+  export *
+}
+module linux_crypt [system] {
+  header "crypt.h"
+  export *
+}
+module linux_elf [system] {
+  header "elf.h"
+  export *
+}
+module linux_endian [system] {
+  config_macros _BSD_SOURCE, _GNU_SOURCE
+  header "endian.h"
+  export *
+}
+module linux_err [system] {
+  header "err.h"
+  export *
+}
+module linux_getopt [system] {
+  header "getopt.h"
+  export *
+}
+module linux_ifaddrs [system] {
+  header "ifaddrs.h"
+  export *
+}
+module linux_lastlog [system] {
+  header "lastlog.h"
+  export *
+}
+module linux_libintl [system] {
+  header "libintl.h"
+  export *
+}
+module linux_link [system] {
+  header "link.h"
+  export *
+}
+module linux_malloc [system] {
+  header "malloc.h"
+  export *
+}
+module linux_memory [system] {
+  header "memory.h"
+  export *
+}
+module linux_mntent [system] {
+  header "mntent.h"
+  export *
+}
+module linux_netpacket [system] {
+  header "netpacket/packet.h"
+  export *
+}
+module linux_paths [system] {
+  header "paths.h"
+  export *
+}
+module linux_pty [system] {
+  header "pty.h"
+  export *
+}
+module linux_resolv [system] {
+  header "resolv.h"
+  export *
+
+  link "resolv"
+}
+module linux_scsi [system] {
+  header "scsi/scsi.h"
+  header "scsi/scsi_ioctl.h"
+  header "scsi/sg.h"
+  export *
+}
+module linux_shadow [system] {
+  header "shadow.h"
+  export *
+}
+module linux_stdio_ext [system] {
+  header "stdio_ext.h"
+  export *
+}
+module linux_syscall [system] {
+  header "syscall.h"
+  export *
+}
+module linux_sysexits [system] {
+  header "sysexits.h"
+  export *
+}
+module linux_utmp [system] {
+  header "utmp.h"
+  export *
+}
+module linux_values [system] {
+  header "values.h"
+  export *
+}
+module linux_unwind [system] {
+  header "unwind.h"
+  export *
+}
+module linux_wordexp [system] {
+  header "wordexp.h"
+  export *
+}
+
+module linux_excludes [system] {
+  // Linux redirection headers
+  exclude header "sys/kd.h"
+  exclude header "sys/soundcard.h"
+  exclude header "sys/vt.h"
+
+  // Redirection headers
+  exclude header "sys/termios.h"
+  exclude header "sys/fcntl.h"
+  exclude header "sys/errno.h"
+  exclude header "sys/poll.h"
+  exclude header "sys/signal.h"
+
+  exclude header "wait.h"
+}
+
+// START SWIFT ONLY
+// This is for Swift; it includes all the (modular) Musl headers
+module SwiftMusl [system] {
+  header "SwiftMusl.h"
+  export *
+}
+// END SWIFT ONLY

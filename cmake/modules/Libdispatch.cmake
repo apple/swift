@@ -84,105 +84,107 @@ foreach(sdk ${DISPATCH_SDKS})
       set(SWIFT_LIBDISPATCH_SYSTEM_PROCESSOR  -DCMAKE_SYSTEM_PROCESSOR=${arch})
     endif()
 
-    ExternalProject_Add("${LIBDISPATCH_VARIANT_NAME}"
-                        SOURCE_DIR
-                          "${SWIFT_PATH_TO_LIBDISPATCH_SOURCE}"
-                        CMAKE_ARGS
-                          -DCMAKE_AR=${CMAKE_AR}
-                          -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                          ${SWIFT_LIBDISPATCH_COMPILER_CMAKE_ARGS}
-                          ${SWIFT_LIBDISPATCH_COMPILER_TRIPLE_CMAKE_ARGS}
-                          -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-                          -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
-                          -DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}
-                          -DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS}
-                          -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
-                          -DCMAKE_INSTALL_LIBDIR=lib
-                          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-                          -DCMAKE_LINKER=${CMAKE_LINKER}
-                          -DCMAKE_MT=${CMAKE_MT}
-                          -DCMAKE_RANLIB=${CMAKE_RANLIB}
-                          -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-                          -DCMAKE_SYSTEM_NAME=${SWIFT_SDK_${sdk}_NAME}
-                          ${SWIFT_LIBDISPATCH_SYSTEM_PROCESSOR}
-                          "${SWIFT_LIBDISPATCH_ANDROID_NDK}"
-                          -DCMAKE_ANDROID_ARCH_ABI=${SWIFT_SDK_ANDROID_ARCH_${arch}_ABI}
-                          -DCMAKE_ANDROID_API=${SWIFT_ANDROID_API_LEVEL}
-                          -DBUILD_SHARED_LIBS=YES
-                          -DENABLE_SWIFT=NO
-                          -DBUILD_TESTING=NO
-                        INSTALL_COMMAND
-                          # NOTE(compnerd) provide a custom install command to
-                          # ensure that we strip out the DESTDIR environment
-                          # from the sub-build
-                          ${CMAKE_COMMAND} -E env --unset=DESTDIR ${CMAKE_COMMAND} --build . --target install
-                        COMMAND
-                          ${CMAKE_COMMAND} -E copy
-                          <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                          ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                        COMMAND
-                          ${CMAKE_COMMAND} -E copy
-                          <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                          ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                        COMMAND
-                          ${CMAKE_COMMAND} -E copy
-                          <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                          ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                        COMMAND
-			  ${CMAKE_COMMAND} -E copy
-                          <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                          ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                        STEP_TARGETS
-                          install
-                        BUILD_BYPRODUCTS
-                          <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                          <INSTALL_DIR>/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
-                          <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                          <INSTALL_DIR>/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
-                        BUILD_ALWAYS
-                          1)
+    if(NOT SWIFT_SDK_${sdk}_STATIC_ONLY)
+      ExternalProject_Add("${LIBDISPATCH_VARIANT_NAME}"
+        SOURCE_DIR
+        "${SWIFT_PATH_TO_LIBDISPATCH_SOURCE}"
+        CMAKE_ARGS
+        -DCMAKE_AR=${CMAKE_AR}
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        ${SWIFT_LIBDISPATCH_COMPILER_CMAKE_ARGS}
+        ${SWIFT_LIBDISPATCH_COMPILER_TRIPLE_CMAKE_ARGS}
+        -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+        -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+        -DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}
+        -DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS}
+        -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+        -DCMAKE_INSTALL_LIBDIR=lib
+        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+        -DCMAKE_LINKER=${CMAKE_LINKER}
+        -DCMAKE_MT=${CMAKE_MT}
+        -DCMAKE_RANLIB=${CMAKE_RANLIB}
+        -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
+        -DCMAKE_SYSTEM_NAME=${SWIFT_SDK_${sdk}_NAME}
+        ${SWIFT_LIBDISPATCH_SYSTEM_PROCESSOR}
+        "${SWIFT_LIBDISPATCH_ANDROID_NDK}"
+        -DCMAKE_ANDROID_ARCH_ABI=${SWIFT_SDK_ANDROID_ARCH_${arch}_ABI}
+        -DCMAKE_ANDROID_API=${SWIFT_ANDROID_API_LEVEL}
+        -DBUILD_SHARED_LIBS=YES
+        -DENABLE_SWIFT=NO
+        -DBUILD_TESTING=NO
+        INSTALL_COMMAND
+        # NOTE(compnerd) provide a custom install command to
+        # ensure that we strip out the DESTDIR environment
+        # from the sub-build
+        ${CMAKE_COMMAND} -E env --unset=DESTDIR ${CMAKE_COMMAND} --build . --target install
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        COMMAND
+        ${CMAKE_COMMAND} -E copy
+        <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        COMMAND
+	${CMAKE_COMMAND} -E copy
+        <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        ${SWIFTLIB_DIR}/${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        STEP_TARGETS
+        install
+        BUILD_BYPRODUCTS
+        <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        <INSTALL_DIR>/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
+        <INSTALL_DIR>/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        <INSTALL_DIR>/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
+        BUILD_ALWAYS
+        1)
 
-    ExternalProject_Get_Property("${LIBDISPATCH_VARIANT_NAME}" install_dir)
+      ExternalProject_Get_Property("${LIBDISPATCH_VARIANT_NAME}" install_dir)
 
-    if(NOT SWIFT_BUILT_STANDALONE AND NOT "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
-      add_dependencies("${LIBDISPATCH_VARIANT_NAME}" clang)
+      if(NOT SWIFT_BUILT_STANDALONE AND NOT "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+        add_dependencies("${LIBDISPATCH_VARIANT_NAME}" clang)
+      endif()
+
+      # CMake does not like the addition of INTERFACE_INCLUDE_DIRECTORIES without
+      # the directory existing.  Just create the location which will be populated
+      # during the installation.
+      file(MAKE_DIRECTORY ${install_dir}/include)
+
+      set(DISPATCH_VARIANT_NAME "dispatch-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
+      add_library("${DISPATCH_VARIANT_NAME}" SHARED IMPORTED GLOBAL)
+      set_target_properties("${DISPATCH_VARIANT_NAME}"
+        PROPERTIES
+        IMPORTED_LOCATION
+        ${install_dir}/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB
+        ${install_dir}/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
+        INTERFACE_INCLUDE_DIRECTORIES
+        ${install_dir}/include
+        IMPORTED_NO_SONAME
+        1)
+
+      set(BLOCKS_RUNTIME_VARIANT_NAME "BlocksRuntime-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
+      add_library("${BLOCKS_RUNTIME_VARIANT_NAME}" SHARED IMPORTED GLOBAL)
+      set_target_properties("${BLOCKS_RUNTIME_VARIANT_NAME}"
+        PROPERTIES
+        IMPORTED_LOCATION
+        ${install_dir}/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB
+        ${install_dir}/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
+        INTERFACE_INCLUDE_DIRECTORIES
+        ${SWIFT_PATH_TO_LIBDISPATCH_SOURCE}/src/BlocksRuntime
+        IMPORTED_NO_SONAME
+        1)
+
+      add_dependencies("${DISPATCH_VARIANT_NAME}" "${LIBDISPATCH_VARIANT_NAME}-install")
+      add_dependencies("${BLOCKS_RUNTIME_VARIANT_NAME}" "${LIBDISPATCH_VARIANT_NAME}-install")
     endif()
 
-    # CMake does not like the addition of INTERFACE_INCLUDE_DIRECTORIES without
-    # the directory existing.  Just create the location which will be populated
-    # during the installation.
-    file(MAKE_DIRECTORY ${install_dir}/include)
-
-    set(DISPATCH_VARIANT_NAME "dispatch-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
-    add_library("${DISPATCH_VARIANT_NAME}" SHARED IMPORTED GLOBAL)
-    set_target_properties("${DISPATCH_VARIANT_NAME}"
-                          PROPERTIES
-                            IMPORTED_LOCATION
-                              ${install_dir}/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                            IMPORTED_IMPLIB
-                              ${install_dir}/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}dispatch${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
-                            INTERFACE_INCLUDE_DIRECTORIES
-                              ${install_dir}/include
-                            IMPORTED_NO_SONAME
-                              1)
-
-    set(BLOCKS_RUNTIME_VARIANT_NAME "BlocksRuntime-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}")
-    add_library("${BLOCKS_RUNTIME_VARIANT_NAME}" SHARED IMPORTED GLOBAL)
-    set_target_properties("${BLOCKS_RUNTIME_VARIANT_NAME}"
-                          PROPERTIES
-                            IMPORTED_LOCATION
-                              ${install_dir}/${LIBDISPATCH_RUNTIME_DIR}/${SWIFT_SDK_${sdk}_SHARED_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_SHARED_LIBRARY_SUFFIX}
-                            IMPORTED_IMPLIB
-                              ${install_dir}/lib/${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_PREFIX}BlocksRuntime${SWIFT_SDK_${sdk}_IMPORT_LIBRARY_SUFFIX}
-                            INTERFACE_INCLUDE_DIRECTORIES
-                              ${SWIFT_PATH_TO_LIBDISPATCH_SOURCE}/src/BlocksRuntime
-                            IMPORTED_NO_SONAME
-                              1)
-
-    add_dependencies("${DISPATCH_VARIANT_NAME}" "${LIBDISPATCH_VARIANT_NAME}-install")
-    add_dependencies("${BLOCKS_RUNTIME_VARIANT_NAME}" "${LIBDISPATCH_VARIANT_NAME}-install")
-
-    if(SWIFT_BUILD_STATIC_STDLIB)
+    if(SWIFT_BUILD_STATIC_STDLIB OR SWIFT_SDK_${sdk}_STATIC_ONLY)
       set(LIBDISPATCH_STATIC_VARIANT_NAME "libdispatch-${SWIFT_SDK_${sdk}_LIB_SUBDIR}-${arch}-static")
       ExternalProject_Add("${LIBDISPATCH_STATIC_VARIANT_NAME}"
                           SOURCE_DIR
