@@ -17,7 +17,11 @@
 
 #if os(Linux)
 
+#if canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 
 import _Backtracing
 @_spi(Internal) import _Backtracing

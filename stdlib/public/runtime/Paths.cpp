@@ -525,6 +525,18 @@ _swift_initRuntimePath(void *) {
   int ret = ::dladdr((void *)_swift_initRuntimePath, &dli);
 
   if (!ret) {
+#ifdef __linux__
+    // If we don't find anything, try reading /proc/self/exe as a fallback;
+    // this is needed with Musl when statically linking because in that case
+    // dladdr() does nothing.
+    char pathBuf[4096];
+    ssize_t len = readlink("/proc/self/exe", pathBuf, sizeof(pathBuf));
+    if (len > 0 && len < sizeof(pathBuf)) {
+      runtimePath = ::strdup(pathBuf);
+      return;
+    }
+#endif
+
     swift::fatalError(/* flags = */ 0,
                       "Unable to obtain Swift runtime path\n");
   }
