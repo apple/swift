@@ -1690,3 +1690,70 @@ extension Collection where SubSequence == Self {
     self = self[idx..<endIndex]
   }
 }
+
+extension Collection {
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func minIndex(
+    by areInIncreasingOrder: (Element, Element) throws -> Bool
+  ) rethrows -> Index? {
+    guard !isEmpty else { return nil }
+    var resultIndex = startIndex
+    for index in indices.dropFirst() {
+      if try areInIncreasingOrder(self[index], self[resultIndex]) { resultIndex = index }
+    }
+    return resultIndex
+  }
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func maxIndex(
+    by areInIncreasingOrder: (Element, Element) throws -> Bool
+  ) rethrows -> Index? {
+    guard !isEmpty else { return nil }
+    var resultIndex = startIndex
+    for index in indices.dropFirst() {
+      if try areInIncreasingOrder(self[resultIndex], self[index]) { resultIndex = index }
+    }
+    return resultIndex
+  }
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func minmaxIndices(
+    by areInIncreasingOrder: (Element, Element) throws -> Bool
+  ) rethrows -> (minIndex: Index, maxIndex: Index)? {
+    guard !isEmpty else { return nil }
+    var minIndex = startIndex
+    var maxIndex = startIndex
+    for index in indices.dropFirst() {
+      if try areInIncreasingOrder(self[index], self[minIndex]) { minIndex = index }
+      else if try areInIncreasingOrder(self[maxIndex], self[index]) { maxIndex = index }
+    }
+    return (minIndex: minIndex, maxIndex: maxIndex)
+  }
+
+}
+
+extension Collection where Element: Comparable {
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func minIndex() -> Index? {
+    return self.minIndex(by: <)
+  }
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func maxIndex() -> Index? {
+    return self.maxIndex(by: <)
+  }
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func minmaxIndices() -> (Index, Index)? {
+    return self.minmaxIndices(by: <)
+  }
+
+}

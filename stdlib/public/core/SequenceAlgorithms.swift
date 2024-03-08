@@ -162,6 +162,24 @@ extension Sequence {
     }
     return result
   }
+
+  @inlinable // protocol-only
+  @warn_unqualified_access
+  public func minmax(
+    by areInIncreasingOrder: (Element, Element) throws -> Bool
+  ) rethrows -> (min: Element, max: Element)? {
+      var it = makeIterator()
+      guard var min = it.next() else { return nil }
+      var max = min
+      while let e = it.next() {
+        if try areInIncreasingOrder(e, min) {
+          min = e
+        } else if try areInIncreasingOrder(max, e) {
+          max = e
+        }
+      }
+      return (min: min, max: max)
+    }
 }
 
 extension Sequence where Element: Comparable {
@@ -201,6 +219,12 @@ extension Sequence where Element: Comparable {
   @warn_unqualified_access
   public func max() -> Element? {
     return self.max(by: <)
+  }
+
+  @inlinable
+  @warn_unqualified_access
+  public func minmax() -> (min: Element, max: Element)? {
+    return self.minmax(by: <)
   }
 }
 
