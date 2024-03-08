@@ -58,7 +58,10 @@ public class MyDerivedClass: MyClass {
 // NM-NOT: $s7Library14MyDerivedClassC3baryyF
 // NM:     $s7Library14MyDerivedClassC3fooyyF
 // NM-NOT: $s7Library7MyClassC3baryyF
-// NM:     $s7Library7MyClassC3fooyyF
+// NM-NOT: $s7Library7MyClassC3fooyyF   // This fails, even though MyClass.foo clearly can't be called!
+
+// The only reason the bar implementations can be stripped is because they aren't called anywhere, through
+// any class.
 
 #endif
 
@@ -68,7 +71,7 @@ import Library
 
 @_cdecl("main")
 func main() -> Int32 {
-   let o: MyClass = MyDerivedClass()
+   let o = MyDerivedClass()
    o.foo()
    print("Done")
    // CHECK: MyDerivedClass.foo
