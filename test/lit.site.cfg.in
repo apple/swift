@@ -25,6 +25,7 @@ config.llvm_code_generators = "@LLVM_TARGETS_TO_BUILD@".split(";")
 config.lit_tools_dir = "@LLVM_LIT_TOOLS_DIR@"
 config.swift_src_root = lit_config.params.get("swift_src_root", "@SWIFT_SOURCE_DIR@")
 config.swift_obj_root = "@SWIFT_BINARY_DIR@"
+config.cmake_swift_compiler = "@CMAKE_Swift_COMPILER@"
 config.target_triple = "@LLVM_TARGET_TRIPLE@"
 config.variant_triple = "@VARIANT_TRIPLE@"
 config.variant_sdk = "@VARIANT_SDK@"
