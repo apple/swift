@@ -1060,14 +1060,7 @@ std::optional<std::string> TypeRef::mangle(Demangle::Demangler &Dem) const {
   if (!node)
     return {};
 
-  // The mangled tree stored in this typeref implicitly assumes the type and
-  // global mangling, so add those back in.
-  auto typeMangling = Dem.createNode(Node::Kind::TypeMangling);
-  typeMangling->addChild(node, Dem);
-  auto global = Dem.createNode(Node::Kind::Global);
-  global->addChild(node, Dem);
-
-  auto mangling = mangleNode(global);
+  auto mangling = mangleNode(node);
   if (!mangling.isSuccess())
     return {};
   return mangling.result();
