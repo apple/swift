@@ -156,7 +156,7 @@ public enum Optional<Wrapped>: ExpressibleByNilLiteral {
   ///   of the instance.
   /// - Returns: The result of the given closure. If this instance is `nil`,
   ///   returns `nil`.
-  @inlinable
+  @_transparent
   public func map<U>(
     _ transform: (Wrapped) throws -> U
   ) rethrows -> U? {
@@ -187,7 +187,7 @@ public enum Optional<Wrapped>: ExpressibleByNilLiteral {
   ///   of the instance.  
   /// - Returns: The result of the given closure. If this instance is `nil`,
   ///   returns `nil`.
-  @inlinable
+  @_transparent
   public func flatMap<U>(
     _ transform: (Wrapped) throws -> U?
   ) rethrows -> U? {
