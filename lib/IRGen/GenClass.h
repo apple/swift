@@ -212,19 +212,25 @@ namespace irgen {
   /// For VFE, returns a type identifier for the given base method on a class.
   llvm::MDString *typeIdForMethod(IRGenModule &IGM, SILDeclRef method);
 
+  /// In some cases, it is statically determinable that we are emitting a vcall
+  /// to a derived method of some kind. Though at runtime there is no
+  /// difference, passing the most derived method known for the
+  /// staticallyKnownDerivedMethod parameter can help virtual function
+  /// elimination be more effective.
+
   /// Given a metadata pointer, emit the callee for the given method.
-  FunctionPointer emitVirtualMethodValue(IRGenFunction &IGF,
-                                         llvm::Value *metadata,
-                                         SILDeclRef method,
-                                         CanSILFunctionType methodType);
+  FunctionPointer emitVirtualMethodValue(
+      IRGenFunction &IGF, llvm::Value *metadata, SILDeclRef method,
+      SILDeclRef staticallyKnownDerivedMethod, CanSILFunctionType methodType);
 
   /// Given an instance pointer (or, for a static method, a class
   /// pointer), emit the callee for the given method.
-  FunctionPointer emitVirtualMethodValue(IRGenFunction &IGF, llvm::Value *base,
-                                         SILType baseType, SILDeclRef method,
-                                         CanSILFunctionType methodType,
-                                         GenericSignature fnSig,
-                                         bool useSuperVTable);
+  FunctionPointer
+  emitVirtualMethodValue(IRGenFunction &IGF, llvm::Value *base,
+                         SILType baseType, SILDeclRef method,
+                         SILDeclRef staticallyKnownDerivedMethod,
+                         CanSILFunctionType methodType, GenericSignature fnSig,
+                         bool useSuperVTable);
 
   /// Is the given class known to have Swift-compatible metadata?
   bool hasKnownSwiftMetadata(IRGenModule &IGM, ClassDecl *theClass);
