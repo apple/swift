@@ -93,8 +93,9 @@ func curry_returnsInnerPointer(_ x: CurryTest) -> () -> UnsafeMutableRawPointer?
 // CHECK:   [[METHOD:%.*]] = objc_method [[ARG1]] : $CurryTest, #CurryTest.returnsInnerPointer!foreign
 // CHECK:   [[ARG1_COPY:%.*]] = copy_value [[ARG1]]
 // CHECK:   [[RES:%.*]] = apply [[METHOD]]([[ARG1]]) : $@convention(objc_method) (CurryTest) -> @unowned_inner_pointer Optional<UnsafeMutableRawPointer>
-// CHECK:   autorelease_value [[ARG1_COPY]]
-// CHECK:   return [[RES]]
+// CHECK:   [[DR:%.*]] = mark_dependence [[RES]] {{.*}} on [[ARG1_COPY]]
+// CHECK:   destroy_value [[ARG1_COPY]]
+// CHECK:   return [[DR]]
 // CHECK: }
 
 // CHECK-LABEL: sil hidden [ossa] @$s13objc_currying19curry_pod_AnyObjectyS2icyXlF : $@convention(thin) (@guaranteed AnyObject) -> @owned @callee_guaranteed (Int) -> Int

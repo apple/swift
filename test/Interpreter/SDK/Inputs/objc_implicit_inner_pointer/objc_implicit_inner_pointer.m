@@ -18,10 +18,18 @@
 }
 
 - (void)dealloc {
-  printf("%s", __FUNCTION__);
+  NSLog(@"%s", __FUNCTION__);
 
   if (_bar)
     CFRelease(_bar);
 }
 
 @end
+
+void printNullableRef(CFTypeRef _Nullable ref) {
+  NSLog(@"%@", ref);
+}
+
+void printNonnullRef(CFTypeRef _Nonnull ref) {
+  NSLog(@"%@", ref);
+}
