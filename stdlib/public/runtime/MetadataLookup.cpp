@@ -815,6 +815,10 @@ descriptorFromStandardMangling(Demangle::NodePointer symbolicNode) {
   // we will be able to reference those symbols directly as well.
 #define STANDARD_TYPE_CONCURRENCY(KIND, MANGLING, TYPENAME)                    \
   if (concurrencyDescriptors && name.equals(#TYPENAME)) {                      \
+    assert(isa<TypeContextDescriptor>(concurrencyDescriptors->TYPENAME));      \
+    assert(name == reinterpret_cast<const TypeContextDescriptor *>(            \
+                       concurrencyDescriptors->TYPENAME)                       \
+                       ->Name.get());                                          \
     return concurrencyDescriptors->TYPENAME;                                   \
   }
 #if !SWIFT_OBJC_INTEROP
