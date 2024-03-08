@@ -12,3 +12,8 @@ module CxxStdlibPerformance {
   header "CxxStdlibPerformance.h"
   requires cplusplus
 }
+
+module CxxSharedPtr {
+  header "SharedPtr.h"
+  requires cplusplus
+}
