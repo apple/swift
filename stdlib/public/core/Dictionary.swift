@@ -534,9 +534,9 @@ public struct Dictionary<Key: Hashable, Value> {
     self.init(_native: native)
   }
 
-  /// Creates a new dictionary whose keys are the groupings returned by the
-  /// given closure and whose values are arrays of the elements that returned
-  /// each key.
+  /// Creates a new dictionary that groups up elements of `values`,
+  /// whose values are Arrays of grouped elements,
+  /// each keyed by the group key returned by the given closure.
   ///
   /// The arrays in the "values" position of the new dictionary each contain at
   /// least one element, with the elements in the same order as the source
