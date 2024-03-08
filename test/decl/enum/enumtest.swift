@@ -636,3 +636,29 @@ if case nil = foo1 {} // Okay
 if case .none? = foo1 {} // Okay
 if case nil = foo2 {} // Okay
 if case .none?? = foo2 {} // Okay
+
+enum EnumCaseWithGenericDeclaration {
+  // expected-error@+1 {{cannot find type 'T' in scope}}
+  case foo<T>(T) // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{11-14=}} {{-2:36-36=<T>}}
+  // expected-error@+1 {{cannot find type 'T' in scope}}
+  case bar<T>(param: T) // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{11-14=}} {{-4:36-36=<T>}}
+  case baz<T> // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{11-14=}} {{-5:36-36=<T>}}
+  case one, two<Key> // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{16-21=}} {{-6:36-36=<Key>}}
+  case three<Element>, four // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{13-22=}} {{-7:36-36=<Element>}}
+  // expected-error@+1 {{cannot find type 'T' in scope}}
+  case five<T>(param: T), six // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{12-15=}} {{-9:36-36=<T>}}
+  // expected-error@+2 {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{13-16=}} {{-12:36-36=<T>}}
+  // expected-error@+1 {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{23-26=}} {{-12:36-36=<U>}}
+  case seven<T>, eight<U>
+  case nine // OK
+}
+
+enum EnumWithGenericDeclaration<Element> {
+  case foo<T> // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{11-14=}} {{-1:32-41=<T>}}
+  // expected-error@+1 {{cannot find type 'Key' in scope}}
+  case bar<Key>(param: Key) // expected-error {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{11-16=}} {{-3:32-41=<Key>}}
+  // expected-error@+2 {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{11-14=}} {{-6:32-41=<T>}}
+  // expected-error@+1 {{generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?}} {{19-22=}} {{-6:32-41=<U>}}
+  case one<T>, two<U>
+  case nine // OK
+}
