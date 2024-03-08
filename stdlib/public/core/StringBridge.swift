@@ -339,9 +339,9 @@ internal enum _KnownCocoaString {
 #endif
 
     switch unsafeBitCast(_swift_classOfObjCHeapObject(str), to: UInt.self) {
-    case unsafeBitCast(__StringStorage.self, to: UInt.self):
+    case unsafeBitCast(__StringStorage.self as AnyObject, to: UInt.self):
       self = .storage
-    case unsafeBitCast(__SharedStringStorage.self, to: UInt.self):
+    case unsafeBitCast(__SharedStringStorage.self as AnyObject, to: UInt.self):
       self = .shared
     default:
       self = .cocoa
