@@ -174,8 +174,5 @@ extension AsyncThrowingMapSequence: @unchecked Sendable
         Base.Element: Sendable, 
         Transformed: Sendable { }
 
-@available(SwiftStdlib 5.1, *)
-extension AsyncThrowingMapSequence.Iterator: @unchecked Sendable 
-  where Base.AsyncIterator: Sendable, 
-        Base.Element: Sendable, 
-        Transformed: Sendable { }
+@available(*, unavailable)
+extension AsyncThrowingMapSequence.Iterator: Sendable { }
