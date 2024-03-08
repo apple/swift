@@ -26,10 +26,6 @@
 #include <condition_variable>
 #include <optional>
 
-#ifndef SWIFT_DEBUG_RUNTIME
-#define SWIFT_DEBUG_RUNTIME 0
-#endif
-
 namespace swift {
 
 RelativeWitnessTable *lookThroughOptionalConditionalWitnessTable(const RelativeWitnessTable *);
