@@ -15,6 +15,7 @@
 
 #include "FixedTypeInfo.h"
 #include "TypeInfo.h"
+#include "swift/AST/ReferenceCounting.h"
 #include "swift/SIL/SILType.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/Debug.h"
@@ -56,6 +57,8 @@ enum class ScalarKind : uint8_t {
 
 /// Convert a ReferenceCounting into the appropriate Scalar reference
 ScalarKind refcountingToScalarKind(ReferenceCounting refCounting);
+
+std::string refcountingToString(ReferenceCounting refCounting);
 
 class TypeLayoutEntry {
 protected:

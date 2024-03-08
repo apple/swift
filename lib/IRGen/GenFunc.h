@@ -32,6 +32,13 @@ namespace irgen {
   class ForeignFunctionInfo;
   class IRGenFunction;
 
+  enum class BlockCaptureInitializeKind {
+    Store,
+  };
+
+  std::string
+  getBlockCaptureInitializeKindEncoding(BlockCaptureInitializeKind kind);
+
   /// Project the capture address from on-stack block storage.
   Address projectBlockStorageCapture(IRGenFunction &IGF,
                                      Address storageAddr,

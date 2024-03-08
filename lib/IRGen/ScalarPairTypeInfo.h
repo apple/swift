@@ -19,8 +19,10 @@
 #ifndef SWIFT_IRGEN_SCALARPAIRTYPEINFO_H
 #define SWIFT_IRGEN_SCALARPAIRTYPEINFO_H
 
+#include "GenFunc.h"
 #include "NativeConventionSchema.h"
 #include "ScalarTypeInfo.h"
+#include "llvm/Support/ScopedPrinter.h"
 
 namespace swift {
 namespace irgen {
@@ -85,6 +87,50 @@ public:
     auto second = IGF.Builder.CreateLoad(secondAddr);
     asDerived().emitRetainSecondElement(IGF, second);
     e.add(second);
+  }
+
+  /// Subclasses that supports encoding initializeWithCopy and destroy
+  /// must implements encodeRetainFirstElement, encodeRetainSecondElement,
+  /// emitReleaseFirstElement and encodeReleaseSecondElement.
+  virtual bool supportsEncodingInitializeWithCopyAndDestroy() const {
+    return false;
+  }
+  virtual std::string encodeRetainFirstElement() const { return ""; }
+  virtual std::string encodeReleaseFirstElement() const { return ""; }
+  virtual std::string encodeRetainSecondElement() const { return ""; }
+  virtual std::string encodeReleaseSecondElement() const { return ""; }
+
+  std::string encodeInitializeWithCopy(IRGenModule &IGM, Alignment alignment,
+                                       Size &offset,
+                                       bool &outIsSupported) const override {
+    if (!supportsEncodingInitializeWithCopyAndDestroy()) {
+      outIsSupported = false;
+      return "";
+    }
+    outIsSupported = true;
+
+    // Encode `loadAsCopy` behavior, followed by `initialize`.
+    std::string encoding;
+    if (!asDerived().isFirstElementTrivial()) {
+      encoding += llvm::to_string(offset.getValue());
+      auto first = encodeRetainFirstElement();
+      encoding += first;
+      encoding += getBlockCaptureInitializeKindEncoding(
+          BlockCaptureInitializeKind::Store);
+    }
+
+    offset +=
+        asDerived().getSecondElementOffset(IGM).roundUpToAlignment(alignment);
+    if (!asDerived().isSecondElementTrivial()) {
+      encoding += llvm::to_string(offset.getValue());
+      auto second = encodeRetainSecondElement();
+      encoding += second;
+      encoding += getBlockCaptureInitializeKindEncoding(
+          BlockCaptureInitializeKind::Store);
+    }
+    offset +=
+        asDerived().getSecondElementSize(IGM).roundUpToAlignment(alignment);
+    return encoding;
   }
 
   void loadAsTake(IRGenFunction &IGF, Address addr,
@@ -157,6 +203,33 @@ public:
       auto first = IGF.Builder.CreateLoad(projectSecondElement(IGF, addr));
       asDerived().emitReleaseSecondElement(IGF, first);
     }
+  }
+
+  std::string encodeDestroy(IRGenModule &IGM, Alignment alignment, Size &offset,
+                            bool &outIsSupported) const override {
+    if (!supportsEncodingInitializeWithCopyAndDestroy()) {
+      outIsSupported = false;
+      return "";
+    }
+    outIsSupported = true;
+
+    std::string encoding;
+    if (!asDerived().isFirstElementTrivial()) {
+      encoding += llvm::to_string(offset.getValue());
+      auto first = encodeReleaseFirstElement();
+      encoding += first;
+    }
+
+    offset +=
+        asDerived().getSecondElementOffset(IGM).roundUpToAlignment(alignment);
+    if (!asDerived().isSecondElementTrivial()) {
+      encoding += llvm::to_string(offset.getValue());
+      auto second = encodeReleaseSecondElement();
+      encoding += second;
+    }
+    offset +=
+        asDerived().getSecondElementSize(IGM).roundUpToAlignment(alignment);
+    return encoding;
   }
 
   void packIntoEnumPayload(IRGenModule &IGM,

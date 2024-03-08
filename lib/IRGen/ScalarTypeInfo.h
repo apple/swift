@@ -21,9 +21,12 @@
 
 #include "EnumPayload.h"
 #include "Explosion.h"
-#include "TypeInfo.h"
-#include "IRGenFunction.h"
 #include "GenEnum.h"
+#include "GenFunc.h"
+#include "IRGenFunction.h"
+#include "TypeInfo.h"
+#include "llvm/Support/ScopedPrinter.h"
+#include <string>
 
 namespace swift {
 namespace irgen {
@@ -52,6 +55,29 @@ public:
     Explosion temp;
     asDerived().Derived::loadAsCopy(IGF, src, temp);
     asDerived().Derived::initialize(IGF, temp, dest, isOutlined);
+  }
+
+  /// Subclasses that supports encoding initializeWithCopy must implements
+  /// encodeLoadAsCopy, encodeInitialize and getSizeForEncoding.
+  virtual bool supportsEncodingInitializeWithCopy() const { return false; }
+  virtual std::string encodeLoadAsCopy(IRGenModule &IGM) const { return ""; }
+  virtual std::string encodeInitialize() const { return ""; }
+  virtual Size getSizeForEncoding() const { return Size(); }
+
+  std::string encodeInitializeWithCopy(IRGenModule &IGM, Alignment alignment,
+                                       Size &offset,
+                                       bool &outIsSupported) const override {
+    if (!supportsEncodingInitializeWithCopy()) {
+      outIsSupported = false;
+      return "";
+    }
+    outIsSupported = true;
+    std::string encoding;
+    encoding += llvm::to_string(offset.getValue());
+    encoding += encodeLoadAsCopy(IGM);
+    encoding += encodeInitialize();
+    offset += getSizeForEncoding().roundUpToAlignment(alignment);
+    return encoding;
   }
 
   void assignWithCopy(IRGenFunction &IGF, Address dest, Address src, SILType T,
@@ -146,12 +172,28 @@ public:
     storeAsBytes(IGF, src, addr);
   }
 
+  std::string encodeInitialize() const override {
+    return getBlockCaptureInitializeKindEncoding(
+        BlockCaptureInitializeKind::Store);
+  }
+
   void loadAsCopy(IRGenFunction &IGF, Address addr,
                   Explosion &out) const override {
     addr = asDerived().projectScalar(IGF, addr);
     llvm::Value *value = IGF.Builder.CreateLoad(addr);
     asDerived().emitScalarRetain(IGF, value, IGF.getDefaultAtomicity());
     out.add(value);
+  }
+
+  /// Subclasses that supports encoding initializeWithCopy must implements
+  /// encodeScalarRetain.
+  virtual bool supportsEncodingScalarRetain() const { return false; }
+  bool supportsEncodingInitializeWithCopy() const override {
+    return supportsEncodingScalarRetain();
+  }
+  virtual std::string encodeScalarRetain(IRGenModule &IGM) const { return ""; }
+  std::string encodeLoadAsCopy(IRGenModule &IGM) const override {
+    return encodeScalarRetain(IGM);
   }
 
   void loadAsTake(IRGenFunction &IGF, Address addr,
@@ -206,7 +248,28 @@ public:
       asDerived().emitScalarRelease(IGF, value, IGF.getDefaultAtomicity());
     }
   }
-  
+
+  /// Subclasses that supports encoding destroy must implements
+  /// encodeScalarRelease and getSizeForEncoding.
+  virtual bool supportsEncodingScalarRelease() const { return false; }
+  virtual std::string encodeScalarRelease(IRGenModule &IGM) const { return ""; }
+
+  std::string encodeDestroy(IRGenModule &IGM, Alignment alignment, Size &offset,
+                            bool &outIsSupported) const override {
+    if (!supportsEncodingScalarRelease()) {
+      outIsSupported = false;
+      return "";
+    }
+    outIsSupported = true;
+    std::string encoding;
+    if (!Derived::IsScalarTriviallyDestroyable) {
+      encoding += llvm::to_string(offset.getValue());
+      encoding += asDerived().encodeScalarRelease(IGM);
+    }
+    offset += asDerived().getSizeForEncoding().roundUpToAlignment(alignment);
+    return encoding;
+  }
+
   void packIntoEnumPayload(IRGenModule &IGM,
                            IRBuilder &builder,
                            EnumPayload &payload,

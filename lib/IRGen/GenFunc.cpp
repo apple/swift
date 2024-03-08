@@ -75,6 +75,7 @@
 #include "swift/AST/Module.h"
 #include "swift/AST/Pattern.h"
 #include "swift/AST/PrettyStackTrace.h"
+#include "swift/AST/ReferenceCounting.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/Types.h"
 #include "swift/IRGen/Linking.h"
@@ -88,6 +89,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/ScopedPrinter.h"
 
 #include "BitPatternBuilder.h"
 #include "Callee.h"
@@ -304,6 +307,10 @@ namespace {
       }
     }
 
+    bool supportsEncodingInitializeWithCopyAndDestroy() const override {
+      return true;
+    }
+
     static Size getFirstElementSize(IRGenModule &IGM) {
       return IGM.getPointerSize();
     }
@@ -358,6 +365,15 @@ namespace {
         IGF.Builder.CreateStore(context, dataAddr);
       else
         IGF.emitNativeStrongAssign(context, dataAddr);
+    }
+    std::string encodeRetainSecondElement() const override {
+      if (isTriviallyDestroyable(ResilienceExpansion::Maximal)) {
+        return "";
+      }
+      return refcountingToString(ReferenceCounting::Native);
+    }
+    std::string encodeReleaseSecondElement() const override {
+      return encodeRetainSecondElement();
     }
 
     Address projectFunction(IRGenFunction &IGF, Address address) const {
@@ -2346,23 +2362,50 @@ std::optional<StackAddress> irgen::emitFunctionPartialApplication(
   return stackAddr;
 }
 
+std::string
+irgen::getBlockCaptureInitializeKindEncoding(BlockCaptureInitializeKind kind) {
+  switch (kind) {
+  case BlockCaptureInitializeKind::Store:
+    return "S";
+  }
+  llvm_unreachable("unhandled BlockCaptureInitializeKind");
+}
+
 /// Emit the block copy helper for a block.
 static llvm::Function *emitBlockCopyHelper(IRGenModule &IGM,
                                            CanSILBlockStorageType blockTy,
                                            const BlockStorageTypeInfo &blockTL){
   // See if we've produced a block copy helper for this type before.
-  // TODO
-  
+  auto &captureTL = IGM.getTypeInfoForLowered(blockTy->getCaptureType());
+  std::string funcName = "block_copy_helper";
+  bool helperCanBeReused = false;
+  const auto helperEncoding = captureTL.encodeInitializeWithCopy(
+      IGM, blockTL.getFixedAlignment(), helperCanBeReused);
+  if (helperCanBeReused) {
+    funcName = funcName + "_" +
+               llvm::to_string(blockTL.getFixedAlignment().getValue()) + "_" +
+               helperEncoding;
+    if (auto f = IGM.getModule()->getFunction(funcName))
+      return f;
+  }
+
   // Create the helper.
   llvm::Type *args[] = {
     blockTL.getStorageType()->getPointerTo(),
     blockTL.getStorageType()->getPointerTo(),
   };
   auto copyTy = llvm::FunctionType::get(IGM.VoidTy, args, /*vararg*/ false);
-  // TODO: Give these predictable mangled names and shared linkage.
-  auto func = llvm::Function::Create(copyTy, llvm::GlobalValue::InternalLinkage,
-                                     "block_copy_helper",
-                                     IGM.getModule());
+  auto func = llvm::Function::Create(copyTy,
+                                     helperCanBeReused
+                                         ? llvm::GlobalValue::LinkOnceODRLinkage
+                                         : llvm::GlobalValue::InternalLinkage,
+                                     funcName, IGM.getModule());
+  if (helperCanBeReused) {
+    if (IGM.Triple.supportsCOMDAT())
+      func->setComdat(IGM.Module.getOrInsertComdat(funcName));
+    func->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    func->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+  }
   func->setAttributes(IGM.constructInitialAttributes());
   IRGenFunction IGF(IGM, func);
   if (IGM.DebugInfo)
@@ -2377,7 +2420,6 @@ static llvm::Function *emitBlockCopyHelper(IRGenModule &IGM,
 
   auto destCapture = blockTL.projectCapture(IGF, dest);
   auto srcCapture = blockTL.projectCapture(IGF, src);
-  auto &captureTL = IGM.getTypeInfoForLowered(blockTy->getCaptureType());
   captureTL.initializeWithCopy(IGF, destCapture, srcCapture,
                                blockTy->getCaptureAddressType(), false);
 
@@ -2391,17 +2433,34 @@ static llvm::Function *emitBlockDisposeHelper(IRGenModule &IGM,
                                            CanSILBlockStorageType blockTy,
                                            const BlockStorageTypeInfo &blockTL){
   // See if we've produced a block destroy helper for this type before.
-  // TODO
-  
+  auto &captureTL = IGM.getTypeInfoForLowered(blockTy->getCaptureType());
+  std::string funcName = "block_destroy_helper";
+  bool helperCanBeReused = false;
+  const auto helperEncoding = captureTL.encodeDestroy(
+      IGM, blockTL.getFixedAlignment(), helperCanBeReused);
+  if (helperCanBeReused) {
+    funcName = funcName + "_" +
+               llvm::to_string(blockTL.getFixedAlignment().getValue()) + "_" +
+               helperEncoding;
+    if (auto f = IGM.getModule()->getFunction(funcName))
+      return f;
+  }
+
   // Create the helper.
-  auto destroyTy = llvm::FunctionType::get(IGM.VoidTy,
-                                       blockTL.getStorageType()->getPointerTo(),
-                                       /*vararg*/ false);
-  // TODO: Give these predictable mangled names and shared linkage.
+  auto destroyTy = llvm::FunctionType::get(
+      IGM.VoidTy, blockTL.getStorageType()->getPointerTo(),
+      /*vararg*/ false);
   auto func = llvm::Function::Create(destroyTy,
-                                     llvm::GlobalValue::InternalLinkage,
-                                     "block_destroy_helper",
-                                     IGM.getModule());
+                                     helperCanBeReused
+                                         ? llvm::GlobalValue::LinkOnceODRLinkage
+                                         : llvm::GlobalValue::InternalLinkage,
+                                     funcName, IGM.getModule());
+  if (helperCanBeReused) {
+    if (IGM.Triple.supportsCOMDAT())
+      func->setComdat(IGM.Module.getOrInsertComdat(funcName));
+    func->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    func->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+  }
   func->setAttributes(IGM.constructInitialAttributes());
   IRGenFunction IGF(IGM, func);
   assert(!func->hasFnAttribute(llvm::Attribute::SanitizeThread));
@@ -2413,12 +2472,90 @@ static llvm::Function *emitBlockDisposeHelper(IRGenModule &IGM,
   auto storage = Address(params.claimNext(), blockTL.getStorageType(),
                          blockTL.getFixedAlignment());
   auto capture = blockTL.projectCapture(IGF, storage);
-  auto &captureTL = IGM.getTypeInfoForLowered(blockTy->getCaptureType());
   captureTL.destroy(IGF, capture, blockTy->getCaptureAddressType(),
                     false /*block storage code path: never outlined*/);
   IGF.Builder.CreateRetVoid();
   
   return func;
+}
+
+static llvm::Constant *
+buildBlockDescriptor(IRGenFunction &IGF, const BlockStorageTypeInfo &storageTL,
+                     bool isTriviallyDestroyable, CanSILFunctionType invokeTy,
+                     CanSILBlockStorageType blockTy) {
+  // Lookup identical descriptor created before if capture type allows us to
+  // reuse.
+  auto &captureTL = IGF.IGM.getTypeInfoForLowered(blockTy->getCaptureType());
+  auto blockStorageSize = storageTL.getFixedSize().getValue();
+  std::string descriptorName = "block_descriptor";
+  bool initializeWithCopyCanReuse = false;
+  bool destroyCanReuse = false;
+  const auto initializeWithCopyEncoding = captureTL.encodeInitializeWithCopy(
+      IGF.IGM, storageTL.getFixedAlignment(), initializeWithCopyCanReuse);
+  const auto destroyEncoding =
+      initializeWithCopyCanReuse
+          ? captureTL.encodeDestroy(IGF.IGM, storageTL.getFixedAlignment(),
+                                    destroyCanReuse)
+          : "";
+  const bool descriptorCanReuse =
+      isTriviallyDestroyable || (initializeWithCopyCanReuse && destroyCanReuse);
+  if (descriptorCanReuse) {
+    descriptorName += "_" + llvm::to_string(blockStorageSize) + "_";
+    if (!isTriviallyDestroyable) {
+      descriptorName +=
+          llvm::to_string(storageTL.getFixedAlignment().getValue()) + "_";
+      descriptorName += initializeWithCopyEncoding + "_" + destroyEncoding;
+    }
+    auto typeEncoding = getBlockTypeExtendedEncodingString(IGF.IGM, invokeTy);
+    // Replace occurrences of '@' with '\1'. '@' is reserved on ELF platforms as
+    // a separator between symbol name and symbol version.
+    std::replace(typeEncoding.begin(), typeEncoding.end(), '@', '\1');
+    descriptorName += typeEncoding;
+    if (auto descriptor = IGF.IGM.getModule()->getNamedValue(descriptorName)) {
+      return descriptor;
+    }
+  }
+
+  // Build the block descriptor.
+  ConstantInitBuilder builder(IGF.IGM);
+  auto descriptorFields = builder.beginStruct();
+
+  const clang::ASTContext &ASTContext = IGF.IGM.getClangASTContext();
+  llvm::IntegerType *UnsignedLongTy =
+      llvm::IntegerType::get(IGF.IGM.getLLVMContext(),
+                             ASTContext.getTypeSize(ASTContext.UnsignedLongTy));
+  descriptorFields.addInt(UnsignedLongTy, 0);
+  descriptorFields.addInt(UnsignedLongTy, blockStorageSize);
+
+  if (!isTriviallyDestroyable) {
+    // Define the copy and dispose helpers.
+    descriptorFields.addSignedPointer(
+        emitBlockCopyHelper(IGF.IGM, blockTy, storageTL),
+        IGF.getOptions().PointerAuth.BlockHelperFunctionPointers,
+        PointerAuthEntity::Special::BlockCopyHelper);
+    descriptorFields.addSignedPointer(
+        emitBlockDisposeHelper(IGF.IGM, blockTy, storageTL),
+        IGF.getOptions().PointerAuth.BlockHelperFunctionPointers,
+        PointerAuthEntity::Special::BlockDisposeHelper);
+  }
+
+  // Build the descriptor signature.
+  descriptorFields.add(getBlockTypeExtendedEncoding(IGF.IGM, invokeTy));
+
+  // Create the descriptor.
+  auto descriptor = descriptorFields.finishAndCreateGlobal(
+      descriptorName, IGF.IGM.getPointerAlignment(),
+      /*constant*/ true,
+      descriptorCanReuse ? llvm::GlobalValue::LinkOnceODRLinkage
+                         : llvm::GlobalValue::InternalLinkage);
+  if (descriptorCanReuse) {
+    if (IGF.IGM.Triple.supportsCOMDAT())
+      descriptor->setComdat(IGF.IGM.Module.getOrInsertComdat(descriptorName));
+    descriptor->setVisibility(llvm::GlobalValue::HiddenVisibility);
+    descriptor->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+  }
+
+  return descriptor;
 }
 
 /// Emit the block header into a block storage slot.
@@ -2463,42 +2600,11 @@ void irgen::emitBlockHeader(IRGenFunction &IGF,
   
   // Collect the reserved and invoke pointer fields.
   auto reserved = llvm::ConstantInt::get(IGF.IGM.Int32Ty, 0);
-  llvm::Value *invokeVal = llvm::ConstantExpr::getBitCast(invokeFunction,
-                                                      IGF.IGM.FunctionPtrTy);
-  
-  // Build the block descriptor.
-  ConstantInitBuilder builder(IGF.IGM);
-  auto descriptorFields = builder.beginStruct();
+  llvm::Value *invokeVal =
+      llvm::ConstantExpr::getBitCast(invokeFunction, IGF.IGM.FunctionPtrTy);
 
-  const clang::ASTContext &ASTContext = IGF.IGM.getClangASTContext();
-  llvm::IntegerType *UnsignedLongTy =
-      llvm::IntegerType::get(IGF.IGM.getLLVMContext(),
-                             ASTContext.getTypeSize(ASTContext.UnsignedLongTy));
-  descriptorFields.addInt(UnsignedLongTy, 0);
-  descriptorFields.addInt(UnsignedLongTy,
-                          storageTL.getFixedSize().getValue());
-  
-  if (!isTriviallyDestroyable) {
-    // Define the copy and dispose helpers.
-    descriptorFields.addSignedPointer(
-                       emitBlockCopyHelper(IGF.IGM, blockTy, storageTL),
-                       IGF.getOptions().PointerAuth.BlockHelperFunctionPointers,
-                       PointerAuthEntity::Special::BlockCopyHelper);
-    descriptorFields.addSignedPointer(
-                       emitBlockDisposeHelper(IGF.IGM, blockTy, storageTL),
-                       IGF.getOptions().PointerAuth.BlockHelperFunctionPointers,
-                       PointerAuthEntity::Special::BlockDisposeHelper);
-  }
-  
-  // Build the descriptor signature.
-  descriptorFields.add(getBlockTypeExtendedEncoding(IGF.IGM, invokeTy));
-  
-  // Create the descriptor.
-  auto descriptor =
-    descriptorFields.finishAndCreateGlobal("block_descriptor",
-                                           IGF.IGM.getPointerAlignment(),
-                                           /*constant*/ true);
-
+  auto descriptor = buildBlockDescriptor(IGF, storageTL, isTriviallyDestroyable,
+                                         invokeTy, blockTy);
   auto descriptorVal = llvm::ConstantExpr::getBitCast(descriptor,
                                                       IGF.IGM.Int8PtrTy);
   

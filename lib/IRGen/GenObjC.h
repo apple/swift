@@ -178,7 +178,10 @@ namespace irgen {
   /// \returns the encoded type.
   llvm::Constant *getBlockTypeExtendedEncoding(IRGenModule &IGM,
                                                CanSILFunctionType invokeTy);
-  
+
+  std::string getBlockTypeExtendedEncodingString(IRGenModule &IGM,
+                                                 CanSILFunctionType invokeTy);
+
   /// Produces extended encoding of method type.
   /// \returns the encoded type.
   llvm::Constant *getMethodTypeExtendedEncoding(IRGenModule &IGM,

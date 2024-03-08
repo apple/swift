@@ -122,6 +122,16 @@ public:
     IGF.emitStrongRetain(value, asDerived().getReferenceCounting(), atomicity);
   }
 
+  bool supportsEncodingScalarRetain() const override { return true; }
+  std::string encodeScalarRetain(IRGenModule &IGM) const override {
+    return refcountingToString(asDerived().getReferenceCounting());
+  }
+  bool supportsEncodingScalarRelease() const override { return true; }
+  std::string encodeScalarRelease(IRGenModule &IGM) const override {
+    return refcountingToString(asDerived().getReferenceCounting());
+  }
+  Size getSizeForEncoding() const override { return super::getFixedSize(); }
+
   // Implement the primary retain/release operations of ReferenceTypeInfo
   // using basic reference counting.
   void strongRetain(IRGenFunction &IGF, Explosion &e,

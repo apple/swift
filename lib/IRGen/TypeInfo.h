@@ -30,6 +30,8 @@
 #include "swift/AST/ReferenceCounting.h"
 #include "llvm/ADT/MapVector.h"
 
+#include <string>
+
 namespace llvm {
   class Constant;
   class Twine;
@@ -382,6 +384,22 @@ public:
                                   Address srcAddr, SILType T,
                                   bool isOutlined) const = 0;
 
+  /// Encode the behavior of initializeWithCopy into a string.
+  /// Subclasses that supports the encoding should set the out parameter
+  /// outIsSupported to true.
+  virtual std::string encodeInitializeWithCopy(IRGenModule &IGM,
+                                               Alignment alignment,
+                                               Size &offset,
+                                               bool &outIsSupported) const {
+    outIsSupported = false;
+    return "";
+  }
+  std::string encodeInitializeWithCopy(IRGenModule &IGM, Alignment alignment,
+                                       bool &outIsSupported) const {
+    Size offset;
+    return encodeInitializeWithCopy(IGM, alignment, offset, outIsSupported);
+  }
+
   /// Perform a copy-initialization from the given fixed-size buffer
   /// into an uninitialized fixed-size buffer, allocating the buffer if
   /// necessary.  Returns the address of the value inside the buffer.
@@ -404,6 +422,20 @@ public:
   /// Destroy an object of this type in memory.
   virtual void destroy(IRGenFunction &IGF, Address address, SILType T,
                        bool isOutlined) const = 0;
+
+  /// Encode the behavior of destroy into a string.
+  /// Subclasses that supports the encoding should set the out parameter
+  /// outIsSupported to true.
+  virtual std::string encodeDestroy(IRGenModule &IGM, Alignment alignment,
+                                    Size &offset, bool &outIsSupported) const {
+    outIsSupported = false;
+    return "";
+  }
+  std::string encodeDestroy(IRGenModule &IGM, Alignment alignment,
+                            bool &outIsSupported) const {
+    Size offset;
+    return encodeDestroy(IGM, alignment, offset, outIsSupported);
+  }
 
   /// Should optimizations be enabled which rely on the representation
   /// for this type being a single object pointer?

@@ -390,7 +390,11 @@ public:
   virtual void getSchema(ExplosionSchema &schema) const = 0;
   virtual void destroy(IRGenFunction &IGF, Address addr, SILType T,
                        bool isOutlined) const = 0;
-
+  virtual std::string encodeDestroy(IRGenModule &IGM, Alignment alignment,
+                                    Size &offset, bool &outIsSupported) const {
+    outIsSupported = false;
+    return "";
+  }
   virtual void initializeFromParams(IRGenFunction &IGF, Explosion &params,
                                     Address dest, SILType T,
                                     bool isOutlined) const;
@@ -401,6 +405,13 @@ public:
                               SILType T, bool isOutlined) const = 0;
   virtual void initializeWithCopy(IRGenFunction &IGF, Address dest, Address src,
                                   SILType T, bool isOutlined) const = 0;
+  virtual std::string encodeInitializeWithCopy(IRGenModule &IGM,
+                                               Alignment alignment,
+                                               Size &offset,
+                                               bool &outIsSupported) const {
+    outIsSupported = false;
+    return "";
+  }
   virtual void initializeWithTake(IRGenFunction &IGF, Address dest, Address src,
                                   SILType T, bool isOutlined) const = 0;
 

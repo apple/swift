@@ -13,18 +13,18 @@ import gizmo
 
 // CHECK: [[BLOCK_ISA:@_NSConcreteStackBlock]] = external global {{(dllimport )?}}%objc_class
 // CHECK: [[VOID_BLOCK_SIGNATURE:@.*]] = private unnamed_addr constant {{.*}} c"v8@?0\00"
-// CHECK: [[TRIVIAL_BLOCK_DESCRIPTOR:@.*]] = internal constant { i64, i64, ptr } {
+// CHECK: [[TRIVIAL_BLOCK_DESCRIPTOR:@"block_descriptor_40_v8\\01\?0"]] = linkonce_odr hidden unnamed_addr constant { i64, i64, ptr } {
 // CHECK-SAME:   i64 0,
 // CHECK-SAME:   i64 40,
 // CHECK-SAME:   ptr [[VOID_BLOCK_SIGNATURE]]
 // CHECK-SAME: }
 // CHECK: [[BLOCK_PARAM_BLOCK_SIGNATURE:@.*]] = private unnamed_addr constant {{.*}} c"v16@?0@?<q@?q>8\00"
-// CHECK: [[BLOCK_PARAM_BLOCK_DESCRIPTOR:@.*]] = internal constant { {{.*}} } {
+// CHECK: [[BLOCK_PARAM_BLOCK_DESCRIPTOR:@"block_descriptor_40_v16\\01\?0\\01\?<q\\01\?q>8"]] = linkonce_odr hidden unnamed_addr constant { {{.*}} } {
 // CHECK:   i64 0,
 // CHECK:   i64 40,
 // CHECK:   ptr [[BLOCK_PARAM_BLOCK_SIGNATURE]]
 // CHECK: }
-// CHECK: [[NONTRIVIAL_BLOCK_DESCRIPTOR:@.*]] = internal constant { {{.*}} } {
+// CHECK: [[NONTRIVIAL_BLOCK_DESCRIPTOR:@"block_descriptor_40_8_0NativeStrongReferenceS_0NativeStrongReferencev8\\01\?0"]] = linkonce_odr hidden unnamed_addr constant { {{.*}} } {
 // CHECK:   i64 0,
 // CHECK:   i64 40,
 // CHECK:   ptr [[NONTRIVIAL_BLOCK_COPY:@[A-Za-z0-9_]+]],
@@ -32,7 +32,7 @@ import gizmo
 // CHECK:   ptr [[VOID_BLOCK_SIGNATURE]]
 // CHECK: }
 // CHECK: [[NSRECT_BLOCK_SIGNATURE:@.*]] = private unnamed_addr constant {{.*}} c"{NSRect={NSPoint=dd}{NSSize=dd}}8@?0\00"
-// CHECK: [[STRET_BLOCK_DESCRIPTOR:@.*]] = internal constant { {{.*}} } {
+// CHECK: [[STRET_BLOCK_DESCRIPTOR:@"block_descriptor_40_{NSRect={NSPoint=dd}{NSSize=dd}}8\\01\?0"]] = linkonce_odr hidden unnamed_addr constant { {{.*}} } {
 // CHECK:   i64 0,
 // CHECK:   i64 40,
 // CHECK:   ptr [[NSRECT_BLOCK_SIGNATURE]]
@@ -129,7 +129,7 @@ entry(%0 : $*@block_storage Builtin.NativeObject):
   return %b : $@convention(block) () -> ()
 }
 
-// CHECK:       define internal void [[NONTRIVIAL_BLOCK_COPY]]
+// CHECK:       define linkonce_odr hidden void [[NONTRIVIAL_BLOCK_COPY]]
 // CHECK-NEXT:  entry:
 // CHECK-NEXT:    %2 = getelementptr inbounds { %objc_block, ptr }, ptr %0, i32 0, i32 1
 // CHECK-NEXT:    %3 = getelementptr inbounds { %objc_block, ptr }, ptr %1, i32 0, i32 1
@@ -138,7 +138,7 @@ entry(%0 : $*@block_storage Builtin.NativeObject):
 // CHECK-NEXT:    store ptr %4, ptr %2, align 8
 // CHECK-NEXT:    ret void
 
-// CHECK:       define internal void [[NONTRIVIAL_BLOCK_DISPOSE]]
+// CHECK:       define linkonce_odr hidden void [[NONTRIVIAL_BLOCK_DISPOSE]]
 // CHECK-NEXT:  entry:
 // CHECK-NEXT:    %1 = getelementptr inbounds { %objc_block, ptr }, ptr %0, i32 0, i32 1
 // CHECK-NEXT:    %toDestroy = load ptr, ptr %1, align 8
