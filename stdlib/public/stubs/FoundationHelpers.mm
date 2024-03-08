@@ -33,38 +33,44 @@ using namespace swift;
 
 static CFHashCode(*_CFStringHashCString)(const uint8_t *bytes, CFIndex len);
 static CFHashCode(*_CFStringHashNSString)(id str);
-static CFTypeID(*_CFGetTypeID)(CFTypeRef obj);
-static CFTypeID _CFStringTypeID = 0;
-static swift_once_t initializeBridgingFuncsOnce;
-
-extern "C" bool _dyld_is_objc_constant(DyldObjCConstantKind kind,
-                                       const void *addr) SWIFT_RUNTIME_WEAK_IMPORT;
+static id(*_CFStringCreateTaggedPointerString)(const uint8_t *bytes, CFIndex numBytes);
+static __swift_uint8_t(*_NSIsNSString)(id arg);
+static once_t initializeBridgingFuncsOnce;
 
 static void _initializeBridgingFunctionsImpl(void *ctxt) {
-  auto getStringTypeID =
-    (CFTypeID(*)(void))
-    dlsym(RTLD_DEFAULT, "CFStringGetTypeID");
-  assert(getStringTypeID);
-  _CFStringTypeID = getStringTypeID();
-  
-  _CFGetTypeID = (CFTypeID(*)(CFTypeRef obj))dlsym(RTLD_DEFAULT, "CFGetTypeID");
-  _CFStringHashNSString = (CFHashCode(*)(id))dlsym(RTLD_DEFAULT,
-                                                   "CFStringHashNSString");
-  _CFStringHashCString = (CFHashCode(*)(const uint8_t *, CFIndex))dlsym(
-                                                   RTLD_DEFAULT,
-                                                   "CFStringHashCString");
+  void *cf = dlopen("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", RTLD_LAZY | RTLD_NOLOAD | RTLD_LOCAL | RTLD_FIRST);
+  _NSIsNSString = (__swift_uint8_t(*)(id))dlsym(cf ? cf : RTLD_DEFAULT, "_NSIsNSString");
+  _CFStringHashNSString = (CFHashCode(*)(id))dlsym(cf ? cf : RTLD_DEFAULT, "CFStringHashNSString");
+  _CFStringHashCString = (CFHashCode(*)(const uint8_t *, CFIndex))dlsym(cf ? cf : RTLD_DEFAULT, "CFStringHashCString");
+  _CFStringCreateTaggedPointerString = (id(*)(const uint8_t *, CFIndex))dlsym(cf ? cf : RTLD_DEFAULT, "_CFStringCreateTaggedPointerString");
+  if (cf) {
+    dlclose(cf);
+  }
 }
 
 static inline void initializeBridgingFunctions() {
-  swift_once(&initializeBridgingFuncsOnce,
-             _initializeBridgingFunctionsImpl,
-             nullptr);
+  once(initializeBridgingFuncsOnce,
+       _initializeBridgingFunctionsImpl,
+       nullptr);
+}
+
+void *
+_swift_stdlib_createTaggedPointerString(const _swift_shims_UInt8 * _Nonnull bytes,
+                                        _swift_shims_CFIndex length) {
+  initializeBridgingFunctions();
+ // if (_CFStringCreateTaggedPointerString != NULL) {
+    return (void *)_CFStringCreateTaggedPointerString(bytes, length);
+ // }
+ // return nil;
 }
 
 __swift_uint8_t
 _swift_stdlib_isNSString(id obj) {
   initializeBridgingFunctions();
-  return _CFGetTypeID((CFTypeRef)obj) == _CFStringTypeID ? 1 : 0;
+  if (_NSIsNSString != NULL) {
+    return _NSIsNSString(obj);
+  }
+  return [obj isKindOfClass: objc_lookUpClass("NSString")];
 }
 
 _swift_shims_CFHashCode
@@ -106,10 +112,15 @@ _swift_stdlib_NSStringGetCStringTrampoline(id _Nonnull obj,
 
 }
 
+//extern "C" bool _dyld_is_objc_constant(DyldObjCConstantKind kind,
+//                                       const void *addr) SWIFT_RUNTIME_WEAK_IMPORT;
+
 __swift_uint8_t
 _swift_stdlib_dyld_is_objc_constant_string(const void *addr) {
-  return (SWIFT_RUNTIME_WEAK_CHECK(_dyld_is_objc_constant)
-          && SWIFT_RUNTIME_WEAK_USE(_dyld_is_objc_constant(dyld_objc_string_kind, addr))) ? 1 : 0;
+  return false;
+  //This currently always return false
+//  return (SWIFT_RUNTIME_WEAK_CHECK(_dyld_is_objc_constant)
+//          && SWIFT_RUNTIME_WEAK_USE(_dyld_is_objc_constant(dyld_objc_string_kind, addr))) ? 1 : 0;
 }
 
 #endif
