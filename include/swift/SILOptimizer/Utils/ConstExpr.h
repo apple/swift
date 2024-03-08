@@ -24,10 +24,13 @@
 #ifndef SWIFT_SILOPTIMIZER_CONSTEXPR_H
 #define SWIFT_SILOPTIMIZER_CONSTEXPR_H
 
+#include "swift/AST/SemanticAttrs.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/SourceLoc.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/SILBasicBlock.h"
+#include "swift/SIL/SILFunction.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
 namespace swift {
@@ -40,6 +43,132 @@ class SymbolicValue;
 class SymbolicValueAllocator;
 class ConstExprFunctionState;
 class UnknownReason;
+
+/// This class is a utility used for evaluating string literals. It retrieves
+/// info about the string and allows conversion from a swift string literal to a
+/// StringRef. The class is designed to be used in conjunction with
+/// SILInstructions or SILValues.
+class StringLiteralInitializerInfo {
+  StringLiteralInitializerInfo() = default;
+
+public:
+  bool isAscii;
+  StringRef value;
+  StringLiteralInst *inst;
+
+  /// Create an instance of StringLiteralInitializerInfo by casting v to an
+  /// ApplyInst.
+  ///
+  /// \param v SILValue to be cast to ApplyInst and used in creation of the
+  /// string literal. v should be an ApplyInst that calls a function with the
+  /// semantic attribute "string.makeUTF8".
+  static Optional<StringLiteralInitializerInfo> getFromCallsite(SILValue v) {
+    if (auto *inst = dyn_cast<ApplyInst>(v))
+      return getFromCallsite(inst);
+    return {};
+  }
+
+  /// Create an instance of StringLiteralInitializerInfo using inst.
+  ///
+  /// \param inst The instruction to be used in creation of the string literal.
+  /// inst should be an ApplyInst that calls a function with the semantic
+  /// attribute "string.makeUTF8".
+  static Optional<StringLiteralInitializerInfo>
+  getFromCallsite(SILInstruction *inst) {
+    ApplyInst *makeStr = getStringMakeUTF8Apply(inst);
+    if (!makeStr)
+      return {};
+
+    auto strVal = getUTF8StringValue(makeStr);
+    if (!strVal)
+      return {};
+
+    StringLiteralInitializerInfo info;
+    info.value = strVal.getValue();
+    info.isAscii = getIsAscii(makeStr);
+    info.inst = getUTF8String(makeStr);
+    return info;
+  }
+
+  /// If the given instruction is a call to the compiler-intrinsic initializer
+  /// of String that accepts string literals, return the called function.
+  /// Otherwise, return nullptr.
+  ///
+  /// \param inst Should be an ApplyInst that calls the string init function:
+  /// \code
+  ///  String(_builtinStringLiteral start: Builtin.RawPointer,
+  ///         utf8CodeUnitCount: Builtin.Word,
+  ///         isASCII: Builtin.Int1)
+  /// \endcode
+  /// with the semantic attribute "string.makeUTF8"
+  static SILFunction *getStringMakeUTF8InitFunction(SILInstruction *inst) {
+    if (auto apply = getStringMakeUTF8Apply(inst))
+      return apply->getCalleeFunction();
+    return nullptr;
+  }
+
+  /// Similar to getStringMakeUTF8Init but, gets the apply instruction instead.
+  static ApplyInst *getStringMakeUTF8Apply(SILInstruction *inst) {
+    auto *apply = dyn_cast<ApplyInst>(inst);
+    if (!apply)
+      return nullptr;
+
+    SILFunction *callee = apply->getCalleeFunction();
+    if (!callee || !callee->hasSemanticsAttr(semantics::STRING_MAKE_UTF8))
+      return nullptr;
+    return apply;
+  }
+
+  /// \returns a StringLiteralInst pointer from a string init function if \p
+  /// makeStr is an ApplyInst that calls a function with the semantics attribute
+  /// 'string.makeUTF8', and if its first argument is a StringLiteralInst.
+  /// Otherwise, the pointer will be null.
+  static StringLiteralInst *getUTF8String(ApplyInst *makeStr) {
+    SILFunction *callee = makeStr->getCalleeFunction();
+    if (!callee || !callee->hasSemanticsAttr(semantics::STRING_MAKE_UTF8))
+      return nullptr;
+
+    if (makeStr->getNumArguments() < 1)
+      return nullptr;
+
+    return dyn_cast<StringLiteralInst>(makeStr->getOperand(1));
+  }
+
+  /// \returns an optional StringRef from a string init function if \p makeStr
+  /// is an ApplyInst that calls a function with the semantics attribute
+  /// 'string.makeUTF8', and if its first argument is a StringLiteralInst.
+  static Optional<StringRef> getUTF8StringValue(ApplyInst *makeStr) {
+    if (auto stringLiteralInst = getUTF8String(makeStr)) {
+      return stringLiteralInst->getValue();
+    }
+
+    return {};
+  }
+
+  /// \returns the third argument of the string initialization function, which
+  /// describes whether the string is ASCII, only if \p makeStr is an ApplyInst
+  /// that calls a function with the semantics attribute 'string.makeUTF8', and
+  /// if its third argument is an IntegerLiteralInst. Otherwise, returns false.
+  ///
+  /// \p makeStr must call a function with the following form:
+  /// \code
+  ///  String(_builtinStringLiteral start: Builtin.RawPointer,
+  ///         utf8CodeUnitCount: Builtin.Word,
+  ///         isASCII: Builtin.Int1)
+  /// \endcode
+  static bool getIsAscii(ApplyInst *makeStr) {
+    SILFunction *callee = makeStr->getCalleeFunction();
+    if (!callee || !callee->hasSemanticsAttr(semantics::STRING_MAKE_UTF8))
+      return {};
+
+    if (makeStr->getNumArguments() < 3)
+      return false;
+
+    if (auto *isAscii = dyn_cast<IntegerLiteralInst>(makeStr->getOperand(3)))
+      return isAscii->getValue().getBoolValue();
+    return false;
+  }
+};
 
 /// This class is the main entrypoint for evaluating constant expressions.  It
 /// also handles caching of previously computed constexpr results.
