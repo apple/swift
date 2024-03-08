@@ -54,6 +54,18 @@ func genericArithmetic<T>(
   mul: a &* b
 )}
 
+func genericReduceMin<T>(_ a: T) -> T.Scalar where T: SIMD, T.Scalar: FixedWidthInteger {
+  a.min()
+}
+
+func genericReduceMax<T>(_ a: T) -> T.Scalar where T: SIMD, T.Scalar: FixedWidthInteger {
+  a.max()
+}
+
+func genericReduceSum<T>(_ a: T) -> T.Scalar where T: SIMD, T.Scalar: FixedWidthInteger {
+  a.wrappedSum()
+}
+
 %for int in all_integer_types(word_bits):
 % Scalar = int.stdlib_name
 % for n in vectorscalarCounts:
@@ -90,6 +102,18 @@ ${Scalar}x${n}_TestSuite.test("arithmetic") {
   expectEqual(add, a &+ b)
   expectEqual(sub, a &- b)
   expectEqual(mul, a &* b)
+}
+
+${Scalar}x${n}_TestSuite.test("reduction") {
+% if n == 3:
+  var a = ${Vector}.random(in: ${Scalar}.min ... .max)
+  a._storage[3] = ${Scalar}.random(in: .min ... .max)
+% else:
+  let a = ${Vector}.random(in: ${Scalar}.min ... .max)
+% end
+  expectEqual(genericReduceMin(a), a.min())
+  expectEqual(genericReduceMax(a), a.max())
+  expectEqual(genericReduceSum(a), a.wrappedSum())
 }
 
 % end

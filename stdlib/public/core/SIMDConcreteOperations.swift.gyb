@@ -24,12 +24,19 @@ vectorscalarCounts = storagescalarCounts + [3]
 %  storageN = 4 if n == 3 else n
 %  s = "s" if int.is_signed else "u"
 %  Builtin = "Vec" + str(storageN) + "xInt" + str(int.bits)
-%  MaskExt = "Builtin.sext_Vec" + str(storageN) + "xInt1_" + Builtin
+%  Int1Vec = "Vec" + str(storageN) + "xInt1"
+%  MaskExt = "Builtin.sext_" + Int1Vec + "_" + Builtin
 %  if int.is_signed:
 extension SIMDMask where Storage == ${Vector} {
   @_alwaysEmitIntoClient
   internal init(_ _builtin: Builtin.${Builtin}) {
     _storage = ${Vector}(_builtin)
+  }
+    
+  /// A vector with the specified value in all lanes.
+  @_alwaysEmitIntoClient
+  public init(repeating scalar: Bool) {
+    _storage = ${Vector}(repeating: scalar ? -1 : 0)
   }
   
   @_alwaysEmitIntoClient
@@ -204,6 +211,46 @@ extension SIMDMask where Storage == ${Vector} {
   public func replacing(with other: Self, where mask: Self) -> Self {
     (self .& .!mask) .| (other .& mask)
   }
+  
+  /// Returns a vector mask with `true` or `false` randomly assigned in each
+  /// lane, using the given generator as a source for randomness.
+  @_alwaysEmitIntoClient
+  public static func random<T: RandomNumberGenerator>(using generator: inout T) -> Self {
+    let data = Builtin.truncOrBitCast_Int64_Int${storageN}(generator.next()._value)
+    return Self(${MaskExt}(
+      Builtin.bitcast_Int${storageN}_Vec${storageN}xInt1(data)
+    ))
+  }
+  
+  /// Returns a vector mask with `true` or `false` randomly assigned in each
+  /// lane.
+  @_alwaysEmitIntoClient
+  public static func random() -> Self {
+    var g = SystemRandomNumberGenerator()
+    return Self.random(using: &g)
+  }
+}
+
+/// True if any lane of mask is true.
+@_alwaysEmitIntoClient
+public func any(_ mask: SIMDMask<${Vector}>) -> Bool {
+#if arch(i386) || arch(x86_64)
+% mask = hex((1 << n) - 1)
+  return mask._storage.movemask() & ${mask} != 0
+#else
+  return mask._storage.min() < 0
+#endif
+}
+
+/// True if every lane of mask is true.
+@_alwaysEmitIntoClient
+public func all(_ mask: SIMDMask<${Vector}>) -> Bool {
+#if arch(i386) || arch(x86_64)
+% mask = hex((1 << n) - 1)
+  return mask._storage.movemask() & ${mask} == ${mask}
+#else
+  return mask._storage.max() < 0
+#endif
 }
 
 %  end
@@ -211,6 +258,31 @@ extension SIMD${n} where Scalar == ${Scalar} {
   @_alwaysEmitIntoClient
   internal init(_ _builtin: Builtin.${Builtin}) {
     _storage = ${Scalar}.SIMD${storageN}Storage(_builtin)
+  }
+
+#if arch(i386) || arch(x86_64)
+  /// Implements the x86 PMOVMSKB / MOVMSKPS / MOVMSKPD instruction
+  /// semantics. Not available on other targets.
+  @_alwaysEmitIntoClient
+  internal func movemask() -> UInt${max(n, 8)} {
+    let zero: Builtin.${Builtin} = Builtin.zeroInitializer()
+    let mask = Builtin.cmp_slt_${Builtin}(_storage._value, zero)
+    let int = Builtin.bitcast_${Int1Vec}_Int${storageN}(mask)
+    return UInt${max(n, 8)}(
+      Builtin.zextOrBitCast_Int${storageN}_Int${max(n, 8)}(int)
+    )
+  }
+#endif
+    
+  /// A vector with the specified value in all lanes.
+  @_alwaysEmitIntoClient
+  public init(repeating scalar: ${Scalar}) {
+    let vec = Builtin.insertelement_${Builtin}_Int${int.bits}_Int32(
+      Builtin.zeroInitializer(), scalar._value, Builtin.zeroInitializer()
+    )
+    self.init(Builtin.shufflevector_${Builtin}_Vec${storageN}xInt32(
+      vec, vec, Builtin.zeroInitializer()
+    ))
   }
     
   /// A vector mask with the result of a pointwise equality comparison.
@@ -293,6 +365,72 @@ extension SIMD${n} where Scalar == ${Scalar} {
   /// vectors.
   @_alwaysEmitIntoClient
   public static func &*=(a: inout Self, b: Self) { a = a &* b }
+      
+  /// The least scalar in the vector.
+  ///
+  /// Equivalent to:
+  /// ```
+  /// indices.reduce(into: Scalar.max) {
+  ///   $0 = min($0, self[$1])
+  /// }
+  /// ```
+  @_alwaysEmitIntoClient
+  public func min() -> Scalar {
+  % if n == 3:
+    var storage = _storage
+    storage[3] = Scalar.max
+  % else:
+    let storage = _storage
+  % end
+  % if int.is_signed:
+    return Scalar(Builtin.int_vector_reduce_smin_${Builtin}(storage._value))
+  % else:
+    return Scalar(Builtin.int_vector_reduce_umin_${Builtin}(storage._value))
+  % end
+  }
+      
+  /// The greatest element in the vector.
+  ///
+  /// Equivalent to:
+  /// ```
+  /// indices.reduce(into: Scalar.min) {
+  ///   $0 = max($0, self[$1])
+  /// }
+  /// ```
+  @_alwaysEmitIntoClient
+  public func max() -> Scalar {
+  % if n == 3:
+    var storage = _storage
+    storage[3] = Scalar.min
+  % else:
+    let storage = _storage
+  % end
+  % if int.is_signed:
+    return Scalar(Builtin.int_vector_reduce_smax_${Builtin}(storage._value))
+  % else:
+    return Scalar(Builtin.int_vector_reduce_umax_${Builtin}(storage._value))
+  % end
+  }
+    
+  /// Returns the sum of the scalars in the vector, computed with wrapping
+  /// addition.
+  ///
+  /// Equivalent to:
+  /// ```
+  /// indices.reduce(into: 0) {
+  ///   $0 &+= self[$1]
+  /// }
+  /// ```
+  @_alwaysEmitIntoClient
+  public func wrappedSum() -> Scalar {
+  % if n == 3:
+    var storage = _storage
+    storage[3] = 0
+  % else:
+    let storage = _storage
+  % end
+  return Scalar(Builtin.int_vector_reduce_add_${Builtin}(storage._value))
+  }
 }
 
 % end
@@ -313,6 +451,17 @@ extension SIMD${n} where Scalar == ${Scalar} {
   @_alwaysEmitIntoClient
   internal init(_ _builtin: Builtin.${Builtin}) {
     _storage = ${Scalar}.SIMD${storageN}Storage(_builtin)
+  }
+    
+  /// A vector with the specified value in all lanes.
+  @_alwaysEmitIntoClient
+  public init(repeating scalar: ${Scalar}) {
+    let vec = Builtin.insertelement_${Builtin}_FPIEEE${bits}_Int32(
+      Builtin.zeroInitializer(), scalar._value, Builtin.zeroInitializer()
+    )
+    self.init(Builtin.shufflevector_${Builtin}_Vec${storageN}xInt32(
+      vec, vec, Builtin.zeroInitializer()
+    ))
   }
   
   /// A vector mask with the result of a pointwise equality comparison.

@@ -50,6 +50,12 @@ func genericComparisons<T>(
   ne: a .!= b
 )}
 
+func genericAnyAll<T>(_ a: SIMDMask<T>) -> (any: Bool, all: Bool)
+where T: SIMD, T.Scalar: SignedInteger & FixedWidthInteger {(
+  any: any(a),
+  all: all(a)
+)}
+
 %for int in all_integer_types(word_bits):
 % Scalar = int.stdlib_name
 % for n in vectorscalarCounts:
@@ -93,6 +99,33 @@ ${Scalar}x${n}Mask_TestSuite.test("replacing") {
   expectEqual(f.replacing(with: t, where: a), a)
   expectEqual(t.replacing(with: false, where: a), .!a)
   expectEqual(f.replacing(with: true, where: a), a)
+}
+  
+${Scalar}x${n}Mask_TestSuite.test("any/all") {
+  let a = SIMDMask<${Vector}>.random()
+  let (anyA, allA) = genericAnyAll(a)
+  expectEqual(anyA, any(a))
+  expectEqual(allA, all(a))
+%   if n == 3:
+  var t = SIMDMask<${Vector}>(repeating: true)
+  t._storage._storage[3] = ${Scalar}.random(in: 0 ... .max)
+  var f = SIMDMask<${Vector}>(repeating: false)
+  f._storage._storage[3] = ${Scalar}.random(in: .min ... -1)
+%   else:
+  let t = SIMDMask<${Vector}>(repeating: true)
+  let f = SIMDMask<${Vector}>(repeating: false)
+%   end
+  expectTrue(all(t))
+  expectTrue(any(t))
+  expectFalse(all(f))
+  expectFalse(any(f))
+  
+  // Deliberately make a SIMDMask with non-canonical storage to make sure
+  // we still work.
+  let b = SIMDMask(${Vector}.random(in: (.min+1) ... (.max-1)))
+  let (anyB, allB) = genericAnyAll(b)
+  expectEqual(anyB, any(b))
+  expectEqual(allB, all(b))
 }
 
 %  end

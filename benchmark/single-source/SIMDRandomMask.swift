@@ -19,9 +19,21 @@ public let benchmarks = [
     tags: [.validation, .SIMD]
   ),
   BenchmarkInfo(
+    name: "SIMDRandomMask.Int8x16.Generic",
+    runFunction: run_SIMDRandomMaskInt8x16_generic,
+    tags: [.validation, .SIMD],
+    legacyFactor: 10
+  ),
+  BenchmarkInfo(
     name: "SIMDRandomMask.Int8x64",
     runFunction: run_SIMDRandomMaskInt8x64,
     tags: [.validation, .SIMD]
+  ),
+  BenchmarkInfo(
+    name: "SIMDRandomMask.Int8x64.Generic",
+    runFunction: run_SIMDRandomMaskInt8x64_generic,
+    tags: [.validation, .SIMD],
+    legacyFactor: 10
   ),
   BenchmarkInfo(
     name: "SIMDRandomMask.Int64x2",
@@ -29,14 +41,32 @@ public let benchmarks = [
     tags: [.validation, .SIMD]
   ),
   BenchmarkInfo(
+    name: "SIMDRandomMask.Int64x2.Generic",
+    runFunction: run_SIMDRandomMaskInt64x2_generic,
+    tags: [.validation, .SIMD],
+    legacyFactor: 10
+  ),
+  BenchmarkInfo(
     name: "SIMDRandomMask.Int64x8",
     runFunction: run_SIMDRandomMaskInt64x8,
     tags: [.validation, .SIMD]
   ),
   BenchmarkInfo(
+    name: "SIMDRandomMask.Int64x8.Generic",
+    runFunction: run_SIMDRandomMaskInt64x8_generic,
+    tags: [.validation, .SIMD],
+    legacyFactor: 10
+  ),
+  BenchmarkInfo(
     name: "SIMDRandomMask.Int64x64",
     runFunction: run_SIMDRandomMaskInt64x64,
     tags: [.validation, .SIMD]
+  ),
+  BenchmarkInfo(
+    name: "SIMDRandomMask.Int64x64.Generic",
+    runFunction: run_SIMDRandomMaskInt64x64_generic,
+    tags: [.validation, .SIMD],
+    legacyFactor: 10 
   )
 ]
 
@@ -86,6 +116,57 @@ public func run_SIMDRandomMaskInt64x64(_ n: Int) {
   var accum = SIMDMask<SIMD64<Int64>>()
   for _ in 0 ..< 10000*n {
     accum .^= SIMDMask.random(using: &g)
+  }
+  blackHole(accum)
+}
+
+@inline(__always)
+internal func generic_random<T>() -> SIMDMask<T>
+where T: SIMD, T.Scalar: FixedWidthInteger & SignedInteger {
+  SIMDMask<T>.random()
+}
+
+@inline(never)
+public func run_SIMDRandomMaskInt8x16_generic(_ N: Int) {
+  var accum = SIMDMask<SIMD16<Int8>>()
+  for _ in 0 ..< 1000*N {
+    accum .^= generic_random()
+  }
+  blackHole(accum)
+}
+
+@inline(never)
+public func run_SIMDRandomMaskInt8x64_generic(_ N: Int) {
+  var accum = SIMDMask<SIMD64<Int8>>()
+  for _ in 0 ..< 1000*N {
+    accum .^= generic_random()
+  }
+  blackHole(accum)
+}
+
+@inline(never)
+public func run_SIMDRandomMaskInt64x2_generic(_ N: Int) {
+  var accum = SIMDMask<SIMD2<Int64>>()
+  for _ in 0 ..< 1000*N {
+    accum .^= generic_random()
+  }
+  blackHole(accum)
+}
+
+@inline(never)
+public func run_SIMDRandomMaskInt64x8_generic(_ N: Int) {
+  var accum = SIMDMask<SIMD8<Int64>>()
+  for _ in 0 ..< 1000*N {
+    accum .^= generic_random()
+  }
+  blackHole(accum)
+}
+
+@inline(never)
+public func run_SIMDRandomMaskInt64x64_generic(_ N: Int) {
+  var accum = SIMDMask<SIMD64<Int64>>()
+  for _ in 0 ..< 1000*N {
+    accum .^= generic_random()
   }
   blackHole(accum)
 }
