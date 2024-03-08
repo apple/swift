@@ -75,7 +75,7 @@ def log_analyzer():
     Analyze .build_script_log and provide a summary of the time execution.
     """
     build_script_log_path = log_time_path()
-    print("--- Build Script Analyzer ---", file=sys.stderr)
+    print("--- Summary of execution ---", file=sys.stderr)
     build_events = []
     total_duration = 0
     if os.path.exists(build_script_log_path):
@@ -115,6 +115,6 @@ def log_analyzer():
         print("Total Duration: {:.2f} seconds".format(
             total_duration) + formatted_duration, file=sys.stderr)
     else:
-        print("Skip build script analyzer", file=sys.stderr)
+        print("Skip build script analysis", file=sys.stderr)
         print(".build_script_log file not found at {}".format(build_script_log_path),
               file=sys.stderr)
