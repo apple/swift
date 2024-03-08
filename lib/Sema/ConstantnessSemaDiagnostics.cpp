@@ -237,9 +237,10 @@ static void diagnoseError(Expr *errorExpr, const ASTContext &astContext,
       // This case should normally not happen. This is a safe guard against
       // possible mismatch between the atomics library and the compiler.
       diags.diagnose(errorLoc, diag::argument_must_be_constant);
+    } else {
+      diags.diagnose(errorLoc, diag::atomics_ordering_must_be_constant,
+                     nominalDecl->getName());
     }
-    diags.diagnose(errorLoc, diag::atomics_ordering_must_be_constant,
-                   nominalDecl->getName());
     return;
   }
 
