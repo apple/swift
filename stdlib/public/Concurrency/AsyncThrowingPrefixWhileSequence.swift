@@ -14,6 +14,14 @@ import Swift
 
 @available(SwiftStdlib 5.1, *)
 extension AsyncSequence {
+  @available(*, deprecated, renamed: "prefix(while:)")
+  @preconcurrency
+  @inlinable
+  public __consuming func prefix(
+    while predicate: @Sendable @escaping (Element) async throws -> Bool
+  ) rethrows -> AsyncThrowingPrefixWhileSequence<Self> {
+    return AsyncThrowingPrefixWhileSequence(self, predicate: predicate)
+  }
   /// Returns an asynchronous sequence, containing the initial, consecutive
   /// elements of the base sequence that satisfy the given error-throwing
   /// predicate.
@@ -54,7 +62,7 @@ extension AsyncSequence {
   @inlinable
   public __consuming func prefix(
     while predicate: @Sendable @escaping (Element) async throws -> Bool
-  ) rethrows -> AsyncThrowingPrefixWhileSequence<Self> {
+  ) -> AsyncThrowingPrefixWhileSequence<Self> {
     return AsyncThrowingPrefixWhileSequence(self, predicate: predicate)
   }
 }
