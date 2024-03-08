@@ -1,5 +1,5 @@
 class Person {
-internal init(firstName: String? = nil, lastName: String? = nil, age: Int? = nil, planet: String = "Earth", solarSystem: String = "Milky Way", avgHeight: Int = 175, location: @escaping () -> Place = { fatalError() }, secondLocation: (() -> Place)? = nil, wrapped: String = "", didSet: String = "ds") {
+internal init(firstName: String? = nil, lastName: String? = nil, age: Int? = nil, planet: String = "Earth", solarSystem: String = "Milky Way", avgHeight: Int = 175, location: @escaping () throws -> Place<Int> = { fatalError() }, secondLocation: (() -> Place<Int>)? = nil, wrapped: String = "", didSet: String = "ds") {
 self.firstName = firstName
 self.lastName = lastName
 self.age = age
@@ -19,8 +19,8 @@ self.didSet = didSet
   var avgHeight = 175
   let line = #line, file = #file, handle = #dsohandle
   lazy var idea: Idea = { fatalError() }()
-  var location: () -> Place = { fatalError() }
-  var secondLocation: (() -> Place)!
+  var location: () throws -> Place<Int> = { fatalError() }
+  var secondLocation: (() -> Place<Int>)!
   @MyWrapper var wrapped: String = ""
   var computed: String { "hi" }
   var getSet: String {
@@ -32,8 +32,9 @@ self.didSet = didSet
   }
 }
 
-struct Place {
+struct Place<T: FixedWidthInteger> {
   typealias Callback = () -> ()
+  let number: T
   let person: Person
   let street: String
   let apartment: Optional<String>
