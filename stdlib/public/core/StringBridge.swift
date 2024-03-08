@@ -566,6 +566,34 @@ private func getConstantTaggedCocoaContents(_ cocoaString: _CocoaString) ->
 #endif
 }
 
+@_effects(releasenone)
+internal func _lazyBridgeNSString(
+  _ cocoaString: _CocoaString,
+  encoding: String.Encoding,
+  isNulTerminated: Bool,
+  contents: UnsafeRawBufferPointer?
+) -> _StringGuts {
+  return _StringGuts(
+    cocoa: cocoaString,
+    providesFastUTF8: contents != nil && encoding != .utf16,
+    isASCII: encoding == .ascii,
+    length: contents.count
+  )
+}
+
+@_effects(releasenone)
+internal func _bridgeConstantTaggedNSString(
+  _ cocoaString: _CocoaString
+) -> _StringGuts {
+  let taggedContents = getConstantTaggedCocoaContents(cocoaString)!
+  return _StringGuts(
+    cocoa: taggedContents.untaggedCocoa,
+    providesFastUTF8: false, //TODO: if contentsPtr is UTF8 compatible, use it
+    isASCII: true,
+    length: taggedContents.utf16Length
+  )
+}
+
 @usableFromInline
 @_effects(releasenone) // @opaque
 internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
@@ -585,13 +613,7 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
     return _StringGuts(_SmallString(taggedCocoa: cocoaString)!)
 #if arch(arm64)
   case .constantTagged:
-    let taggedContents = getConstantTaggedCocoaContents(cocoaString)!
-    return _StringGuts(
-      cocoa: taggedContents.untaggedCocoa,
-      providesFastUTF8: false, //TODO: if contentsPtr is UTF8 compatible, use it
-      isASCII: true,
-      length: taggedContents.utf16Length
-    )
+    return _bridgeConstantTaggedNSString(cocoaString)
 #endif
 #endif
   case .cocoa:
@@ -617,26 +639,97 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
     }
 #endif
 
+    let length = _stdlib_binary_CFStringGetLength(cocoaString)
     let (fastUTF8, isASCII): (Bool, Bool)
-    switch _getCocoaStringPointer(immutableCopy) {
-    case .ascii(_): (fastUTF8, isASCII) = (true, true)
-    case .utf8(_): (fastUTF8, isASCII) = (true, false)
-    default:  (fastUTF8, isASCII) = (false, false)
+    switch _getCocoaStringPointer(cocoaString) {
+    case .ascii(let ptr):
+      (fastUTF8, isASCII) = (true, true)
+      return _lazyBridgeNSString(
+        immutableCopy,
+        encoding: .ascii,
+        isNulTerminated: true,
+        contents: UnsafeRawBufferPointer(start: ptr, count: length)
+      )
+    case .utf8(_):
+      (fastUTF8, isASCII) = (true, false)
+    default:
+      (fastUTF8, isASCII) = (false, false)
     }
-    let length = _stdlib_binary_CFStringGetLength(immutableCopy)
-
-    return _StringGuts(
-      cocoa: immutableCopy,
-      providesFastUTF8: fastUTF8,
-      isASCII: isASCII,
-      length: length)
+    return _lazyBridgeNSString(
+      immutableCopy,
+      encoding: fastUTF8 ? .utf8 : .utf16
+      isNulTerminated: true
+      contents: nil
+    )
   }
 }
 
 extension String {
+  
+  // Legacy bridging entry point
   @_spi(Foundation)
   public init(_cocoaString: AnyObject) {
     self._guts = _bridgeCocoaString(_cocoaString)
+  }
+  
+  /// Preconditions:
+  /// • `cocoaString` must be immutable but NOT a constant string
+  /// • `cocoaString` must not be tagged
+  /// • `cocoaString` must not be a `_StringStorage` or `_SharedStringStorage`
+  /// •  `encoding` must be ASCII, UTF8, or UTF16
+  /// •  IFF `isNulTerminated` is true, `contents` must contain the terminator
+  @_spi(Foundation)
+  public init(
+    _lazilyBridging cocoaString: AnyObject,
+    encoding: String.Encoding,
+    isNulTerminated: Bool,
+    contents: UnsafeRawBufferPtr? //UInt16 IFF not ASCII, otherwise UInt8
+  ) {
+    _debugPrecondition(
+      encoding == .ascii || encoding == .utf8 || encoding == .utf16
+    )
+    _debugPrecondition(
+      !isNulTerminated ||
+      (encoding == .utf16 && contents.assumingMemoryBound(to: UInt16).last == '\0') ||
+      contents.assumingMemoryBound(to: UInt8).last == '\0'
+    )
+#if !(arch(i386) || arch(arm) || arch(arm64_32))
+    _debugPrecondition(!_isObjCTaggedPointer(cocoaString))
+#endif
+    self._guts = _lazyBridgeNSString(
+      cocoaString,
+      encoding: encoding,
+      isNulTerminated: isNulTerminated,
+      contents: contents
+    )
+  }
+  
+  /// Preconditions:
+  /// • `cocoaString` must be a non-tagged constant NSString
+  /// • `encoding` must be ASCII, UTF8, or UTF16
+  /// • IFF `isNulTerminated` is true, `contents` must contain the terminator
+  @_spi(Foundation)
+  public init(
+    _bridgingConstantString cocoaString: AnyObject,
+    encoding: String.Encoding,
+    isNulTerminated: Bool,
+    contents: UnsafeRawBufferPtr? //UInt16 IFF not ASCII, otherwise UInt8
+  ) {
+    //currently we don't do anything special with constant strings
+    self = String(
+      _lazilyBridging: cocoaString,
+      encoding: encoding,
+      isNulTerminated: isNulTerminated,
+      contents: contents
+    )
+  }
+  
+  /// Preconditions:
+  /// • `cocoaString` must be a tagged pointer *constant* NSString, not a regular tagged NSString
+  @_spi(Foundation)
+  public init(_bridgingTaggedConstantString cocoaString: AnyObject) {
+    _debugPrecondition(getConstantTaggedCocoaContents(cocoaString) != nil)
+    self._guts = _bridgeConstantTaggedNSString(cocoaString)
   }
 }
 
