@@ -13,7 +13,7 @@
 /// \file
 ///
 /// This file defines macros used for macro-metaprogramming with SIL nodes. It
-/// supports changing how macros expand by #defining an auxillary variable
+/// supports changing how macros expand by #defining an auxiliary variable
 /// before including SILNodes.def as summarized in the chart below:
 ///
 /// | #define            | Operation                                           |
