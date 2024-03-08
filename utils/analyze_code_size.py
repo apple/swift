@@ -110,6 +110,9 @@ class GenericSpecializationGroupKey(object):
                 and self.type_name == other.type_name
                 and self.specialization == other.specialization)
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class GenericSpecialization(object):
     def __init__(self, module_name, type_name, specialization):
