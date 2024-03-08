@@ -1,4 +1,8 @@
-Background: We expect many changes in Objective-C APIs between Swift 3 and Swift 4, but our primary goal is to allow an app to upgrade to Swift 4 without having to update its dependencies. This necessarily means that a Swift 4 app needs to be able to use Swift 3 APIs, where "use" includes:
+# Swift 3 Compatibility
+
+Background: We expect many changes in Objective-C APIs between Swift 3 and Swift 4.
+
+Our primary goal is to allow an app to upgrade to Swift 4 without having to update its dependencies. This necessarily means that a Swift 4 app needs to be able to use Swift 3 APIs, where "use" includes:
 
 - call (a method, property accessor, etc)
 - subclass (an open class)

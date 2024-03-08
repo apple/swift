@@ -1,7 +1,8 @@
+# Debugging The Compiler
 
-<h1>Debugging The Compiler</h1>
+This document contains some useful information for debugging.
 
-This document contains some useful information for debugging:
+With this document you can learn how to debug:
 
 * The Swift compiler.
 * Intermediate output of the Swift Compiler.
@@ -9,52 +10,6 @@ This document contains some useful information for debugging:
 
 Please feel free to add any useful tips that one finds to this document for the
 benefit of all Swift developers.
-
-**Table of Contents**
-
-- [Debugging the Compiler Itself](#debugging-the-compiler-itself)
-    - [Basic Utilities](#basic-utilities)
-    - [Printing the Intermediate Representations](#printing-the-intermediate-representations)
-    - [Debugging Diagnostic Emission](#debugging-diagnostic-emission)
-        - [Asserting on first emitted Warning/Assert Diagnostic](#asserting-on-first-emitted-warningassert-diagnostic)
-        - [Finding Diagnostic Names](#finding-diagnostic-names)
-    - [Debugging the Type Checker](#debugging-the-type-checker)
-        - [Enabling Logging](#enabling-logging)
-    - [Debugging on SIL Level](#debugging-on-sil-level)
-        - [Options for Dumping the SIL](#options-for-dumping-the-sil)
-        - [Getting CommandLine for swift stdlib from Ninja to enable dumping stdlib SIL](#getting-commandline-for-swift-stdlib-from-ninja-to-enable-dumping-stdlib-sil)
-        - [Dumping the SIL and other Data in LLDB](#dumping-the-sil-and-other-data-in-lldb)
-    - [Debugging and Profiling on SIL level](#debugging-and-profiling-on-sil-level)
-        - [SIL source level profiling using -sil-based-debuginfo](#sil-source-level-profiling)
-        - [ViewCFG: Regex based CFG Printer for SIL/LLVM-IR](#viewcfg-regex-based-cfg-printer-for-silllvm-ir)
-        - [Debugging the Compiler using advanced LLDB Breakpoints](#debugging-the-compiler-using-advanced-lldb-breakpoints)
-        - [Debugging the Compiler using LLDB Scripts](#debugging-the-compiler-using-lldb-scripts)
-        - [Custom LLDB Commands](#custom-lldb-commands)
-    - [Debugging at LLVM Level](#debugging-at-llvm-level)
-        - [Options for Dumping LLVM IR](#options-for-dumping-llvm-ir)
-    - [Bisecting Compiler Errors](#bisecting-compiler-errors)
-        - [Bisecting on SIL optimizer pass counts to identify optimizer bugs](#bisecting-on-sil-optimizer-pass-counts-to-identify-optimizer-bugs)
-        - [Using git-bisect in the presence of branch forwarding/feature branches](#using-git-bisect-in-the-presence-of-branch-forwardingfeature-branches)
-        - [Reducing SIL test cases using bug_reducer](#reducing-sil-test-cases-using-bug_reducer)
-- [Debugging the Compiler Build](#debugging-the-compiler-build)
-    - [Build Dry Run](#build-dry-run)
-- [Debugging the Compiler Driver](#debugging-the-compiler-driver-build)
-    - [Swift Compiler Driver F.A.Q](#swift-compiler-driver-f.a.q.)
-    - [Building the compiler without using the standalone driver](#building-the-compiler-without-the-standalone-driver)
-    - [Invoking the compiler without forwarding to the standalone driver](#invoking-the-compiler-without-forwarding-to-the-standalone-driver)
-    - [Reproducing the Compiler Driver build steps](#reproducing-the-compiler-driver-build-steps)
-    - [Installing the Compiler Driver](#installing-the-compiler-driver)
-- [Debugging Swift Executables](#debugging-swift-executables)
-    - [Determining the mangled name of a function in LLDB](#determining-the-mangled-name-of-a-function-in-lldb)
-    - [Manually symbolication using LLDB](#manually-symbolication-using-lldb)
-    - [Viewing allocation history, references, and page-level info](#viewing-allocation-history-references-and-page-level-info)
-    - [Printing memory contents](#printing-memory-contents)
-- [Debugging LLDB failures](#debugging-lldb-failures)
-    - ["Types" Log](#types-log)
-    - ["Expression" Log](#expression-log)
-    - [Multiple Logs at a Time](#multiple-logs-at-a-time)
-- [Compiler Tools/Options for Bug Hunting](#compiler-toolsoptions-for-bug-hunting)
-    - [Using `clang-tidy` to run the Static Analyzer](#using-clang-tidy-to-run-the-static-analyzer)
 
 # Debugging the Compiler Itself
 

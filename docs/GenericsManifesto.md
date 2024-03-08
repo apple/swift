@@ -1,3 +1,5 @@
+# Swift Generics Manifesto
+
 (Source: https://lists.swift.org/pipermail/swift-evolution/Week-of-Mon-20160229/011666.html, authored by Douglas Gregor)
 
 ## Introduction

@@ -2,7 +2,9 @@
 
 **Key path objects** are laid out at runtime as a heap object with a
 variable-sized payload containing a sequence of encoded components describing
-how the key path traverses a value. When the compiler sees a key path literal,
+how the key path traverses a value.
+
+When the compiler sees a key path literal,
 it generates a **key path pattern** that can be efficiently interpreted by
 the runtime to instantiate a key path object when needed. This document
 describes the layout of both. The key path pattern layout is designed in such a

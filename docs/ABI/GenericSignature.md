@@ -1,8 +1,9 @@
 # Generic Signatures
 
 A generic signature describes a set of generic type parameters along with
-a set of constraints on those parameters. Generic entities in Swift
-have a corresponding generic signature. For example, the following generic function:
+a set of constraints on those parameters.
+
+Generic entities in Swift have a corresponding generic signature. For example, the following generic function:
 
 ```swift
 func foo<C1: Collection, C2: Collection>(c1: C1, c2: C2)

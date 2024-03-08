@@ -1,13 +1,11 @@
-
-### Design of the Swift optimizer
+# Design of the Swift optimizer
 
 This document describes the design of the Swift Optimizer. It is intended for
 developers who wish to debug, improve or simply understand what the Swift
 optimizer does. Basic familiarity with the Swift programming language and
 knowledge of compiler optimizations is required.
 
-
-### Optimization pipeline overview
+## Optimization pipeline overview
 
 The Swift compiler translates textual Swift programs into LLVM-IR and uses
 multiple representations in between. The Swift frontend is responsible for
@@ -47,7 +45,7 @@ higher-level optimizations. For example, the ARC optimizer and devirtualizer
 need SSA representation to analyze the program, and dead-code-elimination is a
 prerequisite to the array optimizations.
 
-### The Swift Pass Manager
+## The Swift Pass Manager
 
 The Swift pass manager is the unit that executes optimization
 passes on the functions in the Swift module. Unlike the LLVM optimizer, the
@@ -71,7 +69,7 @@ after specific optimizations and to measure how much time is spent in
 each pass.
 
 
-### Optimization passes
+## Optimization passes
 
 There are two kind of optimization passes in Swift: Function passes, and Module
 passes. Function passes can inspect the entire module but can only modify a
@@ -102,7 +100,7 @@ This is the structure of a simple function pass:
 ```
 
 
-### Analysis Invalidation
+## Analysis Invalidation
 
 Swift Analysis are very different from LLVM analysis. Swift analysis are simply
 a cache behind some utility that performs computation. For example, the
@@ -159,7 +157,7 @@ The invalidation traits that passes can invalidate are:
 3. Branches - branches in the code were added, deleted or modified.
 4. Functions - Some functions were added or deleted.
 
-### Semantic Tags
+## Semantic Tags
 
 The Swift optimizer has optimization passes that target specific data structures
 in the Swift standard library. For example, one optimization can remove the
@@ -192,7 +190,7 @@ pipeline.
 Please refer to the document "High-Level SIL Optimizations" for more details.
 
 
-### Instruction Invalidation in SIL
+## Instruction Invalidation in SIL
 
 Swift Passes and Analysis often keep instruction pointers in internal data
 structures such as Map or Set.  A good example of such data structure is a list
@@ -231,14 +229,14 @@ following virtual method:
   }
 ```
 
-### Debugging the optimizer
+## Debugging the optimizer
 
 TODO.
 
-### Whole Module Optimizations
+## Whole Module Optimizations
 
 TODO.
 
-### List of passes
+## List of passes
 
 The updated list of passes is available in the file "Passes.def".

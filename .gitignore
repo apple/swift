@@ -33,6 +33,7 @@ tags
 #==============================================================================#
 # Generated docs
 docs/_build
+docs/.docc-build
 
 # Finder metadata
 .DS_Store
