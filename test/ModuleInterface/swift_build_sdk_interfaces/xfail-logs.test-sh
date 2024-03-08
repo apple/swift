@@ -1,6 +1,3 @@
-# Timing out in CI
-REQUIRES: rdar78318467
-
 RUN: %empty-directory(%t)
 RUN: env SWIFT_EXEC=%swiftc_driver_plain not %{python} %utils/swift_build_sdk_interfaces.py %mcp_opt -sdk %S/Inputs/xfails-sdk/ -o %t/output -log-path %t/logs | %FileCheck %s
 RUN: %FileCheck -check-prefix PRINTS-ERROR %s < %t/logs/Bad-Bad-err.txt
