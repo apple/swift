@@ -36,18 +36,20 @@ static const void *__backtraceRef __attribute__((used, retain))
 // by the linker.  Otherwise, we may end up with undefined symbol references as
 // the linker table section was never constructed.
 #if defined(__ELF__)
-# define DECLARE_EMPTY_METADATA_SECTION(name,attrs) __asm__("\t.section " #name ",\"" attrs "\"\n");
+# define DECLARE_EMPTY_METADATA_SECTION(name, attrs) __asm__("\t.section " #name ",\"" attrs "\"\n");
 #elif defined(__wasm__)
-# define DECLARE_EMPTY_METADATA_SECTION(name,attrs) __asm__("\t.section " #name ",\"R\",@\n");
+# define DECLARE_EMPTY_METADATA_SECTION(name, attrs) __asm__("\t.section " #name ",\"R\",@\n");
 #endif
 
-#define BOUNDS_VISIBILITY __attribute__((__visibility__("hidden"),__aligned__(1)))
+#define BOUNDS_VISIBILITY __attribute__((__visibility__("hidden"), \
+                                         __aligned__(1)))
+
 #define DECLARE_BOUNDS(name)                            \
   BOUNDS_VISIBILITY extern const char __start_##name;   \
   BOUNDS_VISIBILITY extern const char __stop_##name;
 
 #define DECLARE_SWIFT_SECTION(name)             \
-  DECLARE_EMPTY_METADATA_SECTION(name,"aR")     \
+  DECLARE_EMPTY_METADATA_SECTION(name, "aR")    \
   DECLARE_BOUNDS(name)
 
 // These may or may not be present, depending on compiler switches; it's
