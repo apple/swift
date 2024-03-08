@@ -2107,6 +2107,26 @@ function(add_swift_target_library name)
       list(APPEND swiftlib_link_flags_all "-dynamiclib -Wl,-headerpad_max_install_names")
     endif()
 
+    # Configure deployment target for runtime/stdlib libraries.
+    if((SWIFTLIB_IS_STDLIB OR SWIFTLIB_IS_SDK_OVERLAY) AND
+        sdk IN_LIST SWIFT_APPLE_PLATFORMS)
+      if("${SWIFTLIB_DEPLOYMENT_VERSION_OSX}" STREQUAL "")
+        set(SWIFTLIB_DEPLOYMENT_VERSION_OSX "${SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_OSX}")
+      endif()
+      if("${SWIFTLIB_DEPLOYMENT_VERSION_IOS}" STREQUAL "")
+        set(SWIFTLIB_DEPLOYMENT_VERSION_IOS "${SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_IOS}")
+      endif()
+      if("${SWIFTLIB_DEPLOYMENT_VERSION_TVOS}" STREQUAL "")
+        set(SWIFTLIB_DEPLOYMENT_VERSION_TVOS "${SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_TVOS}")
+      endif()
+      if("${SWIFTLIB_DEPLOYMENT_VERSION_WATCHOS}" STREQUAL "")
+        set(SWIFTLIB_DEPLOYMENT_VERSION_WATCHOS "${SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_WATCHOS}")
+      endif()
+      if("${SWIFTLIB_DEPLOYMENT_VERSION_MACCATALYST}" STREQUAL "")
+        set(SWIFTLIB_DEPLOYMENT_VERSION_MACCATALYST "${SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_MACCATALYST}")
+      endif()
+    endif()
+
     set(sdk_supported_archs
       ${SWIFT_SDK_${sdk}_ARCHITECTURES}
       ${SWIFT_SDK_${sdk}_MODULE_ARCHITECTURES})

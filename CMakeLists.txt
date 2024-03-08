@@ -522,6 +522,37 @@ set(SWIFT_DARWIN_XCRUN_TOOLCHAIN "XcodeDefault" CACHE STRING
 set(SWIFT_DARWIN_STDLIB_INSTALL_NAME_DIR "/usr/lib/swift" CACHE STRING
     "The directory of the install_name for standard library dylibs")
 
+# Minimum deployment targets for runtime/stdlib libraries on Apple platforms.
+#
+# Parts of the standard library are tightly coupled to specific versions of
+# libobjc/Foundation, so the stdlib binaries built from this repository will not
+# work on any arbitrary OS version -- in practice, the only OS versions we
+# expect them to work on are the exact ones that we use on our CI system. (And
+# only to the extent covered by our tests.)
+#
+# At any given time, the settings below should match the configuration used by
+# ci.swift.org.
+#
+# Note that while we don't set a maximum deployment target, generated stdlib
+# binaries aren't expected to be forward compatible with future OS releases,
+# either. (Not even minor releases.) This is because OS frameworks are very
+# likely to depend on new APIs introduced in their corresponding Swift stdlib
+# release that would be missing from binaries built from an older codebase.
+set(SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_OSX "11.4" CACHE STRING
+    "Minimum deployment target version for stdlib libraries on OS X")
+
+set(SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_IOS "14.3" CACHE STRING
+    "Minimum deployment target version for stdlib libraries on iOS")
+
+set(SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_TVOS "14.3" CACHE STRING
+    "Minimum deployment target version for stdlib libraries on tvOS")
+
+set(SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_WATCHOS "7.2" CACHE STRING
+    "Minimum deployment target version for stdlib libraries on watchOS")
+
+set(SWIFT_DARWIN_STDLIB_DEPLOYMENT_VERSION_MACCATALYST "14.3" CACHE STRING
+    "Minimum deployment target version for stdlib libraries on Mac Catalyst")
+
 # We don't want to use the same install_name_dir as the standard library which
 # will be installed in /usr/lib/swift. These private libraries should continue
 # to use @rpath for now.
@@ -539,6 +570,9 @@ set(SWIFT_DARWIN_DEPLOYMENT_VERSION_TVOS "11.0" CACHE STRING
 
 set(SWIFT_DARWIN_DEPLOYMENT_VERSION_WATCHOS "4.0" CACHE STRING
     "Minimum deployment target version for watchOS")
+
+set(SWIFT_DARWIN_DEPLOYMENT_VERSION_MACCATALYST "13.0" CACHE STRING
+    "Minimum deployment target version for Mac Catalyst")
 
 #
 #  Compatibility library deployment versions

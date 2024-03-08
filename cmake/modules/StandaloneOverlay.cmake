@@ -43,14 +43,16 @@ set(SWIFT_SOURCE_DIR "${SWIFT_SOURCE_ROOT}/swift" CACHE PATH
 set(SWIFT_DARWIN_XCRUN_TOOLCHAIN "XcodeDefault" CACHE STRING
   "The name of the toolchain to pass to 'xcrun'.")
 
-set(SWIFT_DARWIN_DEPLOYMENT_VERSION_OSX "10.9" CACHE STRING
+set(SWIFT_DARWIN_DEPLOYMENT_VERSION_OSX "11.4" CACHE STRING
     "Minimum deployment target version for macOS.")
-set(SWIFT_DARWIN_DEPLOYMENT_VERSION_IOS "7.0" CACHE STRING
+set(SWIFT_DARWIN_DEPLOYMENT_VERSION_IOS "14.3" CACHE STRING
     "Minimum deployment target version for iOS.")
-set(SWIFT_DARWIN_DEPLOYMENT_VERSION_TVOS "9.0" CACHE STRING
+set(SWIFT_DARWIN_DEPLOYMENT_VERSION_TVOS "14.3" CACHE STRING
     "Minimum deployment target version for tvOS.")
-set(SWIFT_DARWIN_DEPLOYMENT_VERSION_WATCHOS "2.0" CACHE STRING
+set(SWIFT_DARWIN_DEPLOYMENT_VERSION_WATCHOS "7.2" CACHE STRING
     "Minimum deployment target version for watchOS.")
+set(SWIFT_DARWIN_DEPLOYMENT_VERSION_MACCATALYST "13.0" CACHE STRING
+  "Minimum deployment target version for macCatalyst")
 
 set(SWIFT_INSTALL_COMPONENTS "sdk-overlay" CACHE STRING
   "A semicolon-separated list of install components.")
@@ -113,9 +115,6 @@ set(SWIFT_SDK_OVERLAY_LIBRARY_BUILD_TYPES "SHARED")
 option(SWIFT_ENABLE_MACCATALYST
   "Build the overlays with macCatalyst support"
   FALSE)
-
-set(SWIFT_DARWIN_DEPLOYMENT_VERSION_MACCATALYST "13.0" CACHE STRING
-  "Minimum deployment target version for macCatalyst")
 
 # -----------------------------------------------------------------------------
 
