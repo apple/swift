@@ -93,7 +93,7 @@ extension RangeExpression {
   /// - Parameters:
   ///   - pattern: A range.
   ///   - bound: A value to match against `pattern`.
-  @inlinable
+  @inlinable @inline(__always)
   public static func ~= (pattern: Self, value: Bound) -> Bool {
     return pattern.contains(value)
   }  
@@ -299,7 +299,7 @@ where Bound: Strideable, Bound.Stride: SignedInteger
   /// - Parameter position: The position of the element to access. `position`
   ///   must be a valid index of the range, and must not equal the range's end
   ///   index.
-  @inlinable
+  @inlinable @inline(__always)
   public subscript(position: Index) -> Element {
     // FIXME: swift-3-indexing-model: tests for the range check.
     _debugPrecondition(self.contains(position), "Index out of range")
