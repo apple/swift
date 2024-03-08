@@ -29,6 +29,7 @@ from .playgroundsupport import PlaygroundSupport
 from .skstresstester import SKStressTester
 from .sourcekitlsp import SourceKitLSP
 from .swift import Swift
+from .swiftcompatibilitylibs import SwiftCompatibilityLibs
 from .swiftdocc import SwiftDocC
 from .swiftdoccrender import SwiftDocCRender
 from .swiftdriver import SwiftDriver
@@ -59,6 +60,7 @@ __all__ = [
     'Ninja',
     'PlaygroundSupport',
     'Swift',
+    'SwiftCompatibilityLibs',
     'SwiftFormat',
     'SwiftInspect',
     'SwiftPM',
