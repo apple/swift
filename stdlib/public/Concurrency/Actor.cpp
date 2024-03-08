@@ -563,27 +563,27 @@ public:
 ///
 /// 32 bit systems with SWIFT_CONCURRENCY_ENABLE_PRIORITY_ESCALATION=1
 ///
-///          Flags               Drain Lock               Unused                JobRef
-/// |----------------------|----------------------|----------------------|-------------------|
-///          32 bits                32 bits                32 bits              32 bits
+///       Flags        Drain Lock        Unused          JobRef
+/// |---------------|---------------|---------------|---------------|
+///      32 bits         32 bits         32 bits         32 bits
 ///
 /// 64 bit systems with SWIFT_CONCURRENCY_ENABLE_PRIORITY_ESCALATION=1
 ///
-///         Flags                Drain Lock             JobRef
-/// |----------------------|-------------------|----------------------|
-///          32 bits                32 bits             64 bits
+///       Flags        Drain Lock                JobRef
+/// |---------------|---------------|-------------------------------|
+///      32 bits         32 bits                 64 bits
 ///
 /// 32 bit systems with SWIFT_CONCURRENCY_ENABLE_PRIORITY_ESCALATION=0
 ///
-///          Flags                  JobRef
-/// |----------------------|----------------------|
-///          32 bits                32 bits
+///       Flags          JobRef
+/// |---------------|---------------|
+///      32 bits         32 bits
 //
 /// 64 bit systems with SWIFT_CONCURRENCY_ENABLE_PRIORITY_ESCALATION=0
 ///
-///         Flags                  Unused                 JobRef
-/// |----------------------|----------------------|---------------------|
-///         32 bits                 32 bits               64 bits
+///       Flags          Unused                  JobRef
+/// |---------------|---------------|-------------------------------|
+///      32 bits         32 bits                 64 bits
 ///
 /// Size requirements:
 ///     On 64 bit systems or if SWIFT_CONCURRENCY_ENABLE_PRIORITY_ESCALATION=1,
