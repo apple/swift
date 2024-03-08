@@ -242,7 +242,7 @@ public:
     auto Buf =
         this->getReader().readBytes(ImageStart, sizeof(typename T::Header));
     if (!Buf)
-      return false;
+      return {};
     auto Header = reinterpret_cast<typename T::Header *>(Buf.get());
     assert(Header->magic == T::MagicNumber && "invalid MachO file");
 
@@ -262,7 +262,7 @@ public:
           RemoteAddress(CmdStartAddress.getAddressData() + Offset),
           SegmentCmdHdrSize);
       if (!CmdBuf)
-        return false;
+        return {};
       auto CmdHdr = reinterpret_cast<typename T::SegmentCmd *>(CmdBuf.get());
       if (strncmp(CmdHdr->segname, "__TEXT", sizeof(CmdHdr->segname)) == 0) {
         TextCommand = CmdHdr;
@@ -274,7 +274,7 @@ public:
 
     // No __TEXT segment, bail out.
     if (!TextCommand)
-      return false;
+      return {};
 
    // Find the load command offset.
     auto loadCmdOffset = ImageStart.getAddressData() + Offset + sizeof(typename T::Header);
@@ -284,7 +284,7 @@ public:
     auto LoadCmdBuf = this->getReader().readBytes(
         RemoteAddress(LoadCmdAddress), sizeof(typename T::SegmentCmd));
     if (!LoadCmdBuf)
-      return false;
+      return {};
     auto LoadCmd = reinterpret_cast<typename T::SegmentCmd *>(LoadCmdBuf.get());
 
     // The sections start immediately after the load command.
@@ -294,7 +294,7 @@ public:
     auto Sections = this->getReader().readBytes(
         RemoteAddress(SectAddress), NumSect * sizeof(typename T::Section));
     if (!Sections)
-      return false;
+      return {};
 
     auto Slide = ImageStart.getAddressData() - TextCommand->vmaddr;
     auto SectionsBuf = reinterpret_cast<const char *>(Sections.get());
@@ -346,7 +346,7 @@ public:
         ReflStrMdSec.first == nullptr &&
         ConformMdSec.first == nullptr &&
         MPEnumMdSec.first == nullptr)
-      return false;
+      return {};
 
     ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
                            {AssocTySec.first, AssocTySec.second},
@@ -371,7 +371,7 @@ public:
           RemoteAddress(CmdStartAddress.getAddressData() + Offset),
           SegmentCmdHdrSize);
       if (!CmdBuf)
-        return false;
+        return {};
       auto CmdHdr = reinterpret_cast<typename T::SegmentCmd *>(CmdBuf.get());
       // Look for any segment name starting with __DATA or __AUTH.
       if (strncmp(CmdHdr->segname, "__DATA", 6) == 0 ||
@@ -398,7 +398,7 @@ public:
     auto DOSHdrBuf = this->getReader().readBytes(
         ImageStart, sizeof(llvm::object::dos_header));
     if (!DOSHdrBuf)
-      return false;
+      return {};
     auto DOSHdr =
         reinterpret_cast<const llvm::object::dos_header *>(DOSHdrBuf.get());
     auto COFFFileHdrAddr = ImageStart.getAddressData() +
@@ -408,7 +408,7 @@ public:
     auto COFFFileHdrBuf = this->getReader().readBytes(
         RemoteAddress(COFFFileHdrAddr), sizeof(llvm::object::coff_file_header));
     if (!COFFFileHdrBuf)
-      return false;
+      return {};
     auto COFFFileHdr = reinterpret_cast<const llvm::object::coff_file_header *>(
         COFFFileHdrBuf.get());
 
@@ -419,7 +419,7 @@ public:
         RemoteAddress(SectionTableAddr),
         sizeof(llvm::object::coff_section) * COFFFileHdr->NumberOfSections);
     if (!SectionTableBuf)
-      return false;
+      return {};
 
     auto findCOFFSectionByName =
         [&](llvm::StringRef Name) -> std::pair<RemoteRef<void>, uint64_t> {
@@ -481,7 +481,7 @@ public:
         ReflStrMdSec.first == nullptr &&
         ConformMdSec.first == nullptr &&
         MPEnumMdSec.first == nullptr)
-      return false;
+      return {};
 
     ReflectionInfo Info = {{FieldMdSec.first, FieldMdSec.second},
                            {AssocTySec.first, AssocTySec.second},
@@ -502,7 +502,7 @@ public:
     auto Buf = this->getReader().readBytes(ImageStart,
                                            sizeof(llvm::object::dos_header));
     if (!Buf)
-      return false;
+      return {};
 
     auto DOSHdr = reinterpret_cast<const llvm::object::dos_header *>(Buf.get());
 
@@ -512,10 +512,10 @@ public:
     Buf = this->getReader().readBytes(RemoteAddress(PEHeaderAddress),
                                       sizeof(llvm::COFF::PEMagic));
     if (!Buf)
-      return false;
+      return {};
 
     if (memcmp(Buf.get(), llvm::COFF::PEMagic, sizeof(llvm::COFF::PEMagic)))
-      return false;
+      return {};
 
     return readPECOFFSections(ImageStart, PotentialModuleNames);
   }
@@ -550,7 +550,7 @@ public:
 
     const void *Buf = readData(0, sizeof(typename T::Header));
     if (!Buf)
-      return false;
+      return {};
     auto Hdr = reinterpret_cast<const typename T::Header *>(Buf);
     assert(Hdr->getFileClass() == T::ELFClass && "invalid ELF file class");
 
@@ -560,9 +560,9 @@ public:
     uint16_t SectionEntrySize = Hdr->e_shentsize;
 
     if (sizeof(typename T::Section) > SectionEntrySize)
-      return false;
+      return {};
     if (SectionHdrNumEntries == 0)
-      return false;
+      return {};
 
     // Collect all the section headers, we need them to look up the
     // reflection sections (by name) and the string table.
@@ -573,7 +573,7 @@ public:
       uint64_t Offset = SectionHdrAddress + (I * SectionEntrySize);
       auto SecBuf = readData(Offset, sizeof(typename T::Section));
       if (!SecBuf)
-        return false;
+        return {};
       const typename T::Section *SecHdr =
           reinterpret_cast<const typename T::Section *>(SecBuf);
 
@@ -597,7 +597,7 @@ public:
 
     auto StrTabBuf = readData(StrTabOffset, StrTabSize);
     if (!StrTabBuf)
-      return false;
+      return {};
     auto StrTab = reinterpret_cast<const char *>(StrTabBuf);
     bool Error = false;
 
@@ -691,20 +691,15 @@ public:
         ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum), true);
 
     if (Error)
-      return false;
+      return {};
 
-    std::optional<uint32_t> result = false;
+    std::optional<uint32_t> result = {};
 
     // We succeed if at least one of the sections is present in the
     // ELF executable.
-    if (FieldMdSec.first != nullptr ||
-        AssocTySec.first != nullptr ||
-        BuiltinTySec.first != nullptr ||
-        CaptureSec.first != nullptr ||
-        TypeRefMdSec.first != nullptr ||
-        ReflStrMdSec.first != nullptr ||
-        ConformMdSec.first != nullptr ||
-        MPEnumMdSec.first != nullptr) {
+    if (FieldMdSec.first || AssocTySec.first || BuiltinTySec.first ||
+        CaptureSec.first || TypeRefMdSec.first || ReflStrMdSec.first ||
+        ConformMdSec.first || MPEnumMdSec.first) {
       ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
                              {AssocTySec.first, AssocTySec.second},
                              {BuiltinTySec.first, BuiltinTySec.second},
@@ -739,16 +734,11 @@ public:
         ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum), false);
 
     if (Error)
-      return false;
+      return {};
 
-    if (FieldMdSec.first != nullptr ||
-        AssocTySec.first != nullptr ||
-        BuiltinTySec.first != nullptr ||
-        CaptureSec.first != nullptr ||
-        TypeRefMdSec.first != nullptr ||
-        ReflStrMdSec.first != nullptr ||
-        ConformMdSec.first != nullptr ||
-        MPEnumMdSec.first != nullptr) {
+    if (FieldMdSec.first || AssocTySec.first || BuiltinTySec.first ||
+        CaptureSec.first || TypeRefMdSec.first || ReflStrMdSec.first ||
+        ConformMdSec.first || MPEnumMdSec.first) {
       ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
                              {AssocTySec.first, AssocTySec.second},
                              {BuiltinTySec.first, BuiltinTySec.second},
@@ -819,7 +809,7 @@ public:
     // Read the first few bytes to look for a magic header.
     auto Magic = this->getReader().readBytes(ImageStart, sizeof(uint32_t));
     if (!Magic)
-      return false;
+      return {};
 
     uint32_t MagicWord;
     memcpy(&MagicWord, Magic.get(), sizeof(MagicWord));
