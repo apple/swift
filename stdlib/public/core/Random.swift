@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2018-2023 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -61,6 +61,10 @@ public protocol RandomNumberGenerator {
   ///
   /// - Returns: An unsigned 64-bit random value.
   mutating func next() -> UInt64
+  
+  /// Fills a buffer with uniform random bytes.
+  @available(SwiftStdlib 5.9, *)
+  mutating func fill(_ buffer: UnsafeMutableRawBufferPointer)
 }
 
 extension RandomNumberGenerator {
@@ -73,6 +77,44 @@ extension RandomNumberGenerator {
   @available(*, unavailable)
   @_alwaysEmitIntoClient
   public mutating func next() -> UInt64 { fatalError() }
+  
+  // Widget: fills 0...8 random bytes to given address.
+  @_alwaysEmitIntoClient
+  @usableFromInline
+  internal mutating func fillPartialWord(
+    address: UnsafeMutableRawPointer,
+    count: Int
+  ) {
+    _internalInvariant(count >= 0 && count <= 8)
+    if count == 0 { return }
+    let random: UInt64 = next()
+    _withUnprotectedUnsafeBytes(of: random) {
+      address.copyMemory(from: $0.baseAddress!, byteCount: count)
+    }
+  }
+  
+  // Default implementation of fill is unconditionally available for concrete
+  // types (using fill in generic contexts requires an availability check).
+  @inlinable
+  @backDeployed(before: SwiftStdlib 5.9)
+  public mutating func fill(_ buffer: UnsafeMutableRawBufferPointer) {
+    if buffer.count == 0 { return }
+    // Because buffer is non-empty, baseAddress must be valid, and force-unwrap
+    // is safe.
+    let base = buffer.baseAddress.unsafelyUnwrapped
+    // next() yields 8 bytes, so we will step through the buffer by 8 bytes.
+    let step = 8
+    // stride(from:to:by:) incurs an overflow check that we know that we
+    // can skip, so open-code a while loop instead.
+    let roundedCount = buffer.count & -step
+    var offset = 0
+    while offset < roundedCount {
+      fillPartialWord(address: base + offset, count: step)
+      offset &+= step
+    }
+    // Fill the remaining 0 ..< step bytes.
+    fillPartialWord(address: base + offset, count: buffer.count &- roundedCount)
+  }
   
   /// Returns a value from a uniform, independent distribution of binary data.
   ///
@@ -87,7 +129,7 @@ extension RandomNumberGenerator {
   public mutating func next<T: FixedWidthInteger & UnsignedInteger>() -> T {
     return T._random(using: &self)
   }
-
+  
   /// Returns a random value that is less than the given upper bound.
   ///
   /// Use this method when you need random binary data to generate another
@@ -151,7 +193,7 @@ public struct SystemRandomNumberGenerator: RandomNumberGenerator, Sendable {
   /// Creates a new instance of the system's default random number generator.
   @inlinable
   public init() { }
-
+  
   /// Returns a value from a uniform, independent distribution of binary data.
   ///
   /// - Returns: An unsigned 64-bit random value.
@@ -162,5 +204,13 @@ public struct SystemRandomNumberGenerator: RandomNumberGenerator, Sendable {
       swift_stdlib_random($0, MemoryLayout<UInt64>.size)
     }
     return random
+  }
+  
+  // aEIC is appropriate here, as this is a trivial shim.
+  @_alwaysEmitIntoClient
+  public mutating func fill(_ buffer: UnsafeMutableRawBufferPointer) {
+    if let p = buffer.baseAddress {
+      swift_stdlib_random(p, buffer.count)
+    }
   }
 }
