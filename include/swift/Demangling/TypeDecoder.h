@@ -28,6 +28,7 @@
 #include "swift/Basic/Unreachable.h"
 #include "swift/Demangling/Demangler.h"
 #include "swift/Demangling/NamespaceMacros.h"
+#include "swift/Runtime/Config.h"
 #include "swift/Runtime/Portability.h"
 #include "swift/Strings.h"
 #include "llvm/ADT/ArrayRef.h"
