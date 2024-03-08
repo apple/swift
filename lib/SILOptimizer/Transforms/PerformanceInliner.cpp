@@ -162,6 +162,11 @@ class SILPerformanceInliner {
     /// We only inline very small class methods with -Osize.
     OSizeClassMethodBenefit = 5,
 
+    /// The benefit of inlining a function only called once at -Osize.
+    /// In most cases, inlining a function only called once should
+    /// be both a size an performance win.
+    OSizeSingleCallSiteFunctionBenefit = 1000,
+
     /// Approximately up to this cost level a function can be inlined without
     /// increasing the code size.
     TrivialFunctionThreshold = 18,
@@ -404,9 +409,13 @@ bool SILPerformanceInliner::isProfitableToInline(
   // coroutine allocation overheads is extremely valuable.  There might be
   // more principled ways of getting this effect.
   bool isClassMethodAtOsize = false;
+
+  bool isSingleCallSiteFunctionAtOsize = false;
   if (OptMode == OptimizationMode::ForSize && !isa<BeginApplyInst>(AI)) {
+    isSingleCallSiteFunctionAtOsize = !Callee->isPossiblyUsedExternally() && Callee->getLinkage() != SILLinkage::Shared && Callee->getRefCount() == 1;
+
     // Don't inline into thunks.
-    if (AI.getFunction()->isThunk())
+    if (!isSingleCallSiteFunctionAtOsize && AI.getFunction()->isThunk())
       return false;
 
     // Don't inline class methods.
@@ -635,7 +644,7 @@ bool SILPerformanceInliner::isProfitableToInline(
   if (AI.getFunction()->isThunk()) {
     // Only inline trivial functions into thunks (which will not increase the
     // code size).
-    if (CalleeCost > TrivialFunctionThreshold) {
+    if (!isSingleCallSiteFunctionAtOsize && CalleeCost > TrivialFunctionThreshold) {
       return false;
     }
 
@@ -678,10 +687,14 @@ bool SILPerformanceInliner::isProfitableToInline(
     return false;
   }
 
-  if (isClassMethodAtOsize && Benefit > OSizeClassMethodBenefit) {
+  if (!isSingleCallSiteFunctionAtOsize && isClassMethodAtOsize && Benefit > OSizeClassMethodBenefit) {
     Benefit = OSizeClassMethodBenefit;
     if (returnsAllocation)
       Benefit += 10;
+  }
+
+  if (isSingleCallSiteFunctionAtOsize) {
+    Benefit += OSizeSingleCallSiteFunctionBenefit;
   }
 
   // This is the final inlining decision.
