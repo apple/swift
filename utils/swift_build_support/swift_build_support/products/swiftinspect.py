@@ -77,12 +77,28 @@ class SwiftInspect(product.Product):
                 swiftpm.SwiftPM]
 
 
-def run_build_script_helper(host_target, product, args):
-    toolchain_path = args.install_destdir
+def _get_toolchain_path(host_target, product, args):
+    # this logic initially was inside run_build_script_helper
+    # and was factored out so it can be used in testing as well
+
+    install_destdir = args.install_destdir
+    if swiftpm.SwiftPM.has_cross_compile_hosts(args):
+        install_destdir = swiftpm.SwiftPM.get_install_destdir(args,
+                                                              host_target,
+                                                              product.build_dir)
+    toolchain_path = targets.toolchain_path(install_destdir,
+                                            args.install_prefix)
+
     if platform.system() == 'Darwin':
         # The prefix is an absolute path, so concatenate without os.path.
         toolchain_path += \
             targets.darwin_toolchain_prefix(args.install_prefix)
+
+    return toolchain_path
+
+
+def run_build_script_helper(host_target, product, args):
+    toolchain_path = _get_toolchain_path(host_target, product, args)
 
     # Our source_dir is expected to be './$SOURCE_ROOT/benchmarks'. That is due
     # the assumption that each product is in its own build directory. This

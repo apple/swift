@@ -100,11 +100,17 @@ class Benchmarks(product.Product):
 
 
 def _get_toolchain_path(host_target, product, args):
-    # TODO check if we should prefer using product.install_toolchain_path
     # this logic initially was inside run_build_script_helper
     # and was factored out so it can be used in testing as well
 
-    toolchain_path = product.host_install_destdir(host_target)
+    install_destdir = args.install_destdir
+    if swiftpm.SwiftPM.has_cross_compile_hosts(args):
+        install_destdir = swiftpm.SwiftPM.get_install_destdir(args,
+                                                              host_target,
+                                                              product.build_dir)
+    toolchain_path = targets.toolchain_path(install_destdir,
+                                            args.install_prefix)
+
     if platform.system() == 'Darwin':
         # The prefix is an absolute path, so concatenate without os.path.
         toolchain_path += \
