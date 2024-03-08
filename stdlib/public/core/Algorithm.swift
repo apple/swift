@@ -157,4 +157,11 @@ extension EnumeratedSequence: Sequence {
   public __consuming func makeIterator() -> Iterator {
     return Iterator(_base: _base.makeIterator())
   }
+  
+  @_alwaysEmitIntoClient
+  public var underestimatedCount: Int {
+    _base.underestimatedCount
+  }
 }
+
+extension EnumeratedSequence: Sendable where Base: Sendable {}
