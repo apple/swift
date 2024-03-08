@@ -18,6 +18,8 @@ import TestsUtils
 // To avoid too many little micro benchmarks, it measures them all together
 // for each sequence type.
 
+// Benchmark for reversed was added later.
+
 let t: [BenchmarkCategory] = [.validation, .api]
 
 public let benchmarks = [
@@ -46,6 +48,28 @@ public let benchmarks = [
     runFunction: { for _ in 0..<$0 {
         benchmarkSequenceAlgos(s: y, n: n/10)
       }}, tags: t, setUpFunction: { blackHole(y) }, legacyFactor: 100),
+
+  BenchmarkInfo(name: "Sequence.reversed.List", runFunction: { for _ in 0..<$0 {
+      benchmarkReversed(s: l, n: n)
+    }}, tags: t, setUpFunction: { blackHole(l) }),
+  BenchmarkInfo(name: "Sequence.reversed.Array", runFunction: { for _ in 0..<$0 {
+      benchmarkReversed(s: a, n: a.count)
+    }}, tags: t, setUpFunction: { blackHole(a) }),
+  BenchmarkInfo(name: "Sequence.reversed.ContiguousArray",
+    runFunction: { for _ in 0..<$0 {
+        benchmarkReversed(s: c, n: c.count)
+      }}, tags: t, setUpFunction: { blackHole(c) }),
+  BenchmarkInfo(name: "Sequence.reversed.Range", runFunction: { for _ in 0..<$0 {
+      benchmarkReversed(s: r, n: r.count)
+      }}, tags: t),
+  BenchmarkInfo(name: "Sequence.reversed.UnfoldSequence",
+    runFunction: { for _ in 0..<$0 {
+        benchmarkReversed(s: s, n: n)
+      }}, tags: t, setUpFunction: { blackHole(s) }),
+  BenchmarkInfo(name: "Sequence.reversed.AnySequence",
+    runFunction: { for _ in 0..<$0 {
+        benchmarkReversed(s: y, n: n/10)
+      }}, tags: t, setUpFunction: { blackHole(y) }),
 ]
 
 extension List: Sequence {
@@ -97,4 +121,8 @@ enum List<Element> {
   init<S: BidirectionalCollection>(_ elements: S) where S.Element == Element {
     self = elements.reversed().reduce(.end) { .node($1,$0) }
   }
+}
+
+func benchmarkReversed<S: Sequence>(s: S, n: Int) where S.Element == Int {
+  check(s.reversed()[n-1] == 0)
 }
