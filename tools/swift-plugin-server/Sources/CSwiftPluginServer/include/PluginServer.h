@@ -37,19 +37,6 @@ ptrdiff_t PluginServer_read(const void *connHandle, void *data, size_t nbyte);
 ptrdiff_t PluginServer_write(const void *connHandle, const void *data,
                              size_t nbyte);
 
-//===----------------------------------------------------------------------===//
-// Dynamic link
-//===----------------------------------------------------------------------===//
-
-/// Load a dynamic link library, and return the handle.
-void *PluginServer_load(const char *filename, const char **errorMessage);
-
-/// Resolve a type metadata by a pair of the module name and the type name.
-/// 'libraryHint' is a
-const void *PluginServer_lookupMacroTypeMetadataByExternalName(
-    const char *moduleName, const char *typeName, void *libraryHint,
-    const char **errorMessage);
-
 #ifdef __cplusplus
 }
 #endif

@@ -87,7 +87,7 @@ func testStringify(a: Int, b: Int) {
   let s3: String = #stringify(b + a).1
   print(s3)
 
-  // expected-error @+1 {{macro implementation type 'MacroDefinition.TypeDoesNotExist' could not be found in library plugin '}}
+  // expected-error @+1 {{type 'MacroDefinition.TypeDoesNotExist' could not be found in library plugin '}}
   _ = #missing()
 
   // expected-error @+1 {{type 'MacroDefinition.NotMacroStruct' is not a valid macro implementation type in library plugin '}}
