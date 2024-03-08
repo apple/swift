@@ -1,6 +1,6 @@
 // RUN: %target-build-swift %s
 // Every so often, this test causes the linker to crash!
-// REQUIRES: rdar86041709
+
 
 // https://github.com/apple/swift/issues/56330
 // Fix "multiple consuming users" ownership error caused by

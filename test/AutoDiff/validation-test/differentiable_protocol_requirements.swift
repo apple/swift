@@ -2,7 +2,7 @@
 // REQUIRES: executable_test
 
 // Test is unexpectedly passing on no_assert config on Linux
-// REQUIRES: rdar89860761
+
 
 // FIXME: Disabled due to test failure with `-O` (https://github.com/apple/swift/issues/55690).
 // XFAIL: swift_test_mode_optimize

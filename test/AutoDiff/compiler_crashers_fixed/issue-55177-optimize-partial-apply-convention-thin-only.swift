@@ -7,7 +7,7 @@
 // callee is not `@convention(thin)`.
 
 // FIXME(https://github.com/apple/swift/issues/55466): Disabled due to flakiness on Linux, likely related to TF-1197.
-// REQUIRES: issue_55466
+
 
 import DifferentiationUnittest
 
