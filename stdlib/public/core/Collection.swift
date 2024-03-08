@@ -123,7 +123,7 @@ extension IndexingIterator: IteratorProtocol, Sequence {
   @inlinable
   @inline(__always)
   public mutating func next() -> Elements.Element? {
-    if _position == _elements.endIndex { return nil }
+    guard _position < _elements.endIndex else { return nil }
     let element = _elements[_position]
     _elements.formIndex(after: &_position)
     return element
@@ -891,7 +891,7 @@ extension Collection {
 
     var start = start
     var count = 0
-    while start != end {
+    while start < end {
       count = count + 1
       formIndex(after: &start)
     }
@@ -981,9 +981,7 @@ extension Collection {
 
     var i = i
     for _ in stride(from: 0, to: n, by: 1) {
-      if i == limit {
-        return nil
-      }
+      guard i < limit else { return nil }
       formIndex(after: &i)
     }
     return i
