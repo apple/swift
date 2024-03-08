@@ -713,10 +713,6 @@ static void addMidLevelFunctionPipeline(SILPassPipelinePlan &P) {
 
   addFunctionPasses(P, OptimizationLevelKind::MidLevel);
 
-  // Specialize partially applied functions with dead arguments as a preparation
-  // for CapturePropagation.
-  P.addDeadArgSignatureOpt();
-
   // A LICM pass at mid-level is mainly needed to hoist addressors of globals.
   // It needs to be before global_init functions are inlined.
   P.addLICM();
@@ -985,15 +981,15 @@ SILPassPipelinePlan::getPerformancePassPipeline(const SILOptions &Options) {
   // importing this module.
   P.addSerializeSILPass();
 
-  // Strip any transparent functions that still have ownership.
-  P.addOwnershipModelEliminator();
-
   if (Options.StopOptimizationAfterSerialization)
     return P;
 
   // After serialization run the function pass pipeline to iteratively lower
   // high-level constructs like @_semantics calls.
   addMidLevelFunctionPipeline(P);
+
+  // Strip any transparent functions that still have ownership.
+  P.addOwnershipModelEliminator();
 
   // Perform optimizations that specialize.
   addClosureSpecializePassPipeline(P);

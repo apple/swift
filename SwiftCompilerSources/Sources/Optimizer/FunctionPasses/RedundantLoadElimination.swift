@@ -88,6 +88,9 @@ private func eliminateRedundantLoads(in function: Function, ignoreArrays: Bool, 
       defer { inst = i.previous }
 
       if let load = inst as? LoadInst {
+        if load.type.bridged.isOrHasEnum() {
+          continue;
+        }
         if !context.continueWithNextSubpassRun(for: load) {
           return
         }

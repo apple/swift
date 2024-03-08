@@ -2283,6 +2283,9 @@ bool MemoryToRegisters::run() {
       if (!asi)
         continue;
 
+      if (asi->getType().isOrHasEnum()) {
+        continue;
+      }
       // Record stored values because promoting a store eliminates a consuming
       // use of the stored value. If promotion succeeds, these values'
       // lifetimes are canonicalized, eliminating unnecessary copies.
