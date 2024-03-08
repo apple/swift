@@ -2,6 +2,25 @@
 
 // https://github.com/apple/swift/issues/52877
 
+// RUN: %target-typecheck-verify-swift
+
+struct SR13098 { // expected-note {{in declaration of 'SR13098'}}
+  var srValue = 0xABABABAB // expected-note {{'srValue' previously declared here}}
+  var a: Int 
+
+  srValue = 0xCDCDCDCD // expected-error {{invalid redeclaration of 'srValue'}}
+                       // expected-error @-1 {{expected 'var' keyword in property declaration}}
+                        
+  
+  // ensure that the id.id pattern is not interpreted as a function
+  a.foo = 345 // expected-error {{expected declaration}}
+
+  // note that the expected declaration blocks further diagnostics up to 
+  // the closing right brace.
+  srValue.bar = 345
+}
+ 
+
 protocol Brew { // expected-note {{in declaration of 'Brew'}}
   tripel() -> Int // expected-error {{expected 'func' keyword in instance method declaration}} {{3-3=func }}
 
