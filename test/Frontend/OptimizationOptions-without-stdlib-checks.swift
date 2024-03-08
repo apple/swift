@@ -100,10 +100,10 @@ func test_partial_safety_check(x: Int, y: Int) -> Int {
 
 // In release mode keep succinct library precondition checks (trap).
 // RELEASE-LABEL: sil hidden @$s19OptimizationOptions22testprecondition_check1x1yS2i_SitF : $@convention(thin) (Int, Int) -> Int {
-// RELEASE-NOT:  "Fatal error"
-// RELEASE:  %[[V2:.+]] = builtin "xor_Int1"(%{{.+}}, %{{.+}})
-// RELEASE:  cond_fail %[[V2]]
-// RELEASE:  return
+// RELEASE-DAG: "Precondition failed"
+// RELEASE-DAG: %[[FATAL_ERROR:.+]] = function_ref @[[FATAL_ERROR_FUNC:.*assertionFailure.*]]
+// RELEASE: apply %[[FATAL_ERROR]]({{.*}})
+// RELEASE: unreachable
 
 // In unchecked mode remove library precondition checks.
 // UNCHECKED-LABEL: sil hidden @$s19OptimizationOptions22testprecondition_check1x1yS2i_SitF : $@convention(thin) (Int, Int) -> Int {
