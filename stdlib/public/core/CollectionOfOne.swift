@@ -70,6 +70,18 @@ extension CollectionOfOne.Iterator: IteratorProtocol {
   }
 }
 
+extension CollectionOfOne: Sequence {
+  @inlinable // trivial-implementation
+  public func withContiguousStorageIfAvailable<R>(
+    _ body: (UnsafeBufferPointer<Element>) throws -> R
+  ) rethrows -> R? {
+    return try withUnsafePointer(to: _element) {
+      let buf = UnsafeBufferPointer(start: $0, count: 1)
+      return try body(buf)
+    }
+  }
+}
+
 extension CollectionOfOne: RandomAccessCollection, MutableCollection {
 
   public typealias Index = Int
