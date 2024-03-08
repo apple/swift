@@ -1,5 +1,5 @@
 # Temporary Pointers
-A temporary, or ephemeral, pointer in Swift is a pointer which is introduced by an implicit function argument conversion and is only valid for the lifetime of the function call it appears in. There are a few ways to create a temporary pointer:
+A temporary, or ephemeral, pointer in Swift is a pointer that is introduced by an implicit function argument conversion and is only valid for the lifetime of the function call it appears in. There are a few ways to create a temporary pointer:
 
 - Using an inout-to-pointer conversion by passing an argument with `&`:
 
@@ -33,7 +33,7 @@ A temporary, or ephemeral, pointer in Swift is a pointer which is introduced by 
 
   In the example above, the `bar` passed to `foo` is a temporary pointer to the elements of `x` which is only valid until `foo` returns.
 
-Temporary pointers may only be passed as arguments to functions which do not store the pointer value or otherwise allow it to escape the function's scope. The Swift compiler is able to diagnose some, but not all, violations of this rule. Misusing a temporary pointer by allowing it to outlive the enclosing function call results in undefined behavior. For example, consider the following incorrect code:
+Temporary pointers may only be passed as arguments to functions that do not store the pointer value or otherwise allow it to escape the function's scope. The Swift compiler can diagnose some, but not all, violations of this rule. Misusing a temporary pointer by allowing it to outlive the enclosing function call results in undefined behavior. For example, consider the following incorrect code:
 
 ```swift
 var x = 42
