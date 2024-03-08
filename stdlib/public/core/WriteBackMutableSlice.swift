@@ -25,8 +25,16 @@ internal func _writeBackMutableSlice<C, Slice_>(
   // _withUnsafeMutableBufferPointerIfSupported?  Would that create inout
   // aliasing violations if the newValue points to the same buffer?
 
-  var selfElementIndex = bounds.lowerBound
-  let selfElementsEndIndex = bounds.upperBound
+  // Allow the underlying collection to have a say about what indices can be
+  // slice boundaries. This is crucial for cases where the same index type is
+  // used in multiple collection types of varying granularity (similar to
+  // `String` views). Letting the base collection do the actual slicing allows
+  // it to properly validate indices, and to optionally handle unaligned slices
+  // by rounding their boundaries down to the nearest valid index.
+  let orig = self_[bounds]
+  var selfElementIndex = orig.startIndex
+  let selfElementsEndIndex = orig.endIndex
+
   var newElementIndex = slice.startIndex
   let newElementsEndIndex = slice.endIndex
 

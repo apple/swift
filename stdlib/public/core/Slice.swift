@@ -171,7 +171,17 @@ extension Slice: Collection {
   public subscript(bounds: Range<Index>) -> Slice<Base> {
     get {
       _failEarlyRangeCheck(bounds, bounds: _bounds)
-      return Slice(base: _base, bounds: bounds)
+      // Allow the underlying collection to have a say about what indices can be
+      // slice boundaries. This is crucial for cases where the same index type
+      // is used in multiple collection types of varying granularity (similar to
+      // `String` views) -- in these cases, the bounds of the given range may
+      // happen to fall in between valid indices in the base collection, which
+      // `Slice` isn't prepared to handle. Letting the base collection do the
+      // actual slicing allows it to properly validate indices, and to
+      // optionally handle unaligned slices by rounding their boundaries down to
+      // the nearest valid index.
+      let slice = _base[bounds]
+      return Slice(base: _base, bounds: slice.startIndex ..< slice.endIndex)
     }
   }
 
@@ -285,7 +295,17 @@ extension Slice: MutableCollection where Base: MutableCollection {
   public subscript(bounds: Range<Index>) -> Slice<Base> {
     get {
       _failEarlyRangeCheck(bounds, bounds: _bounds)
-      return Slice(base: _base, bounds: bounds)
+      // Allow the underlying collection to have a say about what indices can be
+      // slice boundaries. This is crucial for cases where the same index type
+      // is used in multiple collection types of varying granularity (similar to
+      // `String` views) -- in these cases, the bounds of the given range may
+      // happen to fall in between valid indices in the base collection, which
+      // `Slice` isn't prepared to handle. Letting the base collection do the
+      // actual slicing allows it to properly validate indices, and to
+      // optionally handle unaligned slices by rounding their boundaries down to
+      // the nearest valid index.
+      let slice = _base[bounds]
+      return Slice(base: _base, bounds: slice.startIndex ..< slice.endIndex)
     }
     set {
       _writeBackMutableSlice(&self, bounds: bounds, slice: newValue)
