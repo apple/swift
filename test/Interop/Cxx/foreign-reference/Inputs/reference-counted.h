@@ -12,7 +12,7 @@ static int finalLocalRefCount = 100;
 
 namespace NS {
 
-struct __attribute__((swift_attr("import_as_ref")))
+struct __attribute__((swift_attr("import_reference")))
 __attribute__((swift_attr("retain:LCRetain")))
 __attribute__((swift_attr("release:LCRelease"))) LocalCount {
   int value = 0;
@@ -35,7 +35,7 @@ inline void LCRelease(NS::LocalCount *x) {
 
 static int globalCount = 0;
 
-struct __attribute__((swift_attr("import_as_ref")))
+struct __attribute__((swift_attr("import_reference")))
 __attribute__((swift_attr("retain:GCRetain")))
 __attribute__((swift_attr("release:GCRelease"))) GlobalCount {
   static GlobalCount *create() {

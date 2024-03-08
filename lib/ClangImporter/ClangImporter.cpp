@@ -7070,12 +7070,17 @@ SourceLoc ClangImporter::importSourceLocation(clang::SourceLocation loc) {
 static bool hasImportAsRefAttr(const clang::RecordDecl *decl) {
   return decl->hasAttrs() && llvm::any_of(decl->getAttrs(), [](auto *attr) {
            if (auto swiftAttr = dyn_cast<clang::SwiftAttrAttr>(attr))
-             return swiftAttr->getAttribute() == "import_reference" ||
-                    // TODO: Remove this once libSwift hosttools no longer
-                    // requires it.
-                    swiftAttr->getAttribute() == "import_as_ref";
+             return swiftAttr->getAttribute() == "import_reference";
            return false;
          });
+}
+
+bool ClangImporter::Implementation::recordHasReferenceSemantics(
+    const clang::RecordDecl *decl, ASTContext &ctx) {
+  if (!isa<clang::CXXRecordDecl>(decl) && !ctx.LangOpts.CForeignReferenceTypes)
+    return false;
+
+  return hasImportAsRefAttr(decl);
 }
 
 // Is this a pointer to a foreign reference type.

@@ -55,7 +55,7 @@ namespace ns {
     };
 
     #define IMMORTAL_REF                                \
-         __attribute__((swift_attr("import_as_ref")))   \
+         __attribute__((swift_attr("import_reference")))\
          __attribute__((swift_attr("retain:immortal"))) \
          __attribute__((swift_attr("release:immortal")))
     struct IMMORTAL_REF Immortal {

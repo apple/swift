@@ -27,7 +27,7 @@
 SWIFT_BEGIN_NULLABILITY_ANNOTATIONS
 
 struct
-    __attribute__((swift_attr("import_as_ref")))
+    __attribute__((swift_attr("import_reference")))
     __attribute__((swift_attr("retain:LCRetain")))
     __attribute__((swift_attr("release:LCRelease")))
 LocalCount {
@@ -46,7 +46,7 @@ static inline void LCRelease(struct LocalCount *x) { x->value--; }
 static int globalCount = 0;
 
 struct
-    __attribute__((swift_attr("import_as_ref")))
+    __attribute__((swift_attr("import_reference")))
     __attribute__((swift_attr("retain:GCRetain")))
     __attribute__((swift_attr("release:GCRelease")))
 GlobalCount {};
