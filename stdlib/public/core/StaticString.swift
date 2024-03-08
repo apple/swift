@@ -300,8 +300,18 @@ extension StaticString: ExpressibleByStringLiteral {
 extension StaticString: CustomStringConvertible {
 
   /// A textual representation of the static string.
+  @_transparent
   public var description: String {
-    return withUTF8Buffer { String._uncheckedFromUTF8($0) }
+    guard hasPointerRepresentation else {
+      return withUTF8Buffer { String._uncheckedFromUTF8($0) }
+    }
+
+    let buffer = UnsafeBufferPointer<UInt8>(
+      start: utf8Start,
+      count: utf8CodeUnitCount
+    )
+
+    return String(_StringGuts(buffer, isASCII: isASCII))
   }
 }
 
