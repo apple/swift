@@ -156,6 +156,13 @@
 #define RECURSION_WITH_EXPR3 RECURSION_WITH_EXPR3_HELPER + 1
 #define RECURSION_WITH_EXPR3_HELPER RECURSION_WITH_EXPR3 + 1
 
+// casts
+#define HIGH_C (char)1
+#define LOW_C (char)0
+#define FALLING_EDGE (unsigned char)2
+#define RISING_EDGE (unsigned char)3
+#define D0 (unsigned char)0
+#define D1 (unsigned char)1
 
 // Casts with problematic types
 #define UNAVAILABLE_ONE ((unavailable_t)1)

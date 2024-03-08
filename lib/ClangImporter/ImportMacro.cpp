@@ -299,6 +299,7 @@ builtinTypeForToken(const clang::Token &tok, const clang::ASTContext &context) {
   case clang::tok::kw_wchar_t:
     return clang::QualType(context.WCharTy);
   case clang::tok::kw_bool:
+  case clang::tok::kw__Bool:
     return clang::QualType(context.BoolTy);
   case clang::tok::kw_char16_t:
     return clang::QualType(context.Char16Ty);
@@ -367,6 +368,34 @@ getIntegerConstantForMacroToken(ClangImporter::Implementation &impl,
   return std::nullopt;
 }
 
+enum class TokenTypeCastKind {
+  NoTypeCast,  // simple token
+  TypeCast,    // e.g. (char)77
+  UnsignedTypeCast  // e.g. (unsigned char)77
+};
+
+static TokenTypeCastKind tokenHasTypeCast(
+  clang::Sema& sema,
+  const clang::MacroInfo::const_tokens_iterator &tokenI,
+  unsigned numTokens) {
+
+  if (numTokens > 3 &&
+      tokenI[0].is(clang::tok::l_paren) &&
+      (tokenI[1].is(clang::tok::identifier) ||
+        sema.isSimpleTypeSpecifier(tokenI[1].getKind())) &&
+      tokenI[2].is(clang::tok::r_paren)) {
+    return TokenTypeCastKind::TypeCast;
+  } else if (numTokens > 4 &&
+      tokenI[0].is(clang::tok::l_paren) &&
+      tokenI[1].is(clang::tok::kw_unsigned) &&
+      (sema.isSimpleTypeSpecifier(tokenI[2].getKind())) &&
+      tokenI[3].is(clang::tok::r_paren)) {
+    return TokenTypeCastKind::UnsignedTypeCast;
+  } else {
+    return TokenTypeCastKind::NoTypeCast;
+  }
+}
+
 static ValueDecl *importMacro(ClangImporter::Implementation &impl,
                               llvm::SmallSet<StringRef, 4> &visitedMacros,
                               DeclContext *DC, Identifier name,
@@ -399,11 +428,8 @@ static ValueDecl *importMacro(ClangImporter::Implementation &impl,
 
   // Handle tokens starting with a type cast
   bool castTypeIsId = false;
-  if (numTokens > 3 &&
-      tokenI[0].is(clang::tok::l_paren) &&
-      (tokenI[1].is(clang::tok::identifier) ||
-        impl.getClangSema().isSimpleTypeSpecifier(tokenI[1].getKind())) &&
-      tokenI[2].is(clang::tok::r_paren)) {
+  auto typeCastKind = tokenHasTypeCast(impl.getClangSema(), tokenI, numTokens);
+  if (typeCastKind != TokenTypeCastKind::NoTypeCast) {
     if (!castType.isNull()) {
       // this is a nested cast
       // TODO(https://github.com/apple/swift/issues/57735): Diagnose nested cast.
@@ -437,10 +463,17 @@ static ValueDecl *importMacro(ClangImporter::Implementation &impl,
         return nullptr;
       }
     } else {
-      auto builtinType = builtinTypeForToken(tokenI[1],
+      bool isUnsigned = typeCastKind == TokenTypeCastKind::UnsignedTypeCast;
+      auto builtinType = builtinTypeForToken(tokenI[(isUnsigned?2:1)],
                                              impl.getClangASTContext());
       if (builtinType) {
         castType = builtinType.value();
+        if (isUnsigned) {
+          castType = impl.getClangASTContext().
+            getCorrespondingUnsignedType(castType);
+            tokenI += 1;
+            numTokens -= 1;
+        }
       } else {
         // TODO(https://github.com/apple/swift/issues/57735): Add diagnosis.
         return nullptr;

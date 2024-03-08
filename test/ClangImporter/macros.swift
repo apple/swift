@@ -45,6 +45,14 @@ func subThree(_ x: CInt) -> CInt {
   return x + MINUS_THREE
 }
 
+func invertInput(_ x: UInt8) -> Int8 {
+  if x == FALLING_EDGE {
+    return HIGH_C
+  } else if x == RISING_EDGE {
+    return LOW_C
+  }
+}
+
 // true/false are keywords, so they shouldn't conflict with the true/false in
 // the C header.
 func testTrueFalse() {
