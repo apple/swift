@@ -6,7 +6,7 @@
 # Swift Programming Language
 
 
-| | **Architecture** | **Build** |
+| **Operating Systems** | **Architecture** | **Build** |
 |---|:---:|:---:|
 | **macOS**        | x86_64 |[![Build Status](https://ci.swift.org/job/oss-swift-package-macos/lastCompletedBuild/badge/icon)](https://ci.swift.org/job/oss-swift-package-macos)|
 | **Ubuntu 18.04** | x86_64 |[![Build Status](https://ci.swift.org/job/oss-swift-package-ubuntu-18_04/lastCompletedBuild/badge/icon)](https://ci.swift.org/job/oss-swift-package-ubuntu-18_04)|
