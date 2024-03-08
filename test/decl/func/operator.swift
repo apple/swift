@@ -3,8 +3,8 @@
 infix operator %%%
 infix operator %%%%
 
-func %%%() {} // expected-error {{operators must have one or two arguments}}
-func %%%%(a: Int, b: Int, c: Int) {} // expected-error {{operators must have one or two arguments}}
+func %%%() {} // expected-error {{operators must have one or two non-default arguments}}
+func %%%%(a: Int, b: Int, c: Int) {} // expected-error {{operators must have one or two non-default arguments}}
 
 struct X {}
 struct Y {}
