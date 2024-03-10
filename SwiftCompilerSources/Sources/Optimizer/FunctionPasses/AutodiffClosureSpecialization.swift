@@ -1,4 +1,4 @@
-//===--- ExperimentalClosureSpecialization.swift ---------------------------===//
+//===--- AutodiffClosureSpecialization.swift ---------------------------===//
 //
 // This source file is part of the Swift.org open source project
 //
@@ -12,50 +12,80 @@
 
 /// AutoDiff Closure Specialization
 /// ----------------------
-/// This optimization performs closure specialization tailored for the patterns seen
-/// in Swift Autodiff. In principle, the optimization does the same thing as the existing
-/// closure specialization pass. However, it is tailored to the patterns of Swift Autodiff.
+/// This optimization performs closure specialization tailored for the patterns seen in Swift Autodiff. In principle,
+/// the optimization does the same thing as the existing closure specialization pass. However, it is tailored to the
+/// patterns of Swift Autodiff.
 ///
-/// The compiler performs reverse-mode differentiation on functions marked with `@differentiable(reverse)`.
-/// In doing so, it generates corresponding VJP and Pullback functions, which perform the
-/// forward and reverse pass respectively. The Pullbacks are essentially a chain of closures,
-/// where the closure-contexts are used as an implicit "tape".
+/// The compiler performs reverse-mode differentiation on functions marked with `@differentiable(reverse)`. In doing so,
+/// it generates corresponding VJP and Pullback functions, which perform the forward and reverse pass respectively. You
+/// can think of VJPs as functions that "differentiate" an original function and Pullbacks as the calculated
+/// "derivative" of the original function. 
+/// 
+/// VJPs always return a tuple of 2 values -- the original result and the Pullback. Pullbacks are essentially a chain 
+/// of closures, where the closure-contexts are implicitly used as the so-called "tape" during the reverse
+/// differentiation process. It is this chain of closures contained within the Pullbacks that this optimization aims
+/// to optimize via closure specialization.
 ///
 /// The code patterns that this optimization targets, look similar to the one below:
 /// ``` swift
-/// @differentiable(reverse)
-/// func foo(_ x: Float) -> Float {
-///     return sin(x)
+/// 
+/// // Since `foo` is marked with the `differentiable(reverse)` attribute the compiler
+/// // will generate corresponding VJP and Pullback functions in SIL. Let's assume that
+/// // these functions are called `vjp_foo` and `pb_foo` respectively.
+/// @differentiable(reverse) 
+/// func foo(_ x: Float) -> Float { 
+///   return sin(x)
 /// }
 ///
-/// //============== Before optimization ==============//
-/// sil @pb_foo: $(Float, (Float) -> Float) -> Float {
-/// bb0(%0: $Float, %1: $(Float) -> Float):
-///     %2 = apply %1(%0): $Float
-///     return %2: $Float
+/// //============== Before optimization ==============// 
+/// // VJP of `foo`. Returns the original result and the Pullback of `foo`.
+/// sil @vjp_foo: $(Float) -> (originalResult: Float, pullback: (Float) -> Float) { 
+/// bb0(%0: $Float): 
+///   // vjp_sin returns the original result `sin(x)`, and the pullback of sin, `pb_sin`.
+///   // `pb_sin` is a closure.
+///   %(originalResult, pb_sin) = apply @vjp_sin(%0): $(Float) -> (Float, (Float) -> Float)
+///  
+///   %pb_foo = function_ref @pb_foo: $@convention(thin) (Float, (Float) -> Float) -> Float
+///   %partially_applied_pb_foo = partial_apply %pb_foo(%pb_sin): $(Float, (Float) -> Float) -> Float
+///  
+///   return (%originalResult, %partially_applied_pb_foo)
 /// }
 ///
-/// sil @vjp_foo: $(Float) -> (Float, (Float) -> Float) {
-/// bb0(%0: $Float):
-///     %1 = apply @sin(%0): $Float
-///     %2 = partial_apply @pb_sin(%0): $(Float) -> Float
-///     %pb_foo = partial_apply @pb_foo(%2): $(Float, (Float) -> Float) -> Float
-///     return (%1, %pb_foo)
+/// // Pullback of `foo`. 
+/// //
+/// // It receives what are called as intermediate closures that represent
+/// // the calculations that the Pullback needs to perform to calculate a function's
+/// // derivative.
+/// //
+/// // The intermediate closures may themselves contain intermediate closures and
+/// // that is why the Pullback for a function differentiated at the "top" level
+/// // may end up being a "chain" of closures.
+/// sil @pb_foo: $(Float, (Float) -> Float) -> Float { 
+/// bb0(%0: $Float, %pb_sin: $(Float) -> Float): 
+///   %derivative_of_sin = apply %pb_sin(%0): $Float return %2: $Float
+///   return %derivative_of_sin: Float
 /// }
 ///
-/// //============== After optimization ==============//
-/// sil @specialized_pb_foo: $(Float, Float) -> Float {
-/// bb0(%0: $Float, %1: $Float):
-///     %2 = partial_apply @pb_sin(%1): $(Float) -> Float
-///     %3 = apply %2(%0): $Float
-///     return %3: $Float
+/// //============== After optimization ==============// 
+/// sil @vjp_foo: $(Float) -> (originalResult: Float, pullback: (Float) -> Float) { 
+/// bb0(%0: $Float): 
+///   %1 = apply @sin(%0): $(Float) -> Float 
+/// 
+///   // Before the optimization, pullback of `foo` used to take a closure for computing
+///   // pullback of `sin`. Now, the specialized pullback of `foo` takes the arguments that
+///   // pullback of `sin` used to close over and pullback of `sin` is instead copied over
+///   // inside pullback of `foo`.
+///   %specialized_pb_foo = function_ref @pb_foo: $@convention(thin) (Float, Float) -> Float
+///   %partially_applied_pb_foo = partial_apply @specialized_pb_foo(%0): $(Float, Float) -> Float 
+/// 
+///   return (%1, %partially_applied_pb_foo)
 /// }
-///
-/// sil @vjp_foo: $(Float) -> (Float, (Float) -> Float) {
-/// bb0(%0: $Float):
-///     %1 = apply @sin(%0): $Float
-///     %pb_foo = partial_apply @specialized_pb_foo(%0): $(Float, Float) -> Float
-///     return (%1, %pb_foo)
+/// 
+/// sil @specialized_pb_foo: $(Float, Float) -> Float { 
+/// bb0(%0: $Float, %1: $Float): 
+///   %2 = partial_apply @pb_sin(%1): $(Float) -> Float 
+///   %3 = apply %2(%0): $Float 
+///   return %3: $Float
 /// }
 /// ```
 
@@ -72,57 +102,59 @@ private func log(_ message: @autoclosure () -> String) {
 // =========== Entry point =========== //
 let autodiffClosureSpecialization = FunctionPass(name: "autodiff-closure-specialize") {
   (function: Function, context: FunctionPassContext) in
-
-  // TODO: Don't optimize functions that are marked with the opt.never
-  // attribute.
-
-  // TODO: If F is an external declaration, there is nothing to specialize.
-
-  // If this is not an Autodiff VJP for a differentiable function, exit early.
   if !function.isAutodiffVJP {
     return
   }
-
-  // TODO: Eliminate dead closures, return.
-
-  // TODO: Invalidate everything since we delete calls as well as add new
-  // calls and branches.
 }
 
 // =========== Top-level functions ========== //
 
-let specializationLevelLimit = 2
+private let specializationLevelLimit = 2
 
-func gatherCallSites(_ context: FunctionPassContext, in caller: Function)
-  -> Stack<CallSite>
-{
-  // We should not look at reabstraction closures twice who we
-  // ultimately ended up using as an argument that we specialize on.
-  var usedReabstractionClosures = InstructionSet(context)
+private func gatherCallSites(in caller: Function, _ context: FunctionPassContext) -> [CallSite] {
+  /// __Root__ closures created via `partial_apply` or `thin_to_thick_function` may be converted and reabstracted
+  /// before finally being used at an apply site. We do not want to handle these intermediate closures separately
+  /// as they are handled and cloned into the specialized function as part of the root closures. Therefore, we keep 
+  /// track of these intermediate closures in a set. 
+  /// 
+  /// This set is populated via the `markConvertedAndReabstractedClosuresAsUsed` function which is called when we're
+  /// handling the different uses of our root closures.
+  ///
+  /// Below SIL example illustrates the above point.
+  /// ```                                                                                                      
+  /// // The below set of a "root" closure and its reabstractions/conversions
+  /// // will be handled as a unit and the entire set will be copied over
+  /// // in the specialized version of `takesClosure` if we determine that we  
+  /// // can specialize `takesClosure` against its closure argument.
+  ///                                                                                                          __            
+  /// %someFunction = function_ref @someFunction: $@convention(thin) (Int, Int) -> Int                            \ 
+  /// %rootClosure = partial_apply [callee_guaranteed] %someFunction (%someInt): $(Int, Int) -> Int                \
+  /// %thunk = function_ref @reabstractionThunk : $@convention(thin) (@callee_guaranteed (Int) -> Int) -> @out Int /     
+  /// %reabstractedClosure = partial_apply [callee_guaranteed] %thunk(%rootClosure) :                             /      
+  ///                        $@convention(thin) (@callee_guaranteed (Int) -> Int) -> @out Int                  __/       
+  /// 
+  /// %takesClosure = function_ref @takesClosure : $@convention(thin) (@owned @callee_guaranteed (Int) -> @out Int) -> Int
+  /// %result = partial_apply %takesClosure(%reabstractedClosure) : $@convention(thin) (@owned @callee_guaranteed () -> @out Int) -> Int
+  /// ret %result
+  /// ```
+  var convertedAndReabstractedClosures = InstructionSet(context)
+
   defer {
-    usedReabstractionClosures.deinitialize()
+    convertedAndReabstractedClosures.deinitialize()
   }
 
   var callSiteMap = CallSiteMap()
 
   for inst in caller.instructions {
-    if inst.isSupportedClosure,
-      !usedReabstractionClosures.contains(inst),
-      let closure = inst as? SingleValueInstruction
+    if !convertedAndReabstractedClosures.contains(inst),
+       let rootClosure = inst.asSupportedClosure
     {
-      let shouldExitEarly = updateCallSites(
-        context,
-        for: closure,
-        callSiteMap: &callSiteMap,
-        usedReabstractionClosures: &usedReabstractionClosures
-      )
-      if shouldExitEarly {
-        return callSiteMap.intoCallSites(context)
-      }
+      updateCallSites(for: rootClosure, callSiteMap: &callSiteMap, 
+                      convertedAndReabstractedClosures: &convertedAndReabstractedClosures, context)
     }
   }
 
-  return callSiteMap.intoCallSites(context)
+  return callSiteMap.callSites
 }
 
 // ===================== Utility types, extensions and functions ===================== //
@@ -151,37 +183,31 @@ private struct OrderedDict<Key: Hashable, Value> {
     }
   }
 
-  public var entries: [(Key, Value)] {
-    entryList
+  public var keys: LazyMapSequence<Array<(Key, Value)>, Key> {
+    entryList.lazy.map { $0.0 }
   }
 
-  public var keys: [Key] {
-    entryList.map { $0.0 }
-  }
-
-  public var values: [Value] {
-    entryList.map { $0.1 }
+  public var values: LazyMapSequence<Array<(Key, Value)>, Value> {
+    entryList.lazy.map { $0.1 }
   }
 }
 
 private typealias CallSiteMap = OrderedDict<PartialApplyInst, CallSite>
 
-extension CallSiteMap {
-  fileprivate func intoCallSites(_ context: FunctionPassContext) -> Stack<CallSite> {
-    var callSites = Stack<CallSite>(context)
-    callSites.append(contentsOf: self.values)
-    return callSites
+private extension CallSiteMap {
+  var callSites: [CallSite] {
+    Array(self.values)
   }
 }
 
-extension PartialApplyInst {
+private extension PartialApplyInst {
   /// True, if the closure obtained from this partial_apply is the
   /// pullback returned from an autodiff VJP
-  fileprivate var isPullbackInResultOfAutodiffVJP: Bool {
+  var isPullbackInResultOfAutodiffVJP: Bool {
     if self.parentFunction.isAutodiffVJP,
-      let use = self.uses.singleUse,
-      let tupleInst = use.instruction as? TupleInst,
-      let returnInst = self.parentFunction.returnInstruction,
+       let use = self.uses.singleUse,
+       let tupleInst = use.instruction as? TupleInst,
+       let returnInst = self.parentFunction.returnInstruction,
       tupleInst == returnInst.returnedValue
     {
       return true
@@ -189,36 +215,44 @@ extension PartialApplyInst {
 
     return false
   }
-}
 
-extension Instruction {
-  fileprivate var isSupportedClosure: Bool {
-    switch self {
-    case let tttf as ThinToThickFunctionInst where tttf.callee is FunctionRefInst:
-      return true
-    case let pai as PartialApplyInst where pai.callee is FunctionRefInst:
-      return pai.argumentOperands
-        .filter { !$0.value.type.isObject }
-        .allSatisfy {
-          if let convention = pai.convention(of: $0) {
-            return convention == .indirectInout || convention == .indirectInoutAliasable
-          }
-          return false
+  var hasNonInoutIndirectArguments: Bool {
+    self.argumentOperands
+      .filter { !$0.value.type.isObject }
+      .allSatisfy {
+        if let convention = self.convention(of: $0) {
+          return convention == .indirectInout || convention == .indirectInoutAliasable
         }
-    default:
-      return false
-    }
+        return false
+      } 
   }
 }
 
-extension ApplySite {
-  fileprivate var canBeOptimized: Bool {
+private extension Instruction {
+  var asSupportedClosure: SingleValueInstruction? {
+    switch self {
+    case let tttf as ThinToThickFunctionInst where tttf.callee is FunctionRefInst:
+      return tttf
+    case let pai as PartialApplyInst where pai.callee is FunctionRefInst && pai.hasNonInoutIndirectArguments:
+      return pai
+    default:
+      return nil
+    }
+  }
+
+  var isSupportedClosure: Bool {
+    asSupportedClosure != nil
+  }
+}
+
+private extension ApplySite {
+  var calleeIsDynamicFunctionRef: Bool {
     return !(callee is DynamicFunctionRefInst || callee is PreviousDynamicFunctionRefInst)
   }
 }
 
-extension Function {
-  public var effectAllowsSpecialization: Bool {
+private extension Function {
+  var effectAllowsSpecialization: Bool {
     switch bridged.getEffectAttribute() {
     case .ReadNone, .ReadOnly, .ReleaseNone: return false
     default: return true
@@ -226,299 +260,279 @@ extension Function {
   }
 }
 
-/// Updates the call site map for the given closure.
-///
-/// - Parameters:
-///   - context: `FunctionPassContext` instance
-///   - closure: The closure for which the call sites are being updated.
-///   - callSiteMap: `CallSiteMap` instance, shared across all closures.
-///   - usedReabstractionClosures: Set of closures that are reabstracted into a final closure,
-///     passed in at a callsite.
-/// - Returns: `true` if the optimization should exit early, `false` otherwise.
-private func updateCallSites(
-  _ context: FunctionPassContext,
-  for closure: SingleValueInstruction,
-  callSiteMap: inout CallSiteMap,
-  usedReabstractionClosures: inout InstructionSet
-) -> Bool {
+private func updateCallSites(for rootClosure: SingleValueInstruction, callSiteMap: inout CallSiteMap, 
+                             convertedAndReabstractedClosures: inout InstructionSet, _ context: FunctionPassContext) {
+  var allDirectAndTransitiveUses: [Instruction] = []
+  
+  var conversionsAndReabstractions = ValueWorklist(context)                            
+  defer {
+    conversionsAndReabstractions.deinitialize()
+  }
+
+  var remainingUses = ValueWorklist(context)                            
+  defer {
+    remainingUses.deinitialize()
+  }
+
+  // A "root" closure undergoing conversions and/or reabstractions has additional restrictions placed upon it, inorder
+  // for a call site to be specialized against it. We handle conversion/reabstraction uses before we handle apply uses
+  // to gather the parameters required to evaluate these restrictions or to skip call site uses of "unsupported" 
+  // closures altogether.
+  //
+  // There are currently 2 restrictions that are evaluated prior to specializing a callsite against a converted and/or 
+  // reabstracted closure -
+  // 1. A reabstracted root closure can only be specialized against, if the reabstracted closure is ultimately passed
+  //    trivially (as a noescape+thick function) into the call site.
+  //
+  // 2. A root closure may be a partial_apply [stack], in which case we need to make sure that all mark_dependence 
+  //    bases for it will be available in the specialized callee in case the call site is specialized against this root
+  //    closure.
+
+  let haveUsedReabstraction = 
+    handleConversionsAndReabstractions(for: rootClosure, 
+                                       conversionsAndReabstractions: &conversionsAndReabstractions,
+                                       remainingUses: &remainingUses,
+                                       allDirectAndTransitiveUses: &allDirectAndTransitiveUses, context);
+
+
+  let intermediateClosureArgDescriptors: [IntermediateClosureArgDescriptor] = 
+    handleApplies(for: rootClosure, callSiteMap: &callSiteMap, remainingUses: &remainingUses, 
+                  allDirectAndTransitiveUses: &allDirectAndTransitiveUses, 
+                  convertedAndReabstractedClosures: &convertedAndReabstractedClosures,
+                  haveUsedReabstraction: haveUsedReabstraction, context)
+
+  finalizeCallSites(for: rootClosure, callSiteMap: &callSiteMap, allDirectAndTransitiveUses: allDirectAndTransitiveUses,
+                    intermediateClosureArgDescs: intermediateClosureArgDescriptors, context)
+}
+
+private func handleApplies(for rootClosure: SingleValueInstruction, callSiteMap: inout CallSiteMap, 
+                           remainingUses: inout ValueWorklist, allDirectAndTransitiveUses: inout [Instruction], 
+                           convertedAndReabstractedClosures: inout InstructionSet, haveUsedReabstraction: Bool, 
+                           _ context: FunctionPassContext) -> [IntermediateClosureArgDescriptor] 
+{
   var intermediateClosureArgDescriptors: [IntermediateClosureArgDescriptor] = []
+  
+  while let use = remainingUses.pop() {
+    for use in use.uses {
+      allDirectAndTransitiveUses.append(use.instruction)
 
-  var (
-    remainingUses,
-    lifeRangeEndpoints,
-    possibleMarkDependenceBases,
-    haveUsedReabstraction
-  ) = handleNonApplyUses(context, for: closure)
+      guard let pai = use.instruction as? PartialApplyInst else {
+        continue
+      }
 
+      if pai.hasSubstitutions || !pai.calleeIsDynamicFunctionRef || !pai.isPullbackInResultOfAutodiffVJP {
+        continue
+      }
+
+      guard let callee = pai.referencedFunction else {
+        continue
+      }
+
+      if callee.isAvailableExternally {
+        continue
+      }
+
+      // Don't specialize non-fragile (read as non-serialized) callees if the caller is fragile; the specialized callee
+      // will have shared linkage, and thus cannot be referenced from the fragile caller.
+      let caller = rootClosure.parentFunction
+      if caller.isSerialized && !callee.isSerialized {
+        continue
+      }
+
+      // If the callee uses a dynamic Self, we cannot specialize it, since the resulting specialization might longer have
+      // 'self' as the last parameter.
+      //
+      // TODO: We could fix this by inserting new arguments more carefully, or changing how we model dynamic Self
+      // altogether.
+      if callee.mayBindDynamicSelf {
+        continue
+      }
+
+      // Proceed if the closure is passed as an argument (and not called). If it is called we have nothing to do.
+      //
+      // `closureArgumentIndex` is the index of the closure in the callee's argument list.
+      guard let closureArgumentIndex = pai.calleeArgumentIndex(of: use) else {
+        continue
+      }
+
+      // Ok, we know that we can perform the optimization but not whether or not the optimization is profitable. Check if
+      // the closure is actually called in the callee (or in a function called by the callee).
+      if !isClosureApplied(in: callee, closureArgIndex: closureArgumentIndex) {
+        continue
+      }
+
+      // We currently only support copying intermediate reabstraction closures if the final closure is ultimately passed
+      // trivially.
+      let closureType = use.value.type
+      let isClosurePassedTrivially = closureType.isNoEscapeFunction && closureType.isThickFunction
+
+      // Mark the converted/reabstracted closures as used.
+      if haveUsedReabstraction {
+        markConvertedAndReabstractedClosuresAsUsed(rootClosure: rootClosure, convertedAndReabstractedClosure: use.value, 
+                                                  convertedAndReabstractedClosures: &convertedAndReabstractedClosures)
+
+        if !isClosurePassedTrivially {
+          continue
+        }
+      }
+
+      let onlyHaveThinToThickClosure = rootClosure is ThinToThickFunctionInst && !haveUsedReabstraction
+
+      guard let closureParamInfo = pai.operandConventions[parameter: use.index] else {
+        fatalError("Parameter info not found for operand: \(use)!")
+      }
+
+      if (closureParamInfo.convention.isGuaranteed || isClosurePassedTrivially)
+        && !onlyHaveThinToThickClosure
+      {
+        continue
+      }
+
+      // Functions with a readnone, readonly or releasenone effect and a nontrivial context cannot be specialized.
+      // Inserting a release in such a function results in miscompilation after other optimizations. For now, the
+      // specialization is disabled.
+      //
+      // TODO: A @noescape closure should never be converted to an @owned argument regardless of the function's effect
+      // attribute.
+      if !callee.effectAllowsSpecialization && !onlyHaveThinToThickClosure {
+        continue
+      }
+
+      // Avoid an infinite specialization loop caused by repeated runs of ClosureSpecializer and CapturePropagation.
+      // CapturePropagation propagates constant function-literals. Such function specializations can then be optimized
+      // again by the ClosureSpecializer and so on. This happens if a closure argument is called _and_ referenced in
+      // another closure, which is passed to a recursive call. E.g.
+      //
+      // func foo(_ c: @escaping () -> ()) { 
+      //  c() foo({ c() })
+      // }
+      //
+      // A limit of 2 is good enough and will not be exceed in "regular" optimization scenarios.
+      let closureCallee = rootClosure is PartialApplyInst 
+                          ? (rootClosure as! PartialApplyInst).referencedFunction!
+                          : (rootClosure as! ThinToThickFunctionInst).referencedFunction!
+
+      if closureCallee.specializationLevel > specializationLevelLimit {
+        continue
+      }
+
+      if callSiteMap[pai] == nil {
+        callSiteMap.insert(key: pai, value: CallSite(applySite: pai))
+      }
+
+      intermediateClosureArgDescriptors.append(
+        IntermediateClosureArgDescriptor(callSite: pai, closureArgumentIndex: closureArgumentIndex, 
+                                        parameterInfo: closureParamInfo, 
+                                        reachableExitBBs: Array(callee.blocks.filter { $0.isReachableExitBlock })
+      ))
+    } 
+  }
+  return intermediateClosureArgDescriptors
+}
+
+private func handleConversionsAndReabstractions(for rootClosure: SingleValueInstruction,
+                                                conversionsAndReabstractions: inout ValueWorklist, 
+                                                remainingUses: inout ValueWorklist,
+                                                allDirectAndTransitiveUses: inout [Instruction], 
+                                                _ context: FunctionPassContext) -> Bool 
+{
+  var haveUsedReabstraction = false
+
+  /// The root closure may be a `partial_apply [stack]` and we need to make sure that all `mark_dependence` bases for 
+  /// it will be available in the specialized callee, in case the call site is specialized against this root closure.
+  /// 
+  /// `possibleMarkDependenceBases` keeps track of all potential values that may be used as bases for creating
+  /// `mark_dependence`s for our `onStack` root closure. In the obvious cases these values might be non-trivial closure
+  /// captures (which are always available as function arguments in the specialized callee), but they may also be 
+  /// conversions/reabstractions of the root closure.
+  /// 
+  /// Any value outside of the aforementioned values is not going to be available in the specialized callee and a 
+  /// `mark_dependence` of the root closure on such a value means that we cannot specialize the call site against it.
+  var possibleMarkDependenceBases = ValueSet(context)
   defer {
     possibleMarkDependenceBases.deinitialize()
   }
 
-  for use in remainingUses {
-    lifeRangeEndpoints.append(use.instruction)
-
-    guard let pai = use.instruction as? PartialApplyInst else {
-      continue
-    }
-
-    if pai.hasSubstitutions
-      || !pai.canBeOptimized
-      || !pai.isPullbackInResultOfAutodiffVJP
-    {
-      continue
-    }
-
-    guard let callee = pai.referencedFunction else {
-      continue
-    }
-
-    if callee.isAvailableExternally {
-      continue
-    }
-
-    // Don't specialize non-fragile (read as non-serialized) callees if
-    // the caller is fragile; the specialized callee will have shared linkage,
-    // and thus cannot be referenced from the fragile caller.
-    let caller = closure.parentFunction
-    if caller.isSerialized && !callee.isSerialized {
-      continue
-    }
-
-    // If the callee uses a dynamic Self, we cannot specialize it,
-    // since the resulting specialization might longer have 'self'
-    // as the last parameter.
-    //
-    // TODO: We could fix this by inserting new arguments more carefully, or
-    // changing how we model dynamic Self altogether.
-    if callee.mayBindDynamicSelf {
-      finalizeCallSites(
-        context,
-        for: closure,
-        callSiteMap: &callSiteMap,
-        lifeRangeEndpoints: lifeRangeEndpoints,
-        intermediateClosureArgDescs: intermediateClosureArgDescriptors
-      )
-      return true
-    }
-
-    // Proceed if the closure is passed as an argument (and not called).
-    // If it is called we have nothing to do.
-    //
-    // `closureArgumentIndex` is the index of the closure in the callee's
-    // argument list.
-    guard let closureArgumentIndex = pai.calleeArgumentIndex(of: use) else {
-      continue
-    }
-
-    // Ok, we know that we can perform the optimization but not whether or
-    // not the optimization is profitable. Check if the closure is actually
-    // called in the callee (or in a function called by the callee).
-    if !isClosureApplied(in: callee, closureArgIndex: closureArgumentIndex) {
-      continue
-    }
-
-    // We currently only support copying intermediate reabstraction
-    // closures if the final closure is ultimately passed trivially.
-    let closureType = use.value.type
-    let isClosurePassedTrivially = closureType.isNoEscapeFunction && closureType.isThickFunction
-
-    // Mark the reabstraction closures as used.
-    if haveUsedReabstraction {
-      markReabstractionClosuresAsUsed(
-        firstClosure: closure, currentClosure: use.value,
-        usedReabstractionClosures: &usedReabstractionClosures
-      )
-
-      if !isClosurePassedTrivially {
-        continue
-      }
-    }
-
-    let onlyHaveThinToThickClosure =
-      closure is ThinToThickFunctionInst && !haveUsedReabstraction
-
-    guard let closureParamInfo = pai.operandConventions[parameter: use.index] else {
-      fatalError("Parameter info not found for operand: \(use)!")
-    }
-
-    if (closureParamInfo.convention.isGuaranteed || isClosurePassedTrivially)
-      && !onlyHaveThinToThickClosure
-    {
-      continue
-    }
-
-    // Functions with a readnone, readonly or releasenone effect and a
-    // nontrivial context cannot be specialized. Inserting a release in such
-    // a function results in miscompilation after other optimizations.
-    // For now, the specialization is disabled.
-    //
-    // TODO: A @noescape closure should never be converted to an @owned
-    // argument regardless of the function's effect attribute.
-    if !callee.effectAllowsSpecialization && !onlyHaveThinToThickClosure {
-      continue
-    }
-
-    // Avoid an infinite specialization loop caused by repeated runs of
-    // ClosureSpecializer and CapturePropagation.
-    // CapturePropagation propagates constant function-literals. Such
-    // function specializations can then be optimized again by the
-    // ClosureSpecializer and so on.
-    // This happens if a closure argument is called _and_ referenced in
-    // another closure, which is passed to a recursive call. E.g.
-    //
-    // func foo(_ c: @escaping () -> ()) {
-    //   c()
-    //   foo({ c() })
-    // }
-    //
-    // A limit of 2 is good enough and will not be exceed in "regular"
-    // optimization scenarios.
-    let closureCallee =
-      closure is PartialApplyInst
-      ? (closure as! PartialApplyInst).referencedFunction!
-      : (closure as! ThinToThickFunctionInst).referencedFunction!
-
-    if closureCallee.specializationLevel > specializationLevelLimit {
-      continue
-    }
-
-    if callSiteMap[pai] == nil {
-      callSiteMap.insert(key: pai, value: CallSite(applySite: pai))
-    }
-
-    intermediateClosureArgDescriptors.append(
-      IntermediateClosureArgDescriptor(
-        callSite: pai,
-        closureArgumentIndex: closureArgumentIndex,
-        parameterInfo: closureParamInfo,
-        reachableExitBBs: Array(callee.blocks.filter { $0.isReachableExitBlock })
-      )
-    )
-  }
-
-  finalizeCallSites(
-    context,
-    for: closure,
-    callSiteMap: &callSiteMap,
-    lifeRangeEndpoints: lifeRangeEndpoints,
-    intermediateClosureArgDescs: intermediateClosureArgDescriptors
-  )
-
-  return false
-}
-
-/// Handles conversion and reabstraction uses of the supported closure.
-///
-/// - Parameters:
-///   - context: `FunctionPassContext` instance
-///   - for: A closure against which callees may be specialized.
-/// - Returns:
-///   - remainingUses: Any uses not handled in this function.
-///   - lifeRangeEndpoints: Instructions that comprise the possible life-range of the closure.
-///   - possibleMarkDependenceBases: The possible mark_dependence bases of the closure.
-///   - haveUsedReabstraction: Whether the closure has gone throug a reabstraction.
-private func handleNonApplyUses(
-  _ context: FunctionPassContext,
-  for closure: SingleValueInstruction
-) -> (
-  remainingUses: [Operand], lifeRangeEndpoints: [Instruction],
-  possibleMarkDependenceBases: ValueSet, haveUsedReabstraction: Bool
-) {
-  var initialUses = Array(closure.uses)
-  var remainingUses: [Operand] = []
-  var lifeRangeEndpoints: [Instruction] = []
-  var haveUsedReabstraction = false
-
-  // Set of possible arguments for mark_dependence. The base of a
-  // mark_dependence we copy must be available in the specialized function.
-  var possibleMarkDependenceBases = ValueSet(context)
-
-  if let pai = closure as? PartialApplyInst {
+  if let pai = rootClosure as? PartialApplyInst {
     for arg in pai.arguments {
       possibleMarkDependenceBases.insert(arg)
     }
   }
 
-  // Uses may grow in this loop to handle transitive uses
-  for useIndex in 0..<initialUses.count {
-    let use = initialUses[useIndex]
-    lifeRangeEndpoints.append(use.instruction)
+  conversionsAndReabstractions.pushIfNotVisited(rootClosure)
+  
+  while let currUse = conversionsAndReabstractions.pop() {
+    for use in currUse.uses {
+      allDirectAndTransitiveUses.append(use.instruction)
 
-    // Recurse through conversions
-    if let cfi = use.instruction as? ConvertFunctionInst {
-      initialUses.append(contentsOf: cfi.uses)
-      possibleMarkDependenceBases.insert(cfi)
-      continue
+      // Recurse through conversions
+      if let cfi = use.instruction as? ConvertFunctionInst {
+        conversionsAndReabstractions.pushIfNotVisited(cfi)
+        possibleMarkDependenceBases.insert(cfi)
+        continue
+      }
+
+      if let cvt = use.instruction as? ConvertEscapeToNoEscapeInst {
+        conversionsAndReabstractions.pushIfNotVisited(cvt)
+        possibleMarkDependenceBases.insert(cvt)
+        continue
+      }
+
+      // Look through reabstraction thunks
+      if let pai = use.instruction as? PartialApplyInst,
+         !pai.isPullbackInResultOfAutodiffVJP,
+         pai.isPartialApplyOfReabstractionThunk,
+         pai.isSupportedClosure,
+         pai.callee.type.isNoEscapeFunction,
+         pai.callee.type.isThickFunction
+      {
+        conversionsAndReabstractions.pushIfNotVisited(pai)
+        possibleMarkDependenceBases.insert(pai)
+        haveUsedReabstraction = true
+        continue
+      }
+
+      // Look through `mark_dependence` on partial_apply[stack]
+      if let mdi = use.instruction as? MarkDependenceInst,
+         possibleMarkDependenceBases.contains(mdi.base),  
+         mdi.value == use.value,
+         mdi.value.type.isNoEscapeFunction,
+         mdi.value.type.isThickFunction
+      {
+        conversionsAndReabstractions.pushIfNotVisited(mdi)
+        continue
+      }
+
+      // Only add values used in `partial_apply`s as remaining uses
+      if use.instruction is PartialApplyInst {
+        remainingUses.pushIfNotVisited(currUse)
+        allDirectAndTransitiveUses.removeLast()
+      }
     }
-
-    if let cvt = use.instruction as? ConvertEscapeToNoEscapeInst {
-      initialUses.append(contentsOf: cvt.uses)
-      possibleMarkDependenceBases.insert(cvt)
-      continue
-    }
-
-    // Look through reabstraction thunks
-    if let pai = use.instruction as? PartialApplyInst,
-      !pai.isPullbackInResultOfAutodiffVJP,
-      pai.isPartialApplyOfReabstractionThunk
-        && pai.isSupportedClosure
-        && pai.callee.type.isNoEscapeFunction
-        && pai.callee.type.isThickFunction
-    {
-      // Reabstraction can cause series of partial_apply to be emitted. It
-      // is okay to treat these like conversion instructions. Current
-      // restriction: if the partial_apply does not take ownership of its
-      // argument we don't need to analyze which partial_apply to emit
-      // release for (its all of them).
-      initialUses.append(contentsOf: pai.uses)
-      possibleMarkDependenceBases.insert(pai)
-      haveUsedReabstraction = true
-      continue
-    }
-
-    // Look through mark_dependence on partial_apply[stack]
-    if let mdi = use.instruction as? MarkDependenceInst,
-      possibleMarkDependenceBases.contains(mdi.base),  // We can't copy a closure if the mark_dependence base is not available in the specialized function.
-      mdi.value == use.value && mdi.value.type.isNoEscapeFunction && mdi.value.type.isThickFunction
-    {
-      initialUses.append(contentsOf: mdi.uses)
-      continue
-    }
-
-    remainingUses.append(use)
   }
 
-  return (remainingUses, lifeRangeEndpoints, possibleMarkDependenceBases, haveUsedReabstraction)
+  return haveUsedReabstraction
 }
 
-/// Finalizes the callsites for a closure by adding a corresponding `ClosureArgDescriptor`
-/// to all call sites where the closure is passed as an argument.
-///
-/// - Parameters:
-///   - context: `FunctionPassContext` instance
-///   - closure: The closure for which the call sites are being updated.
-///   - callSiteMap: `CallSiteMap` instance, shared across all closures.
-///   - lifeRangeEndpoints: Instructions that comprise the possible life-range of the closure.
-///   - intermediateClosureArgDescs: Intermediate closure argument descriptors.
-private func finalizeCallSites(
-  _ context: FunctionPassContext,
-  for closure: SingleValueInstruction,
-  callSiteMap: inout CallSiteMap,
-  lifeRangeEndpoints: [Instruction],
-  intermediateClosureArgDescs: [IntermediateClosureArgDescriptor]
-) {
-  var lifeRange = InstructionRange(begin: closure, context)
+/// Finalizes the call sites for a given root closure by adding a corresponding `ClosureArgDescriptor`
+/// to all call sites where the closure is ultimately passed as an argument.
+private func finalizeCallSites(for rootClosure: SingleValueInstruction, callSiteMap: inout CallSiteMap, 
+                               allDirectAndTransitiveUses: [Instruction], 
+                               intermediateClosureArgDescs: [IntermediateClosureArgDescriptor], 
+                               _ context: FunctionPassContext) 
+{
+  var lifeRange = InstructionRange(begin: rootClosure, context)
   defer {
     lifeRange.deinitialize()
   }
-  lifeRange.insert(contentsOf: lifeRangeEndpoints)
+  lifeRange.insert(contentsOf: allDirectAndTransitiveUses)
 
-  let closureInfo = ClosureInfo(closure: closure, lifetimeFrontier: Array(lifeRange.ends))
+  let closureInfo = ClosureInfo(closure: rootClosure, lifetimeFrontier: Array(lifeRange.ends))
 
   intermediateClosureArgDescs
     .reduce(into: [:]) { result, imClosureArgDesc in
-      result[imClosureArgDesc.callSite, default: []].append(
-        imClosureArgDesc.intoClosureArgDescriptor(closureInfo: closureInfo))
+      result[imClosureArgDesc.callSite, default: []]
+        .append(imClosureArgDesc.intoClosureArgDescriptor(closureInfo: closureInfo))
     }
     .forEach { callSite, closureArgDescriptors in
       if var callSiteDesc = callSiteMap[callSite] {
@@ -541,9 +555,9 @@ private func isClosureApplied(in callee: Function, closureArgIndex index: Int) -
         }
 
         if let faiCallee = fai.referencedFunction,
-          faiCallee.isAvailableExternally
-            && !handledFuncs.contains(faiCallee)
-            && handledFuncs.count < recursionBudget
+           faiCallee.isAvailableExternally,
+           !handledFuncs.contains(faiCallee),
+           handledFuncs.count < recursionBudget
         {
           handledFuncs.insert(faiCallee)
           if inner(faiCallee, fai.calleeArgumentIndex(of: use)!, &handledFuncs) {
@@ -556,74 +570,61 @@ private func isClosureApplied(in callee: Function, closureArgIndex index: Int) -
     return false
   }
 
-  // Limit the number of recursive calls to not go into
-  // exponential behavior in corner cases.
+  // Limit the number of recursive calls to not go into exponential behavior in corner cases.
   let recursionBudget = 8
   var handledFuncs: Set<Function> = []
   return inner(callee, index, &handledFuncs)
 }
 
-/// Marks any intermediate, reabstracted closures, corresponding to given closure
-/// passed in at a callsite, as used. We do not want to look at reabstraction closures
-/// twice as they are covered as part of the final closure that we're passing in at the
-/// callsite.
-///
-/// - Parameters:
-///   - firstClosure: The original "supported" closure instance in the function.
-///   - currentClosure: The current closure that one or more "reabstractions" removed from the
-///     `firstClosure` and should be marked as used.
-///   - usedReabstractionClosures: Set of closures that are reabstracted into a final closure,
-///     passed in at a callsite.
-private func markReabstractionClosuresAsUsed(
-  firstClosure: Value,
-  currentClosure: Value,
-  usedReabstractionClosures: inout InstructionSet
-) {
-  if currentClosure == firstClosure {
+/// Marks any converted/reabstracted closures, corresponding to a given root closure as used. We do not want to 
+/// look at such closures separately as during function specialization they will be handled as part of the root closure. 
+private func markConvertedAndReabstractedClosuresAsUsed(rootClosure: Value, convertedAndReabstractedClosure: Value, 
+                                                        convertedAndReabstractedClosures: inout InstructionSet) 
+{
+  if convertedAndReabstractedClosure == rootClosure {
     return
   }
 
-  if let pai = currentClosure as? PartialApplyInst {
-    usedReabstractionClosures.insert(pai)
-    return markReabstractionClosuresAsUsed(
-      firstClosure: firstClosure, currentClosure: pai.callee,
-      usedReabstractionClosures: &usedReabstractionClosures)
+  if let pai = convertedAndReabstractedClosure as? PartialApplyInst {
+    convertedAndReabstractedClosures.insert(pai)
+    return 
+      markConvertedAndReabstractedClosuresAsUsed(rootClosure: rootClosure, convertedAndReabstractedClosure: pai.callee, 
+                                                 convertedAndReabstractedClosures: &convertedAndReabstractedClosures)
   }
 
-  if let cvt = currentClosure as? ConvertFunctionInst {
-    usedReabstractionClosures.insert(cvt)
-    return markReabstractionClosuresAsUsed(
-      firstClosure: firstClosure, currentClosure: cvt.fromFunction,
-      usedReabstractionClosures: &usedReabstractionClosures)
+  if let cvt = convertedAndReabstractedClosure as? ConvertFunctionInst {
+    convertedAndReabstractedClosures.insert(cvt)
+    return 
+      markConvertedAndReabstractedClosuresAsUsed(rootClosure: rootClosure, 
+                                                 convertedAndReabstractedClosure: cvt.fromFunction,
+                                                 convertedAndReabstractedClosures: &convertedAndReabstractedClosures)
   }
 
-  if let cvt = currentClosure as? ConvertEscapeToNoEscapeInst {
-    usedReabstractionClosures.insert(cvt)
-    return markReabstractionClosuresAsUsed(
-      firstClosure: firstClosure, currentClosure: cvt.fromFunction,
-      usedReabstractionClosures: &usedReabstractionClosures)
+  if let cvt = convertedAndReabstractedClosure as? ConvertEscapeToNoEscapeInst {
+    convertedAndReabstractedClosures.insert(cvt)
+    return 
+      markConvertedAndReabstractedClosuresAsUsed(rootClosure: rootClosure, 
+                                                 convertedAndReabstractedClosure: cvt.fromFunction,
+                                                 convertedAndReabstractedClosures: &convertedAndReabstractedClosures)
   }
 
-  if let mdi = currentClosure as? MarkDependenceInst {
-    usedReabstractionClosures.insert(mdi)
-    return markReabstractionClosuresAsUsed(
-      firstClosure: firstClosure, currentClosure: mdi.value,
-      usedReabstractionClosures: &usedReabstractionClosures)
+  if let mdi = convertedAndReabstractedClosure as? MarkDependenceInst {
+    convertedAndReabstractedClosures.insert(mdi)
+    return 
+      markConvertedAndReabstractedClosuresAsUsed(rootClosure: rootClosure, convertedAndReabstractedClosure: mdi.value,
+                                                 convertedAndReabstractedClosures: &convertedAndReabstractedClosures)
   }
 
-  fatalError("Unexpected instruction used during closure reabstraction: \(currentClosure)")
+  fatalError("Unexpected instruction used during closure conversion/reabstraction: \(convertedAndReabstractedClosure)")
 }
 
 // ===================== Types ===================== //
 
-/// Represents all the information required to
-/// represent a closure in isolation, i.e., outside of
-/// a callsite context where the closure may be getting
-/// passed as an argument.
+/// Represents all the information required to represent a closure in isolation, i.e., outside of a callsite context
+/// where the closure may be getting passed as an argument.
 ///
-/// Composed with other information inside a `ClosureArgDescriptor`
-/// to represent a closure as an argument at a callsite.
-struct ClosureInfo {
+/// Composed with other information inside a `ClosureArgDescriptor` to represent a closure as an argument at a callsite.
+private struct ClosureInfo {
   let closure: SingleValueInstruction
   let lifetimeFrontier: [Instruction]
 
@@ -635,7 +636,7 @@ struct ClosureInfo {
 }
 
 /// Represents a closure as an argument at a callsite.
-struct ClosureArgDescriptor {
+private struct ClosureArgDescriptor {
   let closureInfo: ClosureInfo
   /// The index of the closure in the callsite's argument list.
   let closureArgumentIndex: Int
@@ -645,12 +646,11 @@ struct ClosureArgDescriptor {
   var reachableExitBBs: [BasicBlock]
 }
 
-/// An intermediate data structure that holds the information about
-/// a closure at a callsite that will be specialized on it.
+/// An intermediate data structure that holds the information about a closure at a callsite that will be specialized on
+/// it.
 ///
-/// This type is an implementation detail and exists only to delay the creation
-/// of the final `ClosureArgDescriptor`s until the complete lifetime frontier of
-/// the corresponding closure has been computed.
+/// This type is an implementation detail and exists only to delay the creation of the final `ClosureArgDescriptor`s
+/// until the complete lifetime frontier of the corresponding closure has been computed.
 private struct IntermediateClosureArgDescriptor {
   let callSite: PartialApplyInst
   let closureArgumentIndex: Int
@@ -670,7 +670,7 @@ private struct IntermediateClosureArgDescriptor {
 }
 
 /// Represents a callsite containing one or more closure arguments.
-struct CallSite {
+private struct CallSite {
   let applySite: ApplySite
   var closureArgDescriptors: [ClosureArgDescriptor] = []
   var silArgIndexToClosureArgDescIndex: [Int: Int] = [:]
@@ -680,8 +680,7 @@ struct CallSite {
   }
 
   public mutating func appendClosureArgDescriptor(_ descriptor: ClosureArgDescriptor) {
-    self.silArgIndexToClosureArgDescIndex[descriptor.closureArgumentIndex] =
-      self.closureArgDescriptors.count
+    self.silArgIndexToClosureArgDescIndex[descriptor.closureArgumentIndex] = self.closureArgDescriptors.count
     self.closureArgDescriptors.append(descriptor)
   }
 
@@ -694,15 +693,10 @@ struct CallSite {
 
 // ===================== Unit tests ===================== //
 
-let gatherCallSitesTest = FunctionTest("closure_specialize_gather_call_sites") {
-  function, arguments, context in
-
+let gatherCallSitesTest = FunctionTest("closure_specialize_gather_call_sites") { function, arguments, context in
   print("Specializing closures in function: \(function.name)")
   print("===============================================")
-  var callSites = gatherCallSites(context, in: function)
-  defer {
-    callSites.deinitialize()
-  }
+  var callSites = gatherCallSites(in: function, context)
 
   callSites.forEach { callSite in
     print("PartialApply call site: \(callSite.applySite)")

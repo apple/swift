@@ -900,7 +900,7 @@ class ConvertFunctionInst : SingleValueInstruction, UnaryInstruction {
 }
 
 final public
-class ThinToThickFunctionInst : SingleValueInstruction, ConversionInstruction {
+class ThinToThickFunctionInst : SingleValueInstruction, UnaryInstruction {
   public var callee: Value { operand.value }
 
   public var referencedFunction: Function? {

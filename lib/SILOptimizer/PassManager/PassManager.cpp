@@ -2051,12 +2051,3 @@ void SILPassManager::runSwiftModuleVerification() {
     runSwiftFunctionVerification(&f);
   }
 }
-
-bool BridgedFunction::isAutodiffVJP() const {
-  return swift::isDifferentiableFuncComponent(
-      getFunction(), swift::AutoDiffFunctionComponent::VJP);
-}
-
-SwiftInt BridgedFunction::specializationLevel() const {
-  return swift::getSpecializationLevel(getFunction());
-}
