@@ -220,6 +220,8 @@ public enum Medicine {
 extension Medicine : Equatable {}
 
 public func ==(lhs: Medicine, rhs: Medicine) -> Bool {
+  // expected-warning@-1 {{automatically generated 'Hashable' implementation for type 'Medicine' may not match the behavior of custom '==' operator}}
+  // expected-note@-2 {{add a custom 'hash(into:)' method}}
   return true
 }
 
