@@ -1057,6 +1057,9 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
   if (Opts.StrictConcurrencyLevel == StrictConcurrency::Complete) {
     Opts.enableFeature(Feature::IsolatedDefaultValues);
     Opts.enableFeature(Feature::GlobalConcurrency);
+    if (!Args.hasArg(OPT_disable_strict_concurrency_region_based_isolation)) {
+      Opts.enableFeature(Feature::RegionBasedIsolation);
+    }
   }
 
   Opts.WarnImplicitOverrides =
