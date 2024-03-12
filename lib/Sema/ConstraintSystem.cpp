@@ -2033,7 +2033,7 @@ TypeVariableType *ConstraintSystem::openGenericParameter(
   assert(result.second);
   (void)result;
 
-  if (Context.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (Context.LangOpts.EnableNCGenericsInfrastructure) {
     return typeVar;
   }
 

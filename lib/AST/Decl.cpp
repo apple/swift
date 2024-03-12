@@ -1324,7 +1324,7 @@ static GenericSignature getPlaceholderGenericSignature(
       auto type = genericParam->getDeclaredInterfaceType();
       genericParams.push_back(type->castTo<GenericTypeParamType>());
 
-      if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+      if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
         for (auto ip : InvertibleProtocolSet::full()) {
           auto proto = ctx.getProtocol(getKnownProtocolKind(ip));
           requirements.emplace_back(RequirementKind::Conformance, type,
@@ -4947,7 +4947,7 @@ conformanceExists(TypeDecl const *decl, InvertibleProtocolKind ip) {
 }
 
 TypeDecl::CanBeInvertible::Result NominalTypeDecl::canBeCopyable() const {
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.EnableNCGenericsInfrastructure) {
     return !hasInverseMarking(InvertibleProtocolKind::Copyable)
                ? CanBeInvertible::Always
                : CanBeInvertible::Never;
@@ -4957,7 +4957,7 @@ TypeDecl::CanBeInvertible::Result NominalTypeDecl::canBeCopyable() const {
 }
 
 TypeDecl::CanBeInvertible::Result NominalTypeDecl::canBeEscapable() const {
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.EnableNCGenericsInfrastructure) {
     return !hasInverseMarking(InvertibleProtocolKind::Escapable)
                ? CanBeInvertible::Always
                : CanBeInvertible::Never;
@@ -6690,7 +6690,7 @@ NominalTypeDecl::hasInverseMarking(InvertibleProtocolKind target) const {
   auto &ctx = getASTContext();
 
   // Legacy support stops here.
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (!ctx.LangOpts.EnableNCGenericsInfrastructure)
     return InverseMarking::Mark(InverseMarking::Kind::None);
 
   // Claim that the tuple decl has an explicit ~TARGET marking.

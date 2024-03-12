@@ -2048,9 +2048,6 @@ static void checkProtocolRefinementRequirements(ProtocolDecl *proto) {
   auto selfTy = proto->getSelfInterfaceType();
   auto genericSig = proto->getGenericSignature();
 
-  const bool EnabledNoncopyableGenerics =
-      ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics);
-
   // Check for circular inheritance; the HasCircularInheritedProtocolsRequest
   // will diagnose an error in that case, and we skip all remaining checks.
   if (proto->hasCircularInheritedProtocols())
@@ -2060,7 +2057,7 @@ static void checkProtocolRefinementRequirements(ProtocolDecl *proto) {
   // diagnose an error.
   //
   // FIXME: This duplicates logic from computeRequirementDiagnostics().
-  if (EnabledNoncopyableGenerics) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     // Get the list of written inverses.
     InvertibleProtocolSet inverses;
     bool anyObject = false;
@@ -3267,7 +3264,7 @@ public:
   }
 
   static void diagnoseIncompatibleProtocolsForMoveOnlyType(Decl *decl) {
-    if (decl->getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics))
+    if (decl->getASTContext().LangOpts.EnableNCGenericsInfrastructure)
       return; // taken care of elsewhere.
 
     if (auto *nomDecl = dyn_cast<NominalTypeDecl>(decl)) {
@@ -4131,7 +4128,7 @@ public:
       if (!nom || isa<ProtocolDecl>(nom)) {
         DD->diagnose(diag::destructor_decl_outside_class_or_noncopyable);
 
-      } else if (!Ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)
+      } else if (!Ctx.LangOpts.EnableNCGenericsInfrastructure
                   && !isa<ClassDecl>(nom)
                   && nom->canBeCopyable()) {
         // When we have NoncopyableGenerics, deinits get validated as part of

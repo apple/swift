@@ -1043,7 +1043,7 @@ void Serializer::writeHeader() {
     IsOSSA.emit(ScratchRecord, Options.IsOSSA);
 
     HasNoncopyableGenerics.emit(ScratchRecord,
-            getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics));
+            getASTContext().LangOpts.EnableNCGenericsInfrastructure);
 
     {
       llvm::BCBlockRAII restoreBlock(Out, OPTIONS_BLOCK_ID, 4);

@@ -6390,7 +6390,7 @@ bool NotCopyableFailure::diagnoseAsError() {
     };
 
     // NOTE: a non-requirement constraint locator might now be impossible after
-    // having made Copyable a Requirement in Feature::NoncopyableGenerics
+    // having made Copyable a Requirement in EnableNCGenericsInfrastructure
     if (diagnoseGenericTypeParamType(loc->getGenericParameter()))
       return true;
 
@@ -6417,7 +6417,7 @@ bool NotCopyableFailure::diagnoseAsError() {
   emitDiagnostic(diag::noncopyable_generics, noncopyableTy);
 
 #ifndef NDEBUG
-  if (getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (getASTContext().LangOpts.EnableNCGenericsInfrastructure) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     getLocator()->dump(&getConstraintSystem());

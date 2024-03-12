@@ -754,7 +754,7 @@ AbstractGenericSignatureRequest::evaluate(
 static GenericSignature getPlaceholderGenericSignature(
     ASTContext &ctx, ArrayRef<GenericTypeParamType *> genericParams) {
   SmallVector<Requirement, 2> requirements;
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     for (auto param : genericParams) {
       for (auto ip : InvertibleProtocolSet::full()) {
         auto proto = ctx.getProtocol(getKnownProtocolKind(ip));

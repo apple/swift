@@ -4364,6 +4364,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // FIXME: shouldn't be needed once the feature is ready.
+  if (InitInvok.getLangOptions().hasFeature(Feature::NoncopyableGenerics)) {
+    InitInvok.getLangOptions().EnableNCGenericsInfrastructure = true;
+    InitInvok.getLangOptions().EnableExperimentalAssociatedTypeInference = true;
+  }
+
   // NOTE: 'setMainExecutablePath' must be after 'Features' because
   // 'setRuntimeResourcePath()' called from here depends on 'Features'.
   InitInvok.setMainExecutablePath(mainExecutablePath);

@@ -1449,6 +1449,9 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     }
   }
 
+  if (Opts.hasFeature(Feature::NoncopyableGenerics))
+    Opts.EnableNCGenericsInfrastructure = true;
+
 #ifndef NDEBUG
   /// Enable round trip parsing via the new swift parser unless it is disabled
   /// explicitly. The new Swift parser can have mismatches with C++ parser -
@@ -3313,7 +3316,7 @@ CompilerInvocation::loadFromSerializedAST(StringRef data) {
       serialization::validateSerializedAST(
         data,
         getSILOptions().EnableOSSAModules,
-        LangOpts.hasFeature(Feature::NoncopyableGenerics),
+        LangOpts.EnableNCGenericsInfrastructure,
         LangOpts.SDKName,
         &extendedInfo);
 
@@ -3352,7 +3355,7 @@ CompilerInvocation::setUpInputForSILTool(
   auto result = serialization::validateSerializedAST(
       fileBufOrErr.get()->getBuffer(),
       getSILOptions().EnableOSSAModules,
-      LangOpts.hasFeature(Feature::NoncopyableGenerics),
+      LangOpts.EnableNCGenericsInfrastructure,
       LangOpts.SDKName,
       &extendedInfo);
   bool hasSerializedAST = result.status == serialization::Status::Valid;

@@ -1041,7 +1041,7 @@ static bool didDiagnoseMoveOnlyGenericArgs(ASTContext &ctx,
                                          ArrayRef<Type> genericArgs,
                                          const DeclContext *dc) {
 
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure)
     return false;
 
   bool didEmitDiag = false;
@@ -2511,7 +2511,7 @@ bool TypeResolver::diagnoseInvalidPlaceHolder(OpaqueReturnTypeRepr *repr) {
 bool TypeResolver::diagnoseMoveOnlyGeneric(TypeRepr *repr,
                                            Type unboundTy,
                                            Type genericArgTy) {
-  if (getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (getASTContext().LangOpts.EnableNCGenericsInfrastructure)
     return false;
 
   if (genericArgTy->isNoncopyable()) {
@@ -5759,6 +5759,8 @@ NeverNullType TypeResolver::resolveInverseType(InverseTypeRepr *repr,
   auto ty = resolveType(repr->getConstraint(), options);
   if (ty->hasError())
     return ErrorType::get(getASTContext());
+
+  assert(getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics));
 
   if (auto kp = ty->getKnownProtocol()) {
     if (auto kind = getInvertibleProtocolKind(*kp)) {

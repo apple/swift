@@ -7701,7 +7701,7 @@ static void getSyntacticInheritanceClause(const ProtocolDecl *proto,
   InvertibleProtocolSet inverses = InvertibleProtocolSet::full();
 
   for (auto *inherited : proto->getInheritedProtocols()) {
-    if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+    if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
       if (auto ip = inherited->getInvertibleProtocolKind()) {
         inverses.remove(*ip);
         continue;
@@ -7720,7 +7720,7 @@ static void getSyntacticInheritanceClause(const ProtocolDecl *proto,
                          /*isPreconcurrency=*/false);
   }
 
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     for (auto ip : inverses) {
       InvertibleProtocolSet singleton;
       singleton.insert(ip);

@@ -552,7 +552,7 @@ void ConformanceLookupTable::expandImpliedConformances(NominalTypeDecl *nominal,
     for (auto *inherited : conformingProtocol->getInheritedProtocols()) {
       // Conforming a ~Copyable nominal to a protocol that inherits Copyable
       // should not imply a Copyable conformance on the nominal.
-      if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+      if (ctx.LangOpts.EnableNCGenericsInfrastructure)
         if (inherited->getInvertibleProtocolKind())
           continue;
 

@@ -746,7 +746,7 @@ void swift::rewriting::applyInverses(
     SmallVectorImpl<StructuralRequirement> &result,
     SmallVectorImpl<RequirementError> &errors) {
 
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (!ctx.LangOpts.EnableNCGenericsInfrastructure)
     return;
 
   // Summarize the inverses and flag ones that are incorrect.

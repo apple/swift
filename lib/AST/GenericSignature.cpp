@@ -660,7 +660,7 @@ Type GenericSignatureImpl::getUpperBound(Type type,
   // we didn't have a superclass or require AnyObject.
   InvertibleProtocolSet inverses;
 
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     if (!superclass && !hasExplicitAnyObject) {
       for (auto ip : InvertibleProtocolSet::full()) {
         auto *kp = ctx.getProtocol(::getKnownProtocolKind(ip));
@@ -671,7 +671,7 @@ Type GenericSignatureImpl::getUpperBound(Type type,
   }
 
   for (auto *proto : getRequiredProtocols(type)) {
-    if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+    if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
       // Don't add invertible protocols to the composition, because we recorded
       // their absence above.
       if (proto->getInvertibleProtocolKind())
@@ -1254,7 +1254,7 @@ void GenericSignatureImpl::getRequirementsWithInverses(
     SmallVector<InverseRequirement, 2> &inverses) const {
   auto &ctx = getASTContext();
 
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!ctx.LangOpts.EnableNCGenericsInfrastructure) {
     reqs.append(getRequirements().begin(), getRequirements().end());
     return;
   }
@@ -1306,7 +1306,7 @@ RequirementSignature RequirementSignature::getPlaceholderRequirementSignature(
     inheritedProtos.push_back(inheritedProto);
   }
 
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     for (auto ip : InvertibleProtocolSet::full()) {
       auto *otherProto = ctx.getProtocol(getKnownProtocolKind(ip));
       inheritedProtos.push_back(otherProto);
@@ -1323,7 +1323,7 @@ RequirementSignature RequirementSignature::getPlaceholderRequirementSignature(
                               inheritedProto->getDeclaredInterfaceType());
   }
 
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     for (auto *assocTypeDecl : proto->getAssociatedTypeMembers()) {
       for (auto ip : InvertibleProtocolSet::full()) {
         auto *otherProto = ctx.getProtocol(getKnownProtocolKind(ip));
@@ -1350,7 +1350,7 @@ void RequirementSignature::getRequirementsWithInverses(
     SmallVector<InverseRequirement, 2> &inverses) const {
   auto &ctx = owner->getASTContext();
 
-  if (!ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!ctx.LangOpts.EnableNCGenericsInfrastructure) {
     reqs.append(getRequirements().begin(), getRequirements().end());
     return;
   }

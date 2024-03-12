@@ -6662,7 +6662,7 @@ static void addMoveOnlyAttrIf(SourceLoc const &parsedTildeCopyable,
   if (parsedTildeCopyable.isInvalid())
     return;
 
-  if (Context.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (Context.LangOpts.EnableNCGenericsInfrastructure)
     llvm_unreachable("unexpected use of legacy ~Copyable parsing");
 
   auto &attrs = decl->getAttrs();

@@ -3985,7 +3985,7 @@ ConstraintSystem::matchExistentialTypes(Type type1, Type type2,
     return getTypeMatchAmbiguous();
   }
 
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.EnableNCGenericsInfrastructure) {
     // move-only types (and their metatypes) cannot match with existential types.
     if (type1->getMetatypeInstanceType()->isNoncopyable()) {
       // tailor error message
@@ -8499,7 +8499,7 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyConformsToConstraint(
 
   // FIXME: This is already handled by tuple conformance lookup path and
   // should be removed once non-copyable generics are enabled by default.
-  if (!getASTContext().LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (!getASTContext().LangOpts.EnableNCGenericsInfrastructure) {
     // Copyable is checked structurally, so for better performance, split apart
     // this constraint into individual Copyable constraints on each tuple
     // element.

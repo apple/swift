@@ -3285,7 +3285,7 @@ InheritedProtocolsRequest::evaluate(Evaluator &evaluator,
   }
 
   // Apply inverses.
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     bool skipInverses = false;
 
     // ... except for these protocols, so that Copyable does not have to

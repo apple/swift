@@ -1278,8 +1278,7 @@ static SmallVector<ProtocolConformance *, 2> findSynthesizedConformances(
 
     // Triggers synthesis of a possibly conditional conformance.
     // For the unconditional ones, see NominalTypeDecl::prepareConformanceTable
-    if (nominal->getASTContext().LangOpts.hasFeature(
-            Feature::NoncopyableGenerics)) {
+    if (nominal->getASTContext().LangOpts.EnableNCGenericsInfrastructure) {
       for (auto ip : InvertibleProtocolSet::full())
         trySynthesize(getKnownProtocolKind(ip));
     }

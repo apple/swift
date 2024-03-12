@@ -6320,7 +6320,7 @@ bool swift::diagnoseUnhandledThrowsInAsyncContext(DeclContext *dc,
 void swift::diagnoseCopyableTypeContainingMoveOnlyType(
     NominalTypeDecl *copyableNominalType) {
   auto &ctx = copyableNominalType->getASTContext();
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure)
     return; // taken care of in conformance checking
 
   // If we already have a move only type, just bail, we have no further work to

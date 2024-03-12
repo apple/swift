@@ -281,7 +281,7 @@ bool TypeBase::allowsOwnership(const GenericSignatureImpl *sig) {
 static void expandDefaults(SmallVectorImpl<ProtocolDecl *> &protocols,
                            InvertibleProtocolSet inverses,
                            ASTContext &ctx) {
-  if (ctx.LangOpts.hasFeature(Feature::NoncopyableGenerics)) {
+  if (ctx.LangOpts.EnableNCGenericsInfrastructure) {
     for (auto ip : InvertibleProtocolSet::full()) {
       if (!inverses.contains(ip)) {
         auto *proto = ctx.getProtocol(getKnownProtocolKind(ip));

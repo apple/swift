@@ -299,7 +299,7 @@ struct CollectGenericParams {
     // If it's an invertible protocol and NoncopyableGenerics is disabled
     // then skip the requirement.
     if (req.getProtocolDecl()->getInvertibleProtocolKind())
-      if (!SC.Context.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+      if (!SC.Context.LangOpts.EnableNCGenericsInfrastructure)
         return;
 
     AddedRequirements.push_back(req);
@@ -740,7 +740,7 @@ namespace {
       // If it's an invertible protocol and NoncopyableGenerics is disabled
       // then skip the requirement.
       if (req.getProtocolDecl()->getInvertibleProtocolKind())
-        if (!Context.LangOpts.hasFeature(Feature::NoncopyableGenerics))
+        if (!Context.LangOpts.EnableNCGenericsInfrastructure)
           return;
 
       addedRequirements.push_back(req);
