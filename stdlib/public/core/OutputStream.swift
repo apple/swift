@@ -618,7 +618,11 @@ extension Unicode.Scalar: TextOutputStreamable {
 }
 
 /// A hook for playgrounds to print through.
-public var _playgroundPrintHook: ((String) -> Void)? = nil
+///
+/// Note: This is marked nonisolated unsafe because we are not responisble for
+/// the synchronization needed to update this variable. Either a debugger or a
+/// playground environment is setting this hook up.
+public nonisolated(unsafe) var _playgroundPrintHook: ((String) -> Void)? = nil
 
 internal struct _TeeStream<L: TextOutputStream, R: TextOutputStream>
   : TextOutputStream

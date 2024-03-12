@@ -38,8 +38,8 @@ SWIFT_RUNTIME_STDLIB_API
 ClassMetadata CLASS_METADATA_SYM(s19__EmptySetSingleton);
 } // namespace swift
 
-SWIFT_RUNTIME_STDLIB_API
-swift::_SwiftEmptyArrayStorage swift::_swiftEmptyArrayStorage = {
+SWIFT_RUNTIME_STDLIB_API SWIFT_CONSTANT_RELOCATABLE_DATA
+const swift::_SwiftEmptyArrayStorage swift::_swiftEmptyArrayStorage = {
   // HeapObject header;
   {
     &swift::CLASS_METADATA_SYM(s19__EmptyArrayStorage), // isa pointer
@@ -85,8 +85,8 @@ __asm__("  .globl __swiftImmortalRefCount\n");
 
 #endif
 
-SWIFT_RUNTIME_STDLIB_API
-swift::_SwiftEmptyDictionarySingleton swift::_swiftEmptyDictionarySingleton = {
+SWIFT_RUNTIME_STDLIB_API SWIFT_CONSTANT_RELOCATABLE_DATA
+const swift::_SwiftEmptyDictionarySingleton swift::_swiftEmptyDictionarySingleton = {
   // HeapObject header;
   {
     &swift::CLASS_METADATA_SYM(s26__EmptyDictionarySingleton), // isa pointer
@@ -105,16 +105,16 @@ swift::_SwiftEmptyDictionarySingleton swift::_swiftEmptyDictionarySingleton = {
     0, // int16 extra;
     0, // int32 age;
     0, // int seed;
-    (void *)1, // void* keys; (non-null garbage)
-    (void *)1  // void* values; (non-null garbage)
+    1, // void* keys; (non-null garbage)
+    1  // void* values; (non-null garbage)
   },
 
   // bucket 0 is unoccupied; other buckets are out-of-bounds
   static_cast<__swift_uintptr_t>(~1) // int metadata; 
 };
 
-SWIFT_RUNTIME_STDLIB_API
-swift::_SwiftEmptySetSingleton swift::_swiftEmptySetSingleton = {
+SWIFT_RUNTIME_STDLIB_API SWIFT_CONSTANT_RELOCATABLE_DATA
+const swift::_SwiftEmptySetSingleton swift::_swiftEmptySetSingleton = {
   // HeapObject header;
   {
     &swift::CLASS_METADATA_SYM(s19__EmptySetSingleton), // isa pointer
@@ -133,7 +133,7 @@ swift::_SwiftEmptySetSingleton swift::_swiftEmptySetSingleton = {
     0, // int16 extra;
     0, // int32 age;
     0, // int seed;
-    (void *)1, // void *rawElements; (non-null garbage)
+    1, // void *rawElements; (non-null garbage)
   },
 
   // bucket 0 is unoccupied; other buckets are out-of-bounds
@@ -156,7 +156,7 @@ static swift::_SwiftHashingParameters initializeHashingParameters() {
 }
 
 SWIFT_ALLOWED_RUNTIME_GLOBAL_CTOR_BEGIN
-swift::_SwiftHashingParameters swift::_swift_stdlib_Hashing_parameters =
+const swift::_SwiftHashingParameters swift::_swift_stdlib_Hashing_parameters =
   initializeHashingParameters();
 SWIFT_ALLOWED_RUNTIME_GLOBAL_CTOR_END
 

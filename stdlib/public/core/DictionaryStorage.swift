@@ -217,8 +217,9 @@ extension __RawDictionaryStorage {
   @inlinable
   @nonobjc
   internal static var empty: __EmptyDictionarySingleton {
-    return Builtin.bridgeFromRawPointer(
-      Builtin.addressof(&_swiftEmptyDictionarySingleton))
+    Builtin.bridgeFromRawPointer(
+      _swift_stdlib_getEmptyDictionarySingleton()._rawValue
+    )
   }
   
   @_alwaysEmitIntoClient

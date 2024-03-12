@@ -40,8 +40,12 @@ struct _SwiftEmptyArrayStorage {
   struct _SwiftArrayBodyStorage body;
 };
 
-SWIFT_RUNTIME_STDLIB_API
-struct _SwiftEmptyArrayStorage _swiftEmptyArrayStorage;
+SWIFT_RUNTIME_STDLIB_API SWIFT_CONSTANT_RELOCATABLE_DATA
+const struct _SwiftEmptyArrayStorage _swiftEmptyArrayStorage;
+
+static inline const void * _Nonnull _swift_stdlib_getEmptyArrayStorage() {
+  return &_swiftEmptyArrayStorage;
+}
 
 struct _SwiftDictionaryBodyStorage {
   __swift_intptr_t count;
@@ -51,8 +55,8 @@ struct _SwiftDictionaryBodyStorage {
   __swift_int16_t extra;
   __swift_int32_t age;
   __swift_intptr_t seed;
-  void *rawKeys;
-  void *rawValues;
+  __swift_uintptr_t rawKeys;
+  __swift_uintptr_t rawValues;
 };
 
 struct _SwiftSetBodyStorage {
@@ -63,7 +67,7 @@ struct _SwiftSetBodyStorage {
   __swift_int16_t extra;
   __swift_int32_t age;
   __swift_intptr_t seed;
-  void *rawElements;
+  __swift_uintptr_t rawElements;
 };
 
 struct _SwiftEmptyDictionarySingleton {
@@ -78,11 +82,19 @@ struct _SwiftEmptySetSingleton {
   __swift_uintptr_t metadata;
 };
 
-SWIFT_RUNTIME_STDLIB_API
-struct _SwiftEmptyDictionarySingleton _swiftEmptyDictionarySingleton;
+SWIFT_RUNTIME_STDLIB_API SWIFT_CONSTANT_RELOCATABLE_DATA
+const struct _SwiftEmptyDictionarySingleton _swiftEmptyDictionarySingleton;
 
-SWIFT_RUNTIME_STDLIB_API
-struct _SwiftEmptySetSingleton _swiftEmptySetSingleton;
+static inline const void * _Nonnull _swift_stdlib_getEmptyDictionarySingleton() {
+  return &_swiftEmptyDictionarySingleton;
+}
+
+SWIFT_RUNTIME_STDLIB_API SWIFT_CONSTANT_RELOCATABLE_DATA
+const struct _SwiftEmptySetSingleton _swiftEmptySetSingleton;
+
+static inline const void * _Nonnull _swift_stdlib_getEmptySetSingleton() {
+  return &_swiftEmptySetSingleton;
+}
 
 struct _SwiftHashingParameters {
   __swift_uint64_t seed0;
@@ -91,7 +103,7 @@ struct _SwiftHashingParameters {
 };
   
 SWIFT_RUNTIME_STDLIB_API
-struct _SwiftHashingParameters _swift_stdlib_Hashing_parameters;
+const struct _SwiftHashingParameters _swift_stdlib_Hashing_parameters;
 
 #ifdef __cplusplus
 

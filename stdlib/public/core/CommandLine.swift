@@ -23,16 +23,26 @@ internal func _swift_stdlib_getUnsafeArgvArgc(_: UnsafeMutablePointer<Int32>)
 public enum CommandLine {
   /// The backing static variable for argument count may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
+  ///
+  /// Note: It is an abomination that this is marked nonisolated unsafe.
+  /// In theory, this variable is only set once and threads attempting to race
+  /// to set it will all update it to the same value. We hope there are no
+  /// tears in the write.
   @usableFromInline
-  internal static var _argc: Int32 = Int32()
+  internal nonisolated(unsafe) static var _argc: Int32 = 0
 
   /// The backing static variable for arguments may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
   ///
   /// Care must be taken to ensure that `_swift_stdlib_getUnsafeArgvArgc` is
   /// not invoked more times than is necessary (at most once).
+  ///
+  /// Note: It is an abomination that this is marked nonisolated unsafe.
+  /// In theory, this variable is only set once and threads attempting to race
+  /// to set it will all update it to the same value. We hope there are no
+  /// tears in the write.
   @usableFromInline
-  internal static var _unsafeArgv:
+  internal nonisolated(unsafe) static var _unsafeArgv:
     UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>
       =  _swift_stdlib_getUnsafeArgvArgc(&_argc)
 

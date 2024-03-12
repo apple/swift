@@ -155,8 +155,7 @@ extension __RawSetStorage {
   @inlinable
   @nonobjc
   internal static var empty: __EmptySetSingleton {
-    return Builtin.bridgeFromRawPointer(
-      Builtin.addressof(&_swiftEmptySetSingleton))
+    Builtin.bridgeFromRawPointer(_swift_stdlib_getEmptySetSingleton()._rawValue)
   }
 }
 
