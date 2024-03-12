@@ -1053,6 +1053,9 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     Opts.enableFeature(Feature::StrictConcurrency);
   }
 
+  Opts.StrictConcurrencyLevel = swift::StrictConcurrency::Complete;
+  Opts.enableFeature(Feature::StrictConcurrency);
+
   // StrictConcurrency::Complete enables all data-race safety features.
   if (Opts.StrictConcurrencyLevel == StrictConcurrency::Complete) {
     Opts.enableFeature(Feature::IsolatedDefaultValues);
