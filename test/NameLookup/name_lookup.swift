@@ -220,24 +220,24 @@ class ThisDerived1 : ThisBase1 {
   }
 
   class func staticTestSelf1() {
-    self.baseInstanceVar = 42 // expected-error {{member 'baseInstanceVar' cannot be used on type 'ThisDerived1'}}
-    self.baseProp = 42 // expected-error {{member 'baseProp' cannot be used on type 'ThisDerived1'}}
-    self.baseFunc0() // expected-error {{instance member 'baseFunc0' cannot be used on type 'ThisDerived1'}}
+    self.baseInstanceVar = 42 // expected-error {{member 'baseInstanceVar' of type 'ThisDerived1' cannot be used in static context}}
+    self.baseProp = 42 // expected-error {{member 'baseProp' of type 'ThisDerived1' cannot be used in static context}}
+    self.baseFunc0() // expected-error {{instance member 'baseFunc0' of type 'ThisDerived1' cannot be used in static context}}
     self.baseFunc0(ThisBase1())() // expected-error {{cannot convert value of type 'ThisBase1' to expected argument type 'ThisDerived1'}}
 
     self.baseFunc0(ThisDerived1())()
-    self.baseFunc1(42) // expected-error {{instance member 'baseFunc1' cannot be used on type 'ThisDerived1'}}
+    self.baseFunc1(42) // expected-error {{instance member 'baseFunc1' of type 'ThisDerived1' cannot be used in static context}}
     self.baseFunc1(ThisBase1())(42) // expected-error {{cannot convert value of type 'ThisBase1' to expected argument type 'ThisDerived1'}}
     self.baseFunc1(ThisDerived1())(42)
-    self[0] = 42.0 // expected-error {{instance member 'subscript' cannot be used on type 'ThisDerived1'}}
+    self[0] = 42.0 // expected-error {{instance member 'subscript' of type 'ThisDerived1' cannot be used in static context}}
     self.baseStaticVar = 42
     self.baseStaticProp = 42
     self.baseStaticFunc0()
 
-    self.baseExtProp = 42 // expected-error {{member 'baseExtProp' cannot be used on type 'ThisDerived1'}}
-    self.baseExtFunc0() // expected-error {{instance member 'baseExtFunc0' cannot be used on type 'ThisDerived1'}}
-    self.baseExtStaticVar = 42 // expected-error {{instance member 'baseExtStaticVar' cannot be used on type 'ThisDerived1'}}
-    self.baseExtStaticProp = 42 // expected-error {{member 'baseExtStaticProp' cannot be used on type 'ThisDerived1'}}
+    self.baseExtProp = 42 // expected-error {{member 'baseExtProp' of type 'ThisDerived1' cannot be used in static context}}
+    self.baseExtFunc0() // expected-error {{instance member 'baseExtFunc0' of type 'ThisDerived1' cannot be used in static context}}
+    self.baseExtStaticVar = 42 // expected-error {{instance member 'baseExtStaticVar' of type 'ThisDerived1' cannot be used in static context}}
+    self.baseExtStaticProp = 42 // expected-error {{member 'baseExtStaticProp' of type 'ThisDerived1' cannot be used in static context}}
     self.baseExtStaticFunc0()
 
     var bs1 : BaseNestedStruct
@@ -250,19 +250,19 @@ class ThisDerived1 : ThisBase1 {
     var bo3 = self.BaseNestedUnion.BaseUnionX(24)
     var bt2 = self.BaseNestedTypealias()
 
-    self.derivedInstanceVar = 42 // expected-error {{member 'derivedInstanceVar' cannot be used on type 'ThisDerived1'}}
-    self.derivedProp = 42 // expected-error {{member 'derivedProp' cannot be used on type 'ThisDerived1'}}
-    self.derivedFunc0() // expected-error {{instance member 'derivedFunc0' cannot be used on type 'ThisDerived1'}}
+    self.derivedInstanceVar = 42 // expected-error {{member 'derivedInstanceVar' of type 'ThisDerived1' cannot be used in static context}}
+    self.derivedProp = 42 // expected-error {{member 'derivedProp' of type 'ThisDerived1' cannot be used in static context}}
+    self.derivedFunc0() // expected-error {{instance member 'derivedFunc0' of type 'ThisDerived1' cannot be used in static context}}
     self.derivedFunc0(ThisBase1())() // expected-error {{cannot convert value of type 'ThisBase1' to expected argument type 'ThisDerived1'}}
     self.derivedFunc0(ThisDerived1())()
     self.derivedStaticVar = 42
     self.derivedStaticProp = 42
     self.derivedStaticFunc0()
 
-    self.derivedExtProp = 42 // expected-error {{member 'derivedExtProp' cannot be used on type 'ThisDerived1'}}
-    self.derivedExtFunc0() // expected-error {{instance member 'derivedExtFunc0' cannot be used on type 'ThisDerived1'}}
-    self.derivedExtStaticVar = 42 // expected-error {{instance member 'derivedExtStaticVar' cannot be used on type 'ThisDerived1'}}
-    self.derivedExtStaticProp = 42 // expected-error {{member 'derivedExtStaticProp' cannot be used on type 'ThisDerived1'}}
+    self.derivedExtProp = 42 // expected-error {{member 'derivedExtProp' of type 'ThisDerived1' cannot be used in static context}}
+    self.derivedExtFunc0() // expected-error {{instance member 'derivedExtFunc0' of type 'ThisDerived1' cannot be used in static context}}
+    self.derivedExtStaticVar = 42 // expected-error {{instance member 'derivedExtStaticVar' of type 'ThisDerived1' cannot be used in static context}}
+    self.derivedExtStaticProp = 42 // expected-error {{member 'derivedExtStaticProp' of type 'ThisDerived1' cannot be used in static context}}
     self.derivedExtStaticFunc0()
 
     var ds1 : DerivedNestedStruct
@@ -291,24 +291,24 @@ class ThisDerived1 : ThisBase1 {
   // FIXME: Partial application diagnostic is applied incorrectly for some
   // test cases (https://github.com/apple/swift/issues/57572).
   class func staticTestSuper1() {
-    super.baseInstanceVar = 42 // expected-error {{member 'baseInstanceVar' cannot be used on type 'ThisBase1'}}
-    super.baseProp = 42 // expected-error {{member 'baseProp' cannot be used on type 'ThisBase1'}}
-    super.baseFunc0() // expected-error {{instance member 'baseFunc0' cannot be used on type 'ThisBase1'}}
+    super.baseInstanceVar = 42 // expected-error {{member 'baseInstanceVar' of type 'ThisBase1' cannot be used in static context}}
+    super.baseProp = 42 // expected-error {{member 'baseProp' of type 'ThisBase1' cannot be used in static context}}
+    super.baseFunc0() // expected-error {{instance member 'baseFunc0' of type 'ThisBase1' cannot be used in static context}}
     // expected-error@-1 {{cannot reference 'super' instance method with metatype base as function value}}
     super.baseFunc0(ThisBase1())() // expected-error {{cannot reference 'super' instance method with metatype base as function value}}
-    super.baseFunc1(42) // expected-error {{instance member 'baseFunc1' cannot be used on type 'ThisBase1'}}
+    super.baseFunc1(42) // expected-error {{instance member 'baseFunc1' of type 'ThisBase1' cannot be used in static context}}
     // expected-error@-1 {{cannot reference 'super' instance method with metatype base as function value}}
     super.baseFunc1(ThisBase1())(42) // expected-error {{cannot reference 'super' instance method with metatype base as function value}}
-    super[0] = 42.0 // expected-error {{instance member 'subscript' cannot be used on type 'ThisBase1'}}
+    super[0] = 42.0 // expected-error {{instance member 'subscript' of type 'ThisBase1' cannot be used in static context}}
     super.baseStaticVar = 42
     super.baseStaticProp = 42
     super.baseStaticFunc0()
 
-    super.baseExtProp = 42 // expected-error {{member 'baseExtProp' cannot be used on type 'ThisBase1'}}
-    super.baseExtFunc0() // expected-error {{instance member 'baseExtFunc0' cannot be used on type 'ThisBase1'}}
+    super.baseExtProp = 42 // expected-error {{member 'baseExtProp' of type 'ThisBase1' cannot be used in static context}}
+    super.baseExtFunc0() // expected-error {{instance member 'baseExtFunc0' of type 'ThisBase1' cannot be used in static context}}
     // expected-error@-1 {{cannot reference 'super' instance method with metatype base as function value}}
-    super.baseExtStaticVar = 42 // expected-error {{instance member 'baseExtStaticVar' cannot be used on type 'ThisBase1'}}
-    super.baseExtStaticProp = 42 // expected-error {{member 'baseExtStaticProp' cannot be used on type 'ThisBase1'}}
+    super.baseExtStaticVar = 42 // expected-error {{instance member 'baseExtStaticVar' of type 'ThisBase1' cannot be used in static context}}
+    super.baseExtStaticProp = 42 // expected-error {{member 'baseExtStaticProp' of type 'ThisBase1' cannot be used in static context}}
     super.baseExtStaticFunc0()
 
     var bs2 = super.BaseNestedStruct()

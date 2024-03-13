@@ -31,8 +31,8 @@ public enum _RawTFEager {
     _ x: Tensor<T>
   ) -> Tensor<T> {
     return _ExecutionContext.performBinaryOp(x, x, MPSGraph.addition)
-    // expected-error@-1 {{instance member 'performBinaryOp' cannot be used on type '_ExecutionContext'; did you mean to use a value of this type instead?}}
-    // expected-error@-2 {{instance member 'addition' cannot be used on type 'MPSGraph'; did you mean to use a value of this type instead?}}
+    // expected-error@-1 {{instance member 'performBinaryOp' of type '_ExecutionContext' cannot be used in static context; did you mean to use a value of this type instead?}}
+    // expected-error@-2 {{instance member 'addition' of type 'MPSGraph' cannot be used in static context; did you mean to use a value of this type instead?}}
     // expected-error@-3 {{cannot convert value of type '(MPSGraphTensor, MPSGraphTensor, String?) -> ()' to expected argument type '(MPSGraphTensor, MPSGraphTensor, String?) -> MPSGraphTensor'}}
   }
 }
