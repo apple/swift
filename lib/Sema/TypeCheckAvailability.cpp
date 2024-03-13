@@ -70,7 +70,9 @@ bool swift::isExported(const ValueDecl *VD) {
   AccessScope accessScope =
       VD->getFormalAccessScope(nullptr,
                                /*treatUsableFromInlineAsPublic*/true);
-  if (accessScope.isPublic())
+  // A `package` access scope should also be considered exported as it
+  // is "public" within a package boundary.
+  if (accessScope.isPublic() || accessScope.isPackage())
     return true;
 
   // Is this a stored property in a @frozen struct or class?
