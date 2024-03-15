@@ -242,7 +242,7 @@ public:
     auto Buf =
         this->getReader().readBytes(ImageStart, sizeof(typename T::Header));
     if (!Buf)
-      return false;
+      return {};
     auto Header = reinterpret_cast<typename T::Header *>(Buf.get());
     assert(Header->magic == T::MagicNumber && "invalid MachO file");
 
@@ -262,7 +262,7 @@ public:
           RemoteAddress(CmdStartAddress.getAddressData() + Offset),
           SegmentCmdHdrSize);
       if (!CmdBuf)
-        return false;
+        return {};
       auto CmdHdr = reinterpret_cast<typename T::SegmentCmd *>(CmdBuf.get());
       if (strncmp(CmdHdr->segname, "__TEXT", sizeof(CmdHdr->segname)) == 0) {
         TextCommand = CmdHdr;
@@ -274,7 +274,7 @@ public:
 
     // No __TEXT segment, bail out.
     if (!TextCommand)
-      return false;
+      return {};
 
    // Find the load command offset.
     auto loadCmdOffset = ImageStart.getAddressData() + Offset + sizeof(typename T::Header);
@@ -284,7 +284,7 @@ public:
     auto LoadCmdBuf = this->getReader().readBytes(
         RemoteAddress(LoadCmdAddress), sizeof(typename T::SegmentCmd));
     if (!LoadCmdBuf)
-      return false;
+      return {};
     auto LoadCmd = reinterpret_cast<typename T::SegmentCmd *>(LoadCmdBuf.get());
 
     // The sections start immediately after the load command.
@@ -294,7 +294,7 @@ public:
     auto Sections = this->getReader().readBytes(
         RemoteAddress(SectAddress), NumSect * sizeof(typename T::Section));
     if (!Sections)
-      return false;
+      return {};
 
     auto Slide = ImageStart.getAddressData() - TextCommand->vmaddr;
     auto SectionsBuf = reinterpret_cast<const char *>(Sections.get());
@@ -346,7 +346,7 @@ public:
         ReflStrMdSec.first == nullptr &&
         ConformMdSec.first == nullptr &&
         MPEnumMdSec.first == nullptr)
-      return false;
+      return {};
 
     ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
                            {AssocTySec.first, AssocTySec.second},
@@ -371,7 +371,7 @@ public:
           RemoteAddress(CmdStartAddress.getAddressData() + Offset),
           SegmentCmdHdrSize);
       if (!CmdBuf)
-        return false;
+        return {};
       auto CmdHdr = reinterpret_cast<typename T::SegmentCmd *>(CmdBuf.get());
       // Look for any segment name starting with __DATA or __AUTH.
       if (strncmp(CmdHdr->segname, "__DATA", 6) == 0 ||
@@ -398,7 +398,7 @@ public:
     auto DOSHdrBuf = this->getReader().readBytes(
         ImageStart, sizeof(llvm::object::dos_header));
     if (!DOSHdrBuf)
-      return false;
+      return {};
     auto DOSHdr =
         reinterpret_cast<const llvm::object::dos_header *>(DOSHdrBuf.get());
     auto COFFFileHdrAddr = ImageStart.getAddressData() +
@@ -408,7 +408,7 @@ public:
     auto COFFFileHdrBuf = this->getReader().readBytes(
         RemoteAddress(COFFFileHdrAddr), sizeof(llvm::object::coff_file_header));
     if (!COFFFileHdrBuf)
-      return false;
+      return {};
     auto COFFFileHdr = reinterpret_cast<const llvm::object::coff_file_header *>(
         COFFFileHdrBuf.get());
 
@@ -419,7 +419,7 @@ public:
         RemoteAddress(SectionTableAddr),
         sizeof(llvm::object::coff_section) * COFFFileHdr->NumberOfSections);
     if (!SectionTableBuf)
-      return false;
+      return {};
 
     auto findCOFFSectionByName =
         [&](llvm::StringRef Name) -> std::pair<RemoteRef<void>, uint64_t> {
@@ -481,7 +481,7 @@ public:
         ReflStrMdSec.first == nullptr &&
         ConformMdSec.first == nullptr &&
         MPEnumMdSec.first == nullptr)
-      return false;
+      return {};
 
     ReflectionInfo Info = {{FieldMdSec.first, FieldMdSec.second},
                            {AssocTySec.first, AssocTySec.second},
@@ -502,7 +502,7 @@ public:
     auto Buf = this->getReader().readBytes(ImageStart,
                                            sizeof(llvm::object::dos_header));
     if (!Buf)
-      return false;
+      return {};
 
     auto DOSHdr = reinterpret_cast<const llvm::object::dos_header *>(Buf.get());
 
@@ -512,10 +512,10 @@ public:
     Buf = this->getReader().readBytes(RemoteAddress(PEHeaderAddress),
                                       sizeof(llvm::COFF::PEMagic));
     if (!Buf)
-      return false;
+      return {};
 
     if (memcmp(Buf.get(), llvm::COFF::PEMagic, sizeof(llvm::COFF::PEMagic)))
-      return false;
+      return {};
 
     return readPECOFFSections(ImageStart, PotentialModuleNames);
   }
@@ -550,7 +550,7 @@ public:
 
     const void *Buf = readData(0, sizeof(typename T::Header));
     if (!Buf)
-      return false;
+      return {};
     auto Hdr = reinterpret_cast<const typename T::Header *>(Buf);
     assert(Hdr->getFileClass() == T::ELFClass && "invalid ELF file class");
 
@@ -560,9 +560,9 @@ public:
     uint16_t SectionEntrySize = Hdr->e_shentsize;
 
     if (sizeof(typename T::Section) > SectionEntrySize)
-      return false;
+      return {};
     if (SectionHdrNumEntries == 0)
-      return false;
+      return {};
 
     // Collect all the section headers, we need them to look up the
     // reflection sections (by name) and the string table.
@@ -573,7 +573,7 @@ public:
       uint64_t Offset = SectionHdrAddress + (I * SectionEntrySize);
       auto SecBuf = readData(Offset, sizeof(typename T::Section));
       if (!SecBuf)
-        return false;
+        return {};
       const typename T::Section *SecHdr =
           reinterpret_cast<const typename T::Section *>(SecBuf);
 
@@ -597,11 +597,34 @@ public:
 
     auto StrTabBuf = readData(StrTabOffset, StrTabSize);
     if (!StrTabBuf)
-      return false;
+      return {};
     auto StrTab = reinterpret_cast<const char *>(StrTabBuf);
     bool Error = false;
+
+    // GNU ld and lld both merge sections regardless of the
+    // `SHF_GNU_RETAIN` flag.  gold, presently, does not.  The Swift
+    // compiler has a couple of switches that control whether or not
+    // the reflection sections are stripped; when these are enabled,
+    // it will _not_ set `SHF_GNU_RETAIN` on the reflection metadata
+    // sections.  However, `swiftrt.o` contains declarations of the
+    // sections _with_ the `SHF_GNU_RETAIN` flag set, which makes
+    // sense since at runtime we will only expect to be able to access
+    // reflection metadata that we said we wanted to exist at runtime.
+    //
+    // The upshot is that when linking with gold, we can end up with
+    // two sets of reflection metadata sections.  In a normal build
+    // where the compiler flags are the same for every linked object,
+    // we'll have *either* all retained *or* all un-retained sections
+    // (the retained sections will still exist because of `swiftrt.o`,
+    // but will be empty).  The only time we'd expect to have a mix is
+    // where some code was compiled with a different setting of the
+    // metadata stripping flags.  If that happens, the code below will
+    // simply add both sets of reflection sections, with the retained
+    // ones added first.
+    //
+    // See also https://sourceware.org/bugzilla/show_bug.cgi?id=31415.
     auto findELFSectionByName =
-        [&](llvm::StringRef Name) -> std::pair<RemoteRef<void>, uint64_t> {
+        [&](llvm::StringRef Name, bool Retained) -> std::pair<RemoteRef<void>, uint64_t> {
           if (Error)
             return {nullptr, 0};
           // Now for all the sections, find their name.
@@ -615,6 +638,8 @@ public:
             }
             std::string SecName(Start, StringSize);
             if (SecName != Name)
+              continue;
+            if (Retained != bool(Hdr->sh_flags & llvm::ELF::SHF_GNU_RETAIN))
               continue;
             RemoteAddress SecStart =
                 RemoteAddress(ImageStart.getAddressData() + Hdr->sh_addr);
@@ -649,48 +674,86 @@ public:
 
     SwiftObjectFileFormatELF ObjectFileFormat;
     auto FieldMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::fieldmd));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::fieldmd), true);
     auto AssocTySec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::assocty));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::assocty), true);
     auto BuiltinTySec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::builtin));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::builtin), true);
     auto CaptureSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::capture));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::capture), true);
     auto TypeRefMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::typeref));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::typeref), true);
     auto ReflStrMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::reflstr));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::reflstr), true);
     auto ConformMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::conform));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::conform), true);
     auto MPEnumMdSec = findELFSectionByName(
-        ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum));
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum), true);
 
     if (Error)
-      return false;
+      return {};
+
+    std::optional<uint32_t> result = {};
 
     // We succeed if at least one of the sections is present in the
     // ELF executable.
-    if (FieldMdSec.first == nullptr &&
-        AssocTySec.first == nullptr &&
-        BuiltinTySec.first == nullptr &&
-        CaptureSec.first == nullptr &&
-        TypeRefMdSec.first == nullptr &&
-        ReflStrMdSec.first == nullptr &&
-        ConformMdSec.first == nullptr &&
-        MPEnumMdSec.first == nullptr)
-      return false;
+    if (FieldMdSec.first || AssocTySec.first || BuiltinTySec.first ||
+        CaptureSec.first || TypeRefMdSec.first || ReflStrMdSec.first ||
+        ConformMdSec.first || MPEnumMdSec.first) {
+      ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
+                             {AssocTySec.first, AssocTySec.second},
+                             {BuiltinTySec.first, BuiltinTySec.second},
+                             {CaptureSec.first, CaptureSec.second},
+                             {TypeRefMdSec.first, TypeRefMdSec.second},
+                             {ReflStrMdSec.first, ReflStrMdSec.second},
+                             {ConformMdSec.first, ConformMdSec.second},
+                             {MPEnumMdSec.first, MPEnumMdSec.second},
+                             PotentialModuleNames};
+      result = this->addReflectionInfo(info);
+    }
 
-    ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
-                           {AssocTySec.first, AssocTySec.second},
-                           {BuiltinTySec.first, BuiltinTySec.second},
-                           {CaptureSec.first, CaptureSec.second},
-                           {TypeRefMdSec.first, TypeRefMdSec.second},
-                           {ReflStrMdSec.first, ReflStrMdSec.second},
-                           {ConformMdSec.first, ConformMdSec.second},
-                           {MPEnumMdSec.first, MPEnumMdSec.second},
-                           PotentialModuleNames};
+    // Also check for the non-retained versions of the sections; we'll
+    // only return a single reflection info ID if both are found (and it'll
+    // be the one for the retained sections if we have them), but we'll
+    // still add all the reflection information.
+    FieldMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::fieldmd), false);
+    AssocTySec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::assocty), false);
+    BuiltinTySec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::builtin), false);
+    CaptureSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::capture), false);
+    TypeRefMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::typeref), false);
+    ReflStrMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::reflstr), false);
+    ConformMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::conform), false);
+    MPEnumMdSec = findELFSectionByName(
+        ObjectFileFormat.getSectionName(ReflectionSectionKind::mpenum), false);
 
-    return this->addReflectionInfo(info);
+    if (Error)
+      return {};
+
+    if (FieldMdSec.first || AssocTySec.first || BuiltinTySec.first ||
+        CaptureSec.first || TypeRefMdSec.first || ReflStrMdSec.first ||
+        ConformMdSec.first || MPEnumMdSec.first) {
+      ReflectionInfo info = {{FieldMdSec.first, FieldMdSec.second},
+                             {AssocTySec.first, AssocTySec.second},
+                             {BuiltinTySec.first, BuiltinTySec.second},
+                             {CaptureSec.first, CaptureSec.second},
+                             {TypeRefMdSec.first, TypeRefMdSec.second},
+                             {ReflStrMdSec.first, ReflStrMdSec.second},
+                             {ConformMdSec.first, ConformMdSec.second},
+                             {MPEnumMdSec.first, MPEnumMdSec.second},
+                             PotentialModuleNames};
+      auto rid = this->addReflectionInfo(info);
+      if (!result)
+        result = rid;
+    }
+
+    return result;
   }
 
   /// Parses metadata information from an ELF image. Because the Section
@@ -746,7 +809,7 @@ public:
     // Read the first few bytes to look for a magic header.
     auto Magic = this->getReader().readBytes(ImageStart, sizeof(uint32_t));
     if (!Magic)
-      return false;
+      return {};
 
     uint32_t MagicWord;
     memcpy(&MagicWord, Magic.get(), sizeof(MagicWord));

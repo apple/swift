@@ -56,7 +56,7 @@ bb0(%0 : $Int32, %1 : $UnsafeMutablePointer<Optional<UnsafeMutablePointer<Int8>>
 // CHECK-elf: @"\01l_entry_point" = private constant { i32, i32 } { i32 trunc (i64 sub (i64 ptrtoint (ptr @main to i64), i64 ptrtoint (ptr @"\01l_entry_point" to i64)) to i32), i32 0 }, section "swift5_entry", align 4
 
 // CHECK-macho: @llvm.used = appending global [4 x ptr] [ptr @frieda, ptr @main, ptr @"\01l_entry_point", ptr @__swift_reflection_version], section "llvm.metadata"
-// CHECK-elf: @llvm.compiler.used = appending global [5 x ptr] [ptr @frieda, ptr @main, ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries], section "llvm.metadata"
+// CHECK-elf: @llvm.used = appending global [5 x ptr] [ptr @frieda, ptr @main, ptr @"\01l_entry_point", ptr @__swift_reflection_version, ptr @_swift1_autolink_entries], section "llvm.metadata"
 
 // CHECK: define linkonce_odr hidden swiftcc void @qux()
 // CHECK: define hidden swiftcc void @fred()

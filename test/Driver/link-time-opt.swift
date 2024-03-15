@@ -1,3 +1,5 @@
+// UNSUPPORTED: linker_overridden
+
 // RUN: %swiftc_driver -driver-print-jobs %S/../Inputs/empty.swift -lto=llvm-thin -target x86_64-unknown-linux-gnu    | %FileCheck %s --check-prefix=CHECK-SIMPLE-THIN --check-prefix=CHECK-SIMPLE-THIN-linux-gnu
 // RUN: %swiftc_driver -driver-print-jobs %S/../Inputs/empty.swift -lto=llvm-thin -target x86_64-unknown-windows-msvc | %FileCheck %s --check-prefix=CHECK-SIMPLE-THIN --check-prefix=CHECK-SIMPLE-THIN-windows-msvc
 
@@ -14,7 +16,6 @@
 // CHECK-SIMPLE-THIN-linux-gnu: clang
 // CHECK-SIMPLE-THIN-linux-gnu-DAG: -flto=thin
 // CHECK-SIMPLE-THIN-linux-gnu-DAG: -fuse-ld=lld
-// CHECK-SIMPLE-THIN-linux-gnu-DAG: -Xlinker -z -Xlinker nostart-stop-gc
 // CHECK-SIMPLE-THIN-linux-gnu-DAG: [[BITCODEFILE]]
 // CHECK-SIMPLE-THIN-linux-gnu-NOT: swift-autolink-extract
 
@@ -36,7 +37,6 @@
 // CHECK-SIMPLE-FULL-linux-gnu: clang
 // CHECK-SIMPLE-FULL-linux-gnu-DAG: -flto=full
 // CHECK-SIMPLE-FULL-linux-gnu-DAG: -fuse-ld=lld
-// CHECK-SIMPLE-FULL-linux-gnu-DAG: -Xlinker -z -Xlinker nostart-stop-gc
 // CHECK-SIMPLE-FULL-linux-gnu-DAG: [[BITCODEFILE]]
 // CHECK-SIMPLE-FULL-linux-gnu-NOT: swift-autolink-extract
 

@@ -1030,15 +1030,6 @@ bool LinkInfo::isUsed(IRLinkage IRL) {
 ///
 /// This value must have a definition by the time the module is finalized.
 void IRGenModule::addUsedGlobal(llvm::GlobalValue *global) {
-
-  // As of reviews.llvm.org/D97448 "ELF: Create unique SHF_GNU_RETAIN sections
-  // for llvm.used global objects" LLVM creates separate sections for globals in
-  // llvm.used on ELF.  Therefore we use llvm.compiler.used on ELF instead.
-  if (TargetInfo.OutputObjectFormat == llvm::Triple::ELF) {
-    addCompilerUsedGlobal(global);
-    return;
-  }
-
   LLVMUsed.push_back(global);
 }
 

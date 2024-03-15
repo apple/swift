@@ -214,17 +214,6 @@ toolchains::GenericUnix::constructInvocation(const DynamicLinkJobAction &job,
 #else
     Arguments.push_back(context.Args.MakeArgString("-fuse-ld=" + Linker));
 #endif
-    // Starting with lld 13, Swift stopped working with the lld --gc-sections
-    // implementation for ELF, unless -z nostart-stop-gc is also passed to lld:
-    //
-    // https://reviews.llvm.org/D96914
-    if (Linker == "lld" || (Linker.length() > 5 &&
-                            Linker.substr(Linker.length() - 6) == "ld.lld")) {
-      Arguments.push_back("-Xlinker");
-      Arguments.push_back("-z");
-      Arguments.push_back("-Xlinker");
-      Arguments.push_back("nostart-stop-gc");
-    }
   }
 
   // Configure the toolchain.

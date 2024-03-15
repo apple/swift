@@ -12,7 +12,7 @@
 
 print("Hi from Swift!")
 
-// ELF: @llvm.compiler.used = {{.*}}ptr @_swift1_autolink_entries
+// ELF: @llvm.used = {{.*}}ptr @_swift1_autolink_entries
 
 // SECTION: .swift1_autolink_entries
 // NOSECTION-NOT: .swift1_autolink_entries

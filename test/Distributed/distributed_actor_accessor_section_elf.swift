@@ -137,7 +137,7 @@ public distributed actor MyOtherActor {
 // CHECK-SAME: (ptr @"$s27distributed_actor_accessors12MyOtherActorC5emptyyyYaKFTETFTu" to i{{32|64}})
 // CHECK-SAME: , section "swift5_accessible_functions", {{.*}}
 
-// CHECK:      @llvm.compiler.used = appending global [{{.*}} x ptr] [
+// CHECK:      @llvm.used = appending global [{{.*}} x ptr] [
 // CHECK-SAME: @"$s27distributed_actor_accessors7MyActorC7simple1yySiYaKFTEHF"
 // CHECK-SAME: @"$s27distributed_actor_accessors7MyActorC7simple2ySSSiYaKFTEHF"
 // CHECK-SAME: @"$s27distributed_actor_accessors7MyActorC7simple3ySiSSYaKFTEHF"
