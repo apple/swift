@@ -176,12 +176,6 @@ void MemoryLocations::analyzeLocation(SILValue loc) {
   SILFunction *function = loc->getFunction();
   assert(function && "cannot analyze a SILValue which is not in a function");
 
-  // Ignore trivial types to keep the number of locations small. Trivial types
-  // are not interesting anyway, because such memory locations are not
-  // destroyed.
-  if (!handleTrivialLocations && loc->getType().isTrivial(*function))
-    return;
-
   /// We don't handle empty tuples and empty structs.
   ///
   /// Locations with empty types don't even need a store to count as

@@ -134,16 +134,20 @@ class MemoryLifetimeVerifier {
     locations.genBits(blockState.genSet, blockState.killSet, addr);
   }
 
-  void killBits(BitDataflow::BlockState &blockState, SILValue addr) {
-    locations.killBits(blockState.genSet, blockState.killSet, addr);
+  void killBits(BitDataflow::BlockState &blockState, SILValue addr,
+                bool evenTrivial = false) {
+    locations.killBits(blockState.genSet, blockState.killSet, addr,
+                       evenTrivial);
+  }
+
+  void clearBits(Bits &bits, SILValue addr, bool evenTrivial = false) {
+    locations.clearBits(bits, addr, evenTrivial);
   }
 
 public:
-  MemoryLifetimeVerifier(SILFunction *function, CalleeCache *calleeCache) :
-    function(function),
-    calleeCache(calleeCache),
-    locations(/*handleNonTrivialProjections*/ true,
-              /*handleTrivialLocations*/ true) {}
+  MemoryLifetimeVerifier(SILFunction *function, CalleeCache *calleeCache)
+      : function(function), calleeCache(calleeCache),
+        locations(/*handleNonTrivialProjections*/ true) {}
 
   /// The main entry point to verify the lifetime of all memory locations in
   /// the function.
@@ -153,8 +157,8 @@ public:
 bool MemoryLifetimeVerifier::isValueTrivialAt(int locIdx,
                                              SILInstruction *atInst) {
   SILBasicBlock *startBlock = atInst->getParent();
-  
-  // Start at atInst an walk up the control flow.
+
+  // Start at atInst and walk up the control flow.
   BasicBlockWorklist worklist(startBlock);
   while (SILBasicBlock *block = worklist.pop()) {
     auto start = (block == atInst->getParent() ? atInst->getReverseIterator()
@@ -437,8 +441,10 @@ void MemoryLifetimeVerifier::initDataflowInBlock(SILBasicBlock *block,
         break;
       }
       case SILInstructionKind::DestroyAddrInst:
-      case SILInstructionKind::DeallocStackInst:
         killBits(state, I.getOperand(0));
+        break;
+      case SILInstructionKind::DeallocStackInst:
+        killBits(state, I.getOperand(0), /*evenTrivial=*/true);
         break;
       case SILInstructionKind::UncheckedRefCastAddrInst:
       case SILInstructionKind::UnconditionalCheckedCastAddrInst: {
@@ -538,11 +544,13 @@ void MemoryLifetimeVerifier::setBitsOfPredecessor(Bits &getSet, Bits &killSet,
   } else if (auto *castInst = dyn_cast<CheckedCastAddrBranchInst>(term)) {
     switch (castInst->getConsumptionKind()) {
     case CastConsumptionKind::TakeAlways:
-      locations.killBits(getSet, killSet, castInst->getSrc());
+      locations.killBits(getSet, killSet, castInst->getSrc(),
+                         /*evenTrivial=*/false);
       break;
     case CastConsumptionKind::TakeOnSuccess:
       if (castInst->getSuccessBB() == block)
-        locations.killBits(getSet, killSet, castInst->getSrc());
+        locations.killBits(getSet, killSet, castInst->getSrc(),
+                           /*evenTrivial=*/false);
       break;
     case CastConsumptionKind::CopyOnSuccess:
       break;
@@ -665,7 +673,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
         requireBitsSet(bits, LI->getOperand(), &I);
         switch (LI->getOwnershipQualifier()) {
           case LoadOwnershipQualifier::Take:
-            locations.clearBits(bits, LI->getOperand());
+            clearBits(bits, LI->getOperand());
             requireNoStoreBorrowLocation(LI->getOperand(), &I);
             break;
           case LoadOwnershipQualifier::Copy:
@@ -704,7 +712,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
         auto *CAI = cast<CopyAddrInst>(&I);
         requireBitsSet(bits, CAI->getSrc(), &I);
         if (CAI->isTakeOfSrc()) {
-          locations.clearBits(bits, CAI->getSrc());
+          clearBits(bits, CAI->getSrc());
           requireNoStoreBorrowLocation(CAI->getSrc(), &I);
         }
         if (CAI->isInitializationOfDest()) {
@@ -772,7 +780,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
       case SILInstructionKind::DestroyAddrInst: {
         SILValue opVal = cast<DestroyAddrInst>(&I)->getOperand();
         requireBitsSet(bits | ~nonTrivialLocations, opVal, &I);
-        locations.clearBits(bits, opVal);
+        clearBits(bits, opVal);
         requireNoStoreBorrowLocation(opVal, &I);
         break;
       }
@@ -780,7 +788,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
         auto *ebi = cast<EndBorrowInst>(&I);
         if (auto *sbi = dyn_cast<StoreBorrowInst>(ebi->getOperand())) {
           requireBitsSet(bits, sbi->getDest(), &I);
-          locations.clearBits(bits, sbi->getDest());
+          clearBits(bits, sbi->getDest());
         } else if (auto *lbi = dyn_cast<LoadBorrowInst>(ebi->getOperand())) {
           requireBitsSet(bits, lbi->getOperand(), &I);
         }
@@ -791,7 +799,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
         SILValue src = I.getOperand(CopyLikeInstruction::Src);
         SILValue dest = I.getOperand(CopyLikeInstruction::Dest);
         requireBitsSet(bits, src, &I);
-        locations.clearBits(bits, src);
+        clearBits(bits, src);
         requireBitsClear(bits & nonTrivialLocations, dest, &I);
         locations.setBits(bits, dest);
         requireNoStoreBorrowLocation(dest, &I);
@@ -850,7 +858,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
               requireBitsClear(bits & nonTrivialLocations, yieldedValues[index],
                                &I);
             }
-            locations.clearBits(bits, yieldedValues[index]);
+            clearBits(bits, yieldedValues[index]);
           }
         }
         break;
@@ -868,7 +876,7 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
         requireBitsClear(bits & nonTrivialLocations, opVal, &I);
         // Needed to clear any bits of trivial locations (which are not required
         // to be zero).
-        locations.clearBits(bits, opVal);
+        clearBits(bits, opVal, /*evenTrivial=*/true);
         break;
       }
       default:
@@ -886,7 +894,7 @@ void MemoryLifetimeVerifier::checkFuncArgument(Bits &bits, Operand &argumentOp,
   switch (argumentConvention) {
     case SILArgumentConvention::Indirect_In:
       requireBitsSetForArgument(bits, &argumentOp);
-      locations.clearBits(bits, argumentOp.get());
+      clearBits(bits, argumentOp.get());
       break;
     case SILArgumentConvention::Indirect_Out:
       requireBitsClear(bits & locations.getNonTrivialLocations(),
