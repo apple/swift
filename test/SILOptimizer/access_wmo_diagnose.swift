@@ -10,5 +10,5 @@ public class C {
 }
 
 public func testGlobalProp() {
-  let a: AnyKeyPath = \C.globalProp // expected-error{{key path cannot refer to static member 'globalProp'}}
+  let a: AnyKeyPath = \C.globalProp // expected-error{{static member 'globalProp' cannot be used on instance of type 'C'}}
 }
