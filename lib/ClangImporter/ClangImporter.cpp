@@ -698,9 +698,18 @@ void importer::getNormalInvocationArguments(
     } else {
       // On Darwin, Clang uses -isysroot to specify the include
       // system root. On other targets, it seems to use --sysroot.
-      invocationArgStrs.push_back(triple.isOSDarwin() ? "-isysroot"
-                                                      : "--sysroot");
-      invocationArgStrs.push_back(searchPathOpts.getSDKPath().str());
+      if (triple.isOSDarwin()) {
+        invocationArgStrs.push_back("-isysroot");
+        invocationArgStrs.push_back(searchPathOpts.getSDKPath().str());
+      } else {
+        if (auto sysroot = searchPathOpts.getSysRoot()) {
+          invocationArgStrs.push_back("--sysroot");
+          invocationArgStrs.push_back(sysroot->str());
+        } else {
+          invocationArgStrs.push_back("--sysroot");
+          invocationArgStrs.push_back(searchPathOpts.getSDKPath().str());
+        }
+      }
     }
   }
 

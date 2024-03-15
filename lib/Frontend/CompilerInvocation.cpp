@@ -2047,6 +2047,9 @@ static bool ParseSearchPathArgs(SearchPathOptions &Opts, ArgList &Args,
   if (const Arg *A = Args.getLastArg(OPT_visualc_tools_version))
     Opts.setVCToolsVersion(A->getValue());
 
+  if (const Arg *A = Args.getLastArg(OPT_sysroot))
+    Opts.setSysRoot(A->getValue());
+
   if (const Arg *A = Args.getLastArg(OPT_resource_dir))
     Opts.RuntimeResourcePath = A->getValue();
 
