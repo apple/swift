@@ -65,6 +65,8 @@ ExportContext::ExportContext(
 bool swift::isExported(const ValueDecl *VD) {
   if (VD->getAttrs().hasAttribute<ImplementationOnlyAttr>())
     return false;
+  if (VD->isObjCMemberImplementation())
+    return false;
 
   // Is this part of the module's API or ABI?
   AccessScope accessScope =

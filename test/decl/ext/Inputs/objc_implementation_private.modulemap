@@ -2,3 +2,7 @@ module objc_implementation_private {
   header "objc_implementation.h"
   export *
 }
+module objc_implementation_internal {
+  header "objc_implementation_internal.h"
+  export *
+}
