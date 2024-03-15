@@ -368,6 +368,8 @@ private:
   std::optional<StringRef> VCToolsRoot = std::nullopt;
   std::optional<StringRef> VCToolsVersion = std::nullopt;
 
+  std::optional<StringRef> SysRoot = std::nullopt;
+
 public:
   StringRef getSDKPath() const { return SDKPath; }
 
@@ -404,6 +406,11 @@ public:
   std::optional<StringRef> getVCToolsVersion() const { return VCToolsVersion; }
   void setVCToolsVersion(StringRef version) {
     VCToolsVersion = version;
+  }
+
+  std::optional<StringRef> getSysRoot() const { return SysRoot; }
+  void setSysRoot(StringRef sysroot) {
+    SysRoot = sysroot;
   }
 
   ArrayRef<std::string> getImportSearchPaths() const {
