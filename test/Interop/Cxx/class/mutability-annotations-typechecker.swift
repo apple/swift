@@ -1,7 +1,5 @@
 // RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -typecheck -I %S/Inputs %s -enable-experimental-cxx-interop -verify -verify-additional-file %S/Inputs/mutability-annotations.h
 
-// REQUIRES: rdar100876534
-
 import MutabilityAnnotations
 
 let obj = HasConstMethodAnnotatedAsMutating(a: 42) // expected-note {{change 'let' to 'var' to make it mutable}}
