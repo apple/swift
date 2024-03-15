@@ -3449,7 +3449,7 @@ static std::unique_ptr<CallEmission> getCallEmissionForLoweredValue(
   }
 
   auto callEmission = getCallEmission(IGF, selfValue, std::move(callee));
-  if (IGF.CurSILFn->isThunk())
+  if (IGF.CurSILFn->isThunk() && !IGF.getOptions().optimizeForSize())
     callEmission->addFnAttribute(llvm::Attribute::NoInline);
 
   return callEmission;
