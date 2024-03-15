@@ -1353,6 +1353,11 @@ bool IRGenerator::canEmitWitnessTableLazily(SILWitnessTable *wt) {
   if (wt->getLinkage() == SILLinkage::Shared)
     return true;
 
+  // Check if this type is set to be explicitly externally visible
+  NominalTypeDecl *ConformingTy = wt->getConformingNominal();
+  if (PrimaryIGM->getSILModule().isExternallyVisibleDecl(ConformingTy))
+    return false;
+
   switch (wt->getConformingNominal()->getEffectiveAccess()) {
     case AccessLevel::Private:
     case AccessLevel::FilePrivate:

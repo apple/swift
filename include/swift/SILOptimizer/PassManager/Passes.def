@@ -98,6 +98,8 @@ PASS(AccessEnforcementSelection, "access-enforcement-selection",
      "Access Enforcement Selection")
 PASS(AccessEnforcementWMO, "access-enforcement-wmo",
      "Access Enforcement Whole Module Optimization")
+PASS(AlwaysEmitConformanceMetadataPreservation, "preserve-always-emit-conformance-metadata",
+     "Mark conformances to @_alwaysEmitConformanceMetadata protocols as externally visible")
 PASS(CrossModuleOptimization, "cmo",
      "Perform cross-module optimization")
 PASS(AccessSummaryDumper, "access-summary-dump",

@@ -900,6 +900,7 @@ SILPassPipelinePlan::getLoweringPassPipeline(const SILOptions &Options) {
   P.startPipeline("Lowering");
   P.addLowerHopToActor(); // FIXME: earlier for more opportunities?
   P.addOwnershipModelEliminator();
+  P.addAlwaysEmitConformanceMetadataPreservation();
   P.addIRGenPrepare();
 
   return P;
