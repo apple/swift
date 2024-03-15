@@ -162,3 +162,4 @@ view of the available documentation. In particular, the documents titled
 [Debugging the Swift Compiler](docs/DebuggingTheCompiler.md) and
 [Continuous Integration for Swift](docs/ContinuousIntegration.md) are very
 helpful to understand before submitting your first PR.
+
