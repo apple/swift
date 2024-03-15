@@ -168,7 +168,7 @@ EXPECTED_DEFAULTS = {
     'enable_experimental_cxx_interop': True,
     'enable_cxx_interop_swift_bridging_header': True,
     'enable_experimental_distributed': True,
-    'enable_experimental_noncopyable_generics': False,
+    'enable_experimental_noncopyable_generics': True,
     'enable_experimental_nonescapable_types': False,
     'enable_experimental_string_processing': True,
     'enable_experimental_observation': True,
