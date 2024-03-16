@@ -120,12 +120,15 @@ struct KeyPathTypes {
   var obj: TestClass
   var tuple: (Int, Int, Int)
   var structField: Int
-  var function: (Int) -> (Int)
-  var optionalFunction: (Int) -> (Int)?
   var enumField: TestEnum
   var existential: TestExistential
   var existentialMetatype: Any.Type
   var metatype: Int.Type
+}
+
+struct KeyPathFunctionTypes {
+  var function: (Int) -> (Int)
+  var optionalFunction: (Int) -> (Int)?
 }
 
 #if _runtime(_ObjC)
@@ -189,9 +192,9 @@ func checkFieldsWithKeyPath<T>(
     count += 1
 
     let fieldName = String(cString: charPtr)
+    expectTrue(fields.values.contains{ $0 == keyPath })
     if fieldName == "" {
 #if NO_FIELD_NAMES
-      expectTrue(fields.values.contains{ $0 == keyPath })
 #else
       expectTrue(false, "Empty field name")
 #endif
@@ -353,6 +356,31 @@ if #available(SwiftStdlib 5.2, *) {
           "existentialMetatype": \KeyPathTypes.existentialMetatype,
       ])
     }
+
+    if #available(SwiftStdlib 5.5, *) {
+      tests.test("KeyPathFunctionTypes") {
+        let fieldsExpected = [
+	    "function": \KeyPathFunctionTypes.function,
+	    "optionalFunction": \KeyPathFunctionTypes.optionalFunction,
+	]
+	var fieldsSeen = 0
+	_forEachFieldWithKeyPath(of: KeyPathFunctionTypes.self) {
+	  charPtr, keyPath in
+	  fieldsSeen += 1
+	  let fieldName = String(cString: charPtr)
+//	  expectTrue(fieldsExpected.values.contains{ $0 == keyPath }) // Why does this fail?
+#if NO_FIELD_NAMES
+	  expectTrue(fieldName == "", "Field name should be empty")
+#else
+	  expectTrue(fieldName != "", "Field name should NOT be empty")
+	  expectTrue(fieldsExpected[fieldName] != nil)
+#endif
+	  return true
+	}
+	expectEqual(fieldsExpected.count, fieldsSeen)
+      }
+    }
+
 
     tests.test("TupleKeyPath") {
       typealias TestTuple = (Int, Int, TestClass, TestStruct)

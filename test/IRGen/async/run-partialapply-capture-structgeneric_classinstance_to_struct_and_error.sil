@@ -82,7 +82,7 @@ bb_success(%value : $A1):
   %value_addr = alloc_stack $A1
   store %value to %value_addr : $*A1
   %printGeneric = function_ref @printGeneric : $@convention(thin) <T> (@in_guaranteed T) -> ()
-  %result = apply %printGeneric<A1>(%value_addr) : $@convention(thin) <T> (@in_guaranteed T) -> () // CHECK: A1(b: (Function))
+  %result = apply %printGeneric<A1>(%value_addr) : $@convention(thin) <T> (@in_guaranteed T) -> () // CHECK: A1(b: ())
   %closure = struct_extract %value : $A1, #A1.b
   %closure_result = apply %closure() : $@callee_guaranteed () -> () // CHECK: A2<A3>(a: main.A3)
   dealloc_stack %value_addr : $*A1
