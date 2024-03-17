@@ -1982,7 +1982,7 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
 
     // Otherwise, complain.  Start with more specific diagnostics.
     
-    // Always complain about 'try?'.
+    // Complain about 'try?'.
     if (auto *OTE = dyn_cast<OptionalTryExpr>(valueE)) {
       DE.diagnose(OTE->getTryLoc(), diag::expression_unused_optional_try)
         .highlight(E->getSourceRange());
