@@ -34,6 +34,7 @@ target_sources(swiftSILOptimizer PRIVATE
   Sink.cpp
   SpeculativeDevirtualizer.cpp
   StringOptimization.cpp
+  StringSwitch.cpp
   TempLValueOpt.cpp
   TempRValueElimination.cpp
   VTableSpecializer.cpp)
