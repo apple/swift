@@ -1362,7 +1362,16 @@ ${assignmentOperatorComment(x.operator, True)}
   /// The bit width of ${Article.lower()} `${Self}` instance is ${bits}.
 %   end
   @_transparent
-  public static var bitWidth: Int { return ${bits} }
+  public static var bitWidth: Int {
+    % if self_type.is_word:
+    // Note: This is intentionally not returning a direct integer constant, to
+    // avoid compiler warnings about `Int.bitWidth == 32` conditions always
+    // evaluating to false.
+    return MemoryLayout<$Self>.size * 8
+    % else:
+    return ${bits}
+    % end
+  }
 
   /// The number of leading zeros in this value's binary representation.
   ///
