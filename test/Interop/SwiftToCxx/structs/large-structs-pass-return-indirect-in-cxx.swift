@@ -32,7 +32,7 @@ public func inoutStructSeveralI64(_ s: inout StructSeveralI64) {
 }
 
 // CHECK:      SWIFT_INLINE_THUNK void inoutStructSeveralI64(StructSeveralI64& s) noexcept SWIFT_SYMBOL("s:7Structs21inoutStructSeveralI64yyAA0cdE0VzF") {
-// CHECK-NEXT:   return _impl::$s7Structs21inoutStructSeveralI64yyAA0cdE0VzF(_impl::_impl_StructSeveralI64::getOpaquePointer(s));
+// CHECK-NEXT:   _impl::$s7Structs21inoutStructSeveralI64yyAA0cdE0VzF(_impl::_impl_StructSeveralI64::getOpaquePointer(s));
 // CHECK-NEXT: }
 
 
@@ -44,7 +44,7 @@ public func inoutStructSeveralI64(_ s: inout StructSeveralI64) {
 
 
 // CHECK: SWIFT_INLINE_THUNK void printStructSeveralI64(const StructSeveralI64& x) noexcept SWIFT_SYMBOL("s:7Structs21printStructSeveralI64yyAA0cdE0VF") {
-// CHECK-NEXT:  return _impl::$s7Structs21printStructSeveralI64yyAA0cdE0VF(_impl::_impl_StructSeveralI64::getOpaquePointer(x));
+// CHECK-NEXT:  _impl::$s7Structs21printStructSeveralI64yyAA0cdE0VF(_impl::_impl_StructSeveralI64::getOpaquePointer(x));
 // CHECK-NEXT: }
 
 

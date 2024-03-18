@@ -82,20 +82,20 @@ public func resetOpt<T>(_ val: inout Optional<T>) {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s11UseOptional8resetOptyyxSgzlF(swift::_impl::_impl_Optional<T_0_0>::getOpaquePointer(val), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s11UseOptional8resetOptyyxSgzlF(swift::_impl::_impl_Optional<T_0_0>::getOpaquePointer(val), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
 // CHECK-NEXT: }
 
 
 // CHECK: SWIFT_INLINE_THUNK void takeCIntOpt(const swift::Optional<int>& val) noexcept SWIFT_SYMBOL("s:11UseOptional11takeCIntOptyys5Int32VSgF") {
-// CHECK-NEXT:  return _impl::$s11UseOptional11takeCIntOptyys5Int32VSgF(_impl::swift_interop_passDirect_UseOptional_[[CINTENC]](swift::_impl::_impl_Optional<int>::getOpaquePointer(val)));
+// CHECK-NEXT:  _impl::$s11UseOptional11takeCIntOptyys5Int32VSgF(_impl::swift_interop_passDirect_UseOptional_[[CINTENC]](swift::_impl::_impl_Optional<int>::getOpaquePointer(val)));
 // CHECK-NEXT: }
 
 
 // CHECK: SWIFT_INLINE_THUNK void takeKlassOpt(const swift::Optional<Klass>& val) noexcept SWIFT_SYMBOL("s:11UseOptional12takeKlassOptyyAA0D0CSgF") {
-// CHECK-NEXT:   return _impl::$s11UseOptional12takeKlassOptyyAA0D0CSgF(_impl::swift_interop_passDirect_UseOptional_[[CLASSENC]](swift::_impl::_impl_Optional<Klass>::getOpaquePointer(val)));
+// CHECK-NEXT:   _impl::$s11UseOptional12takeKlassOptyyAA0D0CSgF(_impl::swift_interop_passDirect_UseOptional_[[CLASSENC]](swift::_impl::_impl_Optional<Klass>::getOpaquePointer(val)));
 // CHECK-NEXT: }
 
 
 // CHECK: SWIFT_INLINE_THUNK void takeSmallStructOpt(const swift::Optional<SmallStruct>& val) noexcept SWIFT_SYMBOL("s:11UseOptional18takeSmallStructOptyyAA0dE0VSgF") {
-// CHECK-NEXT:  return _impl::$s11UseOptional18takeSmallStructOptyyAA0dE0VSgF(_impl::swift_interop_passDirect_UseOptional_uint32_t_0_4(swift::_impl::_impl_Optional<SmallStruct>::getOpaquePointer(val)));
+// CHECK-NEXT:  _impl::$s11UseOptional18takeSmallStructOptyyAA0dE0VSgF(_impl::swift_interop_passDirect_UseOptional_uint32_t_0_4(swift::_impl::_impl_Optional<SmallStruct>::getOpaquePointer(val)));
 // CHECK-NEXT: }

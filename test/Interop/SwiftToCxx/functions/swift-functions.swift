@@ -12,6 +12,7 @@
 // CHECK: SWIFT_EXTERN int $s9Functions016passTwoIntReturnD01x1ys5Int32VAF_AFtF(int x, int y) SWIFT_NOEXCEPT SWIFT_CALL; // passTwoIntReturnInt(x:y:)
 // CHECK: SWIFT_EXTERN int $s9Functions016passTwoIntReturnD10NoArgLabelys5Int32VAD_ADtF(int, int) SWIFT_NOEXCEPT SWIFT_CALL; // passTwoIntReturnIntNoArgLabel(_:_:)
 // CHECK: SWIFT_EXTERN int $s9Functions016passTwoIntReturnD19NoArgLabelParamNameys5Int32VAD_ADtF(int x2, int y2) SWIFT_NOEXCEPT SWIFT_CALL; // passTwoIntReturnIntNoArgLabelParamName(_:_:)
+// CHECK: SWIFT_EXTERN void $s9Functions19passVoidReturnNevers0E0OyF(void) SWIFT_NOEXCEPT SWIFT_CALL SWIFT_NORETURN; // passVoidReturnNever()
 // CHECK: SWIFT_EXTERN void $s9Functions014passVoidReturnC0yyF(void) SWIFT_NOEXCEPT SWIFT_CALL; // passVoidReturnVoid()
 
 // CHECK: }
@@ -19,7 +20,7 @@
 public func passIntReturnVoid(x: CInt) { print("passIntReturnVoid \(x)") }
 
 // CHECK: SWIFT_INLINE_THUNK void passIntReturnVoid(int x) noexcept SWIFT_SYMBOL("s:9Functions17passIntReturnVoid1xys5Int32V_tF") {
-// CHECK: return _impl::$s9Functions17passIntReturnVoid1xys5Int32V_tF(x);
+// CHECK: _impl::$s9Functions17passIntReturnVoid1xys5Int32V_tF(x);
 // CHECK: }
 
 public func passTwoIntReturnInt(x: CInt, y: CInt) -> CInt { return x + y }
@@ -43,10 +44,17 @@ public func passTwoIntReturnIntNoArgLabelParamName(_ x2: CInt, _ y2: CInt) -> CI
 // CHECK:   return _impl::$s9Functions016passTwoIntReturnD19NoArgLabelParamNameys5Int32VAD_ADtF(x2, y2);
 // CHECK: }
 
+public func passVoidReturnNever() -> Never { fatalError("passVoidReturnNever") }
+
+// CHECK-LABEL: SWIFT_INLINE_THUNK void passVoidReturnNever() noexcept SWIFT_SYMBOL("s:9Functions19passVoidReturnNevers0E0OyF") SWIFT_NORETURN {
+// CHECK-NOT: return
+// CHECK-DAG: _impl::$s9Functions19passVoidReturnNevers0E0OyF();
+// CHECK: }
+
 public func passVoidReturnVoid() { print("passVoidReturnVoid") }
 
 // CHECK: SWIFT_INLINE_THUNK void passVoidReturnVoid() noexcept SWIFT_SYMBOL("s:9Functions014passVoidReturnC0yyF") {
-// CHECK: return _impl::$s9Functions014passVoidReturnC0yyF();
+// CHECK: _impl::$s9Functions014passVoidReturnC0yyF();
 // CHECK: }
 
 // CHECK: SWIFT_INLINE_THUNK void varFunctionSameName

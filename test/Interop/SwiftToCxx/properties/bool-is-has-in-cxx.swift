@@ -42,13 +42,13 @@ public struct IsHasProperties {
 // CHECK-NEXT: return _impl::$s10Properties05IsHasA0V7isSolidSbvg(_getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void IsHasProperties::setIsSolid(bool value) {
-// CHECK-NEXT: return _impl::$s10Properties05IsHasA0V7isSolidSbvs(value, _getOpaquePointer());
+// CHECK-NEXT: _impl::$s10Properties05IsHasA0V7isSolidSbvs(value, _getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK bool IsHasProperties::getFlag() const {
 // CHECK-NEXT: return _impl::$s10Properties05IsHasA0V4flagSbvg(_getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void IsHasProperties::setFlag(bool value) {
-// CHECK-NEXT: return _impl::$s10Properties05IsHasA0V4flagSbvs(value, _getOpaquePointer());
+// CHECK-NEXT: _impl::$s10Properties05IsHasA0V4flagSbvs(value, _getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK bool IsHasProperties::getHas() const {
 // CHECK-NEXT: return _impl::$s10Properties05IsHasA0V3hasSbvg(_getOpaquePointer());

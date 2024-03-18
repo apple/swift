@@ -293,5 +293,5 @@ public struct S {
 // CHECK-NEXT:     return _impl::$s5Enums1EO3tenSivg(_impl::swift_interop_passDirect_Enums[[ENUMENCODING]](_getOpaquePointer()));
 // CHECK-NEXT:   }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK void E::printSelf() const {
-// CHECK-NEXT:     return _impl::$s5Enums1EO9printSelfyyF(_impl::swift_interop_passDirect_Enums[[ENUMENCODING]](_getOpaquePointer()));
+// CHECK-NEXT:     _impl::$s5Enums1EO9printSelfyyF(_impl::swift_interop_passDirect_Enums[[ENUMENCODING]](_getOpaquePointer()));
 // CHECK-NEXT:   }
