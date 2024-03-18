@@ -519,6 +519,9 @@ public:
   /// Emit a .casid file next to the object file if CAS Backend is used.
   bool EmitCASIDFile;
 
+  /// Paths to the pass plugins registered via -load-pass-plugin.
+  std::vector<std::string> LLVMPassPlugins;
+
   IRGenOptions()
       : OutputKind(IRGenOutputKind::LLVMAssemblyAfterOptimization),
         Verify(true), OptMode(OptimizationMode::NotSet),

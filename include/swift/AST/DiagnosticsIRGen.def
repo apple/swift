@@ -65,5 +65,8 @@ ERROR(temporary_allocation_alignment_not_power_of_2,none,
 ERROR(explosion_size_oveflow,none,
       "explosion size too large", ())
 
+ERROR(unable_to_load_pass_plugin,none,
+      "unable to load plugin '%0': '%1'", (StringRef, StringRef))
+
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

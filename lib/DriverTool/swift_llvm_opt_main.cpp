@@ -214,7 +214,10 @@ int swift_llvm_opt_main(ArrayRef<const char *> argv, void *MainAddr) {
     Opts.OutputKind = IRGenOutputKind::LLVMAssemblyAfterOptimization;
 
     // Then perform the optimizations.
-    performLLVMOptimizations(Opts, M.get(), TM.get(), &Out->os());
+    SourceManager SM;
+    DiagnosticEngine Diags(SM);
+    performLLVMOptimizations(Opts, Diags, nullptr, M.get(), TM.get(),
+                             &Out->os());
   } else {
     std::string Pipeline = PassPipeline;
     llvm::TargetLibraryInfoImpl TLII(ModuleTriple);

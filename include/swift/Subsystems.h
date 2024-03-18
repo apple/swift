@@ -266,7 +266,10 @@ namespace swift {
   /// Given an already created LLVM module, construct a pass pipeline and run
   /// the Swift LLVM Pipeline upon it. This will include the emission of LLVM IR
   /// if requested (\out is not null).
-  void performLLVMOptimizations(const IRGenOptions &Opts, llvm::Module *Module,
+  void performLLVMOptimizations(const IRGenOptions &Opts,
+                                DiagnosticEngine &Diags,
+                                llvm::sys::Mutex *DiagMutex,
+                                llvm::Module *Module,
                                 llvm::TargetMachine *TargetMachine,
                                 llvm::raw_pwrite_stream *out);
 
