@@ -14,7 +14,7 @@ func testTernaryOneWay(b: Bool) {
                    : 17
   let _: Float = b ? 3.14159 // expected-error {{cannot convert value of type 'Int' to specified type 'Float'}}
                    : Builtin.one_way(17)
-  let _: Float = b ? Builtin.one_way(3.14159) // expected-error {{cannot convert value of type 'Int' to specified type 'Float'}}
+  let _: Float = b ? Builtin.one_way(3.14159) // expected-error {{cannot convert value of type 'Double' to specified type 'Float'}}
                    : Builtin.one_way(17)
 
   // Okay: default still works.

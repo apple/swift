@@ -9,8 +9,7 @@ import Foundation
   }
 }
 
-// FIXME: the diagnostic below ideally should have been emitted (rdar://106241733)
-struct Loop< // note {{required by generic struct 'Loop' where 'ID' = '() -> Int'}}
+struct Loop< // expected-note {{required by generic struct 'Loop' where 'ID' = '() -> Int'}}
   Data : RandomAccessCollection,
   ID : Hashable,
   Content
@@ -26,5 +25,5 @@ func data() -> [A] {
 }
 
 _ = Loop(data(), id: \.uniqueID) { $0 } // expected-error {{key path cannot refer to instance method 'uniqueID()'}}
-// FIXME: the diagnostics below ideally should have been emitted (rdar://106241733)
-// error@-1 {{type '() -> Int' cannot conform to 'Hashable'}} note@-1 {{only concrete types such as structs, enums and classes can conform to protocols}}
+// expected-error@-1 {{type '() -> Int' cannot conform to 'Hashable'}} note@-1 {{only concrete types such as structs, enums and classes can conform to protocols}}
+// expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}

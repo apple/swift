@@ -92,13 +92,13 @@ private:
   ArrayRef<TypeVariableType *> getEquivalenceClassUnsafe() const;
 
   /// Add a constraint to the list of constraints.
-  void addConstraint(Constraint *constraint);
+  void addConstraint(Constraint *constraint, unsigned index);
 
   /// Remove a constraint from the list of constraints.
   ///
   /// Note that this only removes the constraint itself; it does not
   /// remove the corresponding adjacencies.
-  void removeConstraint(Constraint *constraint);
+  unsigned removeConstraint(Constraint *constraint);
 
   /// Add the given type variables to this node's equivalence class.
   void addToEquivalenceClass(ArrayRef<TypeVariableType *> typeVars);
@@ -251,8 +251,15 @@ public:
   std::pair<ConstraintGraphNode &, unsigned> 
   lookupNode(TypeVariableType *typeVar);
 
+  /// Add a constraint to a vertex in the graph.
+  void addConstraint(TypeVariableType *typeVar, Constraint *constraint,
+                     unsigned index=-1);
+
   /// Add a new constraint to the graph.
   void addConstraint(Constraint *constraint);
+
+  /// Remove a constraint from a vertex in the graph.
+  void removeConstraint(TypeVariableType *typeVar, Constraint *constraint);
 
   /// Remove a constraint from the graph.
   void removeConstraint(Constraint *constraint);
@@ -441,7 +448,7 @@ private:
   void incrementConstraintsPerContractionCounter();
 
   /// The kind of change made to the graph.
-  enum class ChangeKind {
+  enum class ChangeKind: uint8_t {
     /// Added a type variable.
     AddedTypeVariable,
     /// Added a new constraint.
@@ -460,40 +467,40 @@ private:
   /// undo() method.
   class Change {
   public:
-    /// The kind of change.
-    ChangeKind Kind;
+    /// The type variable and the kind of change.
+    llvm::PointerIntPair<TypeVariableType *, 3, ChangeKind> TypeVarAndKind;
 
     union {
-      TypeVariableType *TypeVar;
-      Constraint *TheConstraint;
+      struct {
+        Constraint *TheConstraint;
+        unsigned Index;
+      } Edge;
 
       struct {
-        /// The type variable whose equivalence class was extended.
-        TypeVariableType *TypeVar;
-
         /// The previous size of the equivalence class.
         unsigned PrevSize;
       } EquivClass;
 
       struct {
-        /// The type variable being bound to a fixed type.
-        TypeVariableType *TypeVar;
-
         /// The fixed type to which the type variable was bound.
         TypeBase *FixedType;
       } Binding;
     };
 
-    Change() : Kind(ChangeKind::AddedTypeVariable), TypeVar(nullptr) { }
+    Change()
+      : TypeVarAndKind(nullptr, ChangeKind::AddedTypeVariable) {}
 
     /// Create a change that added a type variable.
     static Change addedTypeVariable(TypeVariableType *typeVar);
 
     /// Create a change that added a constraint.
-    static Change addedConstraint(Constraint *constraint);
+    static Change addedConstraint(TypeVariableType *typeVar,
+                                  Constraint *constraint);
 
     /// Create a change that removed a constraint.
-    static Change removedConstraint(Constraint *constraint);
+    static Change removedConstraint(TypeVariableType *typeVar,
+                                    Constraint *constraint,
+                                    unsigned index);
 
     /// Create a change that extended an equivalence class.
     static Change extendedEquivalenceClass(TypeVariableType *typeVar,

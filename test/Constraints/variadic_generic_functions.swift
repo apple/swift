@@ -32,7 +32,7 @@ func call() {
 
   let x: String = multipleParameters(xs: "", ys: "")
   let (one, two) = multipleParameters(xs: "", 5.0, ys: "", 5.0)
-  multipleParameters(xs: "", 5.0, ys: 5.0, "") // expected-error {{conflicting arguments to generic parameter 'each T' ('Pack{Double, String}' vs. 'Pack{String, String}' vs. 'Pack{String, Double}' vs. 'Pack{Double, Double}')}}
+  multipleParameters(xs: "", 5.0, ys: 5.0, "") // expected-error {{conflicting arguments to generic parameter 'each T' ('Pack{String, Double}' vs. 'Pack{String, String}' vs. 'Pack{Double, String}' vs. 'Pack{Double, Double}')}}
 
   func multipleSequences<each T, each U>(xs: repeat each T, ys: repeat each U) -> (repeat each T) {
     return (repeat each ys)
