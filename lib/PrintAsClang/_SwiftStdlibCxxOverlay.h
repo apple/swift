@@ -413,12 +413,14 @@ template<class T>
 using ThrowingResult = T;
 
 #define SWIFT_RETURN_THUNK(T, v) v
+#define SWIFT_NORETURN_EXCEPT_ERRORS SWIFT_NORETURN
 
 #else
 
 template <class T> using ThrowingResult = swift::Expected<T>;
 
 #define SWIFT_RETURN_THUNK(T, v) swift::Expected<T>(v)
+#define SWIFT_NORETURN_EXCEPT_ERRORS
 
 #endif
 

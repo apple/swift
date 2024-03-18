@@ -1456,6 +1456,8 @@ void DeclAndTypeClangFunctionPrinter::printCxxThunkBody(
     if (resultTy->isVoid()) {
       os << "    return swift::Expected<void>(swift::Error(opaqueError));\n";
       os << "#endif\n";
+      if (FD->getInterfaceType()->castTo<FunctionType>()->getResult()->isUninhabited())
+        os << "  abort();\n";
     } else {
       auto directResultType = signature.getDirectResultType();
       printDirectReturnOrParamCType(

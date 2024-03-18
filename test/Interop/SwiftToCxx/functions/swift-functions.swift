@@ -12,7 +12,7 @@
 // CHECK: SWIFT_EXTERN int $s9Functions016passTwoIntReturnD01x1ys5Int32VAF_AFtF(int x, int y) SWIFT_NOEXCEPT SWIFT_CALL; // passTwoIntReturnInt(x:y:)
 // CHECK: SWIFT_EXTERN int $s9Functions016passTwoIntReturnD10NoArgLabelys5Int32VAD_ADtF(int, int) SWIFT_NOEXCEPT SWIFT_CALL; // passTwoIntReturnIntNoArgLabel(_:_:)
 // CHECK: SWIFT_EXTERN int $s9Functions016passTwoIntReturnD19NoArgLabelParamNameys5Int32VAD_ADtF(int x2, int y2) SWIFT_NOEXCEPT SWIFT_CALL; // passTwoIntReturnIntNoArgLabelParamName(_:_:)
-// CHECK: SWIFT_EXTERN void $s9Functions19passVoidReturnNevers0E0OyF(void) SWIFT_NOEXCEPT SWIFT_CALL SWIFT_NORETURN; // passVoidReturnNever()
+// CHECK: SWIFT_EXTERN void $s9Functions19passVoidReturnNevers0E0OyF(void) SWIFT_NOEXCEPT SWIFT_NORETURN SWIFT_CALL; // passVoidReturnNever()
 // CHECK: SWIFT_EXTERN void $s9Functions014passVoidReturnC0yyF(void) SWIFT_NOEXCEPT SWIFT_CALL; // passVoidReturnVoid()
 
 // CHECK: }
