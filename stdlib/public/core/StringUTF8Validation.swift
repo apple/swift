@@ -41,22 +41,14 @@ internal enum UTF8ValidationResult {
 
 extension UTF8ValidationResult: Equatable {}
 
-private struct UTF8ValidationError: Error {}
-
 internal func validateUTF8(_ buf: UnsafeBufferPointer<UInt8>) -> UTF8ValidationResult {
-  if _allASCII(buf) {
-    return .success(UTF8ExtraInfo(isASCII: true))
-  }
 
-  var iter = buf.makeIterator()
-  var lastValidIndex = buf.startIndex
-
-  @inline(__always) func guaranteeIn(_ f: (UInt8) -> Bool) throws {
-    guard let cu = iter.next() else { throw UTF8ValidationError() }
-    guard f(cu) else { throw UTF8ValidationError() }
+  @inline(__always) func checkNext(_ iter: inout UnsafeBufferPointer<UInt8>.Iterator, _ f: (UInt8) -> Bool) -> Bool {
+    guard let cu = iter.next(), f(cu) else { return false }
+    return true
   }
-  @inline(__always) func guaranteeContinuation() throws {
-    try guaranteeIn(UTF8.isContinuation)
+  @inline(__always) func checkNextIsContinuation(_ iter: inout UnsafeBufferPointer<UInt8>.Iterator) -> Bool {
+    checkNext(&iter, UTF8.isContinuation)
   }
 
   func _legacyInvalidLengthCalculation(_ _buffer: (_storage: UInt32, ())) -> Int {
@@ -98,71 +90,76 @@ internal func validateUTF8(_ buf: UnsafeBufferPointer<UInt8>) -> UTF8ValidationR
     return buf.startIndex ..< buf.startIndex + invalids
   }
 
-  func findInvalidRange(_ buf: Slice<UnsafeBufferPointer<UInt8>>) -> Range<Int> {
-    var endIndex = buf.startIndex
-    var iter = buf.makeIterator()
-    _ = iter.next()
-    while let cu = iter.next(), UTF8.isContinuation(cu) {
-      endIndex += 1
+  func findInvalidRange(from startOfInvalid: Int) -> Range<Int> {
+    _internalInvariant(startOfInvalid < buf.endIndex, "startOfInvalid must be a valid index")
+    var endOfInvalid = startOfInvalid &+ 1
+    while endOfInvalid < buf.endIndex, UTF8.isContinuation(buf[endOfInvalid]) {
+      endOfInvalid &+= 1
     }
-    let illegalRange = Range(buf.startIndex...endIndex)
-    _internalInvariant(illegalRange.clamped(to: (buf.startIndex..<buf.endIndex)) == illegalRange,
-                 "illegal range out of full range")
+    endOfInvalid &+= 1
+    let illegalRange = Range(uncheckedBounds: (startOfInvalid, endOfInvalid))
     // FIXME: Remove the call to `_legacyNarrowIllegalRange` and return `illegalRange` directly
     return _legacyNarrowIllegalRange(buf: buf[illegalRange])
   }
 
-  do {
-    var isASCII = true
-    while let cu = iter.next() {
-      if UTF8.isASCII(cu) { lastValidIndex &+= 1; continue }
-      isASCII = false
-      if _slowPath(!_isUTF8MultiByteLeading(cu)) {
-        throw UTF8ValidationError()
-      }
-      switch cu {
-      case 0xC2...0xDF:
-        try guaranteeContinuation()
-        lastValidIndex &+= 2
-      case 0xE0:
-        try guaranteeIn(_isNotOverlong_E0)
-        try guaranteeContinuation()
-        lastValidIndex &+= 3
-      case 0xE1...0xEC:
-        try guaranteeContinuation()
-        try guaranteeContinuation()
-        lastValidIndex &+= 3
-      case 0xED:
-        try guaranteeIn(_isNotOverlong_ED)
-        try guaranteeContinuation()
-        lastValidIndex &+= 3
-      case 0xEE...0xEF:
-        try guaranteeContinuation()
-        try guaranteeContinuation()
-        lastValidIndex &+= 3
-      case 0xF0:
-        try guaranteeIn(_isNotOverlong_F0)
-        try guaranteeContinuation()
-        try guaranteeContinuation()
-        lastValidIndex &+= 4
-      case 0xF1...0xF3:
-        try guaranteeContinuation()
-        try guaranteeContinuation()
-        try guaranteeContinuation()
-        lastValidIndex &+= 4
-      case 0xF4:
-        try guaranteeIn(_isNotOverlong_F4)
-        try guaranteeContinuation()
-        try guaranteeContinuation()
-        lastValidIndex &+= 4
-      default:
-        Builtin.unreachable()
-      }
-    }
-    return .success(UTF8ExtraInfo(isASCII: isASCII))
-  } catch {
-    return .error(toBeReplaced: findInvalidRange(buf[lastValidIndex...]))
+  if _allASCII(buf) {
+    return .success(UTF8ExtraInfo(isASCII: true))
   }
+
+  var firstUnvalidated = buf.startIndex
+  var iter = buf.makeIterator()
+  while let cu = iter.next() {
+    if UTF8.isASCII(cu) {
+      firstUnvalidated &+= 1
+      continue
+    }
+    if _slowPath(!_isUTF8MultiByteLeading(cu)) {
+      return .error(toBeReplaced: findInvalidRange(from: firstUnvalidated))
+    }
+    let isValid: Bool
+    switch cu {
+    case 0xC2...0xDF:
+      isValid = checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 2 }
+    case 0xE0:
+      isValid = checkNext(&iter, _isNotOverlong_E0)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 3 }
+    case 0xE1...0xEC:
+      isValid = checkNextIsContinuation(&iter)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 3 }
+    case 0xED:
+      isValid = checkNext(&iter, _isNotOverlong_ED)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 3 }
+    case 0xEE...0xEF:
+      isValid = checkNextIsContinuation(&iter)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 3 }
+    case 0xF0:
+      isValid = checkNext(&iter, _isNotOverlong_F0)
+             && checkNextIsContinuation(&iter)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 4 }
+    case 0xF1...0xF3:
+      isValid = checkNextIsContinuation(&iter)
+             && checkNextIsContinuation(&iter)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 4 }
+    case 0xF4:
+      isValid = checkNext(&iter, _isNotOverlong_F4)
+             && checkNextIsContinuation(&iter)
+             && checkNextIsContinuation(&iter)
+      if isValid { firstUnvalidated &+= 4 }
+    default:
+      Builtin.unreachable()
+    }
+    if !isValid {
+      return .error(toBeReplaced: findInvalidRange(from: firstUnvalidated))
+    }
+  }
+  return .success(UTF8ExtraInfo(isASCII: false))
 }
 
 internal func repairUTF8(_ input: UnsafeBufferPointer<UInt8>, firstKnownBrokenRange: Range<Int>) -> String {
