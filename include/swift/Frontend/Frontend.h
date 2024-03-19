@@ -254,6 +254,10 @@ public:
       StringRef mainExecutablePath, bool shared,
       llvm::SmallVectorImpl<char> &runtimeResourcePath);
 
+  /// Computes the runtime resource path relative to the given Swift
+  /// executable.
+  void computeRuntimeResourcePathForTargetInfo();
+
   /// Appends `lib/swift[_static]` to the given path
   static void appendSwiftLibDir(llvm::SmallVectorImpl<char> &path, bool shared);
 
