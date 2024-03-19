@@ -33,7 +33,6 @@ import TestModule
  // CHECK-NEXT:      "details": {
  // CHECK-NEXT:        "swift": {
  // CHECK-NEXT:          "moduleInterfacePath": 
- // CHECK-NEXT:          "contextHash":
  // CHECK-NEXT:          "compiledModuleCandidates": [
  // CHECK-NEXT:            TestModule.swiftmodule
  // CHECK-NEXT:          ],

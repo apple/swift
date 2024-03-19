@@ -127,7 +127,6 @@ import SubE
 // CHECK: ],
 // CHECK-NEXT: "details": {
 
-// CHECK: "contextHash": "{{.*}}",
 // CHECK: "commandLine": [
 // CHECK: "-compile-module-from-interface"
 // CHECK: "-target"
@@ -138,6 +137,7 @@ import SubE
 // CHECK: "-swift-version"
 // CHECK: "5"
 // CHECK: ],
+// CHECK: "contextHash": "{{.*}}",
 // CHECK_NO_CLANG_TARGET: "extraPcmArgs": [
 // CHECK_NO_CLANG_TARGET-NEXT:   "-Xcc",
 // CHECK_NO_CLANG_TARGET-NEXT:   "-target",

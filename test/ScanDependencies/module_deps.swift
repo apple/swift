@@ -57,6 +57,7 @@ import SubE
 // CHECK-DAG:     "swift": "_cross_import_E"
 // CHECK: ],
 
+// CHECK:      "contextHash":
 // CHECK:      "extraPcmArgs": [
 // CHECK-NEXT:    "-Xcc",
 // CHECK-NEXT:    "-target",
