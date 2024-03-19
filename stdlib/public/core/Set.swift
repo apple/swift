@@ -680,7 +680,7 @@ extension Set: SetAlgebra {
   @inlinable
   public init<Source: Sequence>(_ sequence: __owned Source)
   where Source.Element == Element {
-    if let s = sequence as? Set<Element> {
+    if let s = _specialize(sequence, for: Set<Element>.self) {
       // If this sequence is actually a `Set`, then we can quickly
       // adopt its storage and let COW handle uniquing only if necessary.
       self = s
@@ -712,7 +712,7 @@ extension Set: SetAlgebra {
   where S.Element == Element {
     guard !isEmpty else { return true }
     if self.count == 1 { return possibleSuperset.contains(self.first!) }
-    if let s = possibleSuperset as? Set<Element> {
+    if let s = _specialize(possibleSuperset, for: Set<Element>.self) {
       return isSubset(of: s)
     }
     return _variant.convertedToNative.isSubset(of: possibleSuperset)
@@ -741,7 +741,7 @@ extension Set: SetAlgebra {
   @inlinable
   public func isStrictSubset<S: Sequence>(of possibleStrictSuperset: S) -> Bool
   where S.Element == Element {
-    if let s = possibleStrictSuperset as? Set<Element> {
+    if let s = _specialize(possibleStrictSuperset, for: Set<Element>.self) {
       return isStrictSubset(of: s)
     }
     return _variant.convertedToNative.isStrictSubset(of: possibleStrictSuperset)
@@ -765,7 +765,7 @@ extension Set: SetAlgebra {
   @inlinable
   public func isSuperset<S: Sequence>(of possibleSubset: __owned S) -> Bool
   where S.Element == Element {
-    if let s = possibleSubset as? Set<Element> {
+    if let s = _specialize(possibleSubset, for: Set<Element>.self) {
       return isSuperset(of: s)
     }
     for member in possibleSubset {
@@ -798,7 +798,7 @@ extension Set: SetAlgebra {
   public func isStrictSuperset<S: Sequence>(of possibleStrictSubset: S) -> Bool
   where S.Element == Element {
     if isEmpty { return false }
-    if let s = possibleStrictSubset as? Set<Element> {
+    if let s = _specialize(possibleStrictSubset, for: Set<Element>.self) {
       return isStrictSuperset(of: s)
     }
     return _variant.convertedToNative.isStrictSuperset(of: possibleStrictSubset)
@@ -821,7 +821,7 @@ extension Set: SetAlgebra {
   @inlinable
   public func isDisjoint<S: Sequence>(with other: S) -> Bool
   where S.Element == Element {
-    if let s = other as? Set<Element> {
+    if let s = _specialize(other, for: Set<Element>.self) {
       return isDisjoint(with: s)
     }
     return _isDisjoint(with: other)
@@ -957,8 +957,8 @@ extension Set: SetAlgebra {
   @inlinable
   public __consuming func intersection<S: Sequence>(_ other: S) -> Set<Element>
   where S.Element == Element {
-    if let other = other as? Set<Element> {
-      return self.intersection(other)
+    if let s = _specialize(other, for: Set<Element>.self) {
+      return self.intersection(s)
     }
     return Set(_native: _variant.convertedToNative.genericIntersection(other))
   }

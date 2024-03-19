@@ -386,7 +386,7 @@ extension String.UnicodeScalarView: RangeReplaceableCollection {
   ///   `newElements`. If the call to `replaceSubrange(_:with:)` simply
   ///   removes elements at the end of the string, the complexity is O(*n*),
   ///   where *n* is equal to `bounds.count`.
-  public mutating func replaceSubrange<C>(
+  public mutating func replaceSubrange<C>(  // FIXME: Add @_specialize
     _ subrange: Range<Index>,
     with newElements: C
   ) where C: Collection, C.Element == Unicode.Scalar {

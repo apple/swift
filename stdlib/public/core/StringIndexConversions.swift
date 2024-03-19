@@ -103,11 +103,11 @@ extension String.Index {
   public init?<S: StringProtocol>(
     _ sourcePosition: String.Index, within target: S
   ) {
-    if let str = target as? String {
+    if let str = _specialize(target, for: String.self) {
       self.init(sourcePosition, within: str)
       return
     }
-    if let str = target as? Substring {
+    if let str = _specialize(target, for: Substring.self) {
       // As a special exception, we allow `sourcePosition` to be an UTF-16 index
       // when `self` is a UTF-8 string (or vice versa), to preserve
       // compatibility with (broken) code that keeps using indices from a

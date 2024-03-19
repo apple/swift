@@ -55,10 +55,7 @@ extension String: RangeReplaceableCollection {
   @_specialize(where S == Substring)
   public init<S: Sequence & LosslessStringConvertible>(_ other: S)
   where S.Element == Character {
-    if let str = other as? String {
-      self = str
-      return
-    }
+    // FIXME: Consider making this inlinable.
     self = other.description
   }
 
@@ -82,11 +79,13 @@ extension String: RangeReplaceableCollection {
   @_specialize(where S == Array<Character>)
   public init<S: Sequence>(_ characters: S)
   where S.Iterator.Element == Character {
-    if let str = characters as? String {
+    // FIXME: Consider making this inlinable.
+    if let str = _specialize(characters, for: String.self) {
       self = str
       return
     }
-    if let subStr = characters as? Substring {
+    if let subStr = _specialize(characters, for: Substring.self) {
+      // Note: this is a standalone overload in Substring.swift.
       self.init(subStr)
       return
     }
@@ -164,11 +163,12 @@ extension String: RangeReplaceableCollection {
   @_specialize(where S == Array<Character>)
   public mutating func append<S: Sequence>(contentsOf newElements: S)
   where S.Iterator.Element == Character {
-    if let str = newElements as? String {
+    // FIXME: consider making this inlinable.
+    if let str = _specialize(newElements, for: String.self) {
       self.append(str)
       return
     }
-    if let substr = newElements as? Substring {
+    if let substr = _specialize(newElements, for: Substring.self) {
       self.append(contentsOf: substr)
       return
     }

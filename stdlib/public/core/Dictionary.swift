@@ -475,7 +475,7 @@ public struct Dictionary<Key: Hashable, Value> {
   public init<S: Sequence>(
     uniqueKeysWithValues keysAndValues: __owned S
   ) where S.Element == (Key, Value) {
-    if let d = keysAndValues as? Dictionary<Key, Value> {
+    if let d = _specialize(keysAndValues, for: Dictionary<Key, Value>.self) {
       self = d
       return
     }
