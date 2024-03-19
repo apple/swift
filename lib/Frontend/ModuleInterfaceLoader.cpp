@@ -2603,7 +2603,7 @@ bool ExplicitCASModuleLoader::findModule(
   // that are not located on disk.
   auto moduleBuf = loadCachedCompileResultFromCacheKey(
       Impl.CAS, Impl.Cache, Ctx.Diags, moduleCASID,
-      file_types::ID::TY_SwiftModuleFile);
+      file_types::ID::TY_SwiftModuleFile, moduleInfo.modulePath);
   if (!moduleBuf) {
     // We cannot read the module content, diagnose.
     Ctx.Diags.diagnose(SourceLoc(), diag::error_opening_explicit_module_file,
