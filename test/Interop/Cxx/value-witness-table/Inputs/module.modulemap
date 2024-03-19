@@ -22,3 +22,8 @@ module WitnessLifetimeOperations {
   header "witness-lifetime-operations.h"
   requires cplusplus
 }
+
+module SameNameMetadata {
+  header "same-name-metadata.h"
+  requires cplusplus
+}

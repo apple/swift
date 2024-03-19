@@ -37,6 +37,7 @@
 #include "swift/Strings.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/Mangle.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -1211,6 +1212,7 @@ namespace {
       : super(IGM), Type(Type),
         HasMetadata(requireMetadata),
         MetadataInitialization(computeMetadataInitialization()) {
+      llvm::errs() << "TypeContextDescriptorBuilderBase for type '" << Type->getName().str() << "'.\n";
     }
     
     void layout() {
@@ -1233,11 +1235,11 @@ namespace {
 
       // For related entities, set the original type name as the ABI name
       // and remember the related entity tag.
-      StringRef abiName;
+      std::string abiName;
       if (auto *synthesizedTypeAttr =
             Type->getAttrs()
                  .template getAttribute<ClangImporterSynthesizedTypeAttr>()) {
-        abiName = synthesizedTypeAttr->originalTypeName;
+        abiName = synthesizedTypeAttr->originalTypeName.str();
 
         getMutableImportInfo().RelatedEntityName =
             std::string(synthesizedTypeAttr->getManglingName());
@@ -1250,10 +1252,26 @@ namespace {
         // that each specialization gets its own metadata. A class template
         // specialization's Swift name will always be the mangled name, so just
         // use that.
-        if (auto spec = dyn_cast<clang::ClassTemplateSpecializationDecl>(clangDecl))
-          abiName = Type->getName().str();
-        else
-          abiName = clangDecl->getName();
+        if (auto spec = dyn_cast<clang::ClassTemplateSpecializationDecl>(clangDecl)) {
+          abiName = Type->getName().str().str();
+        } else if (isa<clang::NamedDecl>(clangDecl->getDeclContext()) &&
+            isa<clang::TagDecl>(clangDecl)) {
+          // If this is a nested (C++) decl, make sure that we factor in the
+          // decl's parents by using the mangled name.
+          std::string storage;
+          llvm::raw_string_ostream stringStream(storage);
+          clang::ASTContext &ctx = clangDecl->getASTContext();
+          std::unique_ptr<clang::MangleContext> mangler(ctx.createMangleContext());
+          auto clangType = ctx.getTagDeclType(cast<clang::TagDecl>(clangDecl));
+          mangler->mangleTypeName(clangType, stringStream);
+          abiName = stringStream.str();
+        } else {
+          abiName = clangDecl->getName().str();
+        }
+
+        llvm::dbgs() << "Clang name: '" << clangDecl->getName().str()
+                     << "', Swift name: '" << Type->getName().str().str()
+                     << "', ABI name: '" << abiName << "'.\n";
 
         // Typedefs and compatibility aliases that have been promoted to
         // their own nominal types need to be marked specially.
@@ -1267,7 +1285,7 @@ namespace {
       // If the ABI name differs from the user-facing name, add it as
       // an override.
       if (!abiName.empty() && abiName != UserFacingName) {
-        getMutableImportInfo().ABIName = std::string(abiName);
+        getMutableImportInfo().ABIName = abiName;
       }
     }
 
