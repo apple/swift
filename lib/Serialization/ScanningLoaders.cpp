@@ -126,6 +126,10 @@ void PlaceholderSwiftModuleScanner::parsePlaceholderModuleMap(
 static std::vector<std::string> getCompiledCandidates(ASTContext &ctx,
                                                       StringRef moduleName,
                                                       StringRef interfacePath) {
+  // If caching is enabled, always rebuild and do not use candidate module.
+  if (ctx.CASOpts.EnableCaching)
+    return {};
+
   return ctx.getModuleInterfaceChecker()
       ->getCompiledModuleCandidatesForInterface(moduleName.str(),
                                                 interfacePath);
