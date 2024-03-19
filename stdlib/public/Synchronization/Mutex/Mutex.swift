@@ -53,7 +53,7 @@ public struct Mutex<Value: ~Copyable>: ~Copyable {
 }
 
 @available(SwiftStdlib 6.0, *)
-extension Mutex {
+extension Mutex where Value: ~Copyable {
   /// Attempts to acquire the lock and then calls the given closure if
   /// successful.
   ///
@@ -85,14 +85,22 @@ extension Mutex {
   ///
   /// - Returns: The return value, if any, of the `body` closure parameter
   ///   or nil if the lock couldn't be acquired.
-  // @available(SwiftStdlib 6.0, *)
-  // @_alwaysEmitIntoClient
-  // @_transparent
-  // public borrowing func tryWithLock<Result: ~Copyable & Sendable, E>(
-  //   _ body: @Sendable (inout Value) throws(E) -> Result
-  // ) throws(E) -> Result? {
-  //   fatalError()
-  // }
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public borrowing func tryWithLock<Result: ~Copyable & Sendable, E: Error>(
+    _ body: @Sendable (inout Value) throws(E) -> Result
+  ) throws(E) -> Result? {
+    guard handle.tryLock() else {
+      return nil
+    }
+
+    defer {
+      handle.unlock()
+    }
+
+    return try body(&value.address.pointee)
+  }
 
   /// Attempts to acquire the lock and then calls the given closure if
   /// successful.
@@ -128,14 +136,22 @@ extension Mutex {
   ///
   /// - Returns: The return value, if any, of the `body` closure parameter
   ///   or nil if the lock couldn't be acquired.
-  // @available(SwiftStdlib 6.0, *)
-  // @_alwaysEmitIntoClient
-  // @_transparent
-  // public borrowing func tryWithLock<Result: ~Copyable, E>(
-  //   _ body: (inout Value) throws(E) -> Result
-  // ) throws(E) -> Result? {
-  //   fatalError()
-  // }
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public borrowing func tryWithLockUnchecked<Result: ~Copyable, E: Error>(
+    _ body: (inout Value) throws(E) -> Result
+  ) throws(E) -> Result? {
+    guard handle.tryLock() else {
+      return nil
+    }
+
+    defer {
+      handle.unlock()
+    }
+
+    return try body(&value.address.pointee)
+  }
 
   /// Calls the given closure after acquring the lock and then releases
   /// ownership.
@@ -163,10 +179,16 @@ extension Mutex {
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
-  public borrowing func withLock<Result: ~Copyable & Sendable, E>(
+  public borrowing func withLock<Result: ~Copyable & Sendable, E: Error>(
     _ body: @Sendable (inout Value) throws(E) -> Result
   ) throws(E) -> Result {
-    fatalError()
+    handle.lock()
+
+    defer {
+      handle.unlock()
+    }
+
+    return try body(&value.address.pointee)
   }
 
   /// Calls the given closure after acquring the lock and then releases
@@ -198,10 +220,16 @@ extension Mutex {
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
-  public borrowing func withLock<Result: ~Copyable, E>(
+  public borrowing func withLockUnchecked<Result: ~Copyable, E: Error>(
     _ body: (inout Value) throws(E) -> Result
   ) throws(E) -> Result {
-    fatalError()
+    handle.lock()
+
+    defer {
+      handle.unlock()
+    }
+
+    return try body(&value.address.pointee)
   }
 }
 

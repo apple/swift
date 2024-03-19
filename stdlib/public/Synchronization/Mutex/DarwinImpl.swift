@@ -32,20 +32,20 @@ internal struct _MutexHandle: ~Copyable {
   @_alwaysEmitIntoClient
   @_transparent
   borrowing func lock() {
-    os_unfair_lock_lock(os_unfair_lock_t(value.rawAddress))
+    os_unfair_lock_lock(value.address)
   }
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   borrowing func tryLock() -> Bool {
-    os_unfair_lock_trylock(os_unfair_lock_t(value.rawAddress))
+    os_unfair_lock_trylock(value.address)
   }
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   borrowing func unlock() {
-    os_unfair_lock_unlock(os_unfair_lock_t(value.rawAddress))
+    os_unfair_lock_unlock(value.address)
   }
 }

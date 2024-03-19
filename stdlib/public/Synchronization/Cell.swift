@@ -20,6 +20,13 @@ internal struct _Cell<Value: ~Copyable>: ~Copyable {
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
+  var address: UnsafeMutablePointer<Value> {
+    UnsafeMutablePointer<Value>(rawAddress)
+  }
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
   var rawAddress: Builtin.RawPointer {
     Builtin.unprotectedAddressOfBorrow(self)
   }
@@ -28,13 +35,13 @@ internal struct _Cell<Value: ~Copyable>: ~Copyable {
   @_alwaysEmitIntoClient
   @_transparent
   init(_ initialValue: consuming Value) {
-    Builtin.initialize(initialValue, rawAddress)
+    address.initialize(to: initialValue)
   }
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @inlinable
   deinit {
-    Builtin.destroy(Value.self, rawAddress)
+    address.deinitialize(count: 1)
   }
 }

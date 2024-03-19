@@ -43,19 +43,19 @@ if(SWIFT_BUILD_SDK_OVERLAY)
 endif()
 
 set(SWIFT_SYNCHRONIZATION_DARWIN_SOURCES
-    Mutex/DarwinImpl.swift
+  Mutex/DarwinImpl.swift
 )
 
 # Linux dependencies and sources
 
 set(SWIFT_SYNCHRONIZATION_LINUX_SOURCES
-    Mutex/LinuxImpl.swift
+  Mutex/LinuxImpl.swift
 )
 
 # Wasm dependencies and sources
 
 set(SWIFT_SYNCHRONIZATION_WASM_SOURCES
-    Mutex/WasmImpl.swift
+  Mutex/WasmImpl.swift
 )
 
 # Windows dependencies and sources
@@ -67,7 +67,7 @@ if(SWIFT_BUILD_SDK_OVERLAY)
 endif()
 
 set(SWIFT_SYNCHRONIZATION_WINDOWS_SOURCES
-    Mutex/WindowsImpl.swift
+  Mutex/WindowsImpl.swift
 )
 
 set(SWIFT_SYNCHRNOIZATION_SWIFT_FLAGS

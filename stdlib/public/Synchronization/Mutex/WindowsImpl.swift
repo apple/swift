@@ -31,7 +31,7 @@ internal struct _MutexHandle: ~Copyable {
   @_alwaysEmitIntoClient
   @_transparent
   borrowing func lock() {
-    AcquireSRWLockExclusive(PSRWLOCK(value.rawAddress))
+    AcquireSRWLockExclusive(value.address)
   }
 
   @available(SwiftStdlib 6.0, *)
@@ -39,13 +39,13 @@ internal struct _MutexHandle: ~Copyable {
   @_transparent
   borrowing func tryLock() -> Bool {
     // Windows BOOLEAN gets imported as 'UInt8'...
-    TryAcquireSRWLockExclusive(PSRWLOCK(value.rawAddress)) != 0
+    TryAcquireSRWLockExclusive(value.address) != 0
   }
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   borrowing func unlock() {
-    ReleaseSRWLockExclusive(PSRWLOCK(value.rawAddress))
+    ReleaseSRWLockExclusive(value.address)
   }
 }
