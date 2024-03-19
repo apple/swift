@@ -43,10 +43,17 @@ struct MinimalDispatchObjectHeader {
 static_assert(
     offsetof(Job, metadata) == offsetof(MinimalDispatchObjectHeader, VTable),
     "Job Metadata field must match location of Dispatch VTable field.");
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-offsetof-extensions"
+#endif
 static_assert(offsetof(Job, SchedulerPrivate[Job::DispatchLinkageIndex]) ==
                   offsetof(MinimalDispatchObjectHeader, Linkage),
               "Dispatch Linkage field must match Job "
               "SchedulerPrivate[DispatchLinkageIndex].");
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 /// The function passed to dispatch_async_f to execute a job.
 static void __swift_run_job(void *_job) {
