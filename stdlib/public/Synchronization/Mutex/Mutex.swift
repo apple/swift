@@ -47,7 +47,7 @@ public struct Mutex<Value: ~Copyable>: ~Copyable {
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
-  public init(_ initialValue: consuming Value) {
+  public init(_ initialValue: transferring consuming Value) {
     value = _Cell(initialValue)
   }
 }
@@ -120,7 +120,7 @@ extension Mutex where Value: ~Copyable {
   ///     }
   ///     return try body(&value)
   ///
-  /// - Note: This version of `withLock` is unchecked because it does
+  /// - Note: This version of `tryWithLock` is unchecked because it does
   ///   not enforce any sendability guarantees.
   ///
   /// - Warning: Recursive calls to `tryWithLockUnchecked` within the
