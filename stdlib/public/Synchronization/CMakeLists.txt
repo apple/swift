@@ -11,15 +11,15 @@
 #===----------------------------------------------------------------------===#
 
 set(SWIFT_SYNCHRONIZATION_ATOMIC_SOURCES
-  Atomic.swift
-  AtomicBool.swift
-  AtomicFloats.swift
-  AtomicLazyReference.swift
-  AtomicMemoryOrderings.swift
-  AtomicOptional.swift
-  AtomicPointers.swift
-  AtomicRepresentable.swift
-  WordPair.swift
+  Atomics/Atomic.swift
+  Atomics/AtomicBool.swift
+  Atomics/AtomicFloats.swift
+  Atomics/AtomicLazyReference.swift
+  Atomics/AtomicMemoryOrderings.swift
+  Atomics/AtomicOptional.swift
+  Atomics/AtomicPointers.swift
+  Atomics/AtomicRepresentable.swift
+  Atomics/WordPair.swift
 )
 
 set(SWIFT_SYNCHRONIZATION_SOURCES
@@ -30,8 +30,8 @@ set(SWIFT_SYNCHRONIZATION_SOURCES
 )
 
 set(SWIFT_SYNCHRONIZATION_GYB_SOURCES
-  AtomicIntegers.swift.gyb
-  AtomicStorage.swift.gyb
+  Atomics/AtomicIntegers.swift.gyb
+  Atomics/AtomicStorage.swift.gyb
 )
 
 # Darwin dependencies and sources
