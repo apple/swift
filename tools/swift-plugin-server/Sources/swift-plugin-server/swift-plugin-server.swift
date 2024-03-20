@@ -40,11 +40,11 @@ final class SwiftPluginServer {
   /// @main entry point.
   static func main() throws {
     let connection = try PluginHostConnection()
-    let messageHandler = CompilerPluginMessageHandler(
+    let listener = CompilerPluginMessageListener(
       connection: connection,
       provider: self.init()
     )
-    try messageHandler.main()
+    try listener.main()
   }
 }
 
