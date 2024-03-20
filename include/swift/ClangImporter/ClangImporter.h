@@ -663,6 +663,11 @@ bool requiresCPlusPlus(const clang::Module *module);
 /// (std_vector, std_iosfwd, etc).
 bool isCxxStdModule(const clang::Module *module);
 
+/// Returns true if the given module is one of the C++ standard library modules.
+/// This could be the top-level std module, or any of the libc++ split modules
+/// (std_vector, std_iosfwd, etc).
+bool isCxxStdModule(StringRef moduleName, bool IsSystem);
+
 /// Returns the pointee type if the given type is a C++ `const`
 /// reference type, `None` otherwise.
 std::optional<clang::QualType>

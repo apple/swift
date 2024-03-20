@@ -21,6 +21,7 @@
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Basic/PrettyStackTrace.h"
+#include "swift/ClangImporter/ClangImporter.h"
 #include "swift/DependencyScan/ModuleDependencyScanner.h"
 #include "swift/Frontend/ModuleInterfaceLoader.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
@@ -762,24 +763,46 @@ void ModuleDependencyScanner::resolveSwiftOverlayDependencies(
         // FIXME: Once all clients know to fetch these dependencies from
         // `swiftOverlayDependencies`, the goal is to no longer have them in
         // `directDependencies` so the following will need to go away.
-	directDependencies.insert({moduleName, cachedInfo->getKind()});
+        directDependencies.insert({moduleName, cachedInfo->getKind()});
       } else {
         // Cache discovered module dependencies.
         cache.recordDependencies(lookupResult.value());
         if (!lookupResult.value().empty()) {
-          swiftOverlayDependencies.insert(
-                                          {moduleName, lookupResult.value()[0].first.Kind});
+          swiftOverlayDependencies.insert({moduleName, lookupResult.value()[0].first.Kind});
           // FIXME: Once all clients know to fetch these dependencies from
           // `swiftOverlayDependencies`, the goal is to no longer have them in
           // `directDependencies` so the following will need to go away.
-	  directDependencies.insert(
-                                    {moduleName, lookupResult.value()[0].first.Kind});
-	}
+          directDependencies.insert({moduleName, lookupResult.value()[0].first.Kind});
+        }
       }
     }
   };
   for (const auto &clangDep : clangDependencies)
     recordResult(clangDep);
+
+  // C++ Interop requires additional handling
+  if (ScanCompilerInvocation.getLangOptions().EnableCXXInterop) {
+    for (const auto &clangDepName : clangDependencies) {
+      // If this Clang module is a part of the C++ stdlib, and we haven't loaded
+      // the overlay for it so far, it is a split libc++ module (e.g.
+      // std_vector). Load the CxxStdlib overlay explicitly.
+      const auto &clangDepInfo =
+          cache.findDependency(clangDepName, ModuleDependencyKind::Clang)
+              .value()
+              ->getAsClangModule();
+      if (importer::isCxxStdModule(clangDepName, clangDepInfo->IsSystem) &&
+          !swiftOverlayDependencies.contains(
+              {clangDepName, ModuleDependencyKind::SwiftInterface}) &&
+          !swiftOverlayDependencies.contains(
+              {clangDepName, ModuleDependencyKind::SwiftBinary})) {
+        ScanningThreadPool.async(
+            scanForSwiftDependency,
+            getModuleImportIdentifier(ScanASTContext.Id_CxxStdlib.str()));
+        ScanningThreadPool.wait();
+        recordResult(ScanASTContext.Id_CxxStdlib.str().str());
+      }
+    }
+  }
 }
 
 void ModuleDependencyScanner::discoverCrossImportOverlayDependencies(

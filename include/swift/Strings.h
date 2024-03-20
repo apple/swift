@@ -36,6 +36,8 @@ constexpr static const StringLiteral SWIFT_BACKTRACING_NAME = "_Backtracing";
 constexpr static const StringLiteral SWIFT_SHIMS_NAME = "SwiftShims";
 /// The name of the CxxShim module, which contains a cxx casting utility.
 constexpr static const StringLiteral CXX_SHIM_NAME = "CxxShim";
+/// The name of the Cxx module, which contains C++ interop helper protocols.
+constexpr static const StringLiteral CXX_MODULE_NAME = "Cxx";
 /// The name of the Builtin module, which contains Builtin functions.
 constexpr static const StringLiteral BUILTIN_NAME = "Builtin";
 /// The name of the clang imported header module.

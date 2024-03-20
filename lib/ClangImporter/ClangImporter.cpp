@@ -7756,14 +7756,20 @@ bool importer::requiresCPlusPlus(const clang::Module *module) {
 }
 
 bool importer::isCxxStdModule(const clang::Module *module) {
-  if (module->getTopLevelModuleName() == "std")
+  return isCxxStdModule(module->getTopLevelModuleName(),
+                        module->getTopLevelModule()->IsSystem);
+}
+
+bool importer::isCxxStdModule(StringRef moduleName, bool IsSystem) {
+  if (moduleName == "std")
     return true;
   // In recent libc++ versions the module is split into multiple top-level
   // modules (std_vector, std_utility, etc).
-  if (module->getTopLevelModule()->IsSystem &&
-      module->getTopLevelModuleName().starts_with("std_"))
+  if (IsSystem && moduleName.starts_with("std_")) {
+    if (moduleName == "std_errno_h")
+      return false;
     return true;
-
+  }
   return false;
 }
 

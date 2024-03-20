@@ -434,6 +434,13 @@ SerializedModuleLoaderBase::getImportsOfModule(
     if (dotPos != std::string::npos)
       moduleName = moduleName.slice(0, dotPos);
 
+    // Reverse rewrite of user-specified C++ standard
+    // library module name to one used in the modulemap.
+    // TODO: If we are going to do this for more than this module,
+    // we will need a centralized system for doing module import name remap.
+    if (moduleName == Ctx.Id_CxxStdlib.str())
+      moduleName = "std";
+
     importedModuleNames.insert(moduleName);
   }
 

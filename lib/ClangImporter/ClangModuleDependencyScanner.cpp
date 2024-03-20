@@ -284,7 +284,7 @@ ModuleDependencyVector ClangImporter::bridgeClangModuleDependencies(
     auto dependencies = ModuleDependencyInfo::forClangModule(
         pcmPath, mappedPCMPath, clangModuleDep.ClangModuleMapFile,
         clangModuleDep.ID.ContextHash, swiftArgs, fileDeps, capturedPCMArgs,
-        RootID, IncludeTree, /*module-cache-key*/ "");
+        RootID, IncludeTree, /*module-cache-key*/ "", clangModuleDep.IsSystem);
     for (const auto &moduleName : clangModuleDep.ClangModuleDeps) {
       dependencies.addModuleImport(moduleName.ModuleName, &alreadyAddedModules);
       // It is safe to assume that all dependencies of a Clang module are Clang modules.

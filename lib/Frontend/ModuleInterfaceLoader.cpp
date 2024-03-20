@@ -1937,6 +1937,31 @@ InterfaceSubContextDelegateImpl::InterfaceSubContextDelegateImpl(
     GenericArgs.push_back("-blocklist-file");
     GenericArgs.push_back(blocklist);
   }
+
+  // For now, we only inherit the C++ interoperability mode in
+  // Explicit Module Builds.
+  if (langOpts.EnableCXXInterop &&
+      (frontendOpts.DisableImplicitModules ||
+       LoaderOpts.requestedAction ==
+           FrontendOptions::ActionType::ScanDependencies)) {
+    // Modelled after a reverse of validateCxxInteropCompatibilityMode
+    genericSubInvocation.getLangOptions().EnableCXXInterop = true;
+    genericSubInvocation.getLangOptions().cxxInteropCompatVersion =
+        langOpts.cxxInteropCompatVersion;
+    std::string compatVersion;
+    if (langOpts.cxxInteropCompatVersion.empty())
+      compatVersion = "default";
+    else if (langOpts.cxxInteropCompatVersion[0] == 5)
+      compatVersion = "swift-5.9";
+    else if (langOpts.cxxInteropCompatVersion[0] ==
+             version::getUpcomingCxxInteropCompatVersion())
+      compatVersion = "upcoming-swift";
+    else // TODO: This may need to be updated once more versions are added
+      compatVersion = "default";
+
+    GenericArgs.push_back(
+        ArgSaver.save("-cxx-interoperability-mode=" + compatVersion));
+  }
 }
 
 /// Calculate an output filename in \p genericSubInvocation's cache path that

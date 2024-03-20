@@ -53,6 +53,8 @@ using ContextHashIDField = IdentifierIDField;
 
 /// A bit that indicates whether or not a module is a framework
 using IsFrameworkField = BCFixed<1>;
+/// A bit that indicates whether or not a module is a system module
+using IsSystemField = BCFixed<1>;
 
 /// Arrays of various identifiers, distinguished for readability
 using IdentifierIDArryField = llvm::BCArray<IdentifierIDField>;
@@ -193,7 +195,8 @@ using ClangModuleDetailsLayout =
                    FlagIDArrayIDField,        // capturedPCMArgs
                    IdentifierIDField,         // CASFileSystemRootID
                    IdentifierIDField,         // clangIncludeTreeRoot
-                   IdentifierIDField          // moduleCacheKey
+                   IdentifierIDField,         // moduleCacheKey
+                   IsSystemField              // isSystem
                    >;
 } // namespace graph_block
 
