@@ -850,7 +850,11 @@ extension SIMD where Scalar: FixedWidthInteger {
   /// Equivalent to `indices.reduce(into: 0) { $0 &+= self[$1] }`.
   @_alwaysEmitIntoClient
   public func wrappedSum() -> Scalar {
-    return indices.reduce(into: 0) { $0 &+= self[$1] }
+    var result:Scalar = 0
+    for index in indices {
+      result &+= self[index]
+    }
+    return result
   }
 }
 

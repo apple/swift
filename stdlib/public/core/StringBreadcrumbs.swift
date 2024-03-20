@@ -15,7 +15,7 @@
 internal final class _StringBreadcrumbs {
   /// The distance between successive breadcrumbs, measured in UTF-16 code
   /// units.
-  internal static var breadcrumbStride: Int { 64 }
+  internal static var breadcrumbStride: Int { 128 }
 
   internal var utf16Length: Int
 

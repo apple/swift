@@ -29,6 +29,7 @@ public let benchmarks: [BenchmarkInfo] = [
 
   CopyUTF16CodeUnits(workload: asciiWorkload, count: 500).info,
   CopyUTF16CodeUnits(workload: mixedWorkload, count: 500).info,
+  CopyUTF16CodeUnits(workload: longMixedWorkload, count: 50).info,
 
   MutatedUTF16ToIdx(workload: asciiWorkload, count: 50).info,
   MutatedUTF16ToIdx(workload: mixedWorkload, count: 50).info,
