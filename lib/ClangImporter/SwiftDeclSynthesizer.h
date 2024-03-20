@@ -226,6 +226,13 @@ public:
                              ArrayRef<VarDecl *> members,
                              NominalTypeDecl *importedStructDecl,
                              VarDecl *importedFieldDecl);
+  
+//  /// Build the computed field getter and setter for bridged types
+//  ///
+//  /// \returns a pair of getter and setter function decls.
+//  std::pair<AccessorDecl *, AccessorDecl *>
+//  makeComputedFieldAccessors(
+//      const clang::FieldDecl *field, bool isConstQualified, NominalTypeDecl *typeDecl, VarDecl *importedFieldDecl);
 
   /// Build the init(rawValue:) initializer for an imported NS_ENUM.
   ///

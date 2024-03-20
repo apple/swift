@@ -1,5 +1,7 @@
 // RUN: %target-swift-frontend(mock-sdk: %clang-importer-sdk) -typecheck -parse-as-library -verify-additional-file %clang-importer-sdk-path/usr/include/objc_structs.h -verify %s
 
+// RUN: %target-swift-ide-test(mock-sdk: %clang-importer-sdk) -print-module -module-to-print=objc_structs -I %S/Inputs -source-filename=x -enable-objc-interop | %FileCheck -check-prefix=CHECK-IDE-TEST %s
+
 // REQUIRES: objc_interop
 
 import Foundation
@@ -57,15 +59,44 @@ func mutablePointerToObjC(_ path: String) throws -> NSString {
 
 func objcStructs(_ s: StructOfNSStrings, sb: StructOfBlocks) {
   // Struct fields must not be bridged.
-  _ = s.nsstr! as Bool // expected-error {{cannot convert value of type 'Unmanaged<NSString>' to type 'Bool' in coercion}}
-
+  _ = s.nsstr! as Bool // expected-error {{cannot convert value of type 'NSString' to type 'Bool' in coercion}}
+  
   // FIXME: Blocks should also be Unmanaged.
-  _ = sb.block as Bool // expected-error {{cannot convert value of type '@convention(block) () -> Void' to type 'Bool' in coercion}}
+  _ = sb.block as Bool // expected-error {{cannot convert value of type '() -> Void' to type 'Bool' in coercion}}
   sb.block() // okay
+}
 
-  // Structs with non-trivial copy/destroy should not be imported
-  _ = WeaksInAStruct() // expected-error {{cannot find 'WeaksInAStruct' in scope}}
-  _ = StrongsInAStruct() // expected-error {{cannot find 'StrongsInAStruct' in scope}}
+// CHECK-IDE-TEST: struct StrongsInAStruct {
+// CHECK-IDE-TEST:   init(myobj: MYObject)
+// CHECK-IDE-TEST:   var myobj: MYObject
+// CHECK-IDE-TEST: }
+
+// CHECK-IDE-TEST: struct WeaksInAStruct {
+// CHECK-IDE-TEST:   init()
+// CHECK-IDE-TEST:   init(myobj: MYObject?)
+// CHECK-IDE-TEST:   weak var myobj: @sil_weak MYObject?
+// CHECK-IDE-TEST: }
+
+// CHECK-IDE-TEST: struct WeakAndNonnull {
+// CHECK-IDE-TEST: }
+
+// Structs with non-trivial copy/destroy should be imported
+func objcStructsWithArcPointers(withWeaks weaks: WeaksInAStruct, strongs: StrongsInAStruct) -> StrongsInAStruct {
+  
+  // Weak references should be bridged as Optional
+  let anObject: MYObject = weaks.myobj ?? MYObject()
+  
+  // Should be able to construct these as well
+  _ = WeaksInAStruct(myobj: anObject)
+    
+  // Strong references should be retained by the struct's ctor
+  let aStrongInAStruct = StrongsInAStruct(myobj: anObject)
+
+  return aStrongInAStruct
+}
+
+func objcStructWithWeakNonnullDoesntMakeSense() {
+  let sct = WeakAndNonnull(myobj: MYObject()) // expected-error {{'WeakAndNonnull' cannot be constructed because it has no accessible initializers}}
 }
 
 func test_repair_does_not_interfere_with_conversions() {
