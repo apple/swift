@@ -31,6 +31,9 @@ struct OverrideSection {
 #include "CompatibilityOverride.def"
 };
   
+// We must ensure visibility become global non-hidden
+// because auto-linking from dep dylibs need this symbol
+__attribute__((visibility("default")))
 OverrideSection Swift50Overrides
 __attribute__((used, section("__DATA,__swift_hooks"))) = {
   .version = 0,

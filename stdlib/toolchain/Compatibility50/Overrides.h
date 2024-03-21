@@ -20,7 +20,9 @@ namespace swift {
 
 using ConformsToProtocol_t =
   const WitnessTable *(const Metadata *, const ProtocolDescriptor *);
-
+// We must ensure visibility become global non-hidden
+// because auto-linking from dep dylibs need this symbol
+__attribute__((visibility("default")))
 const WitnessTable *
 swift50override_conformsToProtocol(const Metadata * const type,
   const ProtocolDescriptor *protocol,

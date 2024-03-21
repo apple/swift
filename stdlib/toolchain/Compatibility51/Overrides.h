@@ -23,7 +23,9 @@ using ConformsToSwiftProtocol_t =
   const ProtocolConformanceDescriptor *(const Metadata * const type,
                                         const ProtocolDescriptor *protocol,
                                         llvm::StringRef moduleName);
-
+// We must ensure visibility become global non-hidden
+// because auto-linking from dep dylibs need this symbol
+__attribute__((visibility("default")))
 const ProtocolConformanceDescriptor *
 swift51override_conformsToSwiftProtocol(const Metadata * const type,
                                         const ProtocolDescriptor *protocol,
