@@ -1873,17 +1873,21 @@ InterfaceSubContextDelegateImpl::InterfaceSubContextDelegateImpl(
   if (LoaderOpts.requestedAction ==
       FrontendOptions::ActionType::ScanDependencies) {
     // For a dependency scanning action, interface build command generation must
-    // inherit
-    // `-Xcc` flags used for configuration of the building instance's
+    // inherit `-Xcc` flags used for configuration of the building instance's
     // `ClangImporter`. However, we can ignore Clang search path flags because
     // explicit Swift module build tasks will not rely on them and they may be
     // source-target-context-specific and hinder module sharing across
     // compilation source targets.
-    // Clang module dependecies of this Swift dependency will be distinguished by
-    // their context hash for different variants, so would still cause a difference
-    // in the Swift compile commands, when different.
-    inheritedParentContextClangArgs =
-        clangImporterOpts.getReducedExtraArgsForSwiftModuleDependency();
+    // If using DirectCC1Scan, the command-line reduction is handled inside
+    // `getSwiftExplicitModuleDirectCC1Args()`, there is no need to inherit
+    // anything here as the ExtraArgs from the invocation are clang driver
+    // options, not cc1 options.
+    // Clang module dependecies of this Swift dependency will be distinguished
+    // by their context hash for different variants, so would still cause a
+    // difference in the Swift compile commands, when different.
+    if (!clangImporterOpts.ClangImporterDirectCC1Scan)
+      inheritedParentContextClangArgs =
+          clangImporterOpts.getReducedExtraArgsForSwiftModuleDependency();
     genericSubInvocation.getFrontendOptions()
         .DependencyScanningSubInvocation = true;
   } else if (LoaderOpts.strictImplicitModuleContext ||
