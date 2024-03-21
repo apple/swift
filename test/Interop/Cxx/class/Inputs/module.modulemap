@@ -141,3 +141,8 @@ module CopyMoveAssignment {
   header "copy-move-assignment.h"
   requires cplusplus
 }
+
+module NonTrivialClasses {
+  header "non-trivial-classes.h"
+  requires cplusplus
+}

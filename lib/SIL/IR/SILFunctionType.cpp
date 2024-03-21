@@ -3298,6 +3298,10 @@ static ParameterConvention getIndirectCParameterConvention(clang::QualType type)
   // A trivial const * parameter in C should be considered @in.
   if (importer::isCxxConstReferenceType(type.getTypePtr()))
     return ParameterConvention::Indirect_In_Guaranteed;
+  if (auto *decl = type->getAsRecordDecl())
+    return decl->isParamDestroyedInCallee()
+               ? ParameterConvention::Indirect_In
+               : ParameterConvention::Indirect_In_Guaranteed;
   return ParameterConvention::Indirect_In;
 }
 
