@@ -163,20 +163,22 @@ SwiftValueHeader::cacheHashableEquatableConformance() const {
 
     // Set the conformance/baseType caches atomically
     uintptr_t expectedConformance = 0;
-    cachedConformance.compare_exchange_strong(
-      expectedConformance, conformance, std::memory_order_acq_rel);
     uintptr_t expectedType = 0;
-    cachedBaseType.compare_exchange_strong(
-      expectedType, baseType, std::memory_order_acq_rel);
+    cachedConformance.compare_exchange_strong(expectedConformance, conformance,
+                                              std::memory_order_relaxed,
+                                              std::memory_order_relaxed);
+    cachedBaseType.compare_exchange_strong(expectedType, baseType,
+                                           std::memory_order_relaxed,
+                                           std::memory_order_relaxed);
 
     return conformance;
 }
 
 const Metadata *SwiftValueHeader::getHashableBaseType() const {
-  auto type = cachedBaseType.load(std::memory_order_acquire);
+  auto type = cachedBaseType.load(std::memory_order_relaxed);
   if (type == 0) {
     cacheHashableEquatableConformance();
-    type = cachedBaseType.load(std::memory_order_acquire);
+    type = cachedBaseType.load(std::memory_order_relaxed);
   }
   if ((type & 1) == 0) {
     // A Hashable conformance was found
@@ -188,10 +190,10 @@ const Metadata *SwiftValueHeader::getHashableBaseType() const {
 }
 
 const Metadata *SwiftValueHeader::getEquatableBaseType() const {
-  auto type = cachedBaseType.load(std::memory_order_acquire);
+  auto type = cachedBaseType.load(std::memory_order_relaxed);
   if (type == 0) {
     cacheHashableEquatableConformance();
-    type = cachedBaseType.load(std::memory_order_acquire);
+    type = cachedBaseType.load(std::memory_order_relaxed);
   }
   if ((type & 1) == 0) {
     // A Hashable conformance was found
@@ -204,7 +206,7 @@ const Metadata *SwiftValueHeader::getEquatableBaseType() const {
 
 const hashable_support::HashableWitnessTable *
 SwiftValueHeader::getHashableConformance() const {
-  uintptr_t wt = cachedConformance.load(std::memory_order_acquire);
+  uintptr_t wt = cachedConformance.load(std::memory_order_relaxed);
   if (wt == 0) {
     wt = cacheHashableEquatableConformance();
   }
@@ -219,7 +221,7 @@ SwiftValueHeader::getHashableConformance() const {
 
 const equatable_support::EquatableWitnessTable *
 SwiftValueHeader::getEquatableConformance() const {
-  uintptr_t wt = cachedConformance.load(std::memory_order_acquire);
+  uintptr_t wt = cachedConformance.load(std::memory_order_relaxed);
   if (wt == 0) {
     wt = cacheHashableEquatableConformance();
   }
