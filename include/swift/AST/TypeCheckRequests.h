@@ -1106,7 +1106,7 @@ public:
 ///
 class CheckDistributedFunctionRequest :
     public SimpleRequest<CheckDistributedFunctionRequest,
-                         bool(AbstractFunctionDecl *),
+                         bool(AbstractFunctionDecl *, ClassDecl *),
                          RequestFlags::Cached> {
 public:
   using SimpleRequest::SimpleRequest;
@@ -1116,7 +1116,9 @@ private:
 
   /// \returns \c true if there was a problem with the function declaration,
   /// \c false otherwise.
-  bool evaluate(Evaluator &evaluator, AbstractFunctionDecl *) const;
+  bool evaluate(Evaluator &evaluator,
+                AbstractFunctionDecl *,
+                /*inContext=*/ClassDecl *) const;
 
 public:
   // Caching

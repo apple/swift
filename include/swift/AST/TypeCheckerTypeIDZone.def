@@ -113,7 +113,7 @@ SWIFT_REQUEST(TypeChecker, IsDefaultActorRequest,
               bool(ClassDecl *, ModuleDecl *, ResilienceExpansion),
               Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, CheckDistributedFunctionRequest,
-              bool(AbstractFunctionDecl *),
+              bool(AbstractFunctionDecl *, ClassDecl *),
               Cached, NoLocationInfo)
 SWIFT_REQUEST(TypeChecker, IsDistributedActorRequest, bool(NominalTypeDecl *),
               Cached, NoLocationInfo)
