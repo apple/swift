@@ -229,6 +229,31 @@ bool useLegacySwiftValueUnboxingInCasting() {
 #endif
 }
 
+// Should Obj-C metatypes successfully cast to an Obj-C protocol if the type
+// satisfies the protocol?
+
+// This bug made Obj-C metatype casting unsound; whether a type satisfies a
+// protocol is different from whether the METAtype satisfies it.  Exception: All
+// Obj-C metatypes are in fact NSObjects, so satisfy NSObjectProtocol.
+
+// Sordid history: Behavior was changed in PR#69435, but that incorrectly
+// forbade casting metatypes to NSObject, so was reverted in PR#71065.  Then
+// redone in PR ##### with ####.
+
+// For example, this cast
+//  ### TODO ###
+// always succeeded with the legacy semantics.
+
+bool useLegacyObjCMetatypeCasting() {
+#if BINARY_COMPATIBILITY_APPLE
+  return true; // For now, use compatibility behavior on Apple OSes
+#elif SWIFT_TARGET_OS_DARWIN
+  return true; // For now, use legacy behavior on open-source builds for Apple platforms
+#else
+  return false; // Always use the new behavior on non-Apple OSes
+#endif
+}
+
 // Controls how ObjC -hashValue and -isEqual are handled
 // by Swift objects.
 // There are two basic semantics:

@@ -533,6 +533,26 @@ tryCastToObjectiveCClass(
     break;
   }
 
+  case MetadataKind::Metatype: { // Metatype  => Obj-C Class
+    auto metatypePtr = reinterpret_cast<const Metadata **>(srcValue);
+    auto metatype = *metatypePtr;
+    // ObjC metatypes can always be cast to NSObject
+    // (but not to any other class)
+    if (destType == getNSObjectMetadata()) {
+      if (metatype->getKind() == MetadataKind::Class) {
+	auto resultObject = (id)metatype->getObjCClassObject();
+	*reinterpret_cast<id *>(destLocation) = resultObject;
+	if (takeOnSuccess) {
+	  return DynamicCastResult::SuccessViaTake;
+	} else {
+	  objc_retain(resultObject);
+	  return DynamicCastResult::SuccessViaCopy;
+	}
+      }
+    }
+    break;
+  }
+
   default:
     break;
   }
