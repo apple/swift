@@ -143,7 +143,7 @@ class WasmLLVMRuntimeLibs(cmake_product.CMakeProduct):
                                   'libcxx;libcxxabi;compiler-rt')
         libdir_suffix = '/wasm32-wasi'
         if enable_wasi_threads:
-            libdir_suffix = '/wasm32-wasi-threads'
+            libdir_suffix = '/wasm32-wasip1-threads'
         self.cmake_options.define('LIBCXX_LIBDIR_SUFFIX:STRING', libdir_suffix)
         self.cmake_options.define('LIBCXXABI_LIBDIR_SUFFIX:STRING', libdir_suffix)
         self.cmake_options.define('CMAKE_STAGING_PREFIX:PATH', '/')
@@ -183,7 +183,7 @@ class WasmLLVMRuntimeLibs(cmake_product.CMakeProduct):
         self.cmake_options.define('CMAKE_C_FLAGS:STRING', ' '.join(c_flags))
         self.cmake_options.define('CMAKE_CXX_FLAGS:STRING', ' '.join(cxx_flags))
 
-        target_triple = 'wasm32-wasi-threads' if enable_wasi_threads else 'wasm32-wasi'
+        target_triple = 'wasm32-wasip1-threads' if enable_wasi_threads else 'wasm32-wasi'
         self.cmake_options.define('CMAKE_C_COMPILER_TARGET:STRING', target_triple)
         self.cmake_options.define('CMAKE_CXX_COMPILER_TARGET:STRING', target_triple)
 
