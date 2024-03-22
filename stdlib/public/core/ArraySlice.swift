@@ -96,10 +96,10 @@
 ///
 /// Here's an implementation of those steps:
 ///
-///     if let i = absences.firstIndex(where: { $0 > 0 }) {                 // 1
-///         let absencesAfterFirst = absences[(i + 1)...]                   // 2
-///         if let j = absencesAfterFirst.firstIndex(where: { $0 > 0 }) {   // 3
-///             print("The first day with absences had \(absences[i]).")    // 4
+///     if let i = absences.firstIndex(where: { $0 > 0 }) {                 // step 1
+///         let absencesAfterFirst = absences[(i + 1)...]                   // step 2
+///         if let j = absencesAfterFirst.firstIndex(where: { $0 > 0 }) {   // step 3
+///             print("The first day with absences had \(absences[i]).")    // step 4
 ///             print("The second day with absences had \(absences[j]).")
 ///         }
 ///     }
