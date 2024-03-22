@@ -15,3 +15,12 @@ file(TO_CMAKE_PATH "${LLVM_BUILD_BINARY_DIR}/bin/FileCheck${CMAKE_EXECUTABLE_SUF
 swift_install_in_component(PROGRAMS "${_SWIFT_UTILS_FILECHECK}"
                            DESTINATION bin
                            COMPONENT llvm-toolchain-dev-tools)
+
+# Copy over llvm-ar to use in building the Swift portions of the corelibs on
+# Unix platforms.
+if(NOT "${SWIFT_HOST_VARIANT_SDK}" MATCHES "OSX|WINDOWS")
+  file(COPY ${LLVM_RUNTIME_OUTPUT_INTDIR}/bin/llvm-ar
+    DESTINATION "${SWIFT_RUNTIME_OUTPUT_INTDIR}"
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+    GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+endif()

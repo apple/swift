@@ -428,12 +428,8 @@ toolchains::GenericUnix::constructInvocation(const StaticLinkJobAction &job,
 
   ArgStringList Arguments;
 
-  const char *AR;
+  const char *AR = "llvm-ar";
   // Configure the toolchain.
-  if (getTriple().isAndroid())
-    AR = "llvm-ar";
-  else
-    AR = context.OI.LTOVariant != OutputInfo::LTOKind::None ? "llvm-ar" : "ar";
   Arguments.push_back("crs");
 
   Arguments.push_back(
