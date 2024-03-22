@@ -190,6 +190,9 @@ public func deployedUseNoAvailable( // expected-note 5 {{add @available attribut
 
 @available(macOS 10.9, *)
 public func deployedUseBeforeInliningTarget(
+  // expected-note@-1 {{update @available attribute for macOS from '10.9' to '10.14.5' to meet the requirements of 'BetweenTargets'}} {{191:18-22=10.14.5}}
+  // expected-note@-2 3 {{update @available attribute for macOS from '10.9' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{191:18-22=11}}
+  // expected-note@-3 {{update @available attribute for macOS from '10.9' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{191:18-22=10.15}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -215,6 +218,9 @@ public func deployedUseBeforeInliningTarget(
 
 @available(macOS 10.10, *)
 public func deployedUseAtInliningTarget(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.10' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{219:18-23=11}}
+  // expected-note@-2 {{update @available attribute for macOS from '10.10' to '10.14.5' to meet the requirements of 'BetweenTargets'}} {{219:18-23=10.14.5}}
+  // expected-note@-3 {{update @available attribute for macOS from '10.10' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{219:18-23=10.15}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -240,6 +246,8 @@ public func deployedUseAtInliningTarget(
 
 @available(macOS 10.14.5, *)
 public func deployedUseBetweenTargets(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.14.5' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{247:18-25=11}}
+  // expected-note@-2 {{update @available attribute for macOS from '10.14.5' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{247:18-25=10.15}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -265,6 +273,7 @@ public func deployedUseBetweenTargets(
 
 @available(macOS 10.15, *)
 public func deployedUseAtDeploymentTarget(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.15' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{274:18-23=11}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -422,6 +431,9 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
 
 @available(macOS 10.9, *)
 @inlinable public func inlinedUseBeforeInliningTarget(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.9' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{432:18-22=11}}
+  // expected-note@-2 2 {{update @available attribute for macOS from '10.9' to '10.14.5' to meet the requirements of 'BetweenTargets'}} {{432:18-22=10.14.5}}
+  // expected-note@-3 3 {{update @available attribute for macOS from '10.9' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{432:18-22=10.15}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -453,6 +465,9 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
 
 @available(macOS 10.10, *)
 @inlinable public func inlinedUseAtInliningTarget(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.10' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{466:18-23=10.15}}
+  // expected-note@-2 3 {{update @available attribute for macOS from '10.10' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{466:18-23=11}}
+  // expected-note@-3 2 {{update @available attribute for macOS from '10.10' to '10.14.5' to meet the requirements of 'BetweenTargets'}} {{466:18-23=10.14.5}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -484,6 +499,8 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
 
 @available(macOS 10.14.5, *)
 @inlinable public func inlinedUseBetweenTargets(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.14.5' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{500:18-25=10.15}}
+  // expected-note@-2 3 {{update @available attribute for macOS from '10.14.5' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{500:18-25=11}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -512,6 +529,7 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
 
 @available(macOS 10.15, *)
 @inlinable public func inlinedUseAtDeploymentTarget(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.15' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{530:18-23=11}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -644,6 +662,7 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
 
 @available(macOS 10.15, *)
 @inlinable public var inlinedAtDeploymentTargetGlobal: Any {
+  // expected-note@-1 {{update @available attribute for macOS from '10.15' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{663:18-23=11}}
   _ = NoAvailable()
   _ = BeforeInliningTarget()
   _ = AtInliningTarget()
@@ -788,6 +807,9 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
 @available(macOS 10.10, *)
 @backDeployed(before: macOS 999.0)
 public func backDeployedToInliningTarget(
+  // expected-note@-1 3 {{update @available attribute for macOS from '10.10' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{807:18-23=11}}
+  // expected-note@-2 2 {{update @available attribute for macOS from '10.10' to '10.14.5' to meet the requirements of 'BetweenTargets'}} {{807:18-23=10.14.5}}
+  // expected-note@-3 3 {{update @available attribute for macOS from '10.10' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{807:18-23=10.15}}
   _: NoAvailable,
   _: BeforeInliningTarget,
   _: AtInliningTarget,
@@ -1042,6 +1064,8 @@ public struct PublicStruct { // expected-note 21 {{add @available attribute}}
 
   @available(macOS 10.14.5, *)
   public internal(set) var internalSetter: Void {
+    // expected-note@-1 {{update @available attribute for macOS from '10.14.5' to '10.15' to meet the requirements of 'AtDeploymentTarget'}} {{1065:20-27=10.15}}
+    // expected-note@-2 2 {{update @available attribute for macOS from '10.14.5' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{1065:20-27=11}}
     @inlinable get {
       // Public inlinable getter acts like @inlinable
       _ = NoAvailable()
@@ -1294,6 +1318,7 @@ extension BetweenTargets { // expected-note 2 {{add @available attribute to encl
 
 @available(macOS 10.15, *)
 extension BetweenTargets {
+  // expected-note@-1 {{update @available attribute for macOS from '10.15' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{1319:18-23=11}}
   public func publicFuncInExtensionWithExplicitAvailability( // expected-note {{add @available attribute to enclosing instance method}}
     _: NoAvailable,
     _: BeforeInliningTarget,
@@ -1307,6 +1332,7 @@ extension BetweenTargets {
 extension BetweenTargets { // expected-note {{add @available attribute to enclosing extension}}
   @available(macOS 10.15, *)
   public func publicFuncWithExplicitAvailabilityInExtension(
+    // expected-note@-1 {{update @available attribute for macOS from '10.15' to '11' to meet the requirements of 'AfterDeploymentTarget'}} {{1333:20-25=11}}
     _: NoAvailable,
     _: BeforeInliningTarget,
     _: AtInliningTarget,
@@ -1356,6 +1382,7 @@ extension BetweenTargets {
 
 @available(macOS 10.10, *)
 extension BetweenTargets { // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{update @available attribute for macOS from '10.10' to '10.14.5' to meet the requirements of 'BetweenTargets'}} {{1383:18-23=10.14.5}}
   public func publicFuncInExcessivelyAvailableExtension() {}
 }
 
@@ -1498,6 +1525,9 @@ public protocol NoAvailableProtoWithAssoc { // expected-note 3 {{add @available 
 
 @available(macOS 10.9, *)
 public protocol BeforeInliningTargetProtoWithAssoc {
+  // expected-note@-1 {{update @available attribute for macOS from '10.9' to '10.14.5' to meet the requirements of 'BetweenTargetsProto'}} {1526:18-22=10.14.5}}
+  // expected-note@-2 {{update @available attribute for macOS from '10.9' to '10.15' to meet the requirements of 'AtDeploymentTargetProto'}} {{1526:18-22=10.15}}
+  // expected-note@-3 {{update @available attribute for macOS from '10.9' to '11' to meet the requirements of 'AfterDeploymentTargetProto'}} {{1526:18-22=11}}
   associatedtype A: NoAvailableProto
   associatedtype B: BeforeInliningTargetProto
   associatedtype C: AtInliningTargetProto
@@ -1511,6 +1541,9 @@ public protocol BeforeInliningTargetProtoWithAssoc {
 
 @available(macOS 10.10, *)
 public protocol AtInliningTargetProtoWithAssoc {
+  // expected-note@-1 {{update @available attribute for macOS from '10.10' to '10.15' to meet the requirements of 'AtDeploymentTargetProto'}} {{1542:18-23=10.15}}
+  // expected-note@-2 {{update @available attribute for macOS from '10.10' to '10.14.5' to meet the requirements of 'BetweenTargetsProto'}}  {{1542:18-23=10.14.5}}
+  // expected-note@-3 {{update @available attribute for macOS from '10.10' to '11' to meet the requirements of 'AfterDeploymentTargetProto'}}  {{1542:18-23=11}}
   associatedtype A: NoAvailableProto
   associatedtype B: BeforeInliningTargetProto
   associatedtype C: AtInliningTargetProto
@@ -1524,6 +1557,8 @@ public protocol AtInliningTargetProtoWithAssoc {
 
 @available(macOS 10.14.5, *)
 public protocol BetweenTargetsProtoWithAssoc {
+  // expected-note@-1 {{update @available attribute for macOS from '10.14.5' to '10.15' to meet the requirements of 'AtDeploymentTargetProto'}} {{1558:18-25=10.15}}
+  // expected-note@-2 {{update @available attribute for macOS from '10.14.5' to '11' to meet the requirements of 'AfterDeploymentTargetProto'}} {{1558:18-25=11}}
   associatedtype A: NoAvailableProto
   associatedtype B: BeforeInliningTargetProto
   associatedtype C: AtInliningTargetProto
@@ -1536,6 +1571,7 @@ public protocol BetweenTargetsProtoWithAssoc {
 
 @available(macOS 10.15, *)
 public protocol AtDeploymentTargetProtoWithAssoc {
+  // expected-note@-1 {{update @available attribute for macOS from '10.15' to '11' to meet the requirements of 'AfterDeploymentTargetProto'}} {{1572:18-23=11}}
   associatedtype A: NoAvailableProto
   associatedtype B: BeforeInliningTargetProto
   associatedtype C: AtInliningTargetProto

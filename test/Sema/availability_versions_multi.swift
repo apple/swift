@@ -25,6 +25,11 @@ let ignored3: Int = globalAvailableOn99_52 // expected-error {{'globalAvailableO
 
 @available(OSX, introduced: 99.51)
 func useFromOtherOn99_51() {
+  // expected-note@-1 {{update @available attribute for macOS from '99.51' to '99.52' to meet the requirements of 'returns99_52Introduced99_52'}} {{26:29-34=99.52}}
+  // expected-note@-2 {{update @available attribute for macOS from '99.51' to '99.52' to meet the requirements of 'OtherIntroduced99_52'}} {{26:29-34=99.52}}
+  // expected-note@-3 {{update @available attribute for macOS from '99.51' to '99.52' to meet the requirements of 'extensionMethodOnOtherIntroduced99_51AvailableOn99_52'}} {{26:29-34=99.52}}
+  // expected-note@-4 {{update @available attribute for macOS from '99.51' to '99.52' to meet the requirements of 'NestedIntroduced99_52'}} {{26:29-34=99.52}}
+
   // This will trigger validation of OtherIntroduced99_51 in
   // in availability_multi_other.swift
   let o99_51 = OtherIntroduced99_51()
@@ -49,6 +54,7 @@ func useFromOtherOn99_51() {
 
 @available(OSX, introduced: 99.52)
 func useFromOtherOn99_52() {
+  // expected-note@-1 {{update @available attribute for macOS from '99.52' to '99.53' to meet the requirements of 'returns99_53'}} {{55:29-34=99.53}}
   _ = OtherIntroduced99_52()
 
   let n99_52 = OtherIntroduced99_51.NestedIntroduced99_52()

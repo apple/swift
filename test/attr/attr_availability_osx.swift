@@ -115,7 +115,7 @@ extension TestStruct {
 }
 
 @available(macOS 10.11, *)
-func testMemberAvailability() {
+func testMemberAvailability() { // expected-note {{update @available attribute for macOS from '10.11' to '10.12' to meet the requirements of 'doFourthThing'}} {{117:18-23=10.12}}
   TestStruct().doTheThing() // expected-error {{'doTheThing()' is unavailable}}
   TestStruct().doAnotherThing() // expected-error {{'doAnotherThing()' is unavailable}}
   TestStruct().doThirdThing() // expected-error {{'doThirdThing()' is unavailable}}
