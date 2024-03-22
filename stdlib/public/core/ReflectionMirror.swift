@@ -362,7 +362,8 @@ public func _forEachFieldWithKeyPath<Root>(
       destBuilder.pushHeader(KeyPathBuffer.Header(
         size: resultSize - MemoryLayout<Int>.size,
         trivial: true,
-        hasReferencePrefix: false
+        hasReferencePrefix: false,
+        isSingleComponent: true
       ))
       let component = RawKeyPathComponent(
            header: RawKeyPathComponent.Header(stored: .struct,

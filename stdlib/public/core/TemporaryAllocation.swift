@@ -84,7 +84,7 @@ internal func _isStackAllocationSafe(byteCount: Int, alignment: Int) -> Bool {
   // without worrying about running out of space, and the compiler would emit
   // such allocations on the stack anyway when they represent structures or
   // stack-promoted objects.
-  if byteCount <= 1024 {
+  if _fastPath(byteCount <= 1024) {
     return true
   }
 
