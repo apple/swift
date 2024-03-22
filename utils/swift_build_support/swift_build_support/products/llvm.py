@@ -11,6 +11,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import errno
 import shutil
 from platform import system
 
@@ -350,6 +351,36 @@ class LLVM(cmake_product.CMakeProduct):
         if not self.args.llvm_include_tests:
             llvm_cmake_options.define('LLVM_INCLUDE_TESTS', 'NO')
             llvm_cmake_options.define('CLANG_INCLUDE_TESTS', 'NO')
+
+        build_root = os.path.dirname(self.build_dir)
+        host_machine_target = targets.StdlibDeploymentTarget.host_target().name
+        host_build_dir = os.path.join(build_root, 'llvm-{}'.format(
+            host_machine_target))
+
+        # Install config files for linux-static
+        bin_dir = os.path.join(host_build_dir, 'bin')
+        try:
+            os.makedirs(bin_dir)
+        except FileExistsError:
+            pass
+
+        musl_cfg = os.path.join(bin_dir, f'{arch}-swift-linux-musl-clang.cfg')
+        with open(musl_cfg, "wt") as f:
+            f.write(f"""
+-target {arch}-swift-linux-musl
+-rtlib=compiler-rt
+-stdlib=libc++
+-fuse-ld=lld
+-unwindlib=libunwind
+-lc++abi
+-funwind-tables
+-fasynchronous-unwind-tables
+            """)
+        for name in (f'{arch}-swift-linux-musl-clang++.cfg', ):
+            try:
+                os.symlink(musl_cfg, os.path.join(host_build_dir, 'bin', name))
+            except FileExistsError:
+                pass
 
         if self.is_cross_compile_target(host_target):
             build_root = os.path.dirname(self.build_dir)
