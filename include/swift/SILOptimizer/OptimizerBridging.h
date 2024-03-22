@@ -56,9 +56,6 @@ class SwiftPassInvocation;
 class FixedSizeSlabPayload;
 class FixedSizeSlab;
 class SILVTable;
-namespace Mangle {
-class FunctionSignatureSpecializationMangler;
-}
 }
 
 struct BridgedPassContext;
@@ -177,32 +174,6 @@ struct BridgedCloner {
   SWIFT_IMPORT_UNSAFE BridgedValue getClonedValue(BridgedValue v);
   bool isValueCloned(BridgedValue v) const;
   void clone(BridgedInstruction inst);
-};
-
-enum class BridgedSpecializationPass : SwiftUInt {
-  AllocBoxToStack = 0,
-  ClosureSpecializer,
-  CapturePromotion,
-  CapturePropagation,
-  FunctionSignatureOpts,
-  GenericSpecializer,
-  MoveDiagnosticInOutToOut,
-  AsyncDemotion,
-  LAST = AsyncDemotion
-};
-
-using SpecializationPass = BridgedSpecializationPass;
-
-struct BridgedFunctionSignatureSpecializationMangler {
-  swift::Mangle::FunctionSignatureSpecializationMangler
-      *_Nonnull specializationMangler;
-
-  SWIFT_IMPORT_UNSAFE BridgedFunctionSignatureSpecializationMangler(
-      BridgedSpecializationPass specializationPass, bool isSerialized,
-      BridgedFunction function);
-  void setArgumentClosureProp(SwiftInt argIndex,
-                              BridgedInstruction instruction) const;
-  SWIFT_IMPORT_UNSAFE BridgedOwnedString mangle() const;
 };
 
 struct BridgedPassContext {

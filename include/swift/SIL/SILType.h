@@ -668,13 +668,6 @@ public:
     return SILType(castTo<TupleType>().getElementType(index), getCategory());
   }
 
-  /// Given that this is a tuple type, return the name of the
-  /// given tuple element.  The result will have the same value
-  /// category as the base type.
-  StringRef getTupleElementName(intptr_t index) const {
-    return castTo<TupleType>()->getElement(index).getName().str();
-  }
-
   /// Given that this is a pack type, return the lowered type of the
   /// given pack element.  The result will have the same value
   /// category as the base type.

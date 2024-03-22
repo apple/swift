@@ -270,10 +270,6 @@ public struct TupleElementArray : RandomAccessCollection, FormattedLikeArray {
   public subscript(_ index: Int) -> Type {
     type.bridged.getTupleElementType(index).type
   }
-
-  public subscript(nameOf index: Int) -> String {
-    String(type.bridged.getTupleElementName(index))
-  }
 }
 
 extension BridgedType {

@@ -383,10 +383,6 @@ BridgedType BridgedType::getTupleElementType(SwiftInt idx) const {
   return unbridged().getTupleElementType(idx);
 }
 
-BridgedStringRef BridgedType::getTupleElementName(SwiftInt idx) const {
-  return {unbridged().getTupleElementName(idx)};
-}
-
 BridgedType BridgedType::getFunctionTypeWithNoEscape(bool withNoEscape) const {
   auto fnType = unbridged().getAs<swift::SILFunctionType>();
   auto newTy = fnType->getWithExtInfo(fnType->getExtInfo().withNoEscape(true));

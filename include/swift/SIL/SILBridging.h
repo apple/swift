@@ -376,8 +376,6 @@ struct BridgedType {
   BRIDGED_INLINE SwiftInt getNumTupleElements() const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedType
   getTupleElementType(SwiftInt idx) const;
-  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedStringRef
-  getTupleElementName(SwiftInt idx) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedType getFunctionTypeWithNoEscape(bool withNoEscape) const;
 };
 
