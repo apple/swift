@@ -1010,6 +1010,7 @@ static Operand *getReusedStorageOperand(SILValue value) {
     break;
 
   case ValueKind::CopyableToMoveOnlyWrapperValueInst:
+  case ValueKind::DropDeinitInst:
   case ValueKind::MoveOnlyWrapperToCopyableValueInst:
   case ValueKind::OpenExistentialValueInst:
   case ValueKind::OpenExistentialBoxValueInst:
@@ -3420,6 +3421,18 @@ protected:
 
     auto destAddr =
         builder.createCopyableToMoveOnlyWrapperAddr(inst->getLoc(), srcAddr);
+
+    markRewritten(inst, destAddr);
+  }
+
+  void visitDropDeinitInst(DropDeinitInst *inst) {
+    assert(use == getReusedStorageOperand(inst));
+    assert(inst->getType().isAddressOnly(*pass.function));
+    SILValue srcVal = inst->getOperand();
+    SILValue srcAddr = pass.valueStorageMap.getStorage(srcVal).storageAddress;
+
+    auto destAddr =
+        builder.createDropDeinit(inst->getLoc(), srcAddr);
 
     markRewritten(inst, destAddr);
   }

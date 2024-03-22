@@ -46,6 +46,7 @@ bool ForwardingOperation::hasSameRepresentation() const {
   case SILInstructionKind::CopyableToMoveOnlyWrapperValueInst:
   case SILInstructionKind::DestructureTupleInst:
   case SILInstructionKind::DestructureStructInst:
+  case SILInstructionKind::DropDeinitInst:
   case SILInstructionKind::InitExistentialRefInst:
   case SILInstructionKind::ObjectInst:
   case SILInstructionKind::OpenExistentialBoxValueInst:
