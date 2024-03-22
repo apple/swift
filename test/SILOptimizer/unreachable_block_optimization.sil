@@ -1,0 +1,116 @@
+// RUN: %target-sil-opt                     \
+// RUN:     %s                              \
+// RUN:     -enable-sil-verify-all          \
+// RUN:     -unreachable-block-optimization \
+// RUN: | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
+
+sil_stage lowered
+
+import Builtin
+
+typealias NO = Builtin.NativeObject
+
+// CHECK-LABEL: sil @oneblock1_strongrelease_1 : {{.*}} {
+// CHECK:         cond_br undef, [[DIE:bb[0-9]+]]
+// CHECK:       [[DIE]]:
+// CHECK-NOT:     strong_release
+// CHECK:         unreachable
+// CHECK-LABEL: } // end sil function 'oneblock1_strongrelease_1'
+sil @oneblock1_strongrelease_1 : $@convention(thin) (@owned NO) -> () {
+entry(%no : $NO):
+  cond_br undef, die, exit
+
+die:
+  strong_release %no : $NO
+  unreachable
+
+exit:
+  strong_release %no : $NO
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil @oneblock1_strongretain_1 : {{.*}} {
+// CHECK:         cond_br undef, [[DIE:bb[0-9]+]]
+// CHECK:       [[DIE]]:
+// CHECK:         strong_retain
+// CHECK:         apply undef
+// CHECK:         unreachable
+// CHECK-LABEL: } // end sil function 'oneblock1_strongretain_1'
+sil @oneblock1_strongretain_1 : $@convention(thin) (@owned NO) -> () {
+entry(%no : $NO):
+  cond_br undef, die, exit
+
+die:
+  strong_retain %no : $NO
+  apply undef(%no) : $@convention(thin) (@owned NO) -> ()
+  strong_release %no : $NO
+  unreachable
+
+exit:
+  strong_release %no : $NO
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil @twoblock1_strongrelease : {{.*}} {
+// CHECK:         cond_br undef, [[TO_DIE:bb[0-9]+]]
+// CHECK:       [[TO_DIE]]
+// CHECK:         br [[DIE:bb[0-9]+]]
+// CHECK-NOT:     strong_release
+// CHECK:       [[DIE]]:
+// CHECK:         unreachable
+// CHECK-LABEL: } // end sil function 'twoblock1_strongrelease'
+sil @twoblock1_strongrelease : $@convention(thin) (@owned NO) -> () {
+entry(%no : $NO):
+  cond_br undef, to_die, exit
+
+to_die:
+  strong_release %no : $NO
+  br die
+
+die:
+  unreachable
+
+exit:
+  strong_release %no : $NO
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil @threeblock1_strongrelease : {{.*}} {
+// CHECK:         cond_br undef, [[DEAD:bb[0-9]+]]
+// CHECK:       [[DEAD]]:
+// CHECK-NOT:     strong_release
+// CHECK:         cond_br undef, [[LEFT:bb[0-9]+]], [[RIGHT:bb[0-9]+]]
+// CHECK:       [[LEFT]]:
+// CHECK:         br [[DIE:bb[0-9]+]]
+// CHECK:       [[RIGHT]]:
+// CHECK:         br [[DIE]]
+// CHECK:       [[DIE]]:
+// CHECK:         unreachable
+// CHECK-LABEL: } // end sil function 'threeblock1_strongrelease'
+sil @threeblock1_strongrelease : $@convention(thin) (@owned NO) -> () {
+entry(%no : $NO):
+  cond_br undef, dead, exit
+
+dead:
+  strong_release %no : $NO
+  cond_br undef, left, right
+
+left:
+  br die
+
+right:
+  br die
+
+die:
+  unreachable
+
+exit:
+  strong_release %no : $NO
+  %retval = tuple ()
+  return %retval : $()
+}

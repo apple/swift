@@ -431,6 +431,8 @@ SWIFT_FUNCTION_PASS(StripObjectHeaders, "strip-object-headers",
     "Sets the bare flag on objects which don't need their headers")
 SWIFT_FUNCTION_PASS(AllocVectorLowering, "alloc-vector-lowering",
      "lowering of allocVector builtins")
+SWIFT_FUNCTION_PASS(UnreachableBlockOptimization, "unreachable-block-optimization",
+    "Delete instructions withiout strongly ordered side-effects from dead-end blocks")
 PASS(SimplifyBBArgs, "simplify-bb-args",
      "SIL Block Argument Simplification")
 PASS(SimplifyCFG, "simplify-cfg",
