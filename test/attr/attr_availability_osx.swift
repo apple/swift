@@ -120,6 +120,7 @@ func testMemberAvailability() {
   TestStruct().doAnotherThing() // expected-error {{'doAnotherThing()' is unavailable}}
   TestStruct().doThirdThing() // expected-error {{'doThirdThing()' is unavailable}}
   TestStruct().doFourthThing() // expected-error {{'doFourthThing()' is only available in macOS 10.12 or newer}} expected-note {{'if #available'}}
+  // expected-note @-1 {{change the @available attribute of the global function on macOS from 10.11 to 10.12}}
   TestStruct().doDeprecatedThing() // expected-warning {{'doDeprecatedThing()' is deprecated}}
 }
 

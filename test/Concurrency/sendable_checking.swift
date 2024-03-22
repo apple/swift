@@ -51,6 +51,7 @@ func testCV(
 
   acceptCV(ns3) // expected-warning {{conformance of 'NS3' to 'Sendable' is only available in macOS 11.0 or newer}}
   // expected-note @-1 {{add 'if #available' version check}}
+  // expected-note @-2 {{change the @available attribute of the global function on macOS from 10.15 to 11.0}}
 
   acceptCV(ns4) // expected-complete-and-tns-warning {{type 'NS4' does not conform to the 'Sendable' protocol}}
 
@@ -71,6 +72,7 @@ func testCV(
   acceptCV(ns2) // expected-warning{{type 'NS2' does not conform to the 'Sendable' protocol}}
   acceptCV(ns3) // expected-warning{{conformance of 'NS3' to 'Sendable' is only available in macOS 11.0 or newer}}
   // expected-note@-1{{add 'if #available' version check}}
+  // expected-note @-2 {{change the @available attribute of the global function on macOS from 10.15 to 11.0}}
   acceptCV(ns4) // expected-warning{{type 'NS4' does not conform to the 'Sendable' protocol}}
   acceptCV(fn) // expected-warning{{type '() -> Void' does not conform to the 'Sendable' protocol}}
   // expected-note@-1{{a function type must be marked '@Sendable' to conform to 'Sendable'}}

@@ -6649,6 +6649,9 @@ ERROR(availability_variadic_type_only_version_newer, none,
 NOTE(availability_guard_with_version_check, none,
      "add 'if #available' version check", ())
 
+NOTE(update_availability_attribute, none,
+     "change the @available attribute of the %0 on %1 from %2 to %3", (DescriptiveDeclKind, StringRef, StringRef, StringRef))
+
 NOTE(availability_add_attribute, none,
      "add @available attribute to enclosing %0", (DescriptiveDeclKind))
 FIXIT(insert_available_attr,
