@@ -883,6 +883,9 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
 #else
       Opts.enableFeature(*feature);
 #endif
+    } else {
+      Diags.diagnose(SourceLoc(), diag::warning_unknown_experimental_feature,
+                     value);
     }
 
     // Hack: In order to support using availability macros in SPM packages, we
@@ -903,8 +906,11 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
   for (const Arg *A : Args.filtered(OPT_enable_upcoming_feature)) {
     // Ignore unknown features.
     auto feature = getUpcomingFeature(A->getValue());
-    if (!feature)
+    if (!feature) {
+      Diags.diagnose(SourceLoc(), diag::warning_unknown_upcoming_feature,
+                     A->getValue());
       continue;
+    }
 
     // Check if this feature was introduced already in this language version.
     if (auto firstVersion = getFeatureLanguageVersion(*feature)) {

@@ -40,6 +40,14 @@ ERROR(error_upcoming_feature_on_by_default, none,
       "upcoming feature '%0' is already enabled as of Swift version %1",
       (StringRef, unsigned))
 
+WARNING(warning_unknown_upcoming_feature, none,
+      "unknown feature name '%0' passed to '-enable-upcoming-feature'",
+      (StringRef))
+
+WARNING(warning_unknown_experimental_feature, none,
+      "unknown feature name '%0' passed to '-enable-experimental-feature'",
+      (StringRef))
+
 ERROR(error_unknown_library_level, none,
       "unknown library level '%0', "
       "expected one of 'api', 'spi', 'ipi', or 'other'", (StringRef))
