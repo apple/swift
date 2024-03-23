@@ -676,6 +676,8 @@ static bool usesFeatureIsolatedAny(Decl *decl) {
   });
 }
 
+UNINTERESTING_FEATURE(ExtensionImportVisibility)
+
 // ----------------------------------------------------------------------------
 // MARK: - FeatureSet
 // ----------------------------------------------------------------------------

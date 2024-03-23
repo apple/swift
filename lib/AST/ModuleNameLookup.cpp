@@ -126,6 +126,22 @@ private:
 
 } // end anonymous namespace
 
+bool swift::declIsVisibleToNameLookup(
+    const ValueDecl *decl, const DeclContext *moduleScopeContext,
+    NLOptions options) {
+  // NL_IgnoreAccessControl only applies to the current module. If
+  // it applies here, the declaration is visible.
+  if ((options & NL_IgnoreAccessControl) &&
+      moduleScopeContext &&
+      moduleScopeContext->getParentModule() ==
+          decl->getDeclContext()->getParentModule())
+    return true;
+
+  bool includeUsableFromInline = options & NL_IncludeUsableFromInline;
+  return decl->isAccessibleFrom(moduleScopeContext, false,
+                                includeUsableFromInline);
+}
+
 template <typename LookupStrategy>
 void ModuleNameLookup<LookupStrategy>::lookupInModule(
     SmallVectorImpl<ValueDecl *> &decls,
@@ -151,7 +167,6 @@ void ModuleNameLookup<LookupStrategy>::lookupInModule(
 
   const size_t initialCount = decls.size();
   size_t currentCount = decls.size();
-  bool includeUsableFromInline = options & NL_IncludeUsableFromInline;
 
   auto updateNewDecls = [&](const DeclContext *moduleScopeContext) {
     if (decls.size() == currentCount)
@@ -165,13 +180,7 @@ void ModuleNameLookup<LookupStrategy>::lookupInModule(
         if (resolutionKind == ResolutionKind::MacrosOnly && !isa<MacroDecl>(VD))
           return true;
         if (respectAccessControl &&
-            // NL_IgnoreAccessControl applies only to the current module.
-            !((options & NL_IgnoreAccessControl) &&
-                moduleScopeContext &&
-                moduleScopeContext->getParentModule() ==
-                    VD->getDeclContext()->getParentModule()) &&
-            !VD->isAccessibleFrom(moduleScopeContext, false,
-                                  includeUsableFromInline))
+            !declIsVisibleToNameLookup(VD, moduleScopeContext, options))
           return true;
         return false;
       });

@@ -6,7 +6,7 @@
 // RUN: %target-swift-frontend -typecheck -verify -verify-ignore-unknown -DLIB_C %s -I %t
 
 #if LIB_A
-
+// expected-note@-1{{add import of module 'A'}}{{1-1=@_spi(A) import A\n}}
 @_spi(A) public struct SecretStruct {
   @_spi(A) public func bar() {}
 }
@@ -22,7 +22,7 @@
 @_spi(B) import B
 
 var a = foo() // OK
-a.bar() // expected-error{{'bar' is inaccessible due to '@_spi' protection level}}
+a.bar() // expected-error{{instance method 'bar()' is not available due to missing import of defining module 'A'}}
 
 var b = SecretStruct() // expected-error{{cannot find 'SecretStruct' in scope}}
 

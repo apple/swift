@@ -2285,8 +2285,17 @@ static bool isAcceptableLookupResult(const DeclContext *dc,
   if (!(options & NL_IgnoreAccessControl) &&
       !dc->getASTContext().isAccessControlDisabled()) {
     bool allowUsableFromInline = options & NL_IncludeUsableFromInline;
-    return decl->isAccessibleFrom(dc, /*forConformance*/ false,
-                                  allowUsableFromInline);
+    if (!decl->isAccessibleFrom(dc, /*forConformance*/ false,
+                                allowUsableFromInline))
+      return false;
+
+    // Check that there is some import in the originating context that
+    // makes this decl visible.
+    if (decl->getDeclContext()->getParentModule() != dc->getParentModule() &&
+        dc->getASTContext().LangOpts.hasFeature(
+            Feature::ExtensionImportVisibility) &&
+        !decl->findImport(dc))
+      return false;
   }
 
   return true;

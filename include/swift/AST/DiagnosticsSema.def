@@ -165,6 +165,12 @@ ERROR(init_candidate_inaccessible,none,
       "'%select{private|fileprivate|internal|package|@_spi|@_spi}1' protection level",
       (Type, AccessLevel))
 
+ERROR(candidate_from_missing_import,none,
+      "%0 %1 is not available due to missing import of defining module %2",
+      (DescriptiveDeclKind, DeclName, DeclName))
+NOTE(candidate_add_import,none,
+     "add import of module %0", (DeclName))
+
 ERROR(cannot_pass_rvalue_mutating_subelement,none,
       "cannot use mutating member on immutable value: %0",
       (StringRef))

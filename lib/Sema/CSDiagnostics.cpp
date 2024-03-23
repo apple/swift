@@ -6166,7 +6166,65 @@ bool InaccessibleMemberFailure::diagnoseAsError() {
 
   auto loc = nameLoc.isValid() ? nameLoc.getStartLoc() : ::getLoc(anchor);
   auto accessLevel = Member->getFormalAccessScope().accessLevelForDiagnostics();
-  if (auto *CD = dyn_cast<ConstructorDecl>(Member)) {
+  bool suppressDeclHereNote = false;
+  if (accessLevel == AccessLevel::Public &&
+      !Member->findImport(getDC())) {
+    auto definingModule = Member->getDeclContext()->getParentModule();
+    emitDiagnosticAt(loc, diag::candidate_from_missing_import,
+                     Member->getDescriptiveKind(), Member->getName(),
+                     definingModule->getName());
+
+    auto enclosingSF = getDC()->getParentSourceFile();
+    SourceLoc bestLoc;
+    SourceManager &srcMgr = Member->getASTContext().SourceMgr;
+    for (auto item : enclosingSF->getTopLevelItems()) {
+      // If we found an import declaration, we want to insert after it.
+      if (auto importDecl =
+              dyn_cast_or_null<ImportDecl>(item.dyn_cast<Decl *>())) {
+        SourceLoc loc = importDecl->getEndLoc();
+        if (loc.isValid()) {
+          bestLoc = Lexer::getLocForEndOfLine(srcMgr, loc);
+        }
+
+        // Keep looking for more import declarations.
+        continue;
+      }
+
+      // If we got a location based on import declarations, we're done.
+      if (bestLoc.isValid())
+        break;
+
+      // For any other item, we want to insert before it.
+      SourceLoc loc = item.getStartLoc();
+      if (loc.isValid()) {
+        bestLoc = Lexer::getLocForStartOfLine(srcMgr, loc);
+        break;
+      }
+    }
+
+    if (bestLoc.isValid()) {
+      llvm::SmallString<64> importText;
+
+      // @_spi imports.
+      if (Member->isSPI()) {
+        auto spiGroups = Member->getSPIGroups();
+        if (!spiGroups.empty()) {
+          importText += "@_spi(";
+          importText += spiGroups[0].str();
+          importText += ") ";
+        }
+      }
+
+      importText += "import ";
+      importText += definingModule->getName().str();
+      importText += "\n";
+      emitDiagnosticAt(bestLoc, diag::candidate_add_import,
+                       definingModule->getName())
+        .fixItInsert(bestLoc, importText);
+    }
+
+    suppressDeclHereNote = true;
+  } else if (auto *CD = dyn_cast<ConstructorDecl>(Member)) {
     emitDiagnosticAt(loc, diag::init_candidate_inaccessible,
                      CD->getResultInterfaceType(), accessLevel)
         .highlight(nameLoc.getSourceRange());
@@ -6176,7 +6234,8 @@ bool InaccessibleMemberFailure::diagnoseAsError() {
         .highlight(nameLoc.getSourceRange());
   }
 
-  emitDiagnosticAt(Member, diag::decl_declared_here, Member);
+  if (!suppressDeclHereNote)
+    emitDiagnosticAt(Member, diag::decl_declared_here, Member);
   return true;
 }
 

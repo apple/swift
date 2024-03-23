@@ -628,6 +628,15 @@ SelfBounds getSelfBoundsFromWhereClause(
 /// given protocol or protocol extension.
 SelfBounds getSelfBoundsFromGenericSignature(const ExtensionDecl *extDecl);
 
+/// Determine whether the given declaration is visible to name lookup when
+/// found from the given module scope context.
+///
+/// Note that this routine does not check ASTContext::isAccessControlDisabled();
+/// that's left for the caller.
+bool declIsVisibleToNameLookup(
+    const ValueDecl *decl, const DeclContext *moduleScopeContext,
+    NLOptions options);
+
 namespace namelookup {
 
 /// The bridge between the legacy UnqualifiedLookupFactory and the new ASTScope
