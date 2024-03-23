@@ -16,7 +16,7 @@ PolymorphismTestSuite.test("Call overridden methods with pointer to base type") 
   let shape = MakeShape()
 
   // DOES NOT WORK: executes the Shape implementation, not the Rectangle
-  // version, and thus fails the comparision (0 != 4)
+  // version, and thus fails the comparison (0 != 4)
   // Filed as https://github.com/apple/swift/issues/62354.
   expectEqual(shape!.pointee.NumberOfSides(), 4)
 }
