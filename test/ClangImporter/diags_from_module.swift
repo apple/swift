@@ -37,7 +37,7 @@ import Module
 // CHECK-PRIMARY: diags_from_module.swift:[[@LINE-4]]:8: error: could not build Objective-C module 'Module'
 
 // CHECK-WARN: Sub2.h:7:2: warning: here is some warning about something
-// CHECK-WARN: Module.h:20:1: warning: umbrella header for module 'Module' does not include header 'NotInModule.h'
+// CHECK-WARN: Module.h:22:1: warning: umbrella header for module 'Module' does not include header 'NotInModule.h'
 // FIXME: show [-Wincomplete-umbrella]
 
 // CHECK-NO-WARN-NOT: warning about something

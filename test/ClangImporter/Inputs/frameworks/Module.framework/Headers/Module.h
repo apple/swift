@@ -8,6 +8,8 @@ const char *getModuleVersion(void);
 +alloc;
 @end
 
+@protocol ModuleProto @end
+
 #define MODULE_H_MACRO 1
 #__private_macro MODULE_H_MACRO
 

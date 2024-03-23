@@ -1,0 +1,4 @@
+framework module Module_Private {
+  umbrella "PrivateHeaders"
+  explicit module * { export * }
+}
