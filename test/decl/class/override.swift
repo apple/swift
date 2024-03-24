@@ -414,3 +414,28 @@ open class OpenDerivedFinal : OpenBase {
 open class OpenDerivedStatic : OpenBase {
   override public static func classMethod() {}
 }
+
+// Context: https://github.com/apple/swift/issues/57499
+// FixIt for 'override func' that should be 'override var' and vice-versa
+func overrideInLieu() {
+  
+  class BaseClass {
+    var someValueX: Bool {
+      get { return false }
+      set { }
+    }
+    
+    func someFuncX() -> Int { return 0 }
+  }
+
+  class Inherited: BaseClass {
+    override var someFuncX: Int { // expected-error {{property does not override any property from its superclass}}
+    // expected-note@-1 {{did you mean to override the method 'someFuncX'?}}
+      get { return 0 }
+      set { }
+    }
+    
+    override func someValueX() -> Bool { return false } // expected-error {{method does not override any method from its superclass}}
+    // expected-note@-1 {{did you mean to override the property 'someValueX'?}}
+  }
+}
