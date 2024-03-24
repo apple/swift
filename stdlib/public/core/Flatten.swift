@@ -297,41 +297,63 @@ extension FlattenCollection: Collection {
 
   @inlinable // lazy-performance
   public func distance(from start: Index, to end: Index) -> Int {
+    let distanceIsNegative = start > end
+
     // The following check ensures that distance(from:to:) is invoked on
     // the _base at least once, to trigger a _precondition in forward only
     // collections.
-    if start > end {
+    if distanceIsNegative {
       _ = _base.distance(from: _base.endIndex, to: _base.startIndex)
     }
-    
-    // This handles indices belonging to the same collection.
+
+    // This path handles indices belonging to the same collection.
     if start._outer == end._outer {
       guard let i = start._inner, let j = end._inner else { return 0 }
       return _base[start._outer].distance(from: i, to: j)
     }
-    
-    // The following combines the distance of three sections.
-    let range = start <= end ? start ..< end : end ..< start
-    var outer = range.lowerBound._outer
-    var count = 0 as Int // 0...Int.max
-    
-    if let inner = range.lowerBound._inner {
-      let collection = _base[outer]
-      count += collection.distance(from: inner, to: collection.endIndex)
+
+    // The following path combines the distances of three regions.
+    let lowerBound: Index
+    let upperBound: Index
+
+    let step: Int
+    var distance: Int
+
+    // Note that lowerBound is a valid index because start != end.
+    if distanceIsNegative {
+      step = -1
+      lowerBound = end
+      upperBound = start
+      let lowest = _base[lowerBound._outer]
+      distance = lowest.distance(from: lowest.endIndex, to: lowerBound._inner!)
+    } else {
+      step = 01
+      lowerBound = start
+      upperBound = end
+      let lowest = _base[lowerBound._outer]
+      distance = lowest.distance(from: lowerBound._inner!, to: lowest.endIndex)
+    }
+
+    // We can use each collection's count in the middle region since the
+    // fast path ensures that the other regions cover a nonzero distance,
+    // which means that an extra Int.min distance should trap regardless.
+    var outer = _base.index(after: lowerBound._outer)
+    while outer < upperBound._outer {
+      // 0 ... Int.max can always be negated.
+      distance += _base[outer].count &* step
       _base.formIndex(after: &outer)
     }
-    
-    while outer < range.upperBound._outer {
-      count += _base[outer].count
-      _base.formIndex(after: &outer)
+
+    // This unwraps if start != endIndex and end != endIndex. We can use the
+    // positive distance for the same reason that we can use the collection's
+    // count in the middle region.
+    if let inner = upperBound._inner {
+      // 0 ... Int.max can always be negated.
+      let highest = _base[upperBound._outer]
+      distance += highest.distance(from: highest.startIndex, to: inner) &* step
     }
-    
-    if let inner = range.upperBound._inner {
-      let collection = _base[outer]
-      count += collection.distance(from: collection.startIndex, to: inner)
-    }
-    
-    return start <= end ? count : -count
+
+    return distance
   }
 
   @inline(__always)
