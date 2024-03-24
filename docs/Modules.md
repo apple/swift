@@ -374,7 +374,7 @@ to explicitly specify them at link time.
 of headers. See [Clang's Modules](http://clang.llvm.org/docs/Modules.html) documentation for more
 information.
 
-[^framework]: A mechanism for library distribution on OS X. Traditionally 
+[^framework]: A mechanism for library distribution on macOS. Traditionally 
 frameworks contain header files describing the library's API, a binary file containing
 the implementation, and a directory containing any resources the
 library may need. Frameworks are also used on iOS, but as of iOS 7 custom frameworks

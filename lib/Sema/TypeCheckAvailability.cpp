@@ -1201,9 +1201,9 @@ private:
         continue;
 
       // FIXME: This is not quite right: we want to handle AppExtensions
-      // properly. For example, on the OSXApplicationExtension platform
-      // we want to chose the OS X spec unless there is an explicit
-      // OSXApplicationExtension spec.
+      // properly. For example, on the macOSApplicationExtension platform
+      // we want to chose the macOS spec unless there is an explicit
+      // macOSApplicationExtension spec.
       if (isPlatformActive(VersionSpec->getPlatform(), Context.LangOpts,
                            forTargetVariant)) {
         if (!BestSpec ||

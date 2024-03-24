@@ -532,7 +532,7 @@ set(SWIFT_DARWIN_STDLIB_PRIVATE_INSTALL_NAME_DIR "@rpath" CACHE STRING
     "The directory of the install_name for the private standard library dylibs")
 
 set(SWIFT_DARWIN_DEPLOYMENT_VERSION_OSX "10.13" CACHE STRING
-    "Minimum deployment target version for OS X")
+    "Minimum deployment target version for macOS")
 
 set(SWIFT_DARWIN_DEPLOYMENT_VERSION_IOS "11.0" CACHE STRING
     "Minimum deployment target version for iOS")

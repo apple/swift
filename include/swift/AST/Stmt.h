@@ -467,7 +467,7 @@ public:
 
 /// An expression that guards execution based on whether the run-time
 /// configuration supports a given API, e.g.,
-/// #available(OSX >= 10.9, iOS >= 7.0).
+/// #available(macOS >= 10.9, iOS >= 7.0).
 class alignas(8) PoundAvailableInfo final :
     private llvm::TrailingObjects<PoundAvailableInfo, AvailabilitySpec *> {
   friend TrailingObjects;

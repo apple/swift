@@ -69,10 +69,10 @@ inline bool isApplicationExtensionPlatform(PlatformKind Platform) {
 
 /// Returns whether the passed-in platform is active, given the language
 /// options. A platform is active if either it is the target platform or its
-/// AppExtension variant is the target platform. For example, OS X is
-/// considered active when the target operating system is OS X and app extension
-/// restrictions are enabled, but OSXApplicationExtension is not considered
-/// active when the target platform is OS X and app extension restrictions are
+/// AppExtension variant is the target platform. For example, macOS is
+/// considered active when the target operating system is macOS and app extension
+/// restrictions are enabled, but macOSApplicationExtension is not considered
+/// active when the target platform is macOS and app extension restrictions are
 /// disabled. PlatformKind::none is always considered active.
 /// If ForTargetVariant is true then for zippered builds the target-variant
 /// triple will be used rather than the target to determine whether the

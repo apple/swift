@@ -38,7 +38,7 @@ struct HeapObject;
 
 // Redeclare APIs from the Objective-C runtime.
 // These functions are not available through public headers, but are guaranteed
-// to exist on OS X >= 10.9 and iOS >= 7.0.
+// to exist on macOS >= 10.9 and iOS >= 7.0.
 
 OBJC_EXPORT id objc_retain(id);
 OBJC_EXPORT void objc_release(id);

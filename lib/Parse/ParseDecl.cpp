@@ -1000,10 +1000,10 @@ bool Parser::parseAvailability(
     // For each platform version spec in the spec list, create an
     // implicit AvailableAttr for the platform with the introduced
     // version from the spec. For example, if we have
-    //   @available(iOS 8.0, OSX 10.10, *):
+    //   @available(iOS 8.0, macOS 10.10, *):
     // we will synthesize:
     //  @available(iOS, introduced: 8.0)
-    //  @available(OSX, introduced: 10.10)
+    //  @available(macOS, introduced: 10.10)
     //
     // Similarly if we have a language version spec or PackageDescription
     // version in the spec list, create an implicit AvailableAttr
@@ -3491,7 +3491,7 @@ ParserStatus Parser::parseNewDeclAttribute(DeclAttributes &Attributes,
         }
         return makeParserSuccess();
       }
-      // Parse 'OSX 13.13'.
+      // Parse 'macOS 13.13'.
       case NextSegmentKind::PlatformVersion: {
         ParserStatus ListItemStatus =
             parsePlatformVersionInList(AttrName, PlatformAndVersions);

@@ -22,7 +22,7 @@
 #define PLATFORM_CONDITION_(LABEL, IDENTIFIER) PLATFORM_CONDITION(LABEL, "_" IDENTIFIER)
 #endif
 
-/// The active os target (OSX, iOS, Linux, etc.)
+/// The active os target (macOS, iOS, Linux, etc.)
 PLATFORM_CONDITION(OS, "os")
 
 /// The active arch target (x86_64, i386, arm, arm64, etc.)

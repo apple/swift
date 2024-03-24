@@ -55,7 +55,7 @@ enum TimeOfDay __attribute__((enum_extensibility(open))) : long {
 - Case names follow the rules for "enum-style prefix stripping" below.
 - `init?(rawValue:)` currently does not check cases, but probably should for "closed" enums (Clang's equivalent of `@frozen`)
 
-In order to deal with cases with the same underlying value, the importer picks a set of _canonical cases_ by walking the enum and recording the first *available* enumerator with a particular value. (Note that deprecated cases are still considered available unless they were deprecated for a platform older than Swift's earliest deployment targets, OS X 10.9 and iOS 7.) Any "non-canonical" cases are imported as computed properties instead.
+In order to deal with cases with the same underlying value, the importer picks a set of _canonical cases_ by walking the enum and recording the first *available* enumerator with a particular value. (Note that deprecated cases are still considered available unless they were deprecated for a platform older than Swift's earliest deployment targets, macOS 10.9 and iOS 7.) Any "non-canonical" cases are imported as computed properties instead.
 
 ### Error enum structs
 

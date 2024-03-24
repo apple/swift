@@ -398,7 +398,7 @@ public typealias Semaphore = UnsafeMutablePointer<sem_t>
 /// The value returned by `sem_open()` in the case of failure.
 public var SEM_FAILED: Semaphore? {
 #if os(macOS) || os(iOS) || os(watchOS) || os(tvOS)
-  // The value is ABI.  Value verified to be correct for OS X, iOS, watchOS, tvOS.
+  // The value is ABI.  Value verified to be correct for macOS, iOS, watchOS, tvOS.
   return Semaphore(bitPattern: -1)
 #elseif os(Linux) || os(FreeBSD) || os(OpenBSD) || os(PS4) || os(Android) || os(Cygwin) || os(Haiku) || os(WASI)
   // The value is ABI.  Value verified to be correct on Glibc.

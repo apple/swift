@@ -680,10 +680,10 @@ static bool isShortFormAvailabilityImpliedByOther(const AvailableAttr *Attr,
 /// Print the short-form @available() attribute for an array of long-form
 /// AvailableAttrs that can be represented in the short form.
 /// For example, for:
-///   @available(OSX, introduced: 10.10)
+///   @available(macOS, introduced: 10.10)
 ///   @available(iOS, introduced: 8.0)
 /// this will print:
-///   @available(OSX 10.10, iOS 8.0, *)
+///   @available(macOS 10.10, iOS 8.0, *)
 static void printShortFormAvailable(ArrayRef<const DeclAttribute *> Attrs,
                                     ASTPrinter &Printer,
                                     const PrintOptions &Options,

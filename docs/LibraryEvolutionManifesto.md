@@ -183,13 +183,13 @@ There's no design yet for how resilience domains should be specified. In today's
 
 ### Deployments
 
-Related to the concept of a resilience domain is a _deployment._ While a resilience domain allows related libraries to be compiled more efficiently, a deployment groups related libraries together to present semantic version information to clients. The simplest example of this might be an OS release: OS X 10.10.0 contains Foundation version 1151.16 and AppKit version 1343. A deployment thus acts as a "virtual dependency": clients that depend on OS X 10.10 can rely on the presence of both of the library versions above.
+Related to the concept of a resilience domain is a _deployment._ While a resilience domain allows related libraries to be compiled more efficiently, a deployment groups related libraries together to present semantic version information to clients. The simplest example of this might be an OS release: macOS 10.10.0 contains Foundation version 1151.16 and AppKit version 1343. A deployment thus acts as a "virtual dependency": clients that depend on macOS 10.10 can rely on the presence of both of the library versions above.
 
 The use of deployments allows clients to only have to think about aggregate dependencies, instead of listing every library they might depend on. It also allows library authors to build [many versions of a library][Foundation version numbers] within a larger release cycle, as well as allowing a vendor to bundle together many libraries with uncoordinated release schedules and release them as a logical unit.
 
 [Foundation version numbers]:  https://developer.apple.com/library/ios/documentation/Cocoa/Reference/Foundation/Miscellaneous/Foundation_Constants/index.html#//apple_ref/doc/constant_group/Foundation_Framework_Version_Numbers		
 
-There are lots of details to figure out here, including how to distribute this information. In particular, just like libraries publish the history of their own APIs, a deployment must publish the history of their included library versions, i.e. not just that OS X 10.10 contains Foundation 1151.16 and AppKit 1343, but also that OS X 10.9 contains Foundation 1056 and AppKit 1265, and that OS X 10.8 contains Foundation 945.0 and AppKit 1187, and so on, back to the earliest version of the deployment that is supported.
+There are lots of details to figure out here, including how to distribute this information. In particular, just like libraries publish the history of their own APIs, a deployment must publish the history of their included library versions, i.e. not just that macOS 10.10 contains Foundation 1151.16 and AppKit 1343, but also that macOS 10.9 contains Foundation 1056 and AppKit 1265, and that macOS 10.8 contains Foundation 945.0 and AppKit 1187, and so on, back to the earliest version of the deployment that is supported.
 
 Obviously, formalizing a model here is probably most useful for people distributing ABI-stable Swift libraries as part of an OS, i.e. Apple.
 

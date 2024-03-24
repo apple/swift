@@ -567,7 +567,7 @@ void importer::getNormalInvocationArguments(
   // Set C language options.
   if (triple.isOSDarwin()) {
     invocationArgStrs.insert(invocationArgStrs.end(), {
-      // Avoid including the iso646.h header because some headers from OS X
+      // Avoid including the iso646.h header because some headers from macOS
       // frameworks are broken by it.
       "-D_ISO646_H_", "-D__ISO646_H",
 

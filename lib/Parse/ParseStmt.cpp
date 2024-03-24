@@ -1335,7 +1335,7 @@ validateAvailabilitySpecList(Parser &P,
     if (!Inserted) {
       // Rule out multiple version specs referring to the same platform.
       // For example, we emit an error for
-      /// #available(OSX 10.10, OSX 10.11, *)
+      /// #available(macOS 10.10, macOS 10.11, *)
       PlatformKind Platform = VersionSpec->getPlatform();
       P.diagnose(VersionSpec->getPlatformLoc(),
                  diag::availability_query_repeated_platform,

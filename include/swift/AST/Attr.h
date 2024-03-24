@@ -1834,11 +1834,11 @@ public:
 /// example, given the following declaration:
 ///
 /// \code
-/// @_originallyDefinedIn(module: "Original", OSX 10.15) var foo: Int
+/// @_originallyDefinedIn(module: "Original", macOS 10.15) var foo: Int
 /// \endcode
 ///
 /// The variable \p foo was originally defined in another module called
-/// \p Original prior to OSX 10.15
+/// \p Original prior to macOS 10.15
 class OriginallyDefinedInAttr: public DeclAttribute {
 public:
   OriginallyDefinedInAttr(SourceLoc AtLoc, SourceRange Range,

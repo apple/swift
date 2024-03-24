@@ -56,7 +56,7 @@ public:
 };
 
 /// An availability specification that guards execution based on the
-/// run-time platform and version, e.g., OS X >= 10.10.
+/// run-time platform and version, e.g., macOS >= 10.10.
 class PlatformVersionConstraintAvailabilitySpec : public AvailabilitySpec {
   PlatformKind Platform;
   SourceLoc PlatformLoc;

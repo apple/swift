@@ -735,7 +735,7 @@ likely, we'd need to wrap them all in an overlay.
 
 In both cases, it is possible to pull these into the Swift error
 handling model, but because this is likely to require massive SDK
-annotations it is considered out of scope for iOS 9/OS X 10.11 & Swift
+annotations it is considered out of scope for iOS 9/macOS 10.11 & Swift
 2.0.
 
 ### Unexpected and universal errors

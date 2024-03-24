@@ -72,7 +72,7 @@ isa, and any methods declared in an Objective-C protocol will be emitted with
 dual entry points.
 
 
-.. [#] Really, "All Swift objects on OS X and iOS". Presumably a Swift compiler
+.. [#] Really, "All Swift objects on macOS and iOS". Presumably a Swift compiler
    on another system wouldn't bother to emit the Objective-C isa info.
 .. [#] Dave is working out an object and class layout scheme that will minimize
    the performance cost of emitting both the Objective-C isa and a Swift vtable.
