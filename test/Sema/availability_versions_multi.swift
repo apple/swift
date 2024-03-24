@@ -32,19 +32,16 @@ func useFromOtherOn99_51() {
 
   let o10_9 = OtherIntroduced10_9()
   o10_9.extensionMethodOnOtherIntroduced10_9AvailableOn99_51(o99_51)
-  _ = o99_51.returns99_52Introduced99_52() // expected-error {{'returns99_52Introduced99_52()' is only available in macOS 99.52 or newer}}
-      // expected-note@-1 {{add 'if #available' version check}}
+  _ = o99_51.returns99_52Introduced99_52() // expected-error {{'returns99_52Introduced99_52()' is only available in macOS 99.52 or newer}} {{26:29-34=99.52}}
 
   _ = OtherIntroduced99_52()
-      // expected-error@-1 {{'OtherIntroduced99_52' is only available in macOS 99.52 or newer}}
-      // expected-note@-2 {{add 'if #available' version check}}
+      // expected-error@-1 {{'OtherIntroduced99_52' is only available in macOS 99.52 or newer}} {{26:29-34=99.52}}
 
-  o99_51.extensionMethodOnOtherIntroduced99_51AvailableOn99_52() // expected-error {{'extensionMethodOnOtherIntroduced99_51AvailableOn99_52()' is only available in macOS 99.52 or newer}}
-      // expected-note@-1 {{add 'if #available' version check}}
+  o99_51.extensionMethodOnOtherIntroduced99_51AvailableOn99_52() 
+      // expected-error@-1 {{'extensionMethodOnOtherIntroduced99_51AvailableOn99_52()' is only available in macOS 99.52 or newer}} {{26:29-34=99.52}}
 
   _ = OtherIntroduced99_51.NestedIntroduced99_52()
-      // expected-error@-1 {{'NestedIntroduced99_52' is only available in macOS 99.52 or newer}}
-      // expected-note@-2 {{add 'if #available' version check}}
+      // expected-error@-1 {{'NestedIntroduced99_52' is only available in macOS 99.52 or newer}} {{26:29-34=99.52}}
 }
 
 @available(OSX, introduced: 99.52)
@@ -53,8 +50,7 @@ func useFromOtherOn99_52() {
 
   let n99_52 = OtherIntroduced99_51.NestedIntroduced99_52()
   _ = n99_52.returns99_52()
-  _ = n99_52.returns99_53() // expected-error {{'returns99_53()' is only available in macOS 99.53 or newer}}
-      // expected-note@-1 {{add 'if #available' version check}}
+  _ = n99_52.returns99_53() // expected-error {{'returns99_53()' is only available in macOS 99.53 or newer}} {{47:29-34=99.53}}
 
   // This will trigger validation of the global in availability_in_multi_other.swift
   _ = globalFromOtherOn99_52
