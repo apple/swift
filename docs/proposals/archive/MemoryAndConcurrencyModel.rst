@@ -11,7 +11,7 @@ Swift Memory and Concurrency Model
 
 The goal of this writeup is to provide a safe and efficient way to model,
 design, and implement concurrent applications in Swift. It is believed that it
-will completely eliminate data races and reduce deadlocks in swift apps, and
+will completely eliminate data races and reduce deadlocks in Swift apps, and
 will allow for important performance wins as well. This happens by eliminating
 shared mutable data, locks, and the need for most atomic memory accesses. The
 model is quite different from what traditional unix folks are used to
@@ -83,7 +83,7 @@ definition. These kinds are:
      b.list.data = 42 // error, can't change immutable data.
 
    As part of mutable data, it is worth pointing out that mutable "global
-   variables" in swift are not truly global, they are local to the current actor
+   variables" in Swift are not truly global, they are local to the current actor
    (somewhat similar to "thread local storage", or perhaps to "an ivar on the
    actor"). Immutable global variables (like lookup tables) are simple immutable
    data just like today. Global variables with "static constructors /
@@ -225,7 +225,7 @@ Performing synchronous operations
 ---------------------------------
 
 Asynchronous calls are nice and define away the possibility of deadlock, but at
-some point you need to get a return value back and async programming is very
+some point, you need to get a return value back and async programming is very
 awkward. To handle this, a 'synch' block is used. For example, the following is
 valid::
 
@@ -245,7 +245,7 @@ context.
 Memory Ownership Model
 ----------------------
 
-Within an actor there is a question of how ownership is handled. It's not in the
+Within an actor, there is a question of how ownership is handled. It's not in the
 scope of this document to say what the "one true model" is, but here are a
 couple of interesting observations:
 
@@ -265,7 +265,7 @@ couple of interesting observations:
    stop the world to do a collection. 2) actors have natural local quiescent
    points: when they have finished servicing a message, if their dispatch queue
    is empty, they go to sleep. If nothing else in the CPU needs the thread, it
-   would be a natural time to collect. 3) GC would be fully precise in swift,
+   would be a natural time to collect. 3) GC would be fully precise in Swift,
    unlike in ObjC, no conservative stack scanning or other hacks are needed. 4)
    If GC is used for mutable data, it would make sense to still use reference
    counting for actors themselves and especially for immutable data, meaning
