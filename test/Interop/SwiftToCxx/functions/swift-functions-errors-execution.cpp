@@ -47,6 +47,11 @@ int main() {
      printf("Exception\n");
   }
   try {
+    Functions::throwFunctionWithNeverReturn();
+  } catch (swift::Error& e) {
+     printf("Exception\n");
+  }
+  try {
     Functions::testDestroyedError();
   } catch(const swift::Error &e) { }
 
@@ -57,5 +62,7 @@ int main() {
 // CHECK-NEXT: passThrowFunction
 // CHECK-NEXT: throwError
 // CHECK-NEXT: passThrowFunctionWithReturn
+// CHECK-NEXT: Exception
+// CHECK-NEXT: passThrowFunctionWithNeverReturn
 // CHECK-NEXT: Exception
 // CHECK-NEXT: Test destroyed

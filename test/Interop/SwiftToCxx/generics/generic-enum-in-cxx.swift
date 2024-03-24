@@ -158,7 +158,7 @@ public func inoutConcreteOpt(_ x: inout GenericOpt<UInt16>) {
 
 
 // CHECK: SWIFT_INLINE_THUNK void inoutConcreteOpt(GenericOpt<uint16_t>& x) noexcept SWIFT_SYMBOL("s:8Generics16inoutConcreteOptyyAA07GenericD0Oys6UInt16VGzF") {
-// CHECK-NEXT:   return _impl::$s8Generics16inoutConcreteOptyyAA07GenericD0Oys6UInt16VGzF(_impl::_impl_GenericOpt<uint16_t>::getOpaquePointer(x));
+// CHECK-NEXT:   _impl::$s8Generics16inoutConcreteOptyyAA07GenericD0Oys6UInt16VGzF(_impl::_impl_GenericOpt<uint16_t>::getOpaquePointer(x));
 // CHECK-NEXT: }
 
 
@@ -170,7 +170,7 @@ public func inoutConcreteOpt(_ x: inout GenericOpt<UInt16>) {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s8Generics15inoutGenericOptyyAA0cD0OyxGz_xtlF(_impl::_impl_GenericOpt<T_0_0>::getOpaquePointer(x), swift::_impl::getOpaquePointer(y), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s8Generics15inoutGenericOptyyAA0cD0OyxGz_xtlF(_impl::_impl_GenericOpt<T_0_0>::getOpaquePointer(x), swift::_impl::getOpaquePointer(y), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
 // CHECK-NEXT: }
 
 
@@ -196,7 +196,7 @@ public func inoutConcreteOpt(_ x: inout GenericOpt<UInt16>) {
 
 
 // CHECK: SWIFT_INLINE_THUNK void takeConcreteOpt(const GenericOpt<uint16_t>& x) noexcept SWIFT_SYMBOL("s:8Generics15takeConcreteOptyyAA07GenericD0Oys6UInt16VGF") {
-// CHECK-NEXT:   return _impl::$s8Generics15takeConcreteOptyyAA07GenericD0Oys6UInt16VGF(_impl::swift_interop_passDirect_Generics_uint32_t_0_4(_impl::_impl_GenericOpt<uint16_t>::getOpaquePointer(x)));
+// CHECK-NEXT:   _impl::$s8Generics15takeConcreteOptyyAA07GenericD0Oys6UInt16VGF(_impl::swift_interop_passDirect_Generics_uint32_t_0_4(_impl::_impl_GenericOpt<uint16_t>::getOpaquePointer(x)));
 // CHECK-NEXT: }
 
 
@@ -208,7 +208,7 @@ public func inoutConcreteOpt(_ x: inout GenericOpt<UInt16>) {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:  return _impl::$s8Generics14takeGenericOptyyAA0cD0OyxGlF(_impl::_impl_GenericOpt<T_0_0>::getOpaquePointer(x), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s8Generics14takeGenericOptyyAA0cD0OyxGlF(_impl::_impl_GenericOpt<T_0_0>::getOpaquePointer(x), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
 // CHECK-NEXT: }
 
 // CHECK: template<class T_0_0>
@@ -293,7 +293,7 @@ public func inoutConcreteOpt(_ x: inout GenericOpt<UInt16>) {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT: return _impl::$s8Generics10GenericOptO6methodyyF(swift::TypeMetadataTrait<GenericOpt<T_0_0>>::getTypeMetadata(), _getOpaquePointer());
+// CHECK-NEXT: _impl::$s8Generics10GenericOptO6methodyyF(swift::TypeMetadataTrait<GenericOpt<T_0_0>>::getTypeMetadata(), _getOpaquePointer());
 // CHECK-NEXT: }
 
 // CHECK: template<class T_0_0>

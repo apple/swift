@@ -89,6 +89,16 @@ int main() {
     valueError.getMessage();
   }
 
+  auto expectedResult2 = Functions::throwFunctionWithNeverReturn();
+  if (!expectedResult2.has_value()) {
+    auto error = expectedResult2.error();
+    auto optionalError = error.as<Functions::NaiveErrors>();
+    assert(optionalError.isSome());
+    auto valueError = optionalError.get();
+    assert(valueError == Functions::NaiveErrors::returnError);
+    valueError.getMessage();
+  }
+
   // Test get T's Value (const)
   const auto valueExp = testIntValue;
   if (valueExp.value() == 42)
@@ -115,6 +125,8 @@ int main() {
 // CHECK-NEXT: passThrowFunctionWithPossibleReturn
 // CHECK-NEXT: returnError
 // CHECK-NEXT: passThrowFunctionWithPossibleReturn
+// CHECK-NEXT: returnError
+// CHECK-NEXT: passThrowFunctionWithNeverReturn
 // CHECK-NEXT: returnError
 // CHECK-NEXT: Test get T's Value (const)
 // CHECK-NEXT: Test get T's Value

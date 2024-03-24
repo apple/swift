@@ -45,7 +45,7 @@ public func inoutLarge(_ en: inout Large, _ x: Int) {
 // CHECK: class SWIFT_SYMBOL("s:5Enums5LargeO") Large final {
 
 // CHECK:      SWIFT_INLINE_THUNK void inoutLarge(Large& en, swift::Int x) noexcept SWIFT_SYMBOL("s:5Enums10inoutLargeyyAA0C0Oz_SitF") {
-// CHECK-NEXT:   return _impl::$s5Enums10inoutLargeyyAA0C0Oz_SitF(_impl::_impl_Large::getOpaquePointer(en), x);
+// CHECK-NEXT:   _impl::$s5Enums10inoutLargeyyAA0C0Oz_SitF(_impl::_impl_Large::getOpaquePointer(en), x);
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK Large makeLarge(swift::Int x) noexcept SWIFT_SYMBOL("s:5Enums9makeLargeyAA0C0OSiF") SWIFT_WARN_UNUSED_RESULT {
@@ -61,5 +61,5 @@ public func inoutLarge(_ en: inout Large, _ x: Int) {
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void printLarge(const Large& en) noexcept SWIFT_SYMBOL("s:5Enums10printLargeyyAA0C0OF") {
-// CHECK-NEXT:   return _impl::$s5Enums10printLargeyyAA0C0OF(_impl::_impl_Large::getOpaquePointer(en));
+// CHECK-NEXT:   _impl::$s5Enums10printLargeyyAA0C0OF(_impl::_impl_Large::getOpaquePointer(en));
 // CHECK-NEXT: }

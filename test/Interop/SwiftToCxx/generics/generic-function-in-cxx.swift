@@ -131,7 +131,7 @@ public func createTestSmallStruct(_ x: UInt32) -> TestSmallStruct {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s9Functions20genericPrintFunctionyyxlF(swift::_impl::getOpaquePointer(x), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s9Functions20genericPrintFunctionyyxlF(swift::_impl::getOpaquePointer(x), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
 // CHECK-NEXT: }
 
 
@@ -144,7 +144,7 @@ public func createTestSmallStruct(_ x: UInt32) -> TestSmallStruct {
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_1>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s9Functions32genericPrintFunctionMultiGenericyySi_xxSiq_tr0_lF(x, swift::_impl::getOpaquePointer(t1), swift::_impl::getOpaquePointer(t1p), y, swift::_impl::getOpaquePointer(t2), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata(), swift::TypeMetadataTrait<T_0_1>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s9Functions32genericPrintFunctionMultiGenericyySi_xxSiq_tr0_lF(x, swift::_impl::getOpaquePointer(t1), swift::_impl::getOpaquePointer(t1p), y, swift::_impl::getOpaquePointer(t2), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata(), swift::TypeMetadataTrait<T_0_1>::getTypeMetadata());
 // CHECK-NEXT: }
 
 
@@ -156,7 +156,7 @@ public func createTestSmallStruct(_ x: UInt32) -> TestSmallStruct {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s9Functions26genericPrintFunctionTwoArgyyx_SitlF(swift::_impl::getOpaquePointer(x), y, swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s9Functions26genericPrintFunctionTwoArgyyx_SitlF(swift::_impl::getOpaquePointer(x), y, swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
 // CHECK-NEXT: }
 
 // CHECK:      template<class T_0_0>
@@ -200,7 +200,7 @@ public func createTestSmallStruct(_ x: UInt32) -> TestSmallStruct {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s9Functions11genericSwapyyxz_xztlF(swift::_impl::getOpaquePointer(x), swift::_impl::getOpaquePointer(y), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
+// CHECK-NEXT:   _impl::$s9Functions11genericSwapyyxz_xztlF(swift::_impl::getOpaquePointer(x), swift::_impl::getOpaquePointer(y), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata());
 // CHECK-NEXT: }
 
 // CHECK:      template<class T_0_0>
@@ -243,5 +243,5 @@ public func createTestSmallStruct(_ x: UInt32) -> TestSmallStruct {
 // CHECK-NEXT: #ifndef __cpp_concepts
 // CHECK-NEXT: static_assert(swift::isUsableInGenericContext<T_0_0>, "type cannot be used in a Swift generic context");
 // CHECK-NEXT: #endif
-// CHECK-NEXT:   return _impl::$s9Functions15TestSmallStructV20genericMethodMutTakeyyxlF(swift::_impl::getOpaquePointer(x), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata(), _getOpaquePointer());
+// CHECK-NEXT:   _impl::$s9Functions15TestSmallStructV20genericMethodMutTakeyyxlF(swift::_impl::getOpaquePointer(x), swift::TypeMetadataTrait<T_0_0>::getTypeMetadata(), _getOpaquePointer());
 // CHECK-NEXT:   }

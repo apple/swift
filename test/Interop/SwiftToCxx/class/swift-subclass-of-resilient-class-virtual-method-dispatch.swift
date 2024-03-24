@@ -84,7 +84,7 @@ public func createCrossModuleDerivedDerivedClass() -> CrossModuleDerivedDerivedC
 
 
 // CHECK:      void CrossModuleDerivedClass::virtualMethod() {
-// CHECK-NEXT: return _impl::$s5Class04BaseA0C13virtualMethodyyFTj(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT: _impl::$s5Class04BaseA0C13virtualMethodyyFTj(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 
 // CHECK:      void CrossModuleDerivedClass::virtualMethodInDerived() {
 // CHECK-NEXT: void ***selfPtr_ = reinterpret_cast<void ***>( ::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
@@ -97,7 +97,7 @@ public func createCrossModuleDerivedDerivedClass() -> CrossModuleDerivedDerivedC
 // CHECK-NEXT: decltype(_impl::$s8UseClass018CrossModuleDerivedB0C015virtualMethodInE0yyF) * func;
 // CHECK-NEXT: };
 // CHECK-NEXT: FTypeAddress *fptrptr_ = reinterpret_cast<FTypeAddress *>(vtable_ + (_impl::$s8UseClass018CrossModuleDerivedB0CMo + 0) / sizeof(void *));
-// CHECK-NEXT: return (* fptrptr_->func)(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT: (* fptrptr_->func)(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT: }
 
 // CHECK:      swift::Int CrossModuleDerivedClass::getDerivedComputedProp() {
@@ -113,4 +113,4 @@ public func createCrossModuleDerivedDerivedClass() -> CrossModuleDerivedDerivedC
 // CHECK:      FTypeAddress *fptrptr_ = reinterpret_cast<FTypeAddress *>(vtable_ + (_impl::$s8UseClass018CrossModuleDerivedB0CMo + [[#VM1]]) / sizeof(void *));
 
 // CHECK:      void CrossModuleDerivedDerivedClass::virtualMethod2InDerived() {
-// CHECK-NEXT: return _impl::$s8UseClass018CrossModuleDerivedeB0C016virtualMethod2InE0yyF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT: _impl::$s8UseClass018CrossModuleDerivedeB0C016virtualMethod2InE0yyF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));

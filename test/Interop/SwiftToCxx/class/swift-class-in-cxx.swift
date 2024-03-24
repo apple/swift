@@ -134,9 +134,9 @@ public func takeClassWithIntFieldInout(_ x: inout ClassWithIntField) {
 // CHECK-NEXT: }
 
 // CHECK: SWIFT_INLINE_THUNK void takeClassWithIntField(const ClassWithIntField& x) noexcept SWIFT_SYMBOL("s:5Class04takeA12WithIntFieldyyAA0acdE0CF") {
-// CHECK-NEXT:  return _impl::$s5Class04takeA12WithIntFieldyyAA0acdE0CF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(x));
+// CHECK-NEXT:  _impl::$s5Class04takeA12WithIntFieldyyAA0acdE0CF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(x));
 // CHECK-NEXT: }
 
 // CHECK: SWIFT_INLINE_THUNK void takeClassWithIntFieldInout(ClassWithIntField& x) noexcept SWIFT_SYMBOL("s:5Class04takeA17WithIntFieldInoutyyAA0acdE0CzF") {
-// CHECK-NEXT:    return _impl::$s5Class04takeA17WithIntFieldInoutyyAA0acdE0CzF(&::swift::_impl::_impl_RefCountedClass::getOpaquePointerRef(x));
+// CHECK-NEXT:    _impl::$s5Class04takeA17WithIntFieldInoutyyAA0acdE0CzF(&::swift::_impl::_impl_RefCountedClass::getOpaquePointerRef(x));
 // CHECK-NEXT:  }

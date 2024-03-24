@@ -1410,7 +1410,10 @@ private:
   /// Print C or C++ trailing attributes for a function declaration.
   void printFunctionClangAttributes(FuncDecl *FD, AnyFunctionType *funcTy) {
     if (funcTy->getResult()->isUninhabited()) {
-      os << " SWIFT_NORETURN";
+      if (funcTy->isThrowing())
+        os << " SWIFT_NORETURN_EXCEPT_ERRORS";
+      else
+        os << " SWIFT_NORETURN";
     } else if (!funcTy->getResult()->isVoid() &&
                !FD->getAttrs().hasAttribute<DiscardableResultAttr>()) {
       os << " SWIFT_WARN_UNUSED_RESULT";
@@ -1489,8 +1492,13 @@ private:
     // Swift functions can't throw exceptions, we can only
     // throw them from C++ when emitting C++ inline thunks for the Swift
     // functions.
-    if (!funcTy->isThrowing())
+    if (!funcTy->isThrowing()) {
       os << " SWIFT_NOEXCEPT";
+      // Lowered Never-returning functions *are* considered to return when they
+      // throw, so only use SWIFT_NORETURN on non-throwing functions.
+      if (funcTy->getResult()->isUninhabited())
+        os << " SWIFT_NORETURN";
+    }
     if (!funcABI.useCCallingConvention())
       os << " SWIFT_CALL";
     printAvailability(FD);

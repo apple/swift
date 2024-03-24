@@ -28,4 +28,4 @@ public enum E {
 // CHECK: _impl::$s5Enums1EO10takeParamAyySiF(a_,
 
 // CHECK: void E::takeParamB(swift::Int b_) {
-// CHECK: return _impl::$s5Enums1EO10takeParamByySiFZ(b_);
+// CHECK: _impl::$s5Enums1EO10takeParamByySiFZ(b_);

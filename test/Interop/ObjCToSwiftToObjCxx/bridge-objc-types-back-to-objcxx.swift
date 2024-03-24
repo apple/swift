@@ -66,10 +66,10 @@ public func retObjClassNullable() -> ObjCKlass? {
 // CHECK-NEXT: return (__bridge_transfer ObjCKlass *)(__bridge void *)_impl::$s9UseObjCTy03retB13ClassNullableSo0B6CKlassCSgyF();
 
 // CHECK: void takeObjCClass(ObjCKlass *_Nonnull x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT: return _impl::$s9UseObjCTy04takeB6CClassyySo0B6CKlassCF(x);
+// CHECK-NEXT: _impl::$s9UseObjCTy04takeB6CClassyySo0B6CKlassCF(x);
 
 // CHECK: SWIFT_INLINE_THUNK void takeObjCClassInout(ObjCKlass *_Nonnull __strong & x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT: return _impl::$s9UseObjCTy04takeB11CClassInoutyySo0B6CKlassCzF(&x);
+// CHECK-NEXT: _impl::$s9UseObjCTy04takeB11CClassInoutyySo0B6CKlassCzF(&x);
 
 // CHECK: SWIFT_INLINE_THUNK void takeObjCClassNullable(ObjCKlass *_Nullable x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT: return _impl::$s9UseObjCTy04takeB14CClassNullableyySo0B6CKlassCSgF(x);
+// CHECK-NEXT: _impl::$s9UseObjCTy04takeB14CClassNullableyySo0B6CKlassCSgF(x);

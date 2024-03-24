@@ -109,11 +109,11 @@ public func inoutSmall(_ en: inout Small, _ x: Int) {
 // CHECK: class SWIFT_SYMBOL("s:5Enums4TinyO") Tiny final {
 
 // CHECK:      SWIFT_INLINE_THUNK void inoutSmall(Small& en, swift::Int x) noexcept SWIFT_SYMBOL("s:5Enums10inoutSmallyyAA0C0Oz_SitF") {
-// CHECK-NEXT:   return _impl::$s5Enums10inoutSmallyyAA0C0Oz_SitF(_impl::_impl_Small::getOpaquePointer(en), x);
+// CHECK-NEXT:   _impl::$s5Enums10inoutSmallyyAA0C0Oz_SitF(_impl::_impl_Small::getOpaquePointer(en), x);
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void inoutTiny(Tiny& en, swift::Int x) noexcept SWIFT_SYMBOL("s:5Enums9inoutTinyyyAA0C0Oz_SitF") {
-// CHECK-NEXT:   return _impl::$s5Enums9inoutTinyyyAA0C0Oz_SitF(_impl::_impl_Tiny::getOpaquePointer(en), x);
+// CHECK-NEXT:   _impl::$s5Enums9inoutTinyyyAA0C0Oz_SitF(_impl::_impl_Tiny::getOpaquePointer(en), x);
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK Small makeSmall(swift::Int x) noexcept SWIFT_SYMBOL("s:5Enums9makeSmallyAA0C0OSiF") SWIFT_WARN_UNUSED_RESULT {
@@ -141,9 +141,9 @@ public func inoutSmall(_ en: inout Small, _ x: Int) {
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void printSmall(const Small& en) noexcept SWIFT_SYMBOL("s:5Enums10printSmallyyAA0C0OF") {
-// CHECK-NEXT:   return _impl::$s5Enums10printSmallyyAA0C0OF(_impl::swift_interop_passDirect_Enums_[[Small]](_impl::_impl_Small::getOpaquePointer(en)));
+// CHECK-NEXT:   _impl::$s5Enums10printSmallyyAA0C0OF(_impl::swift_interop_passDirect_Enums_[[Small]](_impl::_impl_Small::getOpaquePointer(en)));
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void printTiny(const Tiny& en) noexcept SWIFT_SYMBOL("s:5Enums9printTinyyyAA0C0OF") {
-// CHECK-NEXT:   return _impl::$s5Enums9printTinyyyAA0C0OF(_impl::swift_interop_passDirect_Enums_uint8_t_0_1(_impl::_impl_Tiny::getOpaquePointer(en)));
+// CHECK-NEXT:   _impl::$s5Enums9printTinyyyAA0C0OF(_impl::swift_interop_passDirect_Enums_uint8_t_0_1(_impl::_impl_Tiny::getOpaquePointer(en)));
 // CHECK-NEXT: }

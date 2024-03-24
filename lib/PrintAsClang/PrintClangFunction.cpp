@@ -604,6 +604,12 @@ static bool printDirectReturnOrParamCType(
         addABIRecordToTypeEncoding(typeEncodingOS, offset, end, t, typeMapping);
       }))
     return false;
+  if (isResultType && Count == 0) {
+    // A direct result with no record members can happen for uninhabited result
+    // types like `Never`.
+    os << "void";
+    return true;
+  }
   assert(Count > 0 && "missing return values");
 
   // FIXME: is this "prettyfying" logic sound for multiple return values?
@@ -1421,7 +1427,7 @@ void DeclAndTypeClangFunctionPrinter::printCxxThunkBody(
   if (!resultTy->isVoid() && hasThrows)
     os << "  auto returnValue = ";
   // If the function doesn't have a return value just call it.
-  else if (resultTy->isVoid() && hasThrows)
+  else if (resultTy->isVoid())
     os << "  ";
   // If the function can't throw just return its value result.
   else if (!hasThrows)
@@ -1438,6 +1444,8 @@ void DeclAndTypeClangFunctionPrinter::printCxxThunkBody(
     if (resultTy->isVoid()) {
       os << "    return swift::Expected<void>(swift::Error(opaqueError));\n";
       os << "#endif\n";
+      if (FD->getInterfaceType()->castTo<FunctionType>()->getResult()->isUninhabited())
+        os << "  abort();\n";
     } else {
       auto directResultType = signature.getDirectResultType();
       printDirectReturnOrParamCType(

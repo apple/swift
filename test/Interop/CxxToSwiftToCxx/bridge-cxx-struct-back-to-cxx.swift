@@ -283,23 +283,23 @@ public struct Strct {
 // CHECK-NEXT: }
 
 // CHECK: void takeImmortal(ns::Immortal *_Nonnull x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT: return _impl::$s8UseCxxTy12takeImmortalyySo2nsO0E0VF(x);
+// CHECK-NEXT: _impl::$s8UseCxxTy12takeImmortalyySo2nsO0E0VF(x);
 // CHECK-NEXT: }
 
 // CHECK: void takeImmortalTemplate(ns::ImmortalTemplate<int> *_Nonnull x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT:   return _impl::$s8UseCxxTy20takeImmortalTemplateyySo2nsO0028ImmortalTemplateCInt_jBAGgnbVF(x);
+// CHECK-NEXT:   _impl::$s8UseCxxTy20takeImmortalTemplateyySo2nsO0028ImmortalTemplateCInt_jBAGgnbVF(x);
 // CHECK-NEXT: }
 
 // CHECK: SWIFT_INLINE_THUNK void takeNonTrivial2(const ns::NonTrivialTemplate<ns::TrivialinNS>& x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT:   return _impl::$s8UseCxxTy15takeNonTrivial2yySo2nsO0037NonTrivialTemplateTrivialinNS_CsGGkdcVF(swift::_impl::getOpaquePointer(x));
+// CHECK-NEXT:   _impl::$s8UseCxxTy15takeNonTrivial2yySo2nsO0037NonTrivialTemplateTrivialinNS_CsGGkdcVF(swift::_impl::getOpaquePointer(x));
 // CHECK-NEXT: }
 
 // CHECK: SWIFT_INLINE_THUNK void takeTrivial(const Trivial& x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT:   return _impl::$s8UseCxxTy11takeTrivialyySo0E0VF(_impl::swift_interop_passDirect_UseCxxTy_uint32_t_0_4(reinterpret_cast<const char *>(swift::_impl::getOpaquePointer(x))));
+// CHECK-NEXT:   _impl::$s8UseCxxTy11takeTrivialyySo0E0VF(_impl::swift_interop_passDirect_UseCxxTy_uint32_t_0_4(reinterpret_cast<const char *>(swift::_impl::getOpaquePointer(x))));
 // CHECK-NEXT: }
 
 // CHECK: SWIFT_INLINE_THUNK void takeTrivialInout(Trivial& x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT:   return _impl::$s8UseCxxTy16takeTrivialInoutyySo0E0VzF(swift::_impl::getOpaquePointer(x));
+// CHECK-NEXT:   _impl::$s8UseCxxTy16takeTrivialInoutyySo0E0VzF(swift::_impl::getOpaquePointer(x));
 // CHECK-NEXT: }
 
 // CHECK: SWIFT_INLINE_THUNK anonymousStruct Strct::getTransform() const {

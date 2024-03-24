@@ -95,17 +95,17 @@ public final class ExposedClass {
 // CHECK-NEXT: private:
 
 // CHECK: SWIFT_INLINE_THUNK void exposed1() noexcept SWIFT_SYMBOL("{{.*}}") {
-// CHECK-NEXT:   return _impl::$s6Expose8exposed1yyF();
+// CHECK-NEXT:   _impl::$s6Expose8exposed1yyF();
 // CHECK-NEXT: }
 // CHECK-EMPTY:
 // CHECK-EMPTY:
 // CHECK-NEXT: SWIFT_INLINE_THUNK void exposed3() noexcept SWIFT_SYMBOL("{{.*}}") {
-// CHECK-NEXT:   return _impl::$s6Expose8exposed3yyF();
+// CHECK-NEXT:   _impl::$s6Expose8exposed3yyF();
 // CHECK-NEXT: }
 // CHECK-EMPTY:
 // CHECK-EMPTY:
 // CHECK-NEXT: SWIFT_INLINE_THUNK void exposed4() noexcept SWIFT_SYMBOL("{{.*}}") {
-// CHECK-NEXT:   return _impl::$s6Expose15exposed4RenamedyyF();
+// CHECK-NEXT:   _impl::$s6Expose15exposed4RenamedyyF();
 // CHECK-NEXT: }
 
 // CHECK: void ExposedClass::method()

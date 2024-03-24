@@ -38,7 +38,7 @@ public func passThroughStructSmallDirect(_ x: SmallStructDirectPassing) -> Small
 }
 
 // CHECK:      SWIFT_INLINE_THUNK void inoutStructSeveralI64(Structs::StructSeveralI64& s) noexcept SWIFT_SYMBOL("s:11UsesStructs21inoutStructSeveralI64yy0B00deF0VzF") {
-// CHECK-NEXT:   return _impl::$s11UsesStructs21inoutStructSeveralI64yy0B00deF0VzF(Structs::_impl::_impl_StructSeveralI64::getOpaquePointer(s));
+// CHECK-NEXT:   _impl::$s11UsesStructs21inoutStructSeveralI64yy0B00deF0VzF(Structs::_impl::_impl_StructSeveralI64::getOpaquePointer(s));
 // CHECK-NEXT: }
 
 

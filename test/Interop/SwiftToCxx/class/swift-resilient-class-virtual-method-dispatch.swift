@@ -13,7 +13,7 @@
 // CHECK-NEXT: SWIFT_EXTERN ptrdiff_t $s5Class04BaseA0C19virtualComputedPropSivgTj(SWIFT_CONTEXT void * _Nonnull _self) SWIFT_NOEXCEPT SWIFT_CALL; // dispatch thunk for
 
 // CHECK:      void BaseClass::virtualMethod() {
-// CHECK-NEXT: return _impl::$s5Class04BaseA0C13virtualMethodyyFTj(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT: _impl::$s5Class04BaseA0C13virtualMethodyyFTj(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT:  }
 
 // CHECK:      swift::Int BaseClass::virtualMethodIntInt(swift::Int x) {
@@ -43,7 +43,7 @@
 // CHECK-NEXT:      return _impl::$s5Class04BaseA0CyS2icigTj(i, ::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 
 // CHECK:        void DerivedClass::virtualMethod() {
-// CHECK-NEXT:   return _impl::$s5Class04BaseA0C13virtualMethodyyFTj(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT:   _impl::$s5Class04BaseA0C13virtualMethodyyFTj(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT:   }
 
 // CHECK:        swift::Int DerivedClass::virtualMethodIntInt(swift::Int x) {
@@ -59,7 +59,7 @@
 
 
 // CHECK:        void DerivedDerivedClass::virtualMethod() {
-// CHECK-NEXT:     return _impl::$s5Class07DerivedbA0C13virtualMethodyyF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT:     _impl::$s5Class07DerivedbA0C13virtualMethodyyF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT:     }
 
 // CHECK:        BaseClass DerivedDerivedClass::virtualMethodInDerived(const BaseClass& x) {
@@ -67,7 +67,7 @@
 // CHECK-NEXT:     }
 
 // CHECK:        void DerivedDerivedClass::methodInDerivedDerived() {
-// CHECK-NEXT:     return _impl::$s5Class07DerivedbA0C08methodInbB0yyF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT:     _impl::$s5Class07DerivedbA0C08methodInbB0yyF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT:     }
 
 // CHECK:         swift::Int DerivedDerivedClass::getStoredProp() {

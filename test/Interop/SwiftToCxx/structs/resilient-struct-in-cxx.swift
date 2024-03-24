@@ -233,24 +233,24 @@ public func mutateSmall(_ x: inout FirstSmallStruct) {
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void mutateSmall(FirstSmallStruct& x) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT:   return _impl::$s7Structs11mutateSmallyyAA05FirstC6StructVzF(_impl::_impl_FirstSmallStruct::getOpaquePointer(x));
+// CHECK-NEXT:   _impl::$s7Structs11mutateSmallyyAA05FirstC6StructVzF(_impl::_impl_FirstSmallStruct::getOpaquePointer(x));
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void printSmallAndLarge(const FirstSmallStruct& x, const LargeStruct& y) noexcept SWIFT_SYMBOL({{.*}}) {
-// CHECK-NEXT:   return _impl::$s7Structs18printSmallAndLargeyyAA05FirstC6StructV_AA0eG0VtF(_impl::_impl_FirstSmallStruct::getOpaquePointer(x), _impl::_impl_LargeStruct::getOpaquePointer(y));
+// CHECK-NEXT:   _impl::$s7Structs18printSmallAndLargeyyAA05FirstC6StructV_AA0eG0VtF(_impl::_impl_FirstSmallStruct::getOpaquePointer(x), _impl::_impl_LargeStruct::getOpaquePointer(y));
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK uint32_t FirstSmallStruct::getX() const {
 // CHECK-NEXT:   return _impl::$s7Structs16FirstSmallStructV1xs6UInt32Vvg(_getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK:      SWIFT_INLINE_THUNK void FirstSmallStruct::setX(uint32_t value) {
-// CHECK-NEXT:   return _impl::$s7Structs16FirstSmallStructV1xs6UInt32Vvs(value, _getOpaquePointer());
+// CHECK-NEXT:   _impl::$s7Structs16FirstSmallStructV1xs6UInt32Vvs(value, _getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void FirstSmallStruct::dump() const {
-// CHECK-NEXT:   return _impl::$s7Structs16FirstSmallStructV4dumpyyF(_getOpaquePointer());
+// CHECK-NEXT:   _impl::$s7Structs16FirstSmallStructV4dumpyyF(_getOpaquePointer());
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void FirstSmallStruct::mutate() {
-// CHECK-NEXT:   return _impl::$s7Structs16FirstSmallStructV6mutateyyF(_getOpaquePointer());
+// CHECK-NEXT:   _impl::$s7Structs16FirstSmallStructV6mutateyyF(_getOpaquePointer());
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK swift::Int LargeStruct::getX1() const {
@@ -262,9 +262,9 @@ public func mutateSmall(_ x: inout FirstSmallStruct) {
 // CHECK-NEXT: });
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void LargeStruct::dump() const {
-// CHECK-NEXT: return _impl::$s7Structs11LargeStructV4dumpyyF(_getOpaquePointer());
+// CHECK-NEXT: _impl::$s7Structs11LargeStructV4dumpyyF(_getOpaquePointer());
 // CHECK-NEXT: }
 
 // CHECK:      SWIFT_INLINE_THUNK void StructWithRefCountStoredProp::dump() const {
-// CHECK-NEXT:   return _impl::$s7Structs28StructWithRefCountStoredPropV4dumpyyF(_getOpaquePointer());
+// CHECK-NEXT:   _impl::$s7Structs28StructWithRefCountStoredPropV4dumpyyF(_getOpaquePointer());
 // CHECK-NEXT: }

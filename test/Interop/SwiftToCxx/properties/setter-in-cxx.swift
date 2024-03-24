@@ -133,21 +133,21 @@ public func createFirstSmallStruct(_ x: UInt32) -> FirstSmallStruct {
 // CHECK-NEXT: return _impl::$s10Properties16FirstSmallStructV1xs6UInt32Vvg(_impl::swift_interop_passDirect_Properties_uint32_t_0_4(_getOpaquePointer()));
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void FirstSmallStruct::setX(uint32_t value) {
-// CHECK-NEXT: return _impl::$s10Properties16FirstSmallStructV1xs6UInt32Vvs(value, _getOpaquePointer());
+// CHECK-NEXT: _impl::$s10Properties16FirstSmallStructV1xs6UInt32Vvs(value, _getOpaquePointer());
 // CHECK-NEXT: }
 
 // CHECK:        SWIFT_INLINE_THUNK swift::Int LargeStruct::getX1() const {
 // CHECK-NEXT:   return _impl::$s10Properties11LargeStructV2x1Sivg(_getOpaquePointer());
 // CHECK-NEXT:   }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK void LargeStruct::setX1(swift::Int value) {
-// CHECK-NEXT:   return _impl::$s10Properties11LargeStructV2x1Sivs(value, _getOpaquePointer());
+// CHECK-NEXT:   _impl::$s10Properties11LargeStructV2x1Sivs(value, _getOpaquePointer());
 // CHECK-NEXT:   }
 
 // CHECK:      SWIFT_INLINE_THUNK swift::Int LargeStruct::getStaticX() {
 // CHECK-NEXT: return _impl::$s10Properties11LargeStructV7staticXSivgZ();
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void LargeStruct::setStaticX(swift::Int newValue) {
-// CHECK-NEXT: return _impl::$s10Properties11LargeStructV7staticXSivsZ(newValue);
+// CHECK-NEXT: _impl::$s10Properties11LargeStructV7staticXSivsZ(newValue);
 // CHECK-NEXT: }
 
 // CHECK:        SWIFT_INLINE_THUNK LargeStruct LargeStructWithProps::getStoredLargeStruct() const {
@@ -156,7 +156,7 @@ public func createFirstSmallStruct(_ x: UInt32) -> FirstSmallStruct {
 // CHECK-NEXT:   });
 // CHECK-NEXT:   }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK void LargeStructWithProps::setStoredLargeStruct(const LargeStruct& value) {
-// CHECK-NEXT:   return _impl::$s10Properties20LargeStructWithPropsV06storedbC0AA0bC0Vvs(_impl::_impl_LargeStruct::getOpaquePointer(value), _getOpaquePointer());
+// CHECK-NEXT:   _impl::$s10Properties20LargeStructWithPropsV06storedbC0AA0bC0Vvs(_impl::_impl_LargeStruct::getOpaquePointer(value), _getOpaquePointer());
 // CHECK-NEXT:   }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK FirstSmallStruct LargeStructWithProps::getStoredSmallStruct() const {
 // CHECK-NEXT:   return _impl::_impl_FirstSmallStruct::returnNewValue([&](char * _Nonnull result) SWIFT_INLINE_THUNK_ATTRIBUTES {
@@ -164,33 +164,33 @@ public func createFirstSmallStruct(_ x: UInt32) -> FirstSmallStruct {
 // CHECK-NEXT:   });
 // CHECK-NEXT:   }
 // CHECK-NEXT:   SWIFT_INLINE_THUNK void LargeStructWithProps::setStoredSmallStruct(const FirstSmallStruct& value) {
-// CHECK-NEXT:   return _impl::$s10Properties20LargeStructWithPropsV011storedSmallC0AA05FirstgC0Vvs(_impl::swift_interop_passDirect_Properties_uint32_t_0_4(_impl::_impl_FirstSmallStruct::getOpaquePointer(value)), _getOpaquePointer());
+// CHECK-NEXT:   _impl::$s10Properties20LargeStructWithPropsV011storedSmallC0AA05FirstgC0Vvs(_impl::swift_interop_passDirect_Properties_uint32_t_0_4(_impl::_impl_FirstSmallStruct::getOpaquePointer(value)), _getOpaquePointer());
 // CHECK-NEXT:   }
 
 // CHECK: SWIFT_INLINE_THUNK int32_t PropertiesInClass::getStoredInt() {
 // CHECK-NEXT: return _impl::$s10Properties0A7InClassC9storedInts5Int32Vvg(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void PropertiesInClass::setStoredInt(int32_t value) {
-// CHECK-NEXT: return _impl::$s10Properties0A7InClassC9storedInts5Int32Vvs(value, ::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT: _impl::$s10Properties0A7InClassC9storedInts5Int32Vvs(value, ::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK swift::Int PropertiesInClass::getComputedInt() {
 // CHECK-NEXT: return _impl::$s10Properties0A7InClassC11computedIntSivg(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT: }
 // CHECK-NEXT: SWIFT_INLINE_THUNK void PropertiesInClass::setComputedInt(swift::Int newValue) {
-// CHECK-NEXT: return _impl::$s10Properties0A7InClassC11computedIntSivs(newValue, ::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
+// CHECK-NEXT: _impl::$s10Properties0A7InClassC11computedIntSivs(newValue, ::swift::_impl::_impl_RefCountedClass::getOpaquePointer(*this));
 // CHECK-NEXT: }
 
 // CHECK:        SWIFT_INLINE_THUNK uint32_t SmallStructWithProps::getStoredInt() const {
 // CHECK-NEXT:  return _impl::$s10Properties20SmallStructWithPropsV9storedInts6UInt32Vvg(_impl::swift_interop_passDirect_Properties_uint32_t_0_4(_getOpaquePointer()));
 // CHECK-NEXT:  }
 // CHECK-NEXT:  SWIFT_INLINE_THUNK void SmallStructWithProps::setStoredInt(uint32_t value) {
-// CHECK-NEXT:  return _impl::$s10Properties20SmallStructWithPropsV9storedInts6UInt32Vvs(value, _getOpaquePointer());
+// CHECK-NEXT:  _impl::$s10Properties20SmallStructWithPropsV9storedInts6UInt32Vvs(value, _getOpaquePointer());
 // CHECK-NEXT:  }
 // CHECK-NEXT:  SWIFT_INLINE_THUNK swift::Int SmallStructWithProps::getComputedInt() const {
 // CHECK-NEXT:  return _impl::$s10Properties20SmallStructWithPropsV11computedIntSivg(_impl::swift_interop_passDirect_Properties_uint32_t_0_4(_getOpaquePointer()));
 // CHECK-NEXT:  }
 // CHECK-NEXT:  SWIFT_INLINE_THUNK void SmallStructWithProps::setComputedInt(swift::Int newValue) {
-// CHECK-NEXT:  return _impl::$s10Properties20SmallStructWithPropsV11computedIntSivs(newValue, _getOpaquePointer());
+// CHECK-NEXT:  _impl::$s10Properties20SmallStructWithPropsV11computedIntSivs(newValue, _getOpaquePointer());
 // CHECK-NEXT:  }
 // CHECK-NEXT:  SWIFT_INLINE_THUNK LargeStructWithProps SmallStructWithProps::getLargeStructWithProps() const {
 // CHECK-NEXT:  return _impl::_impl_LargeStructWithProps::returnNewValue([&](char * _Nonnull result) SWIFT_INLINE_THUNK_ATTRIBUTES {
@@ -198,5 +198,5 @@ public func createFirstSmallStruct(_ x: UInt32) -> FirstSmallStruct {
 // CHECK-NEXT:  });
 // CHECK-NEXT:  }
 // CHECK-NEXT:  SWIFT_INLINE_THUNK void SmallStructWithProps::setLargeStructWithProps(const LargeStructWithProps& newValue) {
-// CHECK-NEXT:  return _impl::$s10Properties20SmallStructWithPropsV05largecdE0AA05LargecdE0Vvs(_impl::_impl_LargeStructWithProps::getOpaquePointer(newValue), _getOpaquePointer());
+// CHECK-NEXT:  _impl::$s10Properties20SmallStructWithPropsV05largecdE0AA05LargecdE0Vvs(_impl::_impl_LargeStructWithProps::getOpaquePointer(newValue), _getOpaquePointer());
 // CHECK-NEXT:  }

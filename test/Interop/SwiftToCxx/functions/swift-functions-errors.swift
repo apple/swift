@@ -14,6 +14,7 @@
 // CHECK: SWIFT_EXTERN void $s9Functions18emptyThrowFunctionyyKF(SWIFT_CONTEXT void * _Nonnull _ctx, SWIFT_ERROR_RESULT void * _Nullable * _Nullable _error) SWIFT_CALL; // emptyThrowFunction()
 // CHECK: SWIFT_EXTERN void $s9Functions18testDestroyedErroryyKF(SWIFT_CONTEXT void * _Nonnull _ctx, SWIFT_ERROR_RESULT void * _Nullable * _Nullable _error) SWIFT_CALL; // testDestroyedError()
 // CHECK: SWIFT_EXTERN void $s9Functions13throwFunctionyyKF(SWIFT_CONTEXT void * _Nonnull _ctx, SWIFT_ERROR_RESULT void * _Nullable * _Nullable _error) SWIFT_CALL; // throwFunction()
+// CHECK: SWIFT_EXTERN void $s9Functions28throwFunctionWithNeverReturns0E0OyKF(SWIFT_CONTEXT void * _Nonnull _ctx, SWIFT_ERROR_RESULT void * _Nullable * _Nullable _error) SWIFT_CALL; // throwFunctionWithNeverReturn()
 // CHECK: SWIFT_EXTERN ptrdiff_t $s9Functions31throwFunctionWithPossibleReturnyS2iKF(ptrdiff_t a, SWIFT_CONTEXT void * _Nonnull _ctx, SWIFT_ERROR_RESULT void * _Nullable * _Nullable _error) SWIFT_CALL; // throwFunctionWithPossibleReturn(_:)
 // CHECK: SWIFT_EXTERN ptrdiff_t $s9Functions23throwFunctionWithReturnSiyKF(SWIFT_CONTEXT void * _Nonnull _ctx, SWIFT_ERROR_RESULT void * _Nullable * _Nullable _error) SWIFT_CALL; // throwFunctionWithReturn()
 
@@ -88,6 +89,25 @@ public func throwFunction() throws {
 // CHECK: return swift::Expected<void>(swift::Error(opaqueError));
 // CHECK: #endif
 // CHECK: }
+
+@_expose(Cxx)
+public func throwFunctionWithNeverReturn() throws -> Never {
+    print("passThrowFunctionWithNeverReturn")
+    throw NaiveErrors.returnError
+}
+
+// CHECK: SWIFT_INLINE_THUNK swift::ThrowingResult<void> throwFunctionWithNeverReturn() SWIFT_SYMBOL("s:9Functions28throwFunctionWithNeverReturns0E0OyKF") SWIFT_NORETURN_EXCEPT_ERRORS {
+// CHECK-NEXT: void* opaqueError = nullptr;
+// CHECK-NEXT: void* _ctx = nullptr;
+// CHECK-NEXT: _impl::$s9Functions28throwFunctionWithNeverReturns0E0OyKF(_ctx, &opaqueError);
+// CHECK-NEXT: if (opaqueError != nullptr)
+// CHECK-NEXT: #ifdef __cpp_exceptions
+// CHECK-NEXT: throw (swift::Error(opaqueError));
+// CHECK-NEXT: #else
+// CHECK-NEXT: return swift::Expected<void>(swift::Error(opaqueError));
+// CHECK-NEXT: #endif
+// CHECK-NEXT: abort();
+// CHECK-NEXT: }
 
 @_expose(Cxx)
 public func throwFunctionWithPossibleReturn(_ a: Int) throws -> Int {
