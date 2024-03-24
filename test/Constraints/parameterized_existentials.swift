@@ -15,7 +15,7 @@ func f2(x: any P<Int>) -> any P {
 
 func f3(x: any P<Int>) -> any P<String> {
   // FIXME: Misleading diagnostic
-  return x // expected-error {{cannot convert return expression of type 'String' to return type 'Int'}}
+  return x // expected-error {{return expressions for types 'String' and 'Int' are not interconvertible}}
 }
 
 struct G<T> {}
@@ -24,19 +24,19 @@ struct G<T> {}
 // expected-note@-3 {{arguments to generic parameter 'T' ('any P<Int>' and 'any P<String>') are expected to be equal}}
 
 func g1(x: G<any P>) -> G<any P<Int>> {
-  return x // expected-error {{cannot convert return expression of type 'G<any P>' to return type 'G<any P<Int>>'}}
+  return x // expected-error {{return expressions for types 'G<any P>' and 'G<any P<Int>>' are not interconvertible}}
 }
 
 func g2(x: G<any P<Int>>) -> G<any P> {
-  return x // expected-error {{cannot convert return expression of type 'G<any P<Int>>' to return type 'G<any P>'}}
+  return x // expected-error {{return expressions for types 'G<any P<Int>>' and 'G<any P>' are not interconvertible}}
 }
 
 func g3(x: G<any P<Int>>) -> G<any P<String>> {
-  return x // expected-error {{cannot convert return expression of type 'G<any P<Int>>' to return type 'G<any P<String>>'}}
+  return x // expected-error {{return expressions for types 'G<any P<Int>>' and 'G<any P<String>>' are not interconvertible}}
 }
 
 func h1(x: (any P)?) -> (any P<Int>)? {
-  return x // expected-error {{cannot convert return expression of type '(any P)?' to return type '(any P<Int>)?'}}
+  return x // expected-error {{return expressions for types 'any P' and 'any P<Int>' are not interconvertible}}
 }
 
 func h2(x: (any P<Int>)?) -> (any P)? {
@@ -44,5 +44,6 @@ func h2(x: (any P<Int>)?) -> (any P)? {
 }
 
 func h3(x: (any P<Int>)?) -> (any P<String>)? {
-  return x // expected-error {{cannot convert return expression of type '(any P<Int>)?' to return type '(any P<String>)?'}}
+  return x // expected-error {{return expressions for types 'any P<Int>' and 'any P<String>' are not interconvertible}
+  // expected-note@-1 {{arguments to generic parameter 'T' ('any P<Int>' and 'any P<String>') are expected to be equal}}
 }
