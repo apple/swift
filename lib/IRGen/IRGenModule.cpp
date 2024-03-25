@@ -98,6 +98,7 @@ static clang::CodeGenerator *createClangCodeGenerator(ASTContext &Context,
   assert(Importer && "No clang module loader!");
   auto &ClangContext = Importer->getClangASTContext();
 
+  auto &CGTI = Importer->getTargetInfo();
   auto &CGO = Importer->getCodeGenOpts();
   CGO.OptimizationLevel = Opts.shouldOptimize() ? 3 : 0;
 
@@ -152,7 +153,7 @@ static clang::CodeGenerator *createClangCodeGenerator(ASTContext &Context,
   auto *ClangCodeGen = clang::CreateLLVMCodeGen(ClangContext.getDiagnostics(),
                                                 ModuleName, &VFS, HSI, PPO, CGO,
                                                 LLVMContext);
-  ClangCodeGen->Initialize(ClangContext);
+  ClangCodeGen->Initialize(ClangContext, CGTI);
   return ClangCodeGen;
 }
 

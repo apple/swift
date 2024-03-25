@@ -6,3 +6,7 @@ module CrossImportTestModule {
   header "CrossImportTestModule.h"
   export *
 }
+module Bar {
+  header "Bar.h"
+  export *
+}
