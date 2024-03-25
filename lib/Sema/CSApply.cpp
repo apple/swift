@@ -98,8 +98,15 @@ Solution::computeSubstitutions(NullablePtr<ValueDecl> decl,
   TypeSubstitutionMap subs;
   for (const auto &opened : openedTypes->second) {
     auto type = getFixedType(opened.second);
-    if (opened.first->isParameterPack() && !type->is<PackType>())
-      type = PackType::getSingletonPackExpansion(type);
+    if (opened.first->isParameterPack()) {
+      if (type->is<PlaceholderType>()) {
+        auto &ctx = type->getASTContext();
+        type =
+        PackType::get(ctx, {PackExpansionType::get(ctx.TheUnresolvedType,
+                                                   ctx.TheUnresolvedType)});
+      } else if (!type->is<PackType>())
+        type = PackType::getSingletonPackExpansion(type);
+    }
     subs[opened.first] = type;
   }
 
