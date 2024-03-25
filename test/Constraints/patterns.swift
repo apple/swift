@@ -631,9 +631,7 @@ func testExprPatternIsolation() {
   }
   for case 0 in nil {} // expected-error {{'nil' requires a contextual type}}
   for case 0 in [nil] {}
-  // expected-error@-1 {{type 'Any' cannot conform to 'Equatable'}}
-  // expected-note@-2 {{only concrete types such as structs, enums and classes can conform to protocols}}
-  // expected-note@-3 {{requirement from conditional conformance of 'Any?' to 'Equatable'}}
+  // expected-error@-1 {{expression pattern of type 'Int' cannot match values of type 'Any?'}}
 
   // Though we will try Double for an integer literal...
   let d: Double = 0
@@ -679,7 +677,7 @@ func testExprPatternIsolation() {
 
   // FIXME: Bad error (https://github.com/apple/swift/issues/64279)
   if case .e(nil, 0) = produceMultiPayload() {}
-  // expected-error@-1 {{expression pattern of type 'String' cannot match values of type 'Substring'}}
+  // expected-error@-1 {{expression pattern of type 'Unicode.Scalar' cannot match values of type 'UInt8'}}
   // expected-note@-2 {{overloads for '~=' exist with these partially matching parameter lists}}
 
   if case .e(5, nil) = produceMultiPayload() as MultiPayload<Int?> {}

@@ -11,8 +11,8 @@ func foo(value: MyEnum) {
   takeClosure {
     switch value {
     case .second(let drag).invalid:
-      // expected-error@-1 {{value of type 'MyEnum' has no member 'invalid'}}
-      // expected-error@-2 {{'let' binding pattern cannot appear in an expression}}
+      // expected-error@-1 {{expression pattern of type 'Unicode.Scalar' cannot match values of type 'MyEnum'}}
+      // expected-error@-2 {{type 'Unicode.Scalar' has no member 'second'}}
       break
     }
   }
