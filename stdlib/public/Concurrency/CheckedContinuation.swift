@@ -282,17 +282,31 @@ extension CheckedContinuation {
 /// - SeeAlso: `withUnsafeContinuation(function:_:)`
 /// - SeeAlso: `withUnsafeThrowingContinuation(function:_:)`
 @available(SwiftStdlib 5.1, *)
-@_unsafeInheritExecutor // ABI compatibility with Swift 5.1
 @inlinable
 @_unavailableInEmbedded
 public func withCheckedContinuation<T>(
-    function: String = #function,
-    _ body: (CheckedContinuation<T, Never>) -> Void
+  isolation: isolated (any Actor)? = #isolation,
+  function: String = #function,
+  _ body: (CheckedContinuation<T, Never>) -> Void
 ) async -> T {
   return await withUnsafeContinuation {
     body(CheckedContinuation(continuation: $0, function: function))
   }
 }
+
+@available(SwiftStdlib 5.1, *)
+@_unsafeInheritExecutor // ABI compatibility with Swift 5.1
+@inlinable
+@_unavailableInEmbedded
+public func __abi_withCheckedContinuation<T>(
+  function: String = #function,
+  _ body: (CheckedContinuation<T, Never>) -> Void
+) async -> T {
+  return await __abi_withUnsafeContinuation {
+    body(CheckedContinuation(continuation: $0, function: function))
+  }
+}
+
 
 /// Invokes the passed in closure with a checked continuation for the current task.
 ///
@@ -323,14 +337,27 @@ public func withCheckedContinuation<T>(
 /// - SeeAlso: `withUnsafeContinuation(function:_:)`
 /// - SeeAlso: `withUnsafeThrowingContinuation(function:_:)`
 @available(SwiftStdlib 5.1, *)
-@_unsafeInheritExecutor // ABI compatibility with Swift 5.1
 @inlinable
 @_unavailableInEmbedded
 public func withCheckedThrowingContinuation<T>(
-    function: String = #function,
-    _ body: (CheckedContinuation<T, Error>) -> Void
+  isolation: isolated (any Actor)? = #isolation,
+  function: String = #function,
+  _ body: (CheckedContinuation<T, Error>) -> Void
 ) async throws -> T {
   return try await withUnsafeThrowingContinuation {
+    body(CheckedContinuation(continuation: $0, function: function))
+  }
+}
+
+@available(SwiftStdlib 5.1, *)
+@_unsafeInheritExecutor // ABI compatibility with Swift 5.1
+@inlinable
+@_unavailableInEmbedded
+public func __abi_withCheckedThrowingContinuation<T>(
+  function: String = #function,
+  _ body: (CheckedContinuation<T, Error>) -> Void
+) async throws -> T {
+  return try await __abi_withUnsafeThrowingContinuation {
     body(CheckedContinuation(continuation: $0, function: function))
   }
 }
