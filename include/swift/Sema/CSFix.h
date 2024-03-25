@@ -2467,9 +2467,10 @@ public:
 class AllowArgumentMismatch : public ContextualMismatch {
 protected:
   AllowArgumentMismatch(ConstraintSystem &cs, Type argType, Type paramType,
-                        ConstraintLocator *locator)
+                        ConstraintLocator *locator,
+                        FixBehavior fixBehavior = FixBehavior::Error)
       : AllowArgumentMismatch(cs, FixKind::AllowArgumentTypeMismatch, argType,
-                              paramType, locator) {}
+                              paramType, locator, fixBehavior) {}
 
   AllowArgumentMismatch(ConstraintSystem &cs, FixKind kind, Type argType,
                         Type paramType, ConstraintLocator *locator,
@@ -2486,9 +2487,10 @@ public:
 
   bool diagnose(const Solution &solution, bool asNote = false) const override;
 
-  static AllowArgumentMismatch *create(ConstraintSystem &cs, Type argType,
-                                       Type paramType,
-                                       ConstraintLocator *locator);
+  static AllowArgumentMismatch *
+  create(ConstraintSystem &cs, Type argType, Type paramType,
+         ConstraintLocator *locator,
+         FixBehavior fixBehavior = FixBehavior::Error);
 
   static bool classof(const ConstraintFix *fix) {
     return fix->getKind() == FixKind::AllowArgumentTypeMismatch;

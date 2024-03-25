@@ -1842,11 +1842,13 @@ bool AllowArgumentMismatch::diagnose(const Solution &solution,
   return failure.diagnose(asNote);
 }
 
-AllowArgumentMismatch *
-AllowArgumentMismatch::create(ConstraintSystem &cs, Type argType,
-                              Type paramType, ConstraintLocator *locator) {
+AllowArgumentMismatch *AllowArgumentMismatch::create(ConstraintSystem &cs,
+                                                     Type argType,
+                                                     Type paramType,
+                                                     ConstraintLocator *locator,
+                                                     FixBehavior fixBehavior) {
   return new (cs.getAllocator())
-      AllowArgumentMismatch(cs, argType, paramType, locator);
+      AllowArgumentMismatch(cs, argType, paramType, locator, fixBehavior);
 }
 
 bool RemoveInvalidCall::diagnose(const Solution &solution, bool asNote) const {
