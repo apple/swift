@@ -149,19 +149,16 @@ swift::getLibPrespecializedMetadata(const TypeContextDescriptor *description,
   return result;
 }
 
-void _swift_validatePrespecializedMetadata(unsigned *outValidated,
-                                           unsigned *outFailed) {
-  if (outValidated)
-    *outValidated = 0;
-  if (outFailed)
-    *outFailed = 0;
-
+void _swift_validatePrespecializedMetadata() {
   auto *data = getLibPrespecializedData();
   if (!data) {
     return;
   }
 
   disableForValidation = true;
+
+  unsigned validated = 0;
+  unsigned failed = 0;
 
   auto *metadataMap = data->getMetadataMap();
   auto metadataMapSize = metadataMap->arraySize;
@@ -171,8 +168,7 @@ void _swift_validatePrespecializedMetadata(unsigned *outValidated,
     if (!element.key || !element.value)
       continue;
 
-    if (outValidated)
-      (*outValidated)++;
+    validated++;
 
     const char *mangledName = element.key;
     // Skip the leading $.
@@ -186,12 +182,16 @@ void _swift_validatePrespecializedMetadata(unsigned *outValidated,
               "Prespecializations library validation: unable to build metadata "
               "for mangled name '%s'\n",
               mangledName);
-      if (outFailed)
-        (*outFailed)++;
+      failed++;
+      continue;
     }
 
     if (!compareGenericMetadata(result.getType().getMetadata(), element.value))
-      if (outFailed)
-        (*outFailed)++;
+      failed++;
   }
+
+  fprintf(stderr,
+          "Prespecializations library validation: validated %u entries, %u "
+          "failures.\n",
+          validated, failed);
 }
