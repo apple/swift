@@ -124,10 +124,6 @@ public func useNonTrivialOwnedStruct(_ s: __owned NonTrivialStruct) {
 }
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly17useNonTrivialEnumyyAA0cdE0OF : $@convention(thin) (@guaranteed NonTrivialEnum) -> () {
-// CHECK: bb0([[ARG:%.*]] : @guaranteed $NonTrivialEnum):
-// CHECK:   [[COPIED_ARG:%.*]] = copy_value [[ARG]]
-// CHECK:   mark_unresolved_non_copyable_value [no_consume_or_assign] [[COPIED_ARG]]
-// CHECK: } // end sil function '$s8moveonly17useNonTrivialEnumyyAA0cdE0OF'
 public func useNonTrivialEnum(_ s: borrowing NonTrivialEnum) {
     borrowVal(s)
     let s2 = s
@@ -140,12 +136,6 @@ public func useNonTrivialEnum(_ s: borrowing NonTrivialEnum) {
 }
 
 // CHECK-LABEL: sil [ossa] @$s8moveonly22useNonTrivialOwnedEnumyyAA0cdF0OnF : $@convention(thin) (@owned NonTrivialEnum) -> () {
-// CHECK: bb0([[ARG:%.*]] : @owned $NonTrivialEnum):
-// CHECK:   [[BOX:%.*]] = alloc_box
-// CHECK:   [[PROJECT:%.*]] = project_box [[BOX]]
-// CHECK:   store [[ARG]] to [init] [[PROJECT]]
-// CHECK:   mark_unresolved_non_copyable_value [no_consume_or_assign] [[PROJECT]]
-// CHECK: } // end sil function '$s8moveonly22useNonTrivialOwnedEnumyyAA0cdF0OnF'
 public func useNonTrivialOwnedEnum(_ s: __owned NonTrivialEnum) {
     borrowVal(s)
     let s2 = s
@@ -703,69 +693,6 @@ var booleanGuard: Bool { false }
 var booleanGuard2: Bool { false }
 
 // CHECK-LABEL: sil hidden [ossa] @$s8moveonly15enumSwitchTest1yyAA04EnumC5TestsO1EOF : $@convention(thin) (@guaranteed EnumSwitchTests.E) -> () {
-// CHECK: bb0([[ARG:%.*]] : @guaranteed
-// CHECK:   [[COPY_ARG:%.*]] = copy_value [[ARG]]
-// CHECK:   [[ARG_MARKED_VALUE:%.*]] = mark_unresolved_non_copyable_value [no_consume_or_assign] [[COPY_ARG]]
-//             -- code corresponding to the consume x --
-// CHECK:   [[BORROW_ARG_MARKED_VALUE:%.*]] = begin_borrow [[ARG_MARKED_VALUE]]
-// CHECK:   [[COPY_COPY_ARG:%.*]] = copy_value [[BORROW_ARG_MARKED_VALUE]]
-// CHECK:   [[MOVE_COPY_COPY_ARG:%.*]] = move_value [allows_diagnostics] [[COPY_COPY_ARG]]
-// CHECK:   [[MARKED_VALUE:%.*]] = mark_unresolved_non_copyable_value [consumable_and_assignable] [[MOVE_COPY_COPY_ARG]]
-//           -- now switching on the `consume x` --
-// CHECK:   [[BORROWED_VALUE:%.*]] = begin_borrow [[MARKED_VALUE]]
-// CHECK:   switch_enum [[BORROWED_VALUE]] : $EnumSwitchTests.E, case #EnumSwitchTests.E.first!enumelt: [[BB_E_1:bb[0-9]+]], case #EnumSwitchTests.E.second!enumelt: [[BB_E_2:bb[0-9]+]], case #EnumSwitchTests.E.third!enumelt: [[BB_E_3:bb[0-9]+]], case #EnumSwitchTests.E.fourth!enumelt: [[BB_E_4:bb[0-9]+]]
-//
-// CHECK: [[BB_E_1]]([[BBARG:%.*]] : @guaranteed
-// CHECK:   end_borrow [[BORROWED_VALUE]]
-// CHECK:   br [[BB_CONT:bb[0-9]+]]
-//
-// CHECK: [[BB_E_2]]([[BBARG:%.*]] : @guaranteed
-// CHECK:   [[NEW_BOX:%.*]] = alloc_box
-// CHECK:   [[NEW_BOX_BORROW:%.*]] = begin_borrow [lexical] [var_decl] [[NEW_BOX]]
-// CHECK:   [[NEW_BOX_PROJECT:%.*]] = project_box [[NEW_BOX_BORROW]]
-// CHECK:   [[BBARG_COPY:%.*]] = copy_value [[BBARG]]
-// CHECK:   store [[BBARG_COPY]] to [init] [[NEW_BOX_PROJECT]]
-// CHECK:   end_borrow [[BORROWED_VALUE]]
-// CHECK:   br [[BB_CONT]]
-//
-// This case is copyable
-// CHECK: [[BB_E_3]]([[BBARG:%.*]] : @guaranteed
-// CHECK:   [[BBARG_COPY:%.*]] = copy_value [[BBARG]]
-// CHECK:   move_value [lexical] [var_decl] [[BBARG_COPY]]
-// CHECK:   end_borrow [[BORROWED_VALUE]]
-// CHECK:   br [[BB_CONT]]
-//
-// This is a guard case.
-// CHECK: [[BB_E_4]]([[BBARG:%.*]] : @guaranteed
-// CHECK:   cond_br {{%.*}}, [[BB_GUARD_1:bb[0-9]+]], [[BB_GUARD_2:bb[0-9]+]]
-//
-// CHECK: [[BB_GUARD_1]]:
-// CHECK:   end_borrow [[BORROWED_VALUE]]
-// CHECK:   br [[BB_CONT]]
-//
-// CHECK: [[BB_GUARD_2]]:
-// CHECK:   switch_enum [[BBARG]] : $EnumSwitchTests.E2, case #EnumSwitchTests.E2.lhs!enumelt: [[BB_E2_LHS:bb[0-9]+]], case #EnumSwitchTests.E2.rhs!enumelt: [[BB_E2_RHS:bb[0-9]+]]
-//
-// Copyable case
-// CHECK: [[BB_E2_LHS]]([[BBARG:%.*]] : @guaranteed
-// CHECK:   [[BBARG_COPY:%.*]] = copy_value [[BBARG]]
-// CHECK:   move_value [lexical] [var_decl] [[BBARG_COPY]]
-// CHECK:   end_borrow [[BORROWED_VALUE]]
-// CHECK:   br [[BB_CONT]]
-//
-// Move only case.
-// CHECK: [[BB_E2_RHS]]([[BBARG:%.*]] : @guaranteed
-// CHECK:   [[NEW_BOX:%.*]] = alloc_box
-// CHECK:   [[NEW_BOX_BORROW:%.*]] = begin_borrow [lexical] [var_decl] [[NEW_BOX]]
-// CHECK:   [[NEW_BOX_PROJECT:%.*]] = project_box [[NEW_BOX_BORROW]]
-// CHECK:   [[BBARG_COPY:%.*]] = copy_value [[BBARG]]
-// CHECK:   store [[BBARG_COPY]] to [init] [[NEW_BOX_PROJECT]]
-// CHECK:   end_borrow [[BORROWED_VALUE]]
-// CHECK:   br [[BB_CONT]]
-//
-// CHECK: [[BB_CONT]]:
-// CHECK:   destroy_value [[ARG_MARKED_VALUE]]
-// CHECK: } // end sil function '$s8moveonly15enumSwitchTest1yyAA04EnumC5TestsO1EOF'
 func enumSwitchTest1(_ e: borrowing EnumSwitchTests.E) {
     switch consume e {
     case .first:

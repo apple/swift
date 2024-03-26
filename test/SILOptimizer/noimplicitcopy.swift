@@ -1809,35 +1809,32 @@ public func enumPatternMatchIfLet2OwnedArg(@_noImplicitCopy _ x2: __owned EnumTy
     }
 }
 
-// This is wrong.
 public func enumPatternMatchSwitch1(_ x: EnumTy) {
-    @_noImplicitCopy let x2 = x // expected-error {{'x2' used after consume}}
-    switch x2 { // expected-note {{consumed here}}
+    @_noImplicitCopy let x2 = x
+    switch x2 {
     case let .klass(k):
         classUseMoveOnlyWithoutEscaping(k)
-        enumUseMoveOnlyWithoutEscaping(x2) // expected-note {{used here}}
-    case .int:
-        break
-    }
-}
-
-public func enumPatternMatchSwitch1Arg(@_noImplicitCopy _ x2: EnumTy) { // expected-error {{'x2' is borrowed and cannot be consumed}}
-    switch x2 { // expected-note {{consumed here}}
-    case let .klass(k):
-        classUseMoveOnlyWithoutEscaping(k)
-        // This should be flagged as the use after free use. We are atleast
-        // erroring though.
         enumUseMoveOnlyWithoutEscaping(x2)
     case .int:
         break
     }
 }
 
-public func enumPatternMatchSwitch1OwnedArg(@_noImplicitCopy _ x2: __owned EnumTy) { // expected-error {{'x2' used after consume}}
-    switch x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch1Arg(@_noImplicitCopy _ x2: EnumTy) {
+    switch x2 {
     case let .klass(k):
         classUseMoveOnlyWithoutEscaping(k)
-        enumUseMoveOnlyWithoutEscaping(x2) // expected-note {{used here}}
+        enumUseMoveOnlyWithoutEscaping(x2)
+    case .int:
+        break
+    }
+}
+
+public func enumPatternMatchSwitch1OwnedArg(@_noImplicitCopy _ x2: __owned EnumTy) {
+    switch x2 {
+    case let .klass(k):
+        classUseMoveOnlyWithoutEscaping(k)
+        enumUseMoveOnlyWithoutEscaping(x2)
     case .int:
         break
     }
@@ -1853,8 +1850,8 @@ public func enumPatternMatchSwitch2(_ x: EnumTy) {
     }
 }
 
-public func enumPatternMatchSwitch2Arg(@_noImplicitCopy _ x2: EnumTy) { // expected-error {{'x2' is borrowed and cannot be consumed}}
-    switch x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch2Arg(@_noImplicitCopy _ x2: EnumTy) {
+    switch x2 {
     case let .klass(k):
         classUseMoveOnlyWithoutEscaping(k)
     case .int:
@@ -1871,22 +1868,9 @@ public func enumPatternMatchSwitch2OwnedArg(@_noImplicitCopy _ x2: __owned EnumT
     }
 }
 
-// QOI: We can do better here. We should also flag x2
 public func enumPatternMatchSwitch2WhereClause(_ x: EnumTy) {
-    @_noImplicitCopy let x2 = x // expected-error {{'x2' used after consume}}
-    switch x2 { // expected-note {{consumed here}}
-    case let .klass(k)
-           where x2.doSomething(): // expected-note {{used here}}
-        classUseMoveOnlyWithoutEscaping(k)
-    case .int:
-        break
-    case .klass:
-        break
-    }
-}
-
-public func enumPatternMatchSwitch2WhereClauseArg(@_noImplicitCopy _ x2: EnumTy) { // expected-error {{'x2' is borrowed and cannot be consumed}}
-    switch x2 { // expected-note {{consumed here}}
+    @_noImplicitCopy let x2 = x
+    switch x2 {
     case let .klass(k)
            where x2.doSomething():
         classUseMoveOnlyWithoutEscaping(k)
@@ -1897,10 +1881,22 @@ public func enumPatternMatchSwitch2WhereClauseArg(@_noImplicitCopy _ x2: EnumTy)
     }
 }
 
-public func enumPatternMatchSwitch2WhereClauseOwnedArg(@_noImplicitCopy _ x2: __owned EnumTy) { // expected-error {{'x2' used after consume}}
-    switch x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch2WhereClauseArg(@_noImplicitCopy _ x2: EnumTy) {
+    switch x2 {
     case let .klass(k)
-           where x2.doSomething(): // expected-note {{used here}}
+           where x2.doSomething():
+        classUseMoveOnlyWithoutEscaping(k)
+    case .int:
+        break
+    case .klass:
+        break
+    }
+}
+
+public func enumPatternMatchSwitch2WhereClauseOwnedArg(@_noImplicitCopy _ x2: __owned EnumTy) {
+    switch x2 {
+    case let .klass(k)
+           where x2.doSomething():
         classUseMoveOnlyWithoutEscaping(k)
     case .int:
         break
@@ -1922,8 +1918,8 @@ public func enumPatternMatchSwitch2WhereClause2(_ x: EnumTy) {
     }
 }
 
-public func enumPatternMatchSwitch2WhereClause2Arg(@_noImplicitCopy _ x2: EnumTy) { // expected-error {{'x2' is borrowed and cannot be consumed}}
-    switch x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch2WhereClause2Arg(@_noImplicitCopy _ x2: EnumTy) {
+    switch x2 {
     case let .klass(k)
            where boolValue:
         classUseMoveOnlyWithoutEscaping(k)

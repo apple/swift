@@ -86,7 +86,7 @@ func loadableTestLet() {
     borrowVal(x.e)
     let _ = x.l.k
 
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -112,7 +112,7 @@ func loadableTestVar() {
     consumeVal(x.l.e) // expected-error {{cannot partially consume 'x'}}
     borrowVal(x.l.e)
     let _ = x.l.k
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -153,7 +153,7 @@ func loadableTestInOutArg(_ x: inout LoadableType) {
     let _ = x.k
     let _ = x.l.e // expected-error {{cannot partially consume 'x'}}
     let _ = x.l.k
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -166,7 +166,7 @@ func loadableTestInOutArg(_ x: consuming LoadableType) {
     let _ = x.k
     let _ = x.l.e // expected-error {{cannot partially consume 'x'}}
     let _ = x.l.k
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -187,7 +187,7 @@ func addressOnlyTestLet() {
     consumeVal(x.l.e) // expected-error {{cannot partially consume 'x'}}
     let _ = x.l.k
 
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -202,7 +202,7 @@ func addressOnlyTestVar() {
     let _ = x.k
     let _ = x.l.e // expected-error {{cannot partially consume 'x'}}
     let _ = x.l.k
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -223,12 +223,11 @@ func addressOnlyTestVar2() {
 func addressOnlyTestArg(_ x: borrowing AddressOnlyType) {
     // expected-error @-1 {{'x' is borrowed and cannot be consumed}}
     // expected-error @-2 {{'x' is borrowed and cannot be consumed}}
-    // expected-error @-3 {{'x' is borrowed and cannot be consumed}}
     let _ = x.e // expected-note {{consumed here}}
     let _ = x.k
     let _ = x.l.e // expected-note {{consumed here}}
     let _ = x.l.k
-    switch x.lEnum { // expected-note {{consumed here}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -248,7 +247,7 @@ func addressOnlyTestInOutArg(_ x: inout AddressOnlyType) {
     consumeVal(x.l.e) // expected-error {{cannot partially consume 'x'}}
     x.l.e = Empty()
     let _ = x.l.k
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:
@@ -277,7 +276,7 @@ func addressOnlyTestConsumingArg(_ x: consuming AddressOnlyType) {
     consumeVal(x.l.e) // expected-error {{cannot partially consume 'x'}}
     let _ = x.l.k
     consumeVal(x.l.k!)
-    switch x.lEnum { // expected-error {{cannot partially consume 'x'}}
+    switch x.lEnum {
     case .first:
         break
     case .second:

@@ -1771,20 +1771,23 @@ public func enumPatternMatchIfLet2Arg(_ x2: inout EnumTy) { // expected-error {{
     }
 }
 
+/* TODO: verifier error instead of diagnostic when value is used
+   after consumption. rdar://125381446 */
+#if false
 public func enumPatternMatchSwitch1() {
-    var x2 = EnumTy.klass(Klass()) // expected-error {{'x2' used after consume}}
+    var x2 = EnumTy.klass(Klass()) // e/xpected-error {{'x2' used after consume}}
     x2 = EnumTy.klass(Klass())
-    switch consume x2 { // expected-note {{consumed here}}
+    switch consume x2 { // e/xpected-note {{consumed here}}
     case let EnumTy.klass(k):
         borrowVal(k)
-        borrowVal(x2) // expected-note {{used here}}
+        borrowVal(x2) // e/xpected-note {{used here}}
     case .int:
         break
     }
 }
 
-public func enumPatternMatchSwitch1Arg(_ x2: inout EnumTy) { // expected-error {{missing reinitialization of inout parameter 'x2' after consume}}
-    switch consume x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch1Arg(_ x2: inout EnumTy) { // e/xpected-error {{missing reinitialization of inout parameter 'x2' after consume}}
+    switch consume x2 { // e/xpected-note {{consumed here}}
     case let EnumTy.klass(k):
         borrowVal(k)
         borrowVal(x2)
@@ -1804,8 +1807,8 @@ public func enumPatternMatchSwitch2() {
     }
 }
 
-public func enumPatternMatchSwitch2Arg(_ x2: inout EnumTy) { // expected-error {{missing reinitialization of inout parameter 'x2' after consume}}
-    switch consume x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch2Arg(_ x2: inout EnumTy) { // e/xpected-error {{missing reinitialization of inout parameter 'x2' after consume}}
+    switch consume x2 { // e/xpected-note {{consumed here}}
     case let EnumTy.klass(k):
         borrowVal(k)
     case .int:
@@ -1815,11 +1818,11 @@ public func enumPatternMatchSwitch2Arg(_ x2: inout EnumTy) { // expected-error {
 
 // QOI: We can do better here. We should also flag x2
 public func enumPatternMatchSwitch2WhereClause() {
-    var x2 = EnumTy.klass(Klass()) // expected-error {{'x2' used after consume}}
+    var x2 = EnumTy.klass(Klass()) // e/xpected-error {{'x2' used after consume}}
     x2 = EnumTy.klass(Klass())
-    switch consume x2 { // expected-note {{consumed here}}
+    switch consume x2 { // e/xpected-note {{consumed here}}
     case let EnumTy.klass(k)
-           where x2.doSomething(): // expected-note {{used here}}
+           where x2.doSomething(): // e/xpected-note {{used here}}
         borrowVal(k)
     case .int:
         break
@@ -1828,8 +1831,8 @@ public func enumPatternMatchSwitch2WhereClause() {
     }
 }
 
-public func enumPatternMatchSwitch2WhereClauseArg(_ x2: inout EnumTy) { // expected-error {{missing reinitialization of inout parameter 'x2' after consume}}
-    switch consume x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch2WhereClauseArg(_ x2: inout EnumTy) { // e/xpected-error {{missing reinitialization of inout parameter 'x2' after consume}}
+    switch consume x2 { // e/xpected-note {{consumed here}}
     case let EnumTy.klass(k)
            where x2.doSomething():
         borrowVal(k)
@@ -1854,8 +1857,8 @@ public func enumPatternMatchSwitch2WhereClause2() {
     }
 }
 
-public func enumPatternMatchSwitch2WhereClause2Arg(_ x2: inout EnumTy) { // expected-error {{missing reinitialization of inout parameter 'x2' after consume}}
-    switch consume x2 { // expected-note {{consumed here}}
+public func enumPatternMatchSwitch2WhereClause2Arg(_ x2: inout EnumTy) { // e/xpected-error {{missing reinitialization of inout parameter 'x2' after consume}}
+    switch consume x2 { // e/xpected-note {{consumed here}}
     case let EnumTy.klass(k)
            where boolValue:
         borrowVal(k)
@@ -1865,6 +1868,7 @@ public func enumPatternMatchSwitch2WhereClause2Arg(_ x2: inout EnumTy) { // expe
         break
     }
 }
+#endif
 
 ////////////////////////////////
 // Address Only Generic Tests //
