@@ -804,7 +804,7 @@ func testActiveOptional(_ x: Float) -> Float {
 // CHECK: [NONE]   // function_ref _diagnoseUnexpectedNilOptional(_filenameStart:_filenameLength:_filenameIsASCII:_line:_isImplicitUnwrap:)
 // CHECK: [NONE]   %24 = apply %23(%17, %18, %19, %20, %22) : $@convention(thin) (Builtin.RawPointer, Builtin.Word, Builtin.Int1, Builtin.Word, Builtin.Int1) -> ()
 // CHECK: bb2:
-// CHECK: [ACTIVE] %26 = argument of bb2 : $Float
+// CHECK: [ACTIVE] %27 = argument of bb2 : $Float
 
 enum DirectEnum: Differentiable & AdditiveArithmetic {
   case case0

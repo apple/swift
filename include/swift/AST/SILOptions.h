@@ -183,7 +183,7 @@ public:
   bool EnableSILOpaqueValues = false;
 
   /// Require linear OSSA lifetimes after SILGen
-  bool OSSACompleteLifetimes = false;
+  bool OSSACompleteLifetimes = true;
 
   /// Verify linear OSSA lifetimes after SILGen
   bool OSSAVerifyComplete = false;
