@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <fstream>
+
 #include "ToolChains.h"
 
 #include "swift/Basic/LLVM.h"
@@ -108,9 +110,24 @@ ToolChain::InvocationInfo toolchains::GenericUnix::constructInvocation(
 
   return II;
 }
+// Amazon Linux 2023 requires lld as the default linker.
+bool isAmazonLinux2023Host() {
+      std::ifstream file("/etc/os-release");
+      std::string line;
+
+      while (std::getline(file, line)) {
+        if (line.substr(0, 12) == "PRETTY_NAME=") {
+          if (line.substr(12) == "\"Amazon Linux 2023\"") {
+            file.close();
+            return true;
+          }
+        }
+      }
+      return false;
+    }
 
 std::string toolchains::GenericUnix::getDefaultLinker() const {
-  if (getTriple().isAndroid())
+  if (getTriple().isAndroid() || isAmazonLinux2023Host())
     return "lld";
 
   switch (getTriple().getArch()) {
