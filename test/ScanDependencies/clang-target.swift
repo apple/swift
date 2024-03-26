@@ -12,7 +12,7 @@
 
 // With -clang-target, we build one X.pcm
 // RUN: find %t.module-cache -name "X-*.pcm" | count 1
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t.module-cache %s -o %t.deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -target %target-cpu-apple-macosx10.14 -clang-target %target-cpu-apple-macosx10.14
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t.module-cache %s -o %t.deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -target %target-cpu-apple-macosx10.14 -clang-target %target-cpu-apple-macosx10.14
 
 // RUN: %validate-json %t.deps.json | %FileCheck %s
 

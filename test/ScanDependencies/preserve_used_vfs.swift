@@ -6,7 +6,7 @@
 
 // RUN: sed -e "s|OUT_DIR|%t/redirects|g"  -e "s|IN_DIR|%S/Inputs/CHeaders|g" %t/overlay_template.yaml > %t/overlay.yaml
 
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/module-cache %t/test.swift -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import -Xcc -ivfsoverlay -Xcc %t/overlay.yaml
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/module-cache %t/test.swift -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import -Xcc -ivfsoverlay -Xcc %t/overlay.yaml
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 
 //--- redirects/RedirectedF.h

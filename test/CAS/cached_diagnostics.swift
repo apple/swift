@@ -5,12 +5,10 @@
 
 // RUN: %target-swift-frontend -scan-dependencies -module-name Test -O -import-objc-header %S/Inputs/objc.h \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import \
-// RUN:   %s -o %t/deps.json -cache-compile-job -cas-path %t/cas
+// RUN:   %s -o %t/deps.json -cache-compile-job -cas-path %t/cas -module-load-mode prefer-serialized
 
 // RUN: %{python} %S/Inputs/BuildCommandExtractor.py %t/deps.json clang:SwiftShims > %t/shim.cmd
 // RUN: %swift_frontend_plain @%t/shim.cmd
-// RUN: %{python} %S/Inputs/BuildCommandExtractor.py %t/deps.json Swift > %t/swift.cmd
-// RUN: %swift_frontend_plain @%t/swift.cmd
 
 // RUN: %{python} %S/Inputs/BuildCommandExtractor.py %t/deps.json bridgingHeader | tail -n +2  > %t/header.cmd
 // RUN: %target-swift-frontend @%t/header.cmd -disable-implicit-swift-modules %S/Inputs/objc.h -O -o %t/objc.pch 2>&1 | %FileCheck %s -check-prefix CHECK-BRIDGE

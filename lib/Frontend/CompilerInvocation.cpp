@@ -1869,8 +1869,7 @@ static bool validateSwiftModuleFileArgumentAndAdd(const std::string &swiftModule
   return false;
 }
 
-static bool ParseSearchPathArgs(SearchPathOptions &Opts,
-                                ArgList &Args,
+static bool ParseSearchPathArgs(SearchPathOptions &Opts, ArgList &Args,
                                 DiagnosticEngine &Diags,
                                 StringRef workingDirectory) {
   using namespace options;
@@ -2005,6 +2004,31 @@ static bool ParseSearchPathArgs(SearchPathOptions &Opts,
   for (StringRef Opt : Args.getAllArgValues(OPT_scanner_prefix_map)) {
     Opts.ScannerPrefixMapper.push_back(Opt.str());
   }
+
+  Opts.NoScannerModuleValidation |=
+      Args.hasArg(OPT_no_scanner_module_validation);
+
+  std::optional<std::string> forceModuleLoadingMode;
+  if (auto *A = Args.getLastArg(OPT_module_load_mode))
+    forceModuleLoadingMode = A->getValue();
+  else if (auto Env = llvm::sys::Process::GetEnv("SWIFT_FORCE_MODULE_LOADING"))
+    forceModuleLoadingMode = Env;
+  if (forceModuleLoadingMode) {
+    if (*forceModuleLoadingMode == "prefer-interface" ||
+        *forceModuleLoadingMode == "prefer-parseable")
+      Opts.ModuleLoadMode = ModuleLoadingMode::PreferInterface;
+    else if (*forceModuleLoadingMode == "prefer-serialized")
+      Opts.ModuleLoadMode = ModuleLoadingMode::PreferSerialized;
+    else if (*forceModuleLoadingMode == "only-interface" ||
+             *forceModuleLoadingMode == "only-parseable")
+      Opts.ModuleLoadMode = ModuleLoadingMode::OnlyInterface;
+    else if (*forceModuleLoadingMode == "only-serialized")
+      Opts.ModuleLoadMode = ModuleLoadingMode::OnlySerialized;
+    else
+      Diags.diagnose(SourceLoc(), diag::unknown_forced_module_loading_mode,
+                     *forceModuleLoadingMode);
+  }
+
   // Opts.RuntimeIncludePath is set by calls to
   // setRuntimeIncludePath() or setMainExecutablePath().
   // Opts.RuntimeImportPath is set by calls to

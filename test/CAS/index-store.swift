@@ -7,7 +7,7 @@
 // RUN:   -emit-module-interface-path %t/A.swiftinterface \
 // RUN:   -o %t/A.swiftmodule
 
-// RUN: %target-swift-frontend -scan-dependencies -module-name Test -O -module-cache-path %t/clang-module-cache \
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-name Test -O -module-cache-path %t/clang-module-cache \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import -parse-stdlib \
 // RUN:   %t/test.swift -I %t -o %t/deps.json -cache-compile-job -cas-path %t/cas
 

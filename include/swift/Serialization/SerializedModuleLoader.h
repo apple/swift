@@ -16,6 +16,7 @@
 #include "swift/AST/FileUnit.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/ModuleLoader.h"
+#include "swift/AST/SearchPathOptions.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrefixMapper.h"
 #include "llvm/TargetParser/Triple.h"
@@ -27,15 +28,6 @@ enum class ModuleLoadingBehavior;
 namespace file_types {
   enum ID : uint8_t;
 }
-
-/// Specifies how to load modules when both a module interface and serialized
-/// AST are present, or whether to disallow one format or the other altogether.
-enum class ModuleLoadingMode {
-  PreferInterface,
-  PreferSerialized,
-  OnlyInterface,
-  OnlySerialized
-};
 
 /// How a dependency should be loaded.
 ///

@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %empty-directory(%t/clang-module-cache)
 
-// RUN: %target-swift-frontend -scan-dependencies -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -Xcc -fobjc-disable-direct-methods-for-testing
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/clang-module-cache %s -o %t/deps.json -I %S/Inputs/CHeaders -I %S/Inputs/Swift -Xcc -fobjc-disable-direct-methods-for-testing
 // Check the contents of the JSON output
 // RUN: %validate-json %t/deps.json | %FileCheck %s
 

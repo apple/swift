@@ -1115,6 +1115,12 @@ public:
   std::optional<const ModuleDependencyInfo *>
   findDependency(StringRef moduleName) const;
 
+  /// Look for known existing dependencies.
+  ///
+  /// \returns the cached result.
+  const ModuleDependencyInfo &
+  findKnownDependency(const ModuleDependencyID &moduleID) const;
+
   /// Record dependencies for the given module.
   void recordDependency(StringRef moduleName,
                         ModuleDependencyInfo dependencies);

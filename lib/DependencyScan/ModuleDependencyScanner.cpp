@@ -174,7 +174,8 @@ ModuleDependencyScanningWorker::ModuleDependencyScanningWorker(
       ScanASTContext,
       *static_cast<ModuleInterfaceCheckerImpl *>(
           ScanASTContext.getModuleInterfaceChecker()),
-      &DependencyTracker, ModuleLoadingMode::OnlyInterface);
+      &DependencyTracker,
+      ScanCompilerInvocation.getSearchPathOptions().ModuleLoadMode);
 }
 
 ModuleDependencyVector

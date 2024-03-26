@@ -11,7 +11,7 @@
 // RUN: test -f %t/AppleLogging.swiftmodule
 
 /// Scanned dependencies should contain real name AppleLogging
-// RUN: %target-swift-frontend -scan-dependencies  %t/FileLib.swift -module-alias XLogging=AppleLogging -I %t > %t/scandump.output
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface  %t/FileLib.swift -module-alias XLogging=AppleLogging -I %t > %t/scandump.output
 // RUN: %validate-json %t/scandump.output | %FileCheck %s -check-prefix=CHECK-REAL-NAME
 // CHECK-REAL-NAME-NOT: "swiftPrebuiltExternal": "XLogging"
 // CHECK-REAL-NAME-NOT: "compiledModulePath":{{.*}}XLogging.swiftmodule",
@@ -24,7 +24,7 @@
 // RUN: test -f %t/AppleLoggingIF.swiftinterface
 
 /// Scanned dependencies should contain real name AppleLoggingIF
-// RUN: %target-swift-frontend -scan-dependencies  %t/FileLib.swift -module-alias XLogging=AppleLoggingIF -I %t > %t/scandumpIF.output
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface  %t/FileLib.swift -module-alias XLogging=AppleLoggingIF -I %t > %t/scandumpIF.output
 // RUN: %validate-json %t/scandumpIF.output | %FileCheck %s -check-prefix=CHECK-REAL-NAME-IF
 // CHECK-REAL-NAME-IF-NOT: "swift": "XLogging"
 // CHECK-REAL-NAME-IF-NOT: "moduleInterfacePath":{{.*}}XLogging.swiftinterface

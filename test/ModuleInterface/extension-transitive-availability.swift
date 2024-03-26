@@ -3,7 +3,7 @@
 
 // RUN: %target-swift-emit-module-interface(%t/ExtensionAvailable.swiftinterface) %S/Inputs/extension-available.swift -module-name ExtensionAvailable -I%t -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
 
-// RUN: %target-swift-frontend -scan-dependencies %s -o %t/deps.json -I%t -application-extension -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
+// RUN: %target-swift-frontend -scan-dependencies -no-scanner-module-validation %s -o %t/deps.json -I%t -application-extension -disable-implicit-concurrency-module-import -disable-implicit-string-processing-module-import
 // RUN: %validate-json %t/deps.json &>/dev/null
 // RUN: %FileCheck %s < %t/deps.json
 
