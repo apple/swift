@@ -17,6 +17,7 @@ set(swift_concurrency_private_link_libraries)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   list(APPEND swift_concurrency_private_link_libraries Synchronization)
 endif()
+list(APPEND swift_concurrency_private_link_libraries swiftSynchronization)
 
 set(swift_concurrency_incorporate_object_libraries_so swiftThreading)
 
@@ -63,6 +64,8 @@ endif()
 list(APPEND SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS
   "-enable-experimental-feature"
   "IsolatedAny"
+  # XXX: Do not merge, just for prototyping
+  "-Xfrontend" "-disable-availability-checking"
 )
 
 list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS
@@ -162,6 +165,7 @@ add_swift_target_library(swift_Concurrency ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} I
   SWIFT_MODULE_DEPENDS_CYGWIN Glibc
   SWIFT_MODULE_DEPENDS_HAIKU Glibc
   SWIFT_MODULE_DEPENDS_WINDOWS CRT
+  SWIFT_MODULE_DEPENDS Synchronization
 
   PRIVATE_LINK_LIBRARIES ${swift_concurrency_private_link_libraries}
   INCORPORATE_OBJECT_LIBRARIES_SHARED_ONLY
