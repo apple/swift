@@ -204,6 +204,12 @@ public:
                      IRGenModule &IGM, llvm::Module &M,
                      StringRef MainOutputFilenameForDebugInfo,
                      StringRef PrivateDiscriminator);
+  ~IRGenDebugInfoImpl() {
+    // FIXME: SILPassManager sometimes creates an IGM and doesn't finalize it.
+    if (!FwdDeclTypes.empty())
+      finalize();
+    assert(FwdDeclTypes.empty() && "finalize() was not called");
+  }
   void finalize();
 
   void setCurrentLoc(IRBuilder &Builder, const SILDebugScope *DS,
@@ -2549,6 +2555,7 @@ void IRGenDebugInfoImpl::finalize() {
     finalize(cast<llvm::MDNode>(Ty.second),
              llvm::cast_or_null<llvm::DIType>(DIRefMap.lookup(UID)), UID);
   }
+  FwdDeclTypes.clear();
 
   // Finalize the DIBuilder.
   DBuilder.finalize();
