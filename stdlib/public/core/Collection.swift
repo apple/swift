@@ -1099,9 +1099,8 @@ extension Collection {
   ///     // Prints "10"
   @inlinable
   public var first: Element? {
-    let start = startIndex
-    if start != endIndex { return self[start] }
-    else { return nil }
+    var iterator = makeIterator()
+    return iterator.next()
   }
 
   /// A value less than or equal to the number of elements in the collection.
