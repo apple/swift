@@ -2052,6 +2052,7 @@ if ($Test -contains "swiftpm") { Test-PackageManager $HostArch }
       $Indent += 2
   }
 
+  Write-ErrorLines "env:Path $env:Path"
   exit 1
 } finally {
   if ($Summary) {
