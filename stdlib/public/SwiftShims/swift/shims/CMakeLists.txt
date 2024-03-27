@@ -17,6 +17,7 @@ set(sources
   SwiftStdbool.h
   SwiftStddef.h
   SwiftStdint.h
+  SynchronizationShims.h
   System.h
   Target.h
   ThreadLocalStorage.h
