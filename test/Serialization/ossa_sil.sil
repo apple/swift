@@ -19,3 +19,31 @@ bb0(%0 : @guaranteed $AnyObject):
   return %2 : $X
 }
 
+// CHECK-LABEL: sil [serialized] [canonical] [ossa] @reborrowTest :
+// CHECK:       bb1:
+// CHECK-NEXT:    {{%.*}} = begin_borrow %0 : $X
+// CHECK:       bb2:
+// CHECK-NEXT:    {{%.*}} = begin_borrow %0 : $X
+// CHECK:       bb3([[ARG:%.*]] : @reborrow @guaranteed $X):
+// CHECK-NEXT:    {{%.*}} = borrowed [[ARG]] : $X from (%0 : $X)
+// CHECK:       } // end sil function 'reborrowTest'
+sil [serialized] [ossa] @reborrowTest : $@convention(thin) (@owned X) -> () {
+bb0(%0 : @owned $X):
+  cond_br undef, bb1, bb2
+
+bb1:
+  %b1 = begin_borrow %0 : $X
+  br bb3(%b1 : $X)
+
+bb2:
+  %b2 = begin_borrow %0 : $X
+  br bb3(%b2 : $X)
+
+bb3(%r : @reborrow @guaranteed $X):
+  %f = borrowed %r : $X from (%0 : $X)
+  end_borrow %f : $X
+  destroy_value %0 : $X
+  %9999 = tuple()
+  return %9999 : $()
+}
+

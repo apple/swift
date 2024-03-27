@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-objc-interop -enable-sil-verify-all=0 -module-name Swift -o /dev/null %s 2>&1
+// RUN: %target-sil-opt -update-borrowed-from -enable-objc-interop -enable-sil-verify-all=0 -module-name Swift -o /dev/null %s 2>&1
 // REQUIRES: asserts
 
 // This file is meant to contain tests that previously the verifier treated

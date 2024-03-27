@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt  %s -let-property-lowering | %FileCheck %s
+// RUN: %target-sil-opt  %s -update-borrowed-from -let-property-lowering | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 
@@ -291,7 +291,8 @@ bb2:
 
 // CHECK-LABEL: sil [ossa] @test_reborrow :
 // CHECK:       bb1([[A:%.*]] : @reborrow @guaranteed $C):
-// CHECK:         end_borrow [[A]]
+// CHECK:         [[R:%.*]] = borrowed [[A]] : $C from (%2 : $C)
+// CHECK:         end_borrow [[R]]
 // CHECK-NEXT:    end_init_let_ref %2
 // CHECK:       } // end sil function 'test_reborrow'
 sil [ossa] @test_reborrow : $@convention(thin) (@owned C, Int) -> @owned C {

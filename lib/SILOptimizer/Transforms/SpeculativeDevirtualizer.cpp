@@ -122,7 +122,7 @@ static FullApplySite CloneApply(FullApplySite AI, SILValue SelfArg,
 
 /// Insert monomorphic inline caches for a specific class or metatype
 /// type \p SubClassTy.
-static FullApplySite speculateMonomorphicTarget(FullApplySite AI,
+static FullApplySite speculateMonomorphicTarget(SILPassManager *pm, FullApplySite AI,
                                                 CanType SubType, ClassDecl *CD,
                                                 CanType ClassType,
                                                 CheckedCastBranchInst *&CCBI) {
@@ -228,7 +228,7 @@ static FullApplySite speculateMonomorphicTarget(FullApplySite AI,
   ++NumTargetsPredicted;
 
   // Devirtualize the apply instruction on the identical path.
-  auto NewInst = devirtualizeClassMethod(IdenAI, DownCastedClassInstance, CD,
+  auto NewInst = devirtualizeClassMethod(pm, IdenAI, DownCastedClassInstance, CD,
                                          ClassType, nullptr)
                      .first;
   assert(NewInst && "Expected to be able to devirtualize apply!");
@@ -378,7 +378,7 @@ static bool isDefaultCaseKnown(ClassHierarchyAnalysis *CHA,
 
 /// Try to speculate the call target for the call \p AI. This function
 /// returns true if a change was made.
-static bool tryToSpeculateTarget(FullApplySite AI, ClassHierarchyAnalysis *CHA,
+static bool tryToSpeculateTarget(SILPassManager *pm, FullApplySite AI, ClassHierarchyAnalysis *CHA,
                                  OptRemark::Emitter &ORE) {
   ClassMethodInst *CMI = cast<ClassMethodInst>(AI.getCallee());
 
@@ -409,7 +409,7 @@ static bool tryToSpeculateTarget(FullApplySite AI, ClassHierarchyAnalysis *CHA,
     ClassHierarchyAnalysis::ClassList Subs;
     if (isDefaultCaseKnown(CHA, AI, CD, Subs)) {
       auto NewInst =
-          tryDevirtualizeClassMethod(AI, SubTypeValue, CD, ClassType, &ORE)
+          tryDevirtualizeClassMethod(pm, AI, SubTypeValue, CD, ClassType, &ORE)
               .first;
       if (NewInst)
         deleteDevirtualizedApply(AI);
@@ -418,7 +418,7 @@ static bool tryToSpeculateTarget(FullApplySite AI, ClassHierarchyAnalysis *CHA,
 
     LLVM_DEBUG(llvm::dbgs() << "Inserting monomorphic speculative call for "
                "class " << CD->getName() << "\n");
-    return !!speculateMonomorphicTarget(AI, SubType, CD, ClassType, LastCCBI);
+    return !!speculateMonomorphicTarget(pm, AI, SubType, CD, ClassType, LastCCBI);
   }
 
   // True if any instructions were changed or generated.
@@ -454,7 +454,7 @@ static bool tryToSpeculateTarget(FullApplySite AI, ClassHierarchyAnalysis *CHA,
   }
 
   auto FirstAI =
-      speculateMonomorphicTarget(AI, SubType, CD, ClassType, LastCCBI);
+      speculateMonomorphicTarget(pm, AI, SubType, CD, ClassType, LastCCBI);
   if (FirstAI) {
     Changed = true;
     AI = FirstAI;
@@ -516,7 +516,7 @@ static bool tryToSpeculateTarget(FullApplySite AI, ClassHierarchyAnalysis *CHA,
     }
 
     // Pass the metatype of the subclass.
-    auto NewAI = speculateMonomorphicTarget(AI, ClassOrMetatypeType, S,
+    auto NewAI = speculateMonomorphicTarget(pm, AI, ClassOrMetatypeType, S,
                                             CanClassType, LastCCBI);
     if (!NewAI) {
       ++NotHandledSubsNum;
@@ -573,7 +573,7 @@ static bool tryToSpeculateTarget(FullApplySite AI, ClassHierarchyAnalysis *CHA,
     return true;
   }
   auto NewInst =
-      tryDevirtualizeClassMethod(AI, SubTypeValue, CD, ClassType, nullptr)
+      tryDevirtualizeClassMethod(pm, AI, SubTypeValue, CD, ClassType, nullptr)
           .first;
   if (NewInst) {
     ORE.emit(RB);
@@ -622,7 +622,7 @@ namespace {
       OptRemark::Emitter ORE(DEBUG_TYPE, CurFn);
       // Go over the collected calls and try to insert speculative calls.
       for (auto AI : ToSpecialize)
-        Changed |= tryToSpeculateTarget(AI, CHA, ORE);
+        Changed |= tryToSpeculateTarget(getPassManager(), AI, CHA, ORE);
 
       if (Changed) {
         CurFn.getModule().linkFunction(&CurFn, SILModule::LinkingMode::LinkAll);

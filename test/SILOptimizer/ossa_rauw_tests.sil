@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all -sil-combine -semantic-arc-opts %s | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all -update-borrowed-from -sil-combine -semantic-arc-opts %s | %FileCheck %s
 
 // Make sure that we can perform all of these RAUW without producing ARC traffic
 // that semantic arc opts can't eliminate.

@@ -837,6 +837,12 @@ public:
                                       hasPointerEscape, fromVarDecl, fixed));
   }
 
+  BorrowedFromInst *createBorrowedFrom(SILLocation Loc, SILValue borrowedValue,
+                                       ArrayRef<SILValue> enclosingValues) {
+    return insert(BorrowedFromInst::create(getSILDebugLocation(Loc), borrowedValue,
+                                           enclosingValues, getModule()));
+  }
+
   /// Convenience function for creating a load_borrow on non-trivial values and
   /// load [trivial] on trivial values. Becomes load unqualified in non-ossa
   /// functions.

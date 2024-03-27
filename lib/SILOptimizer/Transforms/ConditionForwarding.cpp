@@ -18,6 +18,7 @@
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILUndef.h"
+#include "swift/SILOptimizer/Utils/OwnershipOptUtils.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 
@@ -115,6 +116,7 @@ private:
       }
     }
     if (Changed) {
+      updateBorrowedFrom(getPassManager(), F);
       invalidateAnalysis(SILAnalysis::InvalidationKind::BranchesAndInstructions);
     }
   }
@@ -158,13 +160,15 @@ static bool hasNoRelevantSideEffects(SILBasicBlock *BB) {
 bool ConditionForwarding::tryOptimize(SwitchEnumInst *SEI) {
   // The switch_enum argument (an Enum) must be a block argument at the merging
   // point of the condition's destinations.
-  auto *Arg = dyn_cast<SILArgument>(SEI->getOperand());
+  auto *Arg = dyn_cast<SILArgument>(lookThroughBorrowedFromDef(SEI->getOperand()));
   if (!Arg)
     return false;
 
+  SILValue argValue = lookThroughBorrowedFromUser(Arg);
+
   // The switch_enum must be the only use of the Enum, except it may be used in
   // SEI's successors.
-  for (Operand *ArgUse : Arg->getUses()) {
+  for (Operand *ArgUse : argValue->getUses()) {
     SILInstruction *ArgUser = ArgUse->getUser();
     if (ArgUser == SEI)
       continue;
@@ -242,8 +246,8 @@ bool ConditionForwarding::tryOptimize(SwitchEnumInst *SEI) {
   // First thing to do is to replace all uses of the Enum (= the merging block
   // argument), as this argument gets deleted.
   BasicBlockSet NeedEnumArg(BB->getParent());
-  while (!Arg->use_empty()) {
-    Operand *ArgUse = *Arg->use_begin();
+  while (!argValue->use_empty()) {
+    Operand *ArgUse = *argValue->use_begin();
     SILInstruction *ArgUser = ArgUse->getUser();
     if (ArgUser->isDebugInstruction()) {
       // Don't care about debug instructions. Just remove them.
@@ -316,6 +320,9 @@ bool ConditionForwarding::tryOptimize(SwitchEnumInst *SEI) {
         SILBuilderWithScope(term).createDestroyValue(EI->getLoc(), EI);
       }
     }
+  }
+  if (argValue != Arg) {
+    cast<BorrowedFromInst>(argValue)->eraseFromParent();
   }
 
   // Final step: replace the switch_enum by the condition.

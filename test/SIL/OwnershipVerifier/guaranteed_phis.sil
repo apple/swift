@@ -1,4 +1,5 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s
+// RUN: %target-sil-opt -update-borrowed-from -enable-sil-verify-all %s
+
 import Swift
 import Builtin
 

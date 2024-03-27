@@ -30,6 +30,11 @@ bb0(%0 : $*Builtin.NativeObject, %1 : @guaranteed $Builtin.NativeObject):
 
 class C {}
 
+enum FakeOptional<T> {
+  case none
+  case some(T)
+}
+
 // CHECK-LABEL: sil [ossa] @foo
 // CHECK: begin_borrow {{%[^,]+}}
 // CHECK: begin_borrow [lexical] {{%[^,]+}}
@@ -49,8 +54,9 @@ sil [ossa] @foo : $@convention(thin) () -> () {
 }
 
 // CHECK-LABEL: sil [ossa] @reborrowTest : $@convention(thin) (@owned C) -> () {
-// CHECK: bb3([[ARG:%.*]] : @reborrow @guaranteed $C):
-// CHECK: } // end sil function 'reborrowTest'
+// CHECK:       bb3([[ARG:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    {{%.*}} = borrowed [[ARG]] : $C from (%0 : $C)
+// CHECK:       } // end sil function 'reborrowTest'
 sil [ossa] @reborrowTest : $@convention(thin) (@owned C) -> () {
 bb0(%0 : @owned $C):
   cond_br undef, bb1, bb2
@@ -64,9 +70,24 @@ bb2:
   br bb3(%b2 : $C)
 
 bb3(%r : @reborrow @guaranteed $C):
-  end_borrow %r : $C
+  %f = borrowed %r : $C from (%0 : $C)
+  end_borrow %f : $C
   destroy_value %0 : $C
   %9999 = tuple()
   return %9999 : $()
 }
 
+// CHECK-LABEL: sil [ossa] @reborrowNone :
+// CHECK:       bb1([[ARG:%.*]] : @guaranteed $FakeOptional<C>):
+// CHECK-NEXT:    {{%.*}} = borrowed [[ARG]] : $FakeOptional<C> from ()
+// CHECK:       } // end sil function 'reborrowNone'
+sil [ossa] @reborrowNone : $@convention(thin) () -> () {
+bb0:
+  %0 = enum $FakeOptional<C>, #FakeOptional.none!enumelt
+  br bb1(%0 : $FakeOptional<C>)
+
+bb1(%2 : @guaranteed $FakeOptional<C>):
+  %3 = borrowed %2 : $FakeOptional<C> from ()
+  %4 = tuple ()
+  return %4 : $()
+}

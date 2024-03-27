@@ -1575,6 +1575,13 @@ BridgedInstruction BridgedBuilder::createBeginBorrow(BridgedValue op) const {
   return {unbridged().createBeginBorrow(regularLoc(), op.getSILValue())};
 }
 
+BridgedInstruction BridgedBuilder::createBorrowedFrom(BridgedValue borrowedValue,
+                                                      BridgedValueArray enclosingValues) const {
+  llvm::SmallVector<swift::SILValue, 16> evs;
+  return {unbridged().createBorrowedFrom(regularLoc(), borrowedValue.getSILValue(),
+                                         enclosingValues.getValues(evs))};
+}
+
 BridgedInstruction BridgedBuilder::createEndBorrow(BridgedValue op) const {
   return {unbridged().createEndBorrow(regularLoc(), op.getSILValue())};
 }

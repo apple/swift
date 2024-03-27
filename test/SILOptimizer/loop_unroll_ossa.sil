@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all -loop-unroll %s | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all -update-borrowed-from -loop-unroll %s | %FileCheck %s
 
 sil_stage canonical
 

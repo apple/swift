@@ -150,6 +150,10 @@ extension Sequence where Element == Operand {
     self.lazy.filter { !($0.instruction is I) }
   }
 
+  public func ignore(user: Instruction) -> LazyFilterSequence<Self> {
+    self.lazy.filter { !($0.instruction == user) }
+  }
+
   public func getSingleUser<I: Instruction>(ofType: I.Type) -> I? {
     filterUsers(ofType: I.self).singleUse?.instruction as? I
   }

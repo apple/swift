@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -test-runner %s -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt -update-borrowed-from -test-runner -sil-disable-input-verify %s -o /dev/null 2>&1 | %FileCheck %s
 //
 // REQUIRES: swift_in_compiler
 
@@ -121,7 +121,7 @@ exit:
 
 // CHECK-LABEL: enclosing_def_single_introducer: enclosing_values with: %aggregate2
 // CHECK: sil [ossa] @enclosing_def_single_introducer
-// CHECK: Enclosing values for: %{{.*}} = struct $PairC (%10 : $C, %11 : $C)
+// CHECK: Enclosing values for: %{{.*}} = struct $PairC (%11 : $C, %12 : $C)
 // CHECK:   begin_borrow %0 : $C
 // CHECK-NEXT: enclosing_def_single_introducer: enclosing_values with: %aggregate2
 sil [ossa] @enclosing_def_single_introducer : $@convention(thin) (@guaranteed C) -> () {
@@ -265,8 +265,8 @@ exit:
 
 // CHECK-LABEL: enclosing_def_example: enclosing_values with: %first
 // CHECK: Enclosing values for:   %{{.*}} = struct_extract %{{.*}} : $PairC, #PairC.first
-// CHECK-NEXT:   %{{.*}} = begin_borrow %0 : $C
 // CHECK-NEXT:   %{{.*}} = argument of bb0 : $C
+// CHECK-NEXT:   %{{.*}} = begin_borrow %0 : $C
 // CHECK-NEXT: enclosing_def_example: enclosing_values with: %first
 
 // CHECK-LABEL: enclosing_def_example: enclosing_values with: %field

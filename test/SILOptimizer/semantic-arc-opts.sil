@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -semantic-arc-opts %s | %FileCheck %s
+// RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -update-borrowed-from -semantic-arc-opts %s | %FileCheck %s
 
 sil_stage raw
 

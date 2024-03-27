@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -loop-rotate -looprotate-single-block-loop=true %s | %FileCheck %s
+// RUN: %target-sil-opt -loop-rotate -update-borrowed-from -looprotate-single-block-loop=true %s | %FileCheck %s
 sil_stage canonical
 
 import Builtin

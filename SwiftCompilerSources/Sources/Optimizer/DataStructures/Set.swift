@@ -228,3 +228,16 @@ struct OperandSet : IntrusiveSet {
     context.freeOperandSet(bridged)
   }
 }
+
+extension IntrusiveSet {
+  mutating func insert(contentsOf source: some Sequence<Element>) {
+    for element in source {
+      _ = insert(element)
+    }
+  }
+
+  init(insertContentsOf source: some Sequence<Element>, _ context: some Context) {
+    self.init(context)
+    insert(contentsOf: source)
+  }
+}

@@ -1,11 +1,12 @@
-// RUN: %target-sil-opt -copy-propagation -canonical-ossa-rewrite-borrows -enable-sil-verify-all -module-name Swift %s | %FileCheck %s
-// RUN: %target-sil-opt -copy-propagation -enable-sil-verify-all -module-name Swift %s | %FileCheck %s --check-prefixes=CHECK-NOSCOPES
+// RUN: %target-sil-opt -update-borrowed-from -copy-propagation -canonical-ossa-rewrite-borrows -enable-sil-verify-all -module-name Swift %s | %FileCheck %s
+// RUN: %target-sil-opt -update-borrowed-from -copy-propagation -enable-sil-verify-all -module-name Swift %s | %FileCheck %s --check-prefixes=CHECK-NOSCOPES
 //
 // Most CopyPropagation tests are still in copy_propagation_opaque.sil.
 //
 // Mandatory copy propagation does not handles borrows yet.
 
 // REQUIRES: asserts
+// REQUIRES: swift_in_compiler
 
 // arm64e checks that there is a sound Swift stdlib but the test compiles itself
 // as `-module Swift` and so that verification fails. (in some ptrauth
@@ -565,8 +566,9 @@ bb0(%0 : @guaranteed $HasObject):
 // CHECK:   br bb3([[CP]] : $C, [[BORROW]] : $C)
 // CHECK: bb2:
 // CHECK:   br bb3([[CP]] : $C, [[BORROW]] : $C)
-// CHECK: bb3([[OWNEDPHI:%.*]] : @owned $C, [[BORROWPHI:%.*]] @reborrow @guaranteed $C
-// CHECK:   end_borrow [[BORROWPHI]]
+// CHECK: bb3([[OWNEDPHI:%.*]] : @owned $C, [[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
+// CHECK:   [[R:%.*]] = borrowed [[BORROWPHI]] : $C from (%0 : $C)
+// CHECK:   end_borrow [[R]]
 // CHECK:   destroy_value [[OWNEDPHI]] : $C
 // CHECK:   destroy_value %0 : $C
 // CHECK-LABEL: } // end sil function 'testSubReborrowExtension'
@@ -605,8 +607,9 @@ bb3(%phi : @owned $C, %borrowphi : @guaranteed $C):
 // CHECK-LABEL: sil [ossa] @testLiveCopyAfterReborrow : $@convention(thin) () -> () {
 // CHECK: [[ALLOC:%.*]] = alloc_ref $C
 // CHECK: bb3([[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
-// CHECK: [[COPY:%.*]] = copy_value [[BORROWPHI]]
-// CHECK: end_borrow [[BORROWPHI]] : $C
+// CHECK: [[R:%.*]] = borrowed [[BORROWPHI]] : $C from (%0 : $C)
+// CHECK: [[COPY:%.*]] = copy_value [[R]]
+// CHECK: end_borrow [[R]] : $C
 // CHECK-NOT: copy_value
 // CHECK-NOT: destroy_value
 // CHECK: apply
@@ -653,8 +656,9 @@ bb3(%borrowphi : @guaranteed $C):
 // CHECK-LABEL: sil [ossa] @testDeadCopyAfterReborrow : $@convention(thin) () -> () {
 // CHECK: [[ALLOC:%.*]] = alloc_ref $C
 // CHECK: bb3([[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
+// CHECK: [[R:%.*]] = borrowed [[BORROWPHI]] : $C from (%0 : $C)
 // CHECK-NOT: copy_value
-// CHECK: end_borrow [[BORROWPHI]] : $C
+// CHECK: end_borrow [[R]] : $C
 // CHECK-NOT: copy_value
 // CHECK: destroy_value [[ALLOC]] : $C
 // CHECK-LABEL: } // end sil function 'testDeadCopyAfterReborrow'
@@ -693,8 +697,9 @@ bb3(%borrowphi : @guaranteed $C):
 // CHECK-LABEL: sil [ossa] @testNestedReborrowOutsideUse : $@convention(thin) () -> () {
 // CHECK:        [[ALLOC:%.*]] = alloc_ref $C
 // CHECK:      bb3([[BORROWPHI:%.*]] : @reborrow @guaranteed $C):
+// CHECK:        [[R:%.*]] = borrowed [[BORROWPHI]] : $C from (%0 : $C)
 // CHECK-NOT:    copy
-// CHECK:        end_borrow [[BORROWPHI]]
+// CHECK:        end_borrow [[R]]
 // CHECK-NEXT:   destroy_value [[ALLOC]] : $C
 // CHECK-LABEL: } // end sil function 'testNestedReborrowOutsideUse'
 sil [ossa] @testNestedReborrowOutsideUse : $@convention(thin) () -> () {

@@ -60,7 +60,8 @@ bb2:
   br bb3(%b2 : $Klass)
 
 bb3(%r : @reborrow @guaranteed $Klass):
-  end_borrow %r : $Klass
+  %rf = borrowed %r : $Klass from (%0 : $Klass)
+  end_borrow %rf : $Klass
   destroy_value %0 : $Klass
   %9999 = tuple()
   return %9999 : $()

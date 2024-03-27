@@ -19,6 +19,7 @@
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
+#include "swift/SIL/OwnershipUtils.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "llvm/ADT/TinyPtrVector.h"
 
@@ -142,8 +143,12 @@ TermInst *swift::deleteEdgeValue(TermInst *branch, SILBasicBlock *destBlock,
 void swift::erasePhiArgument(SILBasicBlock *block, unsigned argIndex,
                              bool cleanupDeadPhiOps,
                              InstModCallbacks callbacks) {
-  assert(block->getArgument(argIndex)->isPhi()
-         && "Only should be used on phi arguments");
+  SILArgument *arg = block->getArgument(argIndex);
+  assert(arg->isPhi() && "Only should be used on phi arguments");
+  if (auto *bfi = getBorrowedFromUser(arg)) {
+    bfi->replaceAllUsesWith(arg);
+    bfi->eraseFromParent();
+  }
   block->eraseArgument(argIndex);
 
   // Determine the set of predecessors in case any predecessor has

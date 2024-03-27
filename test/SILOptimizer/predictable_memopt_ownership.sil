@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all %s -predictable-memaccess-opts -predictable-deadalloc-elim  | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all %s -update-borrowed-from -predictable-memaccess-opts -predictable-deadalloc-elim  | %FileCheck %s
 
 sil_stage raw
 

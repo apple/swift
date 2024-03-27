@@ -2668,7 +2668,8 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
                                                ResultTy.getObjectType());
     break;
   }
-  case SILInstructionKind::StructInst: {
+  case SILInstructionKind::StructInst:
+  case SILInstructionKind::BorrowedFromInst: {
     // Format: a type followed by a list of typed values. A typed value is
     // expressed by 4 IDs: TypeID, TypeCategory, ValueID, ValueResultNumber.
     auto Ty = MF->getType(TyID);
@@ -2679,8 +2680,13 @@ bool SILDeserializer::readSILInstruction(SILFunction *Fn,
           Builder.maybeGetFunction(), ListOfValues[I + 2],
           getSILType(EltTy, (SILValueCategory)ListOfValues[I + 1], Fn)));
     }
-    ResultInst = Builder.createStruct(
+    if (OpCode == SILInstructionKind::StructInst) {
+      ResultInst = Builder.createStruct(
         Loc, getSILType(Ty, (SILValueCategory)TyCategory, Fn), OpList);
+    } else {
+      ResultInst = Builder.createBorrowedFrom(
+        Loc, OpList[0], ArrayRef(OpList).drop_front());
+    }
     break;
   }
   case SILInstructionKind::TupleElementAddrInst:

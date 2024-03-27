@@ -421,6 +421,12 @@ OperandOwnershipClassifier::visitBeginBorrowInst(BeginBorrowInst *borrow) {
   return OperandOwnership::Borrow;
 }
 
+OperandOwnership
+OperandOwnershipClassifier::visitBorrowedFromInst(BorrowedFromInst *bfi) {
+  return getOperandIndex() == 0 ? OperandOwnership::GuaranteedForwarding
+                                : OperandOwnership::InstantaneousUse;
+}
+
 // MARK: Instructions whose use ownership depends on the operand in question.
 
 OperandOwnership OperandOwnershipClassifier::

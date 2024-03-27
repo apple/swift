@@ -64,7 +64,7 @@ func computeLinearLiveness(for definingValue: Value, _ context: Context)
   var range = InstructionRange(for: definingValue, context)
 
   // Compute liveness.
-  definingValue.uses.endingLifetime.forEach {
+  definingValue.lookThroughBorrowedFromUser.uses.endingLifetime.forEach {
     range.insert($0.instruction)
   }
   return range
@@ -560,10 +560,7 @@ struct InteriorUseWalker {
     // If the outer value is an owned phi or reborrow, consider inner
     // adjacent phis part of its lifetime.
     if let phi = Phi(definingValue), phi.endsLifetime {
-      var innerPhis = Stack<Phi>(context)
-      defer { innerPhis.deinitialize() }
-      gatherInnerAdjacentPhis(for: phi, in: &innerPhis, context)
-      let result = innerPhis.walk { innerPhi in
+      let result = phi.innerAdjacentPhis.walk { innerPhi in
         if innerPhi.isReborrow {
           // Inner adjacent reborrows are considered inner borrow scopes.
           if handleInner(borrowed: innerPhi.value) == .abortWalk {
@@ -855,11 +852,8 @@ extension InteriorUseWalker {
     guard visited.insert(guaranteedPhi.value) else {
       return .continueWalk
     }
-    var enclosingValues = Stack<Value>(context)
-    defer { enclosingValues.deinitialize() }
-    gatherEnclosingValues(for: guaranteedPhi.value, in: &enclosingValues,
-                          context)
-    guard enclosingValues.contains(definingValue) else {
+    let phiValue = guaranteedPhi.value.lookThroughBorrowedFromUser
+    guard phiValue.getEnclosingValues(functionContext).contains(definingValue) else {
       // Since definingValue is not an enclosing value, it must be
       // consumed or reborrowed by some outer adjacent phi in this
       // block. An outer adjacent phi's uses do not contribute to the

@@ -16,6 +16,7 @@
 #include "swift/Basic/STLExtras.h"
 #include "swift/SIL/Dominance.h"
 #include "swift/SIL/LoopInfo.h"
+#include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBasicBlock.h"
 #include "swift/SIL/SILBuilder.h"
@@ -345,8 +346,14 @@ void swift::mergeBasicBlockWithSingleSuccessor(SILBasicBlock *BB,
 
   // If there are any BB arguments in the destination, replace them with the
   // branch operands, since they must dominate the dest block.
-  for (unsigned i = 0, e = BI->getArgs().size(); i != e; ++i)
-    succBB->getArgument(i)->replaceAllUsesWith(BI->getArg(i));
+  for (unsigned i = 0, e = BI->getArgs().size(); i != e; ++i) {
+    SILArgument *arg = succBB->getArgument(i);
+    if (auto *bfi = getBorrowedFromUser(arg)) {
+      bfi->replaceAllUsesWith(arg);
+      bfi->eraseFromParent();
+    }
+    arg->replaceAllUsesWith(BI->getArg(i));
+  }
 
   BI->eraseFromParent();
 

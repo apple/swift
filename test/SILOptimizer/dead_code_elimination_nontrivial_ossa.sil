@@ -1,4 +1,6 @@
-// RUN: %target-sil-opt -enable-sil-verify-all -dce %s | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all -update-borrowed-from -dce %s | %FileCheck %s
+
+// REQUIRES: swift_in_compiler
 
 sil_stage canonical
 
@@ -803,7 +805,8 @@ exit:
 // CHECK:         [[OUTER_LIFETIME_1:%[^,]+]] = begin_borrow [[INSTANCE]]
 // CHECK:         br [[EXIT:bb[0-9]+]]([[OUTER_LIFETIME_1]] : $Klass)
 // CHECK:       [[EXIT]]([[OUTER_LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
-// CHECK:         end_borrow [[OUTER_LIFETIME_2]]
+// CHECK:         [[R:%.*]] = borrowed [[OUTER_LIFETIME_2]] : $Klass from (%0 : $Klass)
+// CHECK:         end_borrow [[R]]
 // CHECK:         destroy_value [[INSTANCE]]
 // CHECK:         [[RETVAL:%[^,]+]] = tuple ()
 // CHECK:         return [[RETVAL]]
@@ -826,9 +829,11 @@ exit(%outer_lifetime_2 : @guaranteed $Klass, %inner_lifetime_2 : @guaranteed $Kl
 // CHECK:         [[LIFETIME:%[^,]+]] = begin_borrow [[INSTANCE]]
 // CHECK:         br [[WORK:bb[0-9]+]]([[LIFETIME]] : $Klass)
 // CHECK:       [[WORK]]([[LIFETIME_1:%[^,]+]] : @reborrow @guaranteed $Klass):
-// CHECK:         br [[EXIT:bb[0-9]+]]([[LIFETIME_1]] : $Klass)
+// CHECK:         [[R:%.*]] = borrowed [[LIFETIME_1]] : $Klass from (%0 : $Klass)
+// CHECK:         br [[EXIT:bb[0-9]+]]([[R]] : $Klass)
 // CHECK:       [[EXIT]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
-// CHECK:         end_borrow [[LIFETIME_2]]
+// CHECK:         [[R2:%.*]] = borrowed [[LIFETIME_2]] : $Klass from (%0 : $Klass)
+// CHECK:         end_borrow [[R2]]
 // CHECK:         destroy_value [[INSTANCE]]
 // CHECK:         [[RETVAL:%[^,]+]] = tuple ()
 // CHECK:         return [[RETVAL]] : $()
@@ -908,7 +913,8 @@ exit(%inner_lifetime_2 : @guaranteed $Klass):
 // CHECK:         [[LIFETIME:%[^,]+]] = load_borrow [[INSTANCE]]
 // CHECK:         br [[BASIC_BLOCK1:bb[0-9]+]]([[LIFETIME]] : $Klass)
 // CHECK:       [[BASIC_BLOCK1]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
-// CHECK:         end_borrow [[LIFETIME_2]]
+// CHECK:         [[R:%.*]] = borrowed [[LIFETIME_2]] : $Klass from ()
+// CHECK:         end_borrow [[R]]
 // CHECK:         [[RETVAL:%[^,]+]] = tuple ()
 // CHECK:         return [[RETVAL]]
 // CHECK-LABEL: } // end sil function 'reborrow_load_borrow'
@@ -929,7 +935,8 @@ bb1(%4 : @guaranteed $Klass, %5 : @guaranteed $Klass):
 // CHECK:         [[LIFETIME:%[^,]+]] = load_borrow [[ADDR]] : $*Klass
 // CHECK:         br [[EXIT:bb[0-9]+]]([[LIFETIME]] : $Klass)
 // CHECK:       [[EXIT]]([[LIFETIME_2:%[^,]+]] : @reborrow @guaranteed $Klass):
-// CHECK:         end_borrow [[LIFETIME_2]] : $Klass
+// CHECK:         [[R:%.*]] = borrowed [[LIFETIME_2]] : $Klass from ()
+// CHECK:         end_borrow [[R]] : $Klass
 // CHECK:         [[EXIT:%[^,]+]] = tuple ()
 // CHECK:         return [[EXIT]] : $()
 // CHECK-LABEL: } // end sil function 'reborrow_load_borrow2'

@@ -90,6 +90,10 @@ inline bool isForwardingConsume(SILValue value) {
 //                        Ownership Def-Use Utilities
 //===----------------------------------------------------------------------===//
 
+BorrowedFromInst *getBorrowedFromUser(SILValue v);
+SILValue lookThroughBorrowedFromUser(SILValue v);
+SILValue lookThroughBorrowedFromDef(SILValue v);
+
 /// Whether the specified OSSA-lifetime introducer has a pointer escape.
 ///
 /// precondition: \p value introduces an OSSA-lifetime, either a BorrowedValue
@@ -254,6 +258,7 @@ public:
   enum Kind : uint8_t {
     Invalid = 0,
     BeginBorrow,
+    BorrowedFrom,
     StoreBorrow,
     BeginApply,
     Branch,
@@ -279,6 +284,8 @@ public:
       return Kind::Invalid;
     case SILInstructionKind::BeginBorrowInst:
       return Kind::BeginBorrow;
+    case SILInstructionKind::BorrowedFromInst:
+      return Kind::BorrowedFrom;
     case SILInstructionKind::StoreBorrowInst:
       return Kind::StoreBorrow;
     case SILInstructionKind::BeginApplyInst:
@@ -399,6 +406,7 @@ struct BorrowingOperand {
     case BorrowingOperandKind::Invalid:
       llvm_unreachable("Using invalid case?!");
     case BorrowingOperandKind::BeginBorrow:
+    case BorrowingOperandKind::BorrowedFrom:
     case BorrowingOperandKind::StoreBorrow:
     case BorrowingOperandKind::BeginApply:
     case BorrowingOperandKind::Apply:
@@ -431,6 +439,7 @@ struct BorrowingOperand {
     case BorrowingOperandKind::Invalid:
       llvm_unreachable("Using invalid case?!");
     case BorrowingOperandKind::BeginBorrow:
+    case BorrowingOperandKind::BorrowedFrom:
     case BorrowingOperandKind::Branch:
       return true;
     case BorrowingOperandKind::StoreBorrow:

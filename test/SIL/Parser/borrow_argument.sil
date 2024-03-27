@@ -1,19 +1,23 @@
 // RUN: %target-sil-opt %s | %target-sil-opt | %FileCheck %s
 
+// REQUIRES: swift_in_compiler
+
 sil_stage canonical
 
 import Builtin
 
 // CHECK-LABEL: sil [ossa] @borrow_argument_test : $@convention(thin) (@guaranteed Builtin.NativeObject) -> () {
 // CHECK: bb1([[PHIBBARG:%.*]] : @reborrow @guaranteed $Builtin.NativeObject):
-// CHECK: end_borrow [[PHIBBARG]] : $Builtin.NativeObject
+// CHECK:   [[BF:%.*]] = borrowed [[PHIBBARG]] : $Builtin.NativeObject from (%0 : $Builtin.NativeObject)
+// CHECK: end_borrow [[BF]] : $Builtin.NativeObject
 sil [ossa] @borrow_argument_test : $@convention(thin) (@guaranteed Builtin.NativeObject) -> () {
 bb0(%0 : @guaranteed $Builtin.NativeObject):
   %1 = begin_borrow %0 : $Builtin.NativeObject
   br bb1(%1 : $Builtin.NativeObject)
 
 bb1(%2 : @guaranteed $Builtin.NativeObject):
-  end_borrow %2 : $Builtin.NativeObject
+  %2f = borrowed %2 : $Builtin.NativeObject from (%0 : $Builtin.NativeObject)
+  end_borrow %2f : $Builtin.NativeObject
   %4 = tuple()
   return %4 : $()
 }

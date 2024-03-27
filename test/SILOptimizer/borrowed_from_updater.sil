@@ -1,0 +1,288 @@
+// RUN: %target-sil-opt -update-borrowed-from -sil-disable-input-verify %s | %FileCheck %s
+//
+// REQUIRES: swift_in_compiler
+
+sil_stage raw
+
+import Builtin
+
+struct Trivial {
+  var value: Builtin.Int32
+}
+
+enum FakeOptional<T> {
+case none
+case some(T)
+}
+
+struct PairC {
+  var first: C
+  var second: C
+}
+
+class C {
+  var field: C
+}
+
+class D : C {}
+
+sil @coro : $@yield_once @convention(thin) () -> @yields @guaranteed C
+
+// The introducer of an introducer is always itself.
+
+// CHECK-LABEL: sil [ossa] @introducer_identity :
+// CHECK:       bb1([[A:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B:%.*]] = borrowed [[A]] : $C from (%0 : $C)
+// CHECK-NEXT:    end_borrow [[B]]
+// CHECK:       } // end sil function 'introducer_identity'
+sil [ossa] @introducer_identity : $@convention(thin) (@guaranteed C, @in C) -> () {
+bb0(%0 : @guaranteed $C, %1 : $*C):
+  %borrow1 = begin_borrow %0 : $C
+  br bb1(%borrow1 : $C)
+
+bb1(%reborrow : @guaranteed $C):
+  end_borrow %reborrow : $C
+  destroy_addr %1 : $*C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// There is no introducer if the guaranteed value is produced from a
+// trivial value.
+
+// CHECK-LABEL: sil [ossa] @introducer_trivial :
+// CHECK:       bb1([[A:%.*]] : @guaranteed $FakeOptional<C>):
+// CHECK-NEXT:    [[B:%.*]] = borrowed [[A]] : $FakeOptional<C> from ()
+// CHECK:       } // end sil function 'introducer_trivial'
+sil [ossa] @introducer_trivial : $@convention(thin) () -> () {
+bb0:
+  %trivial = enum $FakeOptional<C>, #FakeOptional.none!enumelt
+  br bb1(%trivial : $FakeOptional<C>)
+
+bb1(%phi : @guaranteed $FakeOptional<C>):
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// An unreachable phi currently looks like a reborrow.
+//
+// TODO: When we have a reborrow flag, an unreachable phi can be
+// either a reborrow or forwarded, as long as it has no end_borrow.
+
+// CHECK-LABEL: sil [ossa] @introducer_unreachable : $@convention(thin) () -> () {
+// CHECK:       bb1([[A:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B:%.*]] = borrowed [[A]] : $C from ()
+// CHECK:       } // end sil function 'introducer_unreachable'
+sil [ossa] @introducer_unreachable : $@convention(thin) () -> () {
+bb0:
+  br bb2
+
+bb1(%phiCycle : @guaranteed $C):
+  br bb1(%phiCycle : $C)
+
+bb2:
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// %reborrow introduces multiple borrow scopes. But it should only appear
+// in the list once.
+
+// The forwarding %phi originates from %borrow1 and %0. But
+// %borrow1 cannot be an introducer in bb2 because it's scope ends at
+// %reborrow. Therefore, %reborrow is an introducer from separate phi
+// paths, but should only appear in the introducer list once.
+//
+// CHECK-LABEL: sil [ossa] @introducer_revisit_reborrow :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C, [[A2:%.*]] : @guaranteed $PairC):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A2]] : $PairC from ([[A1]] : $C, %0 : $C)
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from (%0 : $C)
+// CHECK:       } // end sil function 'introducer_revisit_reborrow'
+sil [ossa] @introducer_revisit_reborrow : $@convention(thin) (@guaranteed C) -> () {
+bb0(%0 : @guaranteed $C):
+  %borrow1 = begin_borrow %0 : $C
+  %aggregate = struct $PairC(%0 : $C, %borrow1 : $C)
+  br bb1(%borrow1 : $C, %aggregate : $PairC)
+
+bb1(%reborrow : @guaranteed $C, %phi : @guaranteed $PairC):
+  %first = struct_extract %phi : $PairC, #PairC.first
+  %aggregate2 = struct $PairC(%reborrow : $C, %first : $C)
+  br bb2
+
+bb2:
+  end_borrow %reborrow : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// %phi originates from %0, %borrow1, & %borrow2. %borrow1 is, however,
+// reborrowed in bb1.
+
+// CHECK-LABEL: sil [ossa] @introducer_multiple_borrow :
+// CHECK:         [[BB1:%.*]] = begin_borrow %0
+// CHECK:         [[BB2:%.*]] = begin_borrow %0
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C, [[A2:%.*]] : @guaranteed $PairC):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A2]] : $PairC from ([[BB2]] : $C, %0 : $C)
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from (%0 : $C)
+// CHECK:       } // end sil function 'introducer_multiple_borrow'
+sil [ossa] @introducer_multiple_borrow : $@convention(thin) (@guaranteed C) -> () {
+bb0(%0 : @guaranteed $C):
+  %borrow1 = begin_borrow %0 : $C
+  %borrow2 = begin_borrow %0 : $C
+  %aggregate = struct $PairC(%0 : $C, %borrow2 : $C)
+  br bb1(%borrow1 : $C, %aggregate : $PairC)
+
+bb1(%reborrow : @guaranteed $C, %phi : @guaranteed $PairC):
+  %first = struct_extract %phi : $PairC, #PairC.first
+  %aggregate2 = struct $PairC(%reborrow : $C, %first : $C)
+  br bb2
+
+bb2:
+  end_borrow %reborrow : $C
+  end_borrow %borrow2 : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testSelfIntroducer :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C, [[A2:%.*]] : @guaranteed $D):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A2]] : $D from ([[A1]] : $C)
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from (%0 : $C)
+// CHECK:       } // end sil function 'testSelfIntroducer'
+sil [ossa] @testSelfIntroducer : $@convention(thin) (@guaranteed C) -> () {
+bb0(%0 : @guaranteed $C):
+  %borrow = begin_borrow %0 : $C
+  %d = unconditional_checked_cast %borrow : $C to D
+  br bb1(%borrow : $C, %d : $D)
+ 
+bb1(%reborrow : @guaranteed $C, %phi : @guaranteed $D):
+  cond_br undef, bb2, bb3
+
+bb2:
+  br bb1(%reborrow : $C, %phi : $D)
+
+bb3:
+  end_borrow %reborrow : $C
+  %99 = tuple()
+  return %99 : $()
+}
+
+// Test the reborrow cache in EnclosingValues. Here, %reborrow must be
+// visited once on each path, and each time the recursive algorithm
+// must find the enclosing def %0, which maps to a %outer0 on one path
+// and %outer1 on another path. If the cache fails, then we only find
+// one of the outer adjacent phis as and enclosing value for %inner.
+//
+// CHECK-LABEL: sil [ossa] @testEnclosingRevisitReborrow :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from (%0 : $C)
+// CHECK:       bb4([[A2:%.*]] : @owned $C, [[A3:%.*]] : @owned $C, [[A4:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A4]] : $C from ([[A3]] : $C, [[A2]] : $C)
+// CHECK:       } // end sil function 'testEnclosingRevisitReborrow'
+sil [ossa] @testEnclosingRevisitReborrow : $@convention(thin) (@owned C, @owned C) -> () {
+bb0(%0 : @owned $C, %1 : @owned $C):
+  %borrow = begin_borrow %0 : $C
+  br bb1(%borrow : $C)
+
+bb1(%reborrow : @guaranteed $C):
+  cond_br undef, bb2, bb3
+
+bb2:
+  br bb4(%0 : $C, %1 : $C, %reborrow : $C)
+
+bb3:
+  br bb4(%1 : $C, %0 : $C, %reborrow : $C)
+
+bb4(%outer0 : @owned $C, %outer1 : @owned $C, %inner : @guaranteed $C):
+  end_borrow %inner : $C
+  destroy_value %outer0 : $C
+  destroy_value %outer1 : $C
+  %99 = tuple()
+  return %99 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testLoadBorrow :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from ()
+// CHECK:       } // end sil function 'testLoadBorrow'
+sil [ossa] @testLoadBorrow : $@convention(thin) (@in_guaranteed C) -> () {
+bb0(%0 : $*C):
+  %2 = load_borrow %0 : $*C
+  br bb1(%2 : $C)
+
+bb1(%3 : @guaranteed $C):
+  end_borrow %3 : $C
+  %99 = tuple()
+  return %99 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testTwoLevels :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from (%0 : $C)
+// CHECK:       bb2([[A2:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A2]] : $C from (%0 : $C)
+// CHECK:       } // end sil function 'testTwoLevels'
+sil [ossa] @testTwoLevels : $@convention(thin) (@owned C) -> () {
+bb0(%0 : @owned $C):
+  %2 = begin_borrow %0 : $C
+  br bb1(%2 : $C)
+
+bb1(%3 : @reborrow @guaranteed $C):
+  br bb2(%3 : $C)
+
+bb2(%6 : @reborrow @guaranteed $C):
+  end_borrow %6 : $C
+  destroy_value %0 : $C
+  %99 = tuple()
+  return %99 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testTwoLevelsWithPair :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $C from (%1 : $C)
+// CHECK:       bb2([[A2:%.*]] : @reborrow @guaranteed $C):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A2]] : $C from (%1 : $C)
+// CHECK:       } // end sil function 'testTwoLevelsWithPair'
+sil [ossa] @testTwoLevelsWithPair : $@convention(thin) (@owned PairC) -> () {
+bb0(%0 : @owned $PairC):
+  (%1, %2) = destructure_struct %0 : $PairC
+  %3 = begin_borrow %1 : $C
+  br bb1(%3 : $C)
+
+bb1(%4 : @reborrow @guaranteed $C):
+  br bb2(%4 : $C)
+
+bb2(%6 : @reborrow @guaranteed $C):
+  end_borrow %6 : $C
+  destroy_value %1 : $C
+  destroy_value %2 : $C
+  %99 = tuple()
+  return %99 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @testTwoLevelReborrow :
+// CHECK:       bb1([[A1:%.*]] : @reborrow @guaranteed $PairC, [[A2:%.*]] : @guaranteed $C):
+// CHECK-NEXT:    [[B2:%.*]] = borrowed [[A2]] : $C from ([[A1]] : $PairC)
+// CHECK-NEXT:    [[B1:%.*]] = borrowed [[A1]] : $PairC from (%0 : $PairC)
+// CHECK-NEXT:    br bb2([[B1]] : $PairC, [[B2]] : $C)
+// CHECK:       bb2([[A3:%.*]] : @reborrow @guaranteed $PairC, [[A4:%.*]] : @guaranteed $C):
+// CHECK-NEXT:    [[B4:%.*]] = borrowed [[A4]] : $C from ([[A3]] : $PairC)
+// CHECK-NEXT:    [[B3:%.*]] = borrowed [[A3]] : $PairC from (%0 : $PairC)
+// CHECK-NEXT:    end_borrow [[B3]]
+// CHECK:       } // end sil function 'testTwoLevelReborrow'
+sil [ossa] @testTwoLevelReborrow : $@convention(thin) (@owned PairC) -> () {
+bb0(%0 : @owned $PairC):
+  %2 = begin_borrow %0 : $PairC
+  %3 = struct_extract %2 : $PairC, #PairC.first
+  br bb1(%2 : $PairC, %3 : $C)
+
+bb1(%5 : @reborrow @guaranteed $PairC, %6 : @guaranteed $C):
+  br bb2(%5 : $PairC, %6 : $C)
+
+bb2(%8 : @reborrow @guaranteed $PairC, %9 : @guaranteed $C):
+  end_borrow %8 : $PairC
+  destroy_value %0 : $PairC
+  %99 = tuple()
+  return %99 : $()
+}
+

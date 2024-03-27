@@ -194,7 +194,8 @@ SILValue getConcreteValueOfExistentialBoxAddr(SILValue addr,
 /// BranchInst (a phi is never the last guaranteed user). \p builder's current
 /// insertion point must dominate all \p usePoints.
 std::pair<SILValue, bool /* changedCFG */>
-castValueToABICompatibleType(SILBuilder *builder, SILLocation Loc,
+castValueToABICompatibleType(SILBuilder *builder, SILPassManager *pm,
+                             SILLocation Loc,
                              SILValue value, SILType srcTy, SILType destTy,
                              ArrayRef<SILInstruction *> usePoints);
 /// Peek through trivial Enum initialization, typically for pointless
@@ -233,7 +234,7 @@ SILLinkage getSpecializedLinkage(SILFunction *f, SILLinkage linkage);
 /// Tries to perform jump-threading on all checked_cast_br instruction in
 /// function \p Fn.
 bool tryCheckedCastBrJumpThreading(
-    SILFunction *fn, DominanceInfo *dt, DeadEndBlocks *deBlocks,
+    SILFunction *fn, SILPassManager *pm, DominanceInfo *dt, DeadEndBlocks *deBlocks,
     SmallVectorImpl<SILBasicBlock *> &blocksForWorklist,
     bool EnableOSSARewriteTerminator);
 

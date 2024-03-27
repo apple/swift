@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt %s -disable-populate-ownership-flags -verify-continue-on-failure=true -sil-ownership-verifier-enable-testing  -o /dev/null 2>&1 | %FileCheck %s
+// RUN: %target-sil-opt %s -update-borrowed-from -disable-populate-ownership-flags -verify-continue-on-failure=true -sil-ownership-verifier-enable-testing  -o /dev/null 2>&1 | %FileCheck %s
 sil_stage canonical
 
 class Klass {}

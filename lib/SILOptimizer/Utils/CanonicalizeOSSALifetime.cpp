@@ -155,6 +155,10 @@ bool CanonicalizeOSSALifetime::computeCanonicalLiveness() {
         defUseWorklist.insert(copy);
         continue;
       }
+      if (auto *bfi = dyn_cast<BorrowedFromInst>(user)) {
+        defUseWorklist.insert(bfi);
+        continue;
+      }
       // Handle debug_value instructions separately.
       if (pruneDebugMode) {
         if (auto *dvi = dyn_cast<DebugValueInst>(user)) {

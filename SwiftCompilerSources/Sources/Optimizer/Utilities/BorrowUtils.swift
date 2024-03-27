@@ -293,7 +293,8 @@ enum BeginBorrowValue {
     switch value {
     case let bbi as BeginBorrowInst: self = .beginBorrow(bbi)
     case let lbi as LoadBorrowInst: self = .loadBorrow(lbi)
-    case let arg as FunctionArgument: self = .functionArgument(arg)
+    case let arg as FunctionArgument where arg.ownership == .guaranteed:
+      self = .functionArgument(arg)
     case let arg as Argument where arg.isReborrow:
       self = .reborrow(Phi(arg)!)
     default:
@@ -375,38 +376,12 @@ enum BeginBorrowValue {
     case let .beginApply(value):
       return (value.definingInstruction
                 as! BeginApplyInst).token.uses.endingLifetime
+    case let .reborrow(phi):
+      return phi.value.lookThroughBorrowedFromUser.uses.endingLifetime
     default:
       return value.uses.endingLifetime
     }
   }
-}
-
-/// Find the borrow introducers for `value`. This gives you a set of
-/// OSSA lifetimes that directly include `value`. If `value` is owned,
-/// or introduces a borrow scope, then `value` is the single
-/// introducer for itself.
-///
-/// If `value` is an address or any trivial type, then it has no introducers.
-///
-/// Example:                                       // introducers:
-///                                                // ~~~~~~~~~~~~
-///   bb0(%0 : @owned $Class,                      // %0
-///       %1 : @guaranteed $Class):                // %1
-///     %borrow0 = begin_borrow %0                 // %borrow0
-///     %pair = struct $Pair(%borrow0, %1)         // %borrow0, %1
-///     %first = struct_extract %pair              // %borrow0, %1
-///     %field = ref_element_addr %first           // (none)
-///     %load = load_borrow %field : $*C           // %load
-func gatherBorrowIntroducers(for value: Value,
-                             in borrowIntroducers: inout Stack<BeginBorrowValue>,
-                             _ context: Context) {
-  assert(value.ownership == .guaranteed)
-
-  // Cache introducers across multiple instances of BorrowIntroducers.
-  var cache = BorrowIntroducers.Cache(context)
-  defer { cache.deinitialize() }
-  BorrowIntroducers.gather(for: value, in: &borrowIntroducers,
-                           &cache, context)
 }
 
 /// Compute the live range for the borrow scopes of a guaranteed value. This returns a separate instruction range for
@@ -418,12 +393,9 @@ func computeBorrowLiveRange(for value: Value, _ context: FunctionPassContext)
   assert(value.ownership == .guaranteed)
 
   var ranges = SingleInlineArray<(BeginBorrowValue, InstructionRange)>()
-  var introducers = Stack<BeginBorrowValue>(context)
-  defer { introducers.deinitialize() }
-  gatherBorrowIntroducers(for: value, in: &introducers, context)
   // If introducers is empty, then the dependence is on a trivial value, so
   // there is no ownership range.
-  while let beginBorrow = introducers.pop() {
+  for beginBorrow in value.getBorrowIntroducers(context) {
     /// FIXME: Remove calls to computeKnownLiveness() as soon as lifetime completion runs immediately after
     /// SILGen. Instead, this should compute linear liveness for borrowed value by switching over BeginBorrowValue, just
     /// like LifetimeDependenc.Scope.computeRange().
@@ -432,473 +404,211 @@ func computeBorrowLiveRange(for value: Value, _ context: FunctionPassContext)
   return ranges
 }
 
-private struct BorrowIntroducers {
-  typealias CachedIntroducers = SingleInlineArray<BeginBorrowValue>
-  struct Cache {
-    // Cache the introducers already found for each SILValue.
-    var valueIntroducers: Dictionary<HashableValue, CachedIntroducers>
-    // Record recursively followed phis to avoid infinite cycles.
-    // Phis are removed from this set when they are cached.
-    var pendingPhis: ValueSet
-
-    init(_ context: Context) {
-      valueIntroducers = Dictionary<HashableValue, CachedIntroducers>()
-      pendingPhis = ValueSet(context)
+extension Value {
+  var lookThroughBorrowedFrom: Value {
+    if let bfi = self as? BorrowedFromInst {
+      return bfi.borrowedValue.lookThroughBorrowedFrom
     }
-
-    mutating func deinitialize() {
-      pendingPhis.deinitialize()
-    }
-  }
-  
-  let context: Context
-  // BorrowIntroducers instances are recursively nested in order to
-  // find outer adjacent phis. Each instance populates a separate
-  // 'introducers' set. The same value may occur in 'introducers' at
-  // multiple levels. Each instance, therefore, needs a separate
-  // introducer set to avoid adding duplicates.
-  var visitedIntroducers: Set<HashableValue> = Set()
-
-  static func gather(for value: Value, in introducers: inout Stack<BeginBorrowValue>,
-                     _ cache: inout Cache, _ context: Context) {
-    var borrowIntroducers = BorrowIntroducers(context: context)
-    borrowIntroducers.gather(for: value, in: &introducers, &cache)
-  }
-
-  private mutating func push(_ beginBorrow: BeginBorrowValue,
-    in introducers: inout Stack<BeginBorrowValue>) {
-    if visitedIntroducers.insert(beginBorrow.value.hashable).inserted {
-      introducers.push(beginBorrow)
-    }
-  }
-
-  private mutating func push<S: Sequence>(contentsOf other: S,
-    in introducers: inout Stack<BeginBorrowValue>) where S.Element == BeginBorrowValue {
-    for elem in other {
-      push(elem, in: &introducers)
-    }
-  }
-
-  // This is the identity function (i.e. just adds `value` to `introducers`)
-  // when:
-  // - `value` is owned
-  // - `value` introduces a borrow scope (begin_borrow, load_borrow, reborrow)
-  //
-  // Otherwise recurse up the use-def chain to find all introducers.
-  private mutating func gather(for value: Value,
-                               in introducers: inout Stack<BeginBorrowValue>,
-                               _ cache: inout Cache) {
-    assert(value.ownership == .guaranteed)
-    // Check if this value's introducers have already been added to
-    // 'introducers' to avoid duplicates and avoid exponential
-    // recursion on aggregates.
-    if let cachedIntroducers = cache.valueIntroducers[value.hashable] {
-      push(contentsOf: cachedIntroducers, in: &introducers)
-      return
-    }
-    introducers.withMarker(
-      pushElements: { introducers in
-        gatherUncached(for: value, in: &introducers, &cache)
-      },
-      withNewElements: { newIntroducers in
-        { cachedIntroducers in
-          newIntroducers.forEach { cachedIntroducers.push($0) }
-        }(&cache.valueIntroducers[value.hashable, default: CachedIntroducers()])
-      })
-  }
-
-  private mutating func gatherUncached(for value: Value,
-                                       in introducers: inout Stack<BeginBorrowValue>,
-                                       _ cache: inout Cache) {
-    // BeginBorrowedValue handles the initial scope introducers: begin_borrow,
-    // load_borrow, & reborrow.
-    if let beginBorrow = BeginBorrowValue(value) {
-      push(beginBorrow, in: &introducers)
-      return
-    }
-    // Handle guaranteed forwarding phis
-    if let phi = Phi(value) {
-      gather(forPhi: phi, in: &introducers, &cache)
-      return
-    }
-    // Recurse through guaranteed forwarding non-phi instructions.
-    guard let forwardingInst = value.forwardingInstruction else {
-      fatalError("guaranteed value must be forwarding")
-    }
-    for operand in forwardingInst.forwardedOperands {
-      if operand.value.ownership == .guaranteed {
-        gather(for: operand.value, in: &introducers, &cache);
-      }
-    }
-  }
-
-  // Find the introducers of a guaranteed forwarding phi's borrow
-  // scope. The introducers are either dominating values or reborrows
-  // in the same block as the forwarding phi.
-  //
-  // Recurse along the use-def phi web until a begin_borrow is reached. At each
-  // level, find the outer-adjacent phi, if one exists, otherwise return the
-  // dominating definition.
-  //
-  // Example:
-  //
-  //     bb1(%reborrow_1 : @reborrow)
-  //         %field = struct_extract %reborrow_1
-  //         br bb2(%reborrow_1, %field)
-  //     bb2(%reborrow_2 : @reborrow, %forward_2 : @guaranteed)
-  //         end_borrow %reborrow_2
-  //
-  // Calling `gather(forPhi: %forward_2)`
-  // recursively computes these introducers:
-  //
-  //    %field is the only value incoming to %forward_2.
-  //
-  //    %field is introduced by %reborrow_1 via
-  //    gather(for: %field).
-  //
-  //    %reborrow_1 is remapped to %reborrow_2 in bb2 via
-  //    mapToPhi(bb1, %reborrow_1)).
-  //
-  //    %reborrow_2 is returned.
-  //
-  private mutating func gather(forPhi phi: Phi,
-                               in introducers: inout Stack<BeginBorrowValue>,
-                               _ cache: inout Cache) {
-    // Phi cycles are skipped. They cannot contribute any new introducer.
-    if !cache.pendingPhis.insert(phi.value) {
-      return
-    }
-    for (pred, value) in zip(phi.predecessors, phi.incomingValues) {
-      switch value.ownership {
-      case .none:
-        continue
-      case .owned, .unowned:
-        fatalError("unexpected ownership for a guaranteed phi operand")
-      case .guaranteed:
-        break
-      }
-      // Each phi operand requires a new introducer list and visited
-      // values set. These values will be remapped to successor phis
-      // before adding them to the caller's introducer list. It may be
-      // necessary to revisit a value that was already visited by the
-      // caller before remapping to phis.
-      var incomingIntroducers = Stack<BeginBorrowValue>(context)
-      defer {
-        incomingIntroducers.deinitialize()
-      }
-      BorrowIntroducers.gather(for: value, in: &incomingIntroducers,
-                               &cache, context)
-      // Map the incoming introducers to an outer-adjacent phi if one exists.
-      push(contentsOf: mapToGuaranteedPhi(predecessor: pred,
-                                          incomingBorrows: incomingIntroducers),
-           in: &introducers)
-    }
-    // Remove this phi from the pending set. This phi may be visited
-    // again at a different level of phi recursion. In that case, we
-    // should return the cached introducers so that they can be
-    // remapped.
-    cache.pendingPhis.erase(phi.value)
+    return self
   }
 }
 
-// Given incoming borrows on a predecessor path, return the
-// corresponding borrows on the successor block. Each incoming borrow is
-// either used by a phi in the successor block, or it must dominate
-// the successor block.
-private func mapToGuaranteedPhi<PredecessorSequence: Sequence<BeginBorrowValue>> (
-  predecessor: BasicBlock, incomingBorrows: PredecessorSequence)
--> LazyMapSequence<PredecessorSequence, BeginBorrowValue> {
+struct BorrowIntroducers<Ctxt: Context> : CollectionLikeSequence {
+  let initialValue: Value
+  let context: Ctxt
 
-  let branch = predecessor.terminator as! BranchInst
-  // Gather the new introducers for the successor block.
-  return incomingBorrows.lazy.map { incomingBorrow in
-    // Find an outer adjacent phi in the successor block.
-    let incomingValue = incomingBorrow.value
-    if let incomingOp = branch.operands.first(where: { $0.value == incomingValue }) {
-      return BeginBorrowValue(branch.getArgument(for: incomingOp))!
-    }
-    // No candidates phi are outer-adjacent phis. The incoming
-    // `predDef` must dominate the current guaranteed phi.
-    return incomingBorrow
+  func makeIterator() -> EnclosingValueIterator {
+    EnclosingValueIterator(forBorrowIntroducers: initialValue, context)
   }
 }
 
-// Given incoming values on a predecessor path, return the corresponding values on the successor block. Each incoming
-// value is either used by a phi in the successor block, or it must dominate the successor block.
-//
-// This is Logically the same as mapToGuaranteedPhi but more efficient to simply duplicate the code.
-private func mapToPhi<PredecessorSequence: Sequence<Value>> (
-  predecessor: BasicBlock, incomingValues: PredecessorSequence)
-  -> LazyMapSequence<PredecessorSequence, Value> {
+struct EnclosingValues<Ctxt: Context> : CollectionLikeSequence {
+  let initialValue: Value
+  let context: Ctxt
 
-  let branch = predecessor.terminator as! BranchInst
-  // Gather the new introducers for the successor block.
-  return incomingValues.lazy.map { incomingValue in
-    // Find an outer adjacent phi in the successor block.
-    if let incomingOp =
-         branch.operands.first(where: { $0.value == incomingValue }) {
-      return branch.getArgument(for: incomingOp)
-    }
-    // No candidates phi are outer-adjacent phis. The incoming
-    // `predDef` must dominate the current guaranteed phi.
-    return incomingValue
+  func makeIterator() -> EnclosingValueIterator {
+    EnclosingValueIterator(forEnclosingValues: initialValue, context)
   }
 }
 
-/// Find each "enclosing value" whose OSSA lifetime immediately
-/// encloses a guaranteed value. The guaranteed `value` being enclosed
-/// effectively keeps these enclosing values alive. This lets you walk
-/// up the levels of nested OSSA lifetimes to determine all the
-/// lifetimes that are kept alive by a given SILValue. In particular,
-/// it discovers "outer-adjacent phis": phis that are kept alive by
-/// uses of another phi in the same block.
-///
-/// If `value` is a forwarded guaranteed value, then this finds the
-/// introducers of the current borrow scope, which is never an empty
-/// set.
-///
-/// If `value` introduces a borrow scope, then this finds the
-/// introducers of the outer enclosing borrow scope that contains this
-/// inner scope.
-///
-/// If `value` is a `begin_borrow`, then this returns its owned operand, or the introducers of its guaranteed operand.
-///
-/// If `value` is an owned value, a function argument, or a
-/// load_borrow, then this is an empty set.
-///
-/// If `value` is a reborrow, then this either returns a dominating
-/// enclosing value or an outer adjacent phi.
-///
-/// Example:                                       // enclosing value:
-///                                                // ~~~~~~~~~~~~
-///   bb0(%0 : @owned $Class,                      // (none)
-///       %1 : @guaranteed $Class):                // (none)
-///     %borrow0 = begin_borrow %0                 // %0
-///     %pair = struct $Pair(%borrow0, %1)         // %borrow0, %1
-///     %first = struct_extract %pair              // %borrow0, %1
-///     %field = ref_element_addr %first           // (none)
-///     %load = load_borrow %field : $*C           // %load
-///
-/// Example:                                       // enclosing value:
-///                                                // ~~~~~~~~~~~~
-///     %outerBorrow = begin_borrow %0             // %0
-///     %innerBorrow = begin_borrow %outerBorrow   // %outerBorrow
-///     br bb1(%outerBorrow, %innerBorrow)
-///   bb1(%outerReborrow : @reborrow,              // %0
-///       %innerReborrow : @reborrow)              // %outerReborrow
-///
-func gatherEnclosingValues(for value: Value,
-                           in enclosingValues: inout Stack<Value>,
-                           _ context: some Context) {
+// This iterator must be a class because we need a deinit.
+// It shouldn't be a performance problem because the optimizer should always be able to stack promote the iterator.
+// TODO: Make it a struct once this is possible with non-copyable types.
+final class EnclosingValueIterator : IteratorProtocol {
+  var worklist: ValueWorklist
 
-  var cache = EnclosingValues.Cache(context)
-  defer { cache.deinitialize() }
-  EnclosingValues.gather(for: value, in: &enclosingValues, &cache, context)
-}
-
-/// Find inner adjacent phis in the same block as `enclosingPhi`.
-/// These keep the enclosing (outer adjacent) phi alive.
-func gatherInnerAdjacentPhis(for enclosingPhi: Phi,
-                             in innerAdjacentPhis: inout Stack<Phi>,
-                             _ context: Context) {
-  for candidatePhi in enclosingPhi.successor.arguments {
-    var enclosingValues = Stack<Value>(context)
-    defer { enclosingValues.deinitialize() }
-    gatherEnclosingValues(for: candidatePhi, in: &enclosingValues, context)
-    if enclosingValues.contains(where: { $0 == enclosingPhi.value}) {
-      innerAdjacentPhis.push(Phi(candidatePhi)!)
-    }
-  }
-}
-
-// Find the enclosing values for any value, including reborrows.
-private struct EnclosingValues {
-  typealias CachedEnclosingValues = SingleInlineArray<Value>
-  struct Cache {
-    // Cache the enclosing values already found for each Reborrow.
-    var reborrowToEnclosingValues: Dictionary<HashableValue,
-                                              CachedEnclosingValues>
-    // Record recursively followed reborrows to avoid infinite cycles.
-    // Reborrows are removed from this set when they are cached.
-    var pendingReborrows: ValueSet
-
-    var borrowIntroducerCache: BorrowIntroducers.Cache
-
-    init(_ context: Context) {
-      reborrowToEnclosingValues =
-        Dictionary<HashableValue, CachedEnclosingValues>()
-      pendingReborrows = ValueSet(context)
-      borrowIntroducerCache = BorrowIntroducers.Cache(context)
-    }
-
-    mutating func deinitialize() {
-      pendingReborrows.deinitialize()
-      borrowIntroducerCache.deinitialize()
-    }
+  init(forBorrowIntroducers value: Value, _ context: some Context) {
+    self.worklist = ValueWorklist(context)
+    self.worklist.pushIfNotVisited(value)
   }
 
-  var context: Context
-  // EnclosingValues instances are recursively nested in order to
-  // find outer adjacent phis. Each instance populates a separate
-  // 'enclosingValeus' set. The same value may occur in 'enclosingValues' at
-  // multiple levels. Each instance, therefore, needs a separate
-  // visited set to avoid adding duplicates.
-  var visitedEnclosingValues: Set<HashableValue> = Set()
-
-  static func gather(for value: Value, in enclosingValues: inout Stack<Value>,
-                     _ cache: inout Cache, _ context: Context) {
-    var gatherValues = EnclosingValues(context: context)
-    gatherValues.gather(for: value, in: &enclosingValues, &cache)
-  }
-
-  private mutating func push(_ enclosingValue: Value,
-    in enclosingValues: inout Stack<Value>) {
-    if visitedEnclosingValues.insert(enclosingValue.hashable).inserted {
-      enclosingValues.push(enclosingValue)
-    }
-  }
-
-  private mutating func push<S: Sequence>(contentsOf other: S,
-    in enclosingValues: inout Stack<Value>) where S.Element == Value {
-    for elem in other {
-      push(elem, in: &enclosingValues)
-    }
-  }
-
-  mutating func gather(for value: Value,
-                       in enclosingValues: inout Stack<Value>,
-                       _ cache: inout Cache) {
+  init(forEnclosingValues value: Value, _ context: some Context) {
+    self.worklist = ValueWorklist(context)
     if value is Undef || value.ownership != .guaranteed {
       return
     }
-    if let beginBorrow = BeginBorrowValue(value) {
+    if let beginBorrow = BeginBorrowValue(value.lookThroughBorrowedFrom) {
       switch beginBorrow {
       case let .beginBorrow(bbi):
-        let outerValue = bbi.operand.value
-        switch outerValue.ownership {
-        case .none, .unowned:
-          return
-        case .owned:
-          push(outerValue, in: &enclosingValues);
-          return
-        case .guaranteed:
-          break
-        }
         // Gather the outer enclosing borrow scope.
-        gatherBorrows(for: outerValue, in: &enclosingValues, &cache)
+        worklist.pushIfNotVisited(bbi.borrowedValue)
       case .loadBorrow, .beginApply, .functionArgument:
         // There is no enclosing value on this path.
         break
-      case let .reborrow(reborrow):
-        gather(forReborrow: reborrow, in: &enclosingValues, &cache)
+      case .reborrow(let phi):
+        worklist.pushIfNotVisited(contentsOf: phi.borrowedFrom!.enclosingValues)
       }
     } else {
       // Handle forwarded guaranteed values.
-      gatherBorrows(for: value, in: &enclosingValues, &cache)
+      worklist.pushIfNotVisited(value)
     }
   }
 
-  mutating func gatherBorrows(for value: Value, in enclosingValues: inout Stack<Value>, _ cache: inout Cache) {
-    var introducers = Stack<BeginBorrowValue>(context)
-    defer { introducers.deinitialize() }
-    BorrowIntroducers.gather(for: value, in: &introducers, &cache.borrowIntroducerCache, context)
-    for beginBorrow in introducers {
-      enclosingValues.push(beginBorrow.value)
-    }
+  deinit {
+    worklist.deinitialize()
   }
 
-  // Given a reborrow, find the enclosing values. Each enclosing value
-  // is represented by one of the following cases, which refer to the
-  // example below:
-  //
-  // dominating owned value -> %value encloses %reborrow_1
-  // owned outer-adjacent phi -> %phi_3 encloses %reborrow_3
-  // dominating outer borrow introducer -> %outerBorrowB encloses %reborrow
-  // outer-adjacent reborrow -> %outerReborrow encloses %reborrow
-  //
-  // Recurse along the use-def phi web until a begin_borrow is
-  // reached. Then find all introducers of the begin_borrow's
-  // operand. At each level, find the outer adjacent phi, if one
-  // exists, otherwise return the most recently found dominating
-  // definition.
-  //
-  // If `reborrow` was already encountered because of a phi cycle,
-  // then no enclosingDefs are added.
-  //
-  // Example:
-  //
-  //         %value = ...
-  //         %borrow = begin_borrow %value
-  //         br one(%borrow)
-  //     one(%reborrow_1 : @reborrow)
-  //         br two(%value, %reborrow_1)
-  //     two(%phi_2 : @owned, %reborrow_2 : @reborrow)
-  //         br three(%value, %reborrow_2)
-  //     three(%phi_3 : @owned, %reborrow_3 : @reborrow)
-  //         end_borrow %reborrow_3
-  //         destroy_value %phi_3
-  //
-  // gather(forReborrow: %reborrow_3) finds %phi_3 by computing
-  // enclosing defs in this order
-  //     (inner -> outer):
-  //
-  //     %reborrow_1 -> %value
-  //     %reborrow_2 -> %phi_2
-  //     %reborrow_3 -> %phi_3
-  //
-  // Example:
-  //
-  //         %outerBorrowA = begin_borrow
-  //         %outerBorrowB = begin_borrow
-  //         %struct = struct (%outerBorrowA, outerBorrowB)
-  //         %borrow = begin_borrow %struct
-  //         br one(%outerBorrowA, %borrow)
-  //     one(%outerReborrow : @reborrow, %reborrow : @reborrow)
-  //
-  // gather(forReborrow: %reborrow) finds (%outerReborrow, %outerBorrowB).
-  //
-  // This implementation mirrors BorrowIntroducers.gather(forPhi:in:).
-  // The difference is that this performs use-def recursion over
-  // reborrows rather, and at each step, it finds the enclosing values
-  // of the reborrow operands rather than the borrow introducers of
-  // the guaranteed phi.
-  private mutating func gather(forReborrow reborrow: Phi,
-                               in enclosingValues: inout Stack<Value>,
-                               _ cache: inout Cache) {
+  func next() -> Value? {
+    while let value = worklist.pop() {
+      switch value.ownership {
+      case .none, .unowned:
+        break
 
-    // Phi cycles are skipped. They cannot contribute any new introducer.
-    if !cache.pendingReborrows.insert(reborrow.value) {
-      return
-    }
-    if let cachedEnclosingValues =
-         cache.reborrowToEnclosingValues[reborrow.value.hashable] {
-      push(contentsOf: cachedEnclosingValues, in: &enclosingValues)
-      return
-    }
-    assert(enclosingValues.isEmpty)
+      case .owned:
+        return value
 
-    // Find the enclosing introducer for each reborrow operand, and
-    // remap it to the enclosing introducer for the successor block.
-    for (pred, incomingValue)
-    in zip(reborrow.predecessors, reborrow.incomingValues) {
-      var incomingEnclosingValues = Stack<Value>(context)
-      defer {
-        incomingEnclosingValues.deinitialize()
+      case .guaranteed:
+        if BeginBorrowValue(value) != nil {
+          return value
+        } else if let bfi = value as? BorrowedFromInst {
+          if bfi.borrowedPhi.isReborrow {
+            worklist.pushIfNotVisited(bfi.borrowedValue)
+          } else {
+            worklist.pushIfNotVisited(contentsOf: bfi.enclosingValues)
+          }
+        } else if let forwardingInst = value.forwardingInstruction {
+          // Recurse through guaranteed forwarding non-phi instructions.
+          let ops = forwardingInst.forwardedOperands
+          worklist.pushIfNotVisited(contentsOf: ops.lazy.map { $0.value })
+        } else {
+          fatalError("cannot get borrow introducers for unknown guaranteed value")
+        }
       }
-      EnclosingValues.gather(for: incomingValue, in: &incomingEnclosingValues,
-                             &cache, context)
-      push(contentsOf: mapToPhi(predecessor: pred,
-                                incomingValues: incomingEnclosingValues),
-           in: &enclosingValues)
     }
-    { cachedIntroducers in
-      enclosingValues.forEach { cachedIntroducers.push($0) }
-    }(&cache.reborrowToEnclosingValues[reborrow.value.hashable,
-                                       default: CachedEnclosingValues()])
+    return nil
+  }
+}
 
-    // Remove this reborrow from the pending set. It may be visited
-    // again at a different level of recursion.
-    cache.pendingReborrows.erase(reborrow.value)
+
+extension Value {
+  /// Get the borrow introducers for this value. This gives you a set of
+  /// OSSA lifetimes that directly include this value. If this value is owned,
+  /// or introduces a borrow scope, then this value is the single introducer for itself.
+  ///
+  /// If this value is an address or any trivial type, then it has no introducers.
+  ///
+  /// Example:                                       // introducers:
+  ///                                                // ~~~~~~~~~~~~
+  ///   bb0(%0 : @owned $Class,                      // %0
+  ///       %1 : @guaranteed $Class):                // %1
+  ///     %borrow0 = begin_borrow %0                 // %borrow0
+  ///     %pair = struct $Pair(%borrow0, %1)         // %borrow0, %1
+  ///     %first = struct_extract %pair              // %borrow0, %1
+  ///     %field = ref_element_addr %first           // (none)
+  ///     %load = load_borrow %field : $*C           // %load
+  ///
+  func getBorrowIntroducers<Ctxt: Context>(_ context: Ctxt) -> LazyMapSequence<BorrowIntroducers<Ctxt>, BeginBorrowValue> {
+    BorrowIntroducers(initialValue: self, context: context).lazy.map { BeginBorrowValue($0)! }
+  }
+
+  /// Get "enclosing values" whose OSSA lifetime immediately encloses a guaranteed value.
+  ///
+  /// The guaranteed value being enclosed effectively keeps these enclosing values alive.
+  /// This lets you walk up the levels of nested OSSA lifetimes to determine all the
+  /// lifetimes that are kept alive by a given SILValue. In particular, it discovers "outer-adjacent phis":
+  /// phis that are kept alive by uses of another phi in the same block.
+  ///
+  /// If this value is a forwarded guaranteed value, then this finds the
+  /// introducers of the current borrow scope, which is never an empty set.
+  ///
+  /// If this value introduces a borrow scope, then this finds the introducers of the outer
+  /// enclosing borrow scope that contains this inner scope.
+  ///
+  /// If this value is a `begin_borrow`, then this function returns its operand.
+  ///
+  /// If this value is an owned value, a function argument, or a load_borrow, then this is an empty set.
+  ///
+  /// If this value is a reborrow, then this either returns a dominating enclosing value or an outer adjacent phi.
+  ///
+  /// Example:                                       // enclosing value:
+  ///                                                // ~~~~~~~~~~~~
+  ///   bb0(%0 : @owned $Class,                      // (none)
+  ///       %1 : @guaranteed $Class):                // (none)
+  ///     %borrow0 = begin_borrow %0                 // %0
+  ///     %pair = struct $Pair(%borrow0, %1)         // %borrow0, %1
+  ///     %first = struct_extract %pair              // %borrow0, %1
+  ///     %field = ref_element_addr %first           // (none)
+  ///     %load = load_borrow %field : $*C           // %load
+  ///
+  /// Example:                                       // enclosing value:
+  ///                                                // ~~~~~~~~~~~~
+  ///     %outerBorrow = begin_borrow %0             // %0
+  ///     %innerBorrow = begin_borrow %outerBorrow   // %outerBorrow
+  ///     br bb1(%outerBorrow, %innerBorrow)
+  ///   bb1(%outerReborrow : @reborrow,              // %0
+  ///       %innerReborrow : @reborrow)              // %outerReborrow
+  ///
+  func getEnclosingValues<Ctxt: Context>(_ context: Ctxt) -> EnclosingValues<Ctxt> {
+    EnclosingValues(initialValue: self, context: context)
+  }
+}
+
+extension Phi {
+  /// The inner adjacent phis of this outer "enclosing" phi.
+  /// These keep the enclosing (outer adjacent) phi alive.
+  var innerAdjacentPhis: LazyMapSequence<LazyFilterSequence<LazyMapSequence<UseList, Phi?>>, Phi> {
+    value.uses.lazy.compactMap { use in
+      if let bfi = use.instruction as? BorrowedFromInst,
+         use.index != 0
+      {
+         return Phi(bfi.borrowedValue)
+      }
+      return nil
+    }
+  }
+}
+
+/// Gathers enclosing values by visiting predecessor blocks.
+/// Only used for updating borrowed-from instructions and for verification.
+func gatherEnclosingValuesFromPredecessors(
+  for phi: Phi,
+  in enclosingValues: inout Stack<Value>,
+  _ context: some Context
+) {
+  var alreadyAdded = ValueSet(context)
+  defer { alreadyAdded.deinitialize() }
+
+  for predecessor in phi.predecessors {
+    let incomingOperand = phi.incomingOperand(inPredecessor: predecessor)
+
+    for predEV in incomingOperand.value.getEnclosingValues(context) {
+      let ev = predecessor.mapToPhiInSuccessor(incomingEnclosingValue: predEV)
+      if alreadyAdded.insert(ev) {
+        enclosingValues.push(ev)
+      }
+    }
+  }
+}
+
+extension BasicBlock {
+  func mapToPhiInSuccessor(incomingEnclosingValue: Value) -> Value {
+    let branch = terminator as! BranchInst
+    if let incomingEV = branch.operands.first(where: { $0.value.lookThroughBorrowedFrom == incomingEnclosingValue }) {
+      return branch.getArgument(for: incomingEV)
+    }
+    // No candidates phi are outer-adjacent phis. The incoming
+    // `predDef` must dominate the current guaranteed phi.
+    return incomingEnclosingValue
   }
 }
 
@@ -907,12 +617,9 @@ let borrowIntroducersTest = FunctionTest("borrow_introducers") {
   let value = arguments.takeValue()
   print(function)
   print("Borrow introducers for: \(value)")
-  var introducers = Stack<BeginBorrowValue>(context)
-  defer {
-    introducers.deinitialize()
+  for bi in value.lookThroughBorrowedFromUser.getBorrowIntroducers(context) {
+    print(bi)
   }
-  gatherBorrowIntroducers(for: value, in: &introducers, context)
-  introducers.forEach { print($0.value) }
 }
 
 let enclosingValuesTest = FunctionTest("enclosing_values") {
@@ -924,6 +631,19 @@ let enclosingValuesTest = FunctionTest("enclosing_values") {
   defer {
     enclosing.deinitialize()
   }
-  gatherEnclosingValues(for: value, in: &enclosing, context)
-  enclosing.forEach { print($0) }
+  for ev in value.lookThroughBorrowedFromUser.getEnclosingValues(context) {
+    print(ev)
+  }
 }
+
+extension Value {
+  var lookThroughBorrowedFromUser: Value {
+    for use in uses {
+      if let bfi = use.forwardingBorrowedFromUser {
+        return bfi
+      }
+    }
+    return self
+  }
+}
+

@@ -49,9 +49,9 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
 
   Context ctx;
 
-  explicit SemanticARCOptVisitor(SILFunction &fn, DeadEndBlocks &deBlocks,
+  explicit SemanticARCOptVisitor(SILFunction &fn, SILPassManager *pm, DeadEndBlocks &deBlocks,
                                  bool onlyMandatoryOpts)
-      : ctx(fn, deBlocks, onlyMandatoryOpts,
+      : ctx(fn, pm, deBlocks, onlyMandatoryOpts,
             InstModCallbacks()
                 .onDelete(
                     [this](SILInstruction *inst) { eraseInstruction(inst); })
@@ -168,6 +168,7 @@ struct LLVM_LIBRARY_VISIBILITY SemanticARCOptVisitor
     }                                                                          \
     return false;                                                              \
   }
+  FORWARDING_INST(BorrowedFrom)
   FORWARDING_INST(Tuple)
   FORWARDING_INST(Object)
   FORWARDING_INST(Struct)

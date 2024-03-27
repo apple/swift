@@ -157,7 +157,7 @@ struct SemanticARCOpts : SILFunctionTransform {
            "verification is enabled");
 
     auto *deBlocksAnalysis = getAnalysis<DeadEndBlocksAnalysis>();
-    SemanticARCOptVisitor visitor(f, *deBlocksAnalysis->get(&f),
+    SemanticARCOptVisitor visitor(f, getPassManager(), *deBlocksAnalysis->get(&f),
                                   mandatoryOptsOnly);
 
 #ifndef NDEBUG

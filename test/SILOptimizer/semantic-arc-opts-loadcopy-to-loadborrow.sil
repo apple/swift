@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -semantic-arc-opts -sil-semantic-arc-peepholes-loadcopy-to-loadborrow  -sil-semantic-arc-peepholes-redundant-borrowscope-elim %s | %FileCheck %s
+// RUN: %target-sil-opt -module-name Swift -enable-sil-verify-all -update-borrowed-from -semantic-arc-opts -sil-semantic-arc-peepholes-loadcopy-to-loadborrow  -sil-semantic-arc-peepholes-redundant-borrowscope-elim %s | %FileCheck %s
 
 // NOTE: After we run load [copy] -> load_borrow, we run one additional round of
 // borrow scope elimination since borrow scope elimination cleans up the IR a

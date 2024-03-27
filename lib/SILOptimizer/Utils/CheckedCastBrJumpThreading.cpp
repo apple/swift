@@ -50,6 +50,8 @@ class CheckedCastBrJumpThreading {
   // need to be recomputed each time tryCheckedCastBrJumpThreading is called.
   DeadEndBlocks *deBlocks;
 
+  SILPassManager *pm;
+
   // Enable non-trivial terminator rewriting in OSSA.
   bool EnableOSSARewriteTerminator;
 
@@ -141,10 +143,10 @@ class CheckedCastBrJumpThreading {
 
 public:
   CheckedCastBrJumpThreading(
-      SILFunction *Fn, DominanceInfo *DT, DeadEndBlocks *deBlocks,
+      SILFunction *Fn, SILPassManager *pm, DominanceInfo *DT, DeadEndBlocks *deBlocks,
       SmallVectorImpl<SILBasicBlock *> &BlocksForWorklist,
       bool EnableOSSARewriteTerminator)
-      : Fn(Fn), DT(DT), deBlocks(deBlocks),
+      : Fn(Fn), DT(DT), deBlocks(deBlocks), pm(pm),
         EnableOSSARewriteTerminator(EnableOSSARewriteTerminator),
         rauwContext(callbacks, *deBlocks),
         BlocksForWorklist(BlocksForWorklist), BlocksToEdit(Fn),
@@ -772,7 +774,7 @@ void CheckedCastBrJumpThreading::optimizeFunction() {
     if (edit->SuccessArg->isErased())
       continue;
 
-    BasicBlockCloner Cloner(edit->CCBBlock, deBlocks);
+    BasicBlockCloner Cloner(edit->CCBBlock, pm, deBlocks);
     if (!Cloner.canCloneBlock())
       continue;
 
@@ -800,7 +802,7 @@ void CheckedCastBrJumpThreading::optimizeFunction() {
 namespace swift {
 
 bool tryCheckedCastBrJumpThreading(
-    SILFunction *Fn, DominanceInfo *DT, DeadEndBlocks *deBlocks,
+    SILFunction *Fn, SILPassManager *pm, DominanceInfo *DT, DeadEndBlocks *deBlocks,
     SmallVectorImpl<SILBasicBlock *> &BlocksForWorklist,
     bool EnableOSSARewriteTerminator) {
 
@@ -809,7 +811,7 @@ bool tryCheckedCastBrJumpThreading(
     return false;
   }
 
-  CheckedCastBrJumpThreading CCBJumpThreading(Fn, DT, deBlocks,
+  CheckedCastBrJumpThreading CCBJumpThreading(Fn, pm, DT, deBlocks,
                                               BlocksForWorklist,
                                               EnableOSSARewriteTerminator);
   CCBJumpThreading.optimizeFunction();

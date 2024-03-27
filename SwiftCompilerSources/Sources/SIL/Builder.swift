@@ -184,6 +184,13 @@ public struct Builder {
     return notifyNew(bridged.createBeginBorrow(value.bridged).getAs(BeginBorrowInst.self))
   }
 
+  public func createBorrowedFrom(borrowedValue: Value, enclosingValues: [Value]) -> BorrowedFromInst {
+    let bfi = enclosingValues.withBridgedValues { valuesRef in
+      return bridged.createBorrowedFrom(borrowedValue.bridged, valuesRef)
+    }
+    return notifyNew(bfi.getAs(BorrowedFromInst.self))
+  }
+
   @discardableResult
   public func createEndBorrow(of beginBorrow: Value) -> EndBorrowInst {
     return notifyNew(bridged.createEndBorrow(beginBorrow.bridged).getAs(EndBorrowInst.self))
