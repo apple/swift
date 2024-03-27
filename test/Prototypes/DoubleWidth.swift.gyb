@@ -1,3 +1,15 @@
+//===--- DoubleWidth.swift.gyb --------------------------------*- swift -*-===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2020 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
 // RUN: %target-run-simple-swiftgyb
 // REQUIRES: executable_test
 // REQUIRES: CPU=x86_64
@@ -1013,6 +1025,34 @@ dwTests.test("isMultiple") {
   }
   isMultipleTest(type: Int128.self)
   isMultipleTest(type: UInt128.self)
+}
+
+dwTests.test("isPower") {
+  func isPowerTest<T: FixedWidthInteger>(type: T.Type) {
+    expectTrue((0 as T).isPower(of: 0))
+    expectTrue((1 as T).isPower(of: 0))
+    expectTrue((100 as T).isPower(of: 10))
+    expectFalse(T.max.isPower(of: 2))
+    expectFalse(T.min.isPower(of: 2))
+    if T.isSigned {
+      expectTrue((1 as T).isPower(of: -1))
+      expectTrue((-1 as T).isPower(of: -1))
+      expectFalse((-1 as T).isPower(of: 1))
+      expectTrue(T.min.isPower(of: -2))
+      expectTrue(((1 as T) << (T.bitWidth - 2)).isPower(of: 2))
+    } else {
+      expectTrue(((1 as T) << (T.bitWidth - 1)).isPower(of: 2))
+    }
+    let somePowerOfTwo = (1 as T) << (T.bitWidth - 2)
+    for value in (somePowerOfTwo - 32) ... (somePowerOfTwo + 31) {
+      let expected = (value > 0) && (value.nonzeroBitCount == 1)
+      let actual = value.isPower(of: 2)
+      expectEqual(expected, actual,
+                  "(\(value)).isPower(of: 2) should be \(expected)")
+    }
+  }
+  isPowerTest(type: Int128.self)
+  isPowerTest(type: UInt128.self)
 }
 
 dwTests.test("MultiplyMinByMinusOne") {

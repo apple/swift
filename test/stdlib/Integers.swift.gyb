@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2017 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2020 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -822,6 +822,61 @@ tests.test("isMultiple") {
   isMultipleTest(type: UInt16.self)
   isMultipleTest(type: UInt32.self)
   isMultipleTest(type: UInt64.self)
+}
+
+tests.test("isPower") {
+  func isPowerTest<T: FixedWidthInteger>(type: T.Type) {
+    func testIntegers(in range: ClosedRange<T>, base: T) {
+       // Collect all powers of base covering the whole range
+       var powers = Set<T>([1, base].filter{ range.contains($0) });
+       if base.magnitude >= 2 {
+          var x = base
+          let bound = max(range.lowerBound.magnitude,
+                          range.upperBound.magnitude)
+          while x.magnitude <= bound {
+            let (product, overflow) = x.multipliedReportingOverflow(by: base)
+            guard !overflow else { break }
+            x = product
+            if range.contains(x) {
+              powers.insert(x)
+            }
+          }
+       }
+       // Check every value within range
+       for value in range {
+          let expected = powers.contains(value)
+          let actual = value.isPower(of: base)
+          expectEqual(expected, actual,
+                      "(\(value)).isPower(of: \(base)) should be \(expected)")
+       }
+    }
+
+    let range = T(clamping: Int8.min)...T(clamping: Int8.max)
+    let bases = Set([-3, -2, -1, 0, 1, 2, 5, 8, 10, 11].map{ T(clamping: $0) })
+    for base in bases {
+      testIntegers(in: range, base: base)
+    }
+
+    expectFalse(T.max.isPower(of: 2))
+    expectFalse(T.min.isPower(of: 2))
+    if T.isSigned {
+      expectTrue(T.min.isPower(of: -2))
+      expectTrue(((1 as T) << (T.bitWidth - 2)).isPower(of: 2))
+    } else {
+      expectTrue(((1 as T) << (T.bitWidth - 1)).isPower(of: 2))
+    }
+  }
+
+  isPowerTest(type: Int.self)
+  isPowerTest(type: Int8.self)
+  isPowerTest(type: Int16.self)
+  isPowerTest(type: Int32.self)
+  isPowerTest(type: Int64.self)
+  isPowerTest(type: UInt.self)
+  isPowerTest(type: UInt8.self)
+  isPowerTest(type: UInt16.self)
+  isPowerTest(type: UInt32.self)
+  isPowerTest(type: UInt64.self)
 }
 
 tests.test("MultiplyMinByMinusOne") {
