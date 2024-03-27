@@ -5909,19 +5909,44 @@ public:
     if (T->isInvalid())
       return Action::SkipNode();
 
-    // Arbitrary protocol constraints are OK on opaque types.
-    if (isa<OpaqueReturnTypeRepr>(T))
-      return Action::SkipNode();
-
-    // Arbitrary protocol constraints are okay for 'any' types.
-    if (isa<ExistentialTypeRepr>(T))
-      return Action::SkipNode();
-
     reprStack.push_back(T);
 
     auto *declRefTR = dyn_cast<DeclRefTypeRepr>(T);
     if (!declRefTR) {
       return Action::Continue();
+    }
+
+    // Determine whether this identifier type is a subject of a `some` or `any`
+    // type and, if so, ignore it, since it already has a keyword applied to it.
+    // For example, `P` is a subject of `any P` and `any Q & (P)`, but
+    // not `any Q<P>`.
+    if (reprStack.size() > 1) {
+      auto it = reprStack.end() - 1;
+      while (true) {
+        --it;
+        if (it == reprStack.begin()) {
+          break;
+        }
+
+        // Look through parens, metatypes, and compositions.
+        if (isa<TupleTypeRepr>(*it) || isa<CompositionTypeRepr>(*it) ||
+            isa<MetatypeTypeRepr>(*it)) {
+          continue;
+        }
+
+        // Look through '?' and '!' too; `any P?` et al. is diagnosed in the
+        // type resolver.
+        if (isa<OptionalTypeRepr>(*it) ||
+            isa<ImplicitlyUnwrappedOptionalTypeRepr>(*it)) {
+          continue;
+        }
+
+        break;
+      }
+
+      if (isa<OpaqueReturnTypeRepr>(*it) || isa<ExistentialTypeRepr>(*it)) {
+        return Action::Continue();
+      }
     }
 
     // We only care about the type of an outermost member type representation.
