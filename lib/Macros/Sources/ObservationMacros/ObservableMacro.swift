@@ -118,6 +118,7 @@ extension DeclModifierListSyntax {
         case .fileprivate: fallthrough
         case .private: fallthrough
         case .internal: fallthrough
+        case .package: fallthrough
         case .public:
           return false
         default:
