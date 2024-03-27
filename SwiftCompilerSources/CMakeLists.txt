@@ -129,7 +129,9 @@ function(add_swift_compiler_modules_library name)
     list(APPEND swift_compile_options "-O" "-cross-module-optimization")
   endif()
 
-  if(NOT LLVM_ENABLE_ASSERTIONS)
+  if(LLVM_ENABLE_ASSERTIONS)
+    list(APPEND swift_compile_options "-Xcc" "-UNDEBUG")
+  else()
     list(APPEND swift_compile_options "-Xcc" "-DNDEBUG")
   endif()
 

@@ -84,6 +84,9 @@ class Swift(product.Product):
         self.cmake_options.extend(
             self._swift_tools_ld64_lto_codegen_only_for_supporting_targets)
 
+        self.cmake_options.extend(
+            self._enable_experimental_parser_validation)
+
     @classmethod
     def is_build_script_impl_product(cls):
         """is_build_script_impl_product -> bool
@@ -237,6 +240,11 @@ updated without updating swift.py?")
     def _swift_tools_ld64_lto_codegen_only_for_supporting_targets(self):
         return [('SWIFT_TOOLS_LD64_LTO_CODEGEN_ONLY_FOR_SUPPORTING_TARGETS:BOOL',
                  self.args.swift_tools_ld64_lto_codegen_only_for_supporting_targets)]
+
+    @property
+    def _enable_experimental_parser_validation(self):
+        return [('SWIFT_ENABLE_EXPERIMENTAL_PARSER_VALIDATION:BOOL',
+                 self.args.enable_experimental_parser_validation)]
 
     @classmethod
     def get_dependencies(cls):

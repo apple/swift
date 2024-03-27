@@ -75,6 +75,12 @@ function(_add_host_swift_compile_options name)
   target_compile_options(${name} PRIVATE
     $<$<COMPILE_LANGUAGE:Swift>:-color-diagnostics>
   )
+
+  if(LLVM_ENABLE_ASSERTIONS)
+    target_compile_options(${name} PRIVATE "$<$<COMPILE_LANGUAGE:Swift>:SHELL:-Xcc -UNDEBUG>")
+  else()
+    target_compile_options(${name} PRIVATE "$<$<COMPILE_LANGUAGE:Swift>:SHELL:-Xcc -DNDEBUG>")
+  endif()
 endfunction()
 
 function(_set_pure_swift_link_flags name relpath_to_lib_dir)

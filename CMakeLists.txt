@@ -692,6 +692,10 @@ option(SWIFT_ENABLE_GLOBAL_ISEL_ARM64
   "Enable global isel on arm64"
   FALSE)
 
+option(SWIFT_ENABLE_EXPERIMENTAL_PARSER_VALIDATION
+  "Enable experimental SwiftParser validation by default"
+  FALSE)
+
 cmake_dependent_option(SWIFT_BUILD_SOURCEKIT
   "Build SourceKit" TRUE
   "SWIFT_ENABLE_DISPATCH" FALSE)
