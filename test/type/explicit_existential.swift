@@ -59,6 +59,10 @@ protocol HasAssoc {
   func foo()
 }
 
+protocol HasAssocGeneric<Assoc> {
+  associatedtype Assoc
+}
+
 do {
   enum MyError: Error {
     case bad(Any)
@@ -319,6 +323,17 @@ func testAnyFixIt() {
   let _: HasAssoc.Type? = ConformingType.self
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
   let _: HasAssoc.Protocol? = (any HasAssoc).self
+
+  // https://github.com/apple/swift/issues/72588
+
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{30-38=any HasAssoc}}
+  let _: any HasAssocGeneric<HasAssoc>
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{31-39=any HasAssoc}}
+  let _: any (HasAssocGeneric<HasAssoc>)
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{35-43=any HasAssoc}}
+  func f1(_: some HasAssocGeneric<HasAssoc> & HasAssoc) {}
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{37-45=any HasAssoc}}
+  func f2(_: some ((HasAssocGeneric<HasAssoc>)) & (HasAssoc)) {}
 
   // expected-error@+1 {{optional 'any' type must be written '(any HasAssoc)?'}}{{10-23=(any HasAssoc)?}}
   let _: any HasAssoc? = nil
