@@ -1628,7 +1628,7 @@ function Build-Driver($Arch) {
     -Bin (Get-HostProjectBinaryCache Driver) `
     -InstallTo "$($Arch.ToolchainInstallRoot)\usr" `
     -Arch $Arch `
-    -UseBuiltCompilers Swift `
+    -UseBuiltCompilers C,CXX,Swift `
     -SwiftSDK ([IO.Path]::Combine((Get-InstallDir $HostArch), "Platforms", "Windows.platform", "Developer", "SDKs", "Windows.sdk")) `
     -BuildTargets default `
     -Defines @{
@@ -1640,6 +1640,11 @@ function Build-Driver($Arch) {
       ArgumentParser_DIR = (Get-HostProjectCMakeModules ArgumentParser);
       SQLite3_INCLUDE_DIR = "$LibraryRoot\sqlite-3.43.2\usr\include";
       SQLite3_LIBRARY = "$LibraryRoot\sqlite-3.43.2\usr\lib\SQLite3.lib";
+      SWIFT_DRIVER_BUILD_TOOLS = "YES";
+      LLVM_DIR = "$(Get-HostProjectBinaryCache Compilers)\lib\cmake\llvm";
+      Clang_DIR = "$(Get-HostProjectBinaryCache Compilers)\lib\cmake\clang";
+      Swift_DIR = "$(Get-HostProjectBinaryCache Compilers)\tools\swift\lib\cmake\swift";
+      CMAKE_CXX_FLAGS = "-Xclang -fno-split-cold-code";
     }
 }
 
