@@ -361,6 +361,9 @@ CONDITIONALLY_SUPPRESSIBLE_EXPERIMENTAL_FEATURE(IsolatedAny, true)
 // Enable usability improvements for global-actor-isolated types.
 EXPERIMENTAL_FEATURE(GlobalActorIsolatedTypesUsability, false)
 
+// Used for test purposes only.
+EXPERIMENTAL_FEATURE(SupportedFeaturesTest, false)
+
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE
 #undef UPCOMING_FEATURE
