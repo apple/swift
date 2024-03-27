@@ -126,9 +126,9 @@ if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB)
   endforeach()
 endif()
 
-set(swiftGlibc_target_sdks ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU)
+set(swiftGlibc_target_sdks CYGWIN FREEBSD OPENBSD LINUX HAIKU)
 if(SWIFT_FREESTANDING_FLAVOR STREQUAL "linux")
-  set(swiftGlibc_target_sdks ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU FREESTANDING)
+  set(swiftGlibc_target_sdks CYGWIN FREEBSD OPENBSD LINUX HAIKU FREESTANDING)
 endif()
 add_swift_target_library(swiftGlibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ${swift_platform_sources}
@@ -197,6 +197,22 @@ add_swift_target_library(swiftCRT ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVE
     TARGET_SDKS WINDOWS
     INSTALL_IN_COMPONENT sdk-overlay)
 
+add_swift_target_library(swiftAndroid ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
+    Android.swift
+    ${swift_platform_sources}
+    POSIXError.swift
+
+    GYB_SOURCES
+      ${swift_platform_gyb_sources}
+
+    SWIFT_COMPILE_FLAGS
+      ${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}
+      ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
+      ${swift_platform_compile_flags}
+    LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
+    TARGET_SDKS "ANDROID"
+    INSTALL_IN_COMPONENT sdk-overlay)
+
 set(glibc_modulemap_target_list)
 foreach(sdk ${SWIFT_SDKS})
   if(NOT "${sdk}" STREQUAL "LINUX" AND
@@ -212,6 +228,24 @@ foreach(sdk ${SWIFT_SDKS})
     set(arch_subdir "${SWIFT_SDK_${sdk}_LIB_SUBDIR}/${arch}")
     set(module_dir "${SWIFTLIB_DIR}/${arch_subdir}")
     set(module_dir_static "${SWIFTSTATICLIB_DIR}/${arch_subdir}")
+
+    if ("${sdk}" STREQUAL "ANDROID")
+      swift_install_in_component(FILES
+        "android.modulemap"
+        DESTINATION "lib/swift/${arch_subdir}"
+        COMPONENT sdk-overlay)
+      swift_install_in_component(FILES
+        "SwiftAndroidNDK.h"
+        DESTINATION "lib/swift/${arch_subdir}"
+        COMPONENT sdk-overlay)
+      swift_install_in_component(FILES
+        "SwiftBionic.h"
+        DESTINATION "lib/swift/${arch_subdir}"
+        COMPONENT sdk-overlay)
+      
+      # Do not build Glibc for Android.
+      continue()
+    endif()
 
     set(glibc_modulemap_source "glibc.modulemap.gyb")
     set(glibc_modulemap_out "${module_dir}/glibc.modulemap")

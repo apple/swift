@@ -1833,6 +1833,7 @@ function(add_swift_target_library name)
         SWIFT_COMPILE_FLAGS_WATCHOS
         SWIFT_COMPILE_FLAGS_LINUX
         SWIFT_MODULE_DEPENDS
+        SWIFT_MODULE_DEPENDS_ANDROID
         SWIFT_MODULE_DEPENDS_CYGWIN
         SWIFT_MODULE_DEPENDS_FREEBSD
         SWIFT_MODULE_DEPENDS_FREESTANDING
@@ -2024,9 +2025,12 @@ function(add_swift_target_library name)
     elseif(sdk STREQUAL "OPENBSD")
       list(APPEND swiftlib_module_depends_flattened
            ${SWIFTLIB_SWIFT_MODULE_DEPENDS_OPENBSD})
-    elseif(sdk STREQUAL "LINUX" OR sdk STREQUAL "ANDROID")
+    elseif(sdk STREQUAL "LINUX")
       list(APPEND swiftlib_module_depends_flattened
            ${SWIFTLIB_SWIFT_MODULE_DEPENDS_LINUX})
+    elseif(sdk STREQUAL "ANDROID")
+      list(APPEND swiftlib_module_depends_flattened
+           ${SWIFTLIB_SWIFT_MODULE_DEPENDS_ANDROID})
     elseif(sdk STREQUAL "CYGWIN")
       list(APPEND swiftlib_module_depends_flattened
            ${SWIFTLIB_SWIFT_MODULE_DEPENDS_CYGWIN})
@@ -2819,6 +2823,7 @@ function(add_swift_target_executable name)
     DEPENDS
     LINK_LIBRARIES
     SWIFT_MODULE_DEPENDS
+    SWIFT_MODULE_DEPENDS_ANDROID
     SWIFT_MODULE_DEPENDS_CYGWIN
     SWIFT_MODULE_DEPENDS_FREEBSD
     SWIFT_MODULE_DEPENDS_FREESTANDING
