@@ -189,16 +189,6 @@ func testLoadableBorrowingConsumeOperator(_ x: borrowing NonTrivialStruct) {
     _ = consume x
 }
 
-// CHECK-LABEL: sil hidden [ossa] @$s35noimplicitcopy_borrowing_parameters25testLoadableBorrowingEnumyyAA0eG0OF : $@convention(thin) (@guaranteed LoadableEnum) -> () {
-// CHECK: bb0([[ARG:%.*]] : @noImplicitCopy
-// CHECK:   [[WRAP:%.*]] = copyable_to_moveonlywrapper [guaranteed]
-// CHECK:   [[COPY:%.*]] = copy_value [[WRAP]]
-// CHECK:   [[CHECK:%.*]] = mark_unresolved_non_copyable_value [no_consume_or_assign] [[COPY]]
-// CHECK:   [[BORROW:%.*]] = begin_borrow [[CHECK]]
-// CHECK:   [[COPY2:%.*]] = copy_value [[BORROW]]
-// CHECK:   [[UNWRAP:%.*]] = moveonlywrapper_to_copyable [owned] [[COPY2]]
-// CHECK:   switch_enum [[UNWRAP]]
-// CHECK: } // end sil function '$s35noimplicitcopy_borrowing_parameters25testLoadableBorrowingEnumyyAA0eG0OF'
 func testLoadableBorrowingEnum(_ x: borrowing LoadableEnum) {
     switch x {
     case let .x(y):

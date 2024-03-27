@@ -3241,14 +3241,12 @@ void SILGenFunction::emitSwitchStmt(SwitchStmt *S) {
   // the match, we'll have to perform the initial match as a borrow and then
   // reproject the value to consume it.
   auto ownership = ValueOwnership::Default;
-  if (getASTContext().LangOpts.hasFeature(Feature::BorrowingSwitch)) {
-    if (subjectTy->isNoncopyable()) {
-      // Determine the overall ownership behavior of the switch, based on the
-      // patterns' ownership behavior.
-      for (auto caseLabel : S->getCases()) {
-        for (auto item : caseLabel->getCaseLabelItems()) {
-          ownership = std::max(ownership, item.getPattern()->getOwnership());
-        }
+  if (subjectTy->isNoncopyable()) {
+    // Determine the overall ownership behavior of the switch, based on the
+    // patterns' ownership behavior.
+    for (auto caseLabel : S->getCases()) {
+      for (auto item : caseLabel->getCaseLabelItems()) {
+        ownership = std::max(ownership, item.getPattern()->getOwnership());
       }
     }
   }
@@ -3387,103 +3385,101 @@ void SILGenFunction::emitSwitchStmt(SwitchStmt *S) {
   
   // Inline constructor for subject.
   auto subject = ([&]() -> ConsumableManagedValue {
-    if (subjectMV.getType().isMoveOnly()) {
-      if (ownership > ValueOwnership::Default) { // should become an assert when BorrowingSwitch is enabled
-        // Based on the ownership behavior, prepare the subject.
-        // The pattern match itself will always be performed on a borrow, to
-        // ensure that the order of pattern evaluation doesn't prematurely
-        // consume or modify the value until we commit to a match. But if the
-        // match consumes the value, then we need a +1 value to go back to in
-        // order to consume the parts we match to, so we force a +1 value then
-        // borrow that for the pattern match.
-        switch (ownership) {
-        case ValueOwnership::Default:
-          llvm_unreachable("invalid");
-        
-        case ValueOwnership::Shared:
-          emission.setNoncopyableBorrowingOwnership();
-          if (subjectMV.getType().isAddress()) {
-            // Initiate a read access on the memory, to ensure that even
-            // if the underlying memory is mutable or consumable, the pattern
-            // match is not allowed to modify it.
-            subjectMV = B.createOpaqueBorrowBeginAccess(S, subjectMV);
-            if (subjectMV.getType().isLoadable(F)) {
-              // Load a borrow if the type is loadable.
-              subjectMV = subjectUndergoesFormalAccess
-                ? B.createFormalAccessLoadBorrow(S, subjectMV)
-                : B.createLoadBorrow(S, subjectMV);
-            }
-          } else {
-            // Initiate a fixed borrow on the subject, so that it's treated as
-            // opaque by the move checker.
-            subjectMV =
-                subjectUndergoesFormalAccess
-                    ? B.createFormalAccessBeginBorrow(
-                          S, subjectMV, IsNotLexical, BeginBorrowInst::IsFixed)
-                    : B.createBeginBorrow(S, subjectMV, IsNotLexical,
-                                          BeginBorrowInst::IsFixed);
+    // TODO: Move-only-wrapped subjects should also undergo a noncopying switch.
+    if (subjectMV.getType().isMoveOnly(/*or wrapped*/ false)) {
+      assert(ownership > ValueOwnership::Default);
+      // Based on the ownership behavior, prepare the subject.
+      // The pattern match itself will always be performed on a borrow, to
+      // ensure that the order of pattern evaluation doesn't prematurely
+      // consume or modify the value until we commit to a match. But if the
+      // match consumes the value, then we need a +1 value to go back to in
+      // order to consume the parts we match to, so we force a +1 value then
+      // borrow that for the pattern match.
+      switch (ownership) {
+      case ValueOwnership::Default:
+        llvm_unreachable("invalid");
+      
+      case ValueOwnership::Shared:
+        emission.setNoncopyableBorrowingOwnership();
+        if (subjectMV.getType().isAddress()) {
+          // Initiate a read access on the memory, to ensure that even
+          // if the underlying memory is mutable or consumable, the pattern
+          // match is not allowed to modify it.
+          subjectMV = B.createOpaqueBorrowBeginAccess(S, subjectMV);
+          if (subjectMV.getType().isLoadable(F)) {
+            // Load a borrow if the type is loadable.
+            subjectMV = subjectUndergoesFormalAccess
+              ? B.createFormalAccessLoadBorrow(S, subjectMV)
+              : B.createLoadBorrow(S, subjectMV);
           }
-          return {subjectMV, CastConsumptionKind::BorrowAlways};
-          
-        case ValueOwnership::InOut:
-          // TODO: mutating switches
-          llvm_unreachable("not implemented");
-          
-        case ValueOwnership::Owned:
-          // Make sure we own the subject value.
-          subjectMV = subjectMV.ensurePlusOne(*this, S);
-          if (subjectMV.getType().isAddress() &&
-              subjectMV.getType().isLoadable(F)) {
-            // Move the value into memory if it's loadable.
-            subjectMV = B.createLoadTake(S, subjectMV);
-          }
-          
-          // Unwind cleanups to this point when we're ready to reproject
-          // the value for consumption or mutation.
-          emission.setNoncopyableConsumingOwnership(
-            Cleanups.getCleanupsDepth(),
-            subjectMV);
-
-          // Perform the pattern match on an opaque borrow or read access of the
-          // subject.
-          if (subjectMV.getType().isAddress()) {
-            subjectMV = B.createOpaqueBorrowBeginAccess(S, subjectMV);
-          } else {
-            subjectMV = B.createBeginBorrow(S, subjectMV, IsNotLexical,
-                                            BeginBorrowInst::IsFixed);
-          }
-          return {subjectMV, CastConsumptionKind::BorrowAlways};
+        } else {
+          // Initiate a fixed borrow on the subject, so that it's treated as
+          // opaque by the move checker.
+          subjectMV =
+              subjectUndergoesFormalAccess
+                  ? B.createFormalAccessBeginBorrow(
+                        S, subjectMV, IsNotLexical, BeginBorrowInst::IsFixed)
+                  : B.createBeginBorrow(S, subjectMV, IsNotLexical,
+                                        BeginBorrowInst::IsFixed);
         }
-        llvm_unreachable("unhandled value ownership");
+        return {subjectMV, CastConsumptionKind::BorrowAlways};
+        
+      case ValueOwnership::InOut:
+        // TODO: mutating switches
+        llvm_unreachable("not implemented");
+        
+      case ValueOwnership::Owned:
+        // Make sure we own the subject value.
+        subjectMV = subjectMV.ensurePlusOne(*this, S);
+        if (subjectMV.getType().isAddress() &&
+            subjectMV.getType().isLoadable(F)) {
+          // Move the value into memory if it's loadable.
+          subjectMV = B.createLoadTake(S, subjectMV);
+        }
+        
+        // Unwind cleanups to this point when we're ready to reproject
+        // the value for consumption or mutation.
+        emission.setNoncopyableConsumingOwnership(
+          Cleanups.getCleanupsDepth(),
+          subjectMV);
+
+        // Perform the pattern match on an opaque borrow or read access of the
+        // subject.
+        if (subjectMV.getType().isAddress()) {
+          subjectMV = B.createOpaqueBorrowBeginAccess(S, subjectMV);
+        } else {
+          subjectMV = B.createBeginBorrow(S, subjectMV, IsNotLexical,
+                                          BeginBorrowInst::IsFixed);
+        }
+        return {subjectMV, CastConsumptionKind::BorrowAlways};
+      }
+      llvm_unreachable("unhandled value ownership");
+    }
+    
+    // TODO: Move-only-wrapped subjects should also undergo a noncopying switch.
+    // For now, unwrap them and perform a normal switch over them.
+    if (subjectMV.getType().isMoveOnlyWrapped()) {
+      if (subjectMV.getType().isAddress()) {
+        auto isPlusOne = subjectMV.isPlusOne(*this);
+        auto subjectAddr
+          = B.createMoveOnlyWrapperToCopyableAddr(S, subjectMV.forward(*this));
+
+        if (isPlusOne) {
+          subjectMV = emitManagedRValueWithCleanup(subjectAddr);
+        } else {
+          subjectMV = ManagedValue::forBorrowedAddressRValue(subjectAddr);
+        }
       } else {
-        // TODO: Remove.
-        // If we have a noImplicitCopy value, ensure plus one and convert
-        // it. Switches always consume move only values.
-        //
-        // NOTE: We purposely do not do this for pure move only types since for them
-        // we emit everything at +0 and then run the BorrowToDestructure transform
-        // upon them. The reason that we do this is that internally to
-        // SILGenPattern, we always attempt to move from +1 -> +0 meaning that even
-        // if we start at +1, we will go back to +0 given enough patterns to go
-        // through. It is simpler to just let SILGenPattern do what it already wants
-        // to do, rather than fight it or try to resusitate the "fake owned borrow"
-        // path that we still use for address only types (and that we want to delete
-        // once we have opaque values).
-        if (subjectMV.getType().isObject()) {
-          if (subjectMV.getType().isMoveOnlyWrapped()) {
-            subjectMV = B.createOwnedMoveOnlyWrapperToCopyableValue(
-                S, subjectMV.ensurePlusOne(*this, S));
-          } else {
-            // If we have a pure move only type and it is owned, borrow it so that
-            // BorrowToDestructure can handle it.
-            if (subjectMV.getOwnershipKind() == OwnershipKind::Owned) {
-              subjectMV = subjectMV.borrow(*this, S);
-            }
-          }
+        if (subjectMV.isPlusOne(*this)) {
+          subjectMV
+            = B.createOwnedMoveOnlyWrapperToCopyableValue(S, subjectMV);
+        } else {
+          subjectMV
+            = B.createGuaranteedMoveOnlyWrapperToCopyableValue(S, subjectMV);
         }
       }
     }
-  
+
     // If we have a plus one value...
     if (subjectMV.isPlusOne(*this)) {
       // And we have an address that is loadable, perform a load [take].
