@@ -65,3 +65,8 @@ public func has_witness_table_pack2<each T: Sequence>(t: repeat each T) -> () ->
     where repeat (each T).Element: Sequence {
   return { _ = (repeat (each T).Element.Element).self }
 }
+
+// https://github.com/apple/swift/issues/71455
+func f<each T>(t: (repeat each T)) {
+  let tup = (repeat ((each T).self, each t))
+}
