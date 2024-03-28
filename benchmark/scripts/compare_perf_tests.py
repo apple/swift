@@ -564,7 +564,7 @@ class TestComparator(object):
     It determines which tests were `added`, `removed` and which can be
     compared. It then splits the `ResultComparison`s into 3 groups according to
     the `delta_threshold` by the change in performance: `increased`,
-    `descreased` and `unchanged`. Whole computation is performed during
+    `decreased` and `unchanged`. Whole computation is performed during
     initialization and results are provided as properties on this object.
 
     The lists of `added`, `removed` and `unchanged` tests are sorted
