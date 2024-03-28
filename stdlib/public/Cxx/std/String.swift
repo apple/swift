@@ -159,24 +159,21 @@ extension std.u32string: Equatable {
 extension std.string: Hashable {
   public func hash(into hasher: inout Hasher) {
     // Call std::hash<std::string>::operator()
-    let cxxHash = __swift_interopHashOfString().callAsFunction(self)
-    hasher.combine(cxxHash)
+    fatalError()
   }
 }
 
 extension std.u16string: Hashable {
   public func hash(into hasher: inout Hasher) {
     // Call std::hash<std::u16string>::operator()
-    let cxxHash = __swift_interopHashOfU16String().callAsFunction(self)
-    hasher.combine(cxxHash)
+    fatalError()
   }
 }
 
 extension std.u32string: Hashable {
   public func hash(into hasher: inout Hasher) {
     // Call std::hash<std::u32string>::operator()
-    let cxxHash = __swift_interopHashOfU32String().callAsFunction(self)
-    hasher.combine(cxxHash)
+    fatalError()
   }
 }
 

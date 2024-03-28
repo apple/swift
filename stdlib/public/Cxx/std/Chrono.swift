@@ -16,7 +16,7 @@ extension std.chrono.seconds {
   @available(SwiftStdlib 5.7, *)
   public init(_ duration: Duration) {
     let (seconds, _) = duration.components
-    self = __swift_interopMakeChronoSeconds(seconds)
+    fatalError()
   }
 }
 
@@ -24,9 +24,7 @@ extension std.chrono.milliseconds {
   @available(SwiftStdlib 5.7, *)
   public init(_ duration: Duration) {
     let (seconds, attoseconds) = duration.components
-    self = __swift_interopMakeChronoMilliseconds(
-      seconds * 1_000 + 
-      attoseconds / 1_000_000_000_000_000)
+    fatalError()
   }
 }
 
@@ -34,9 +32,7 @@ extension std.chrono.microseconds {
   @available(SwiftStdlib 5.7, *)
   public init(_ duration: Duration) {
     let (seconds, attoseconds) = duration.components
-    self = __swift_interopMakeChronoMicroseconds(
-      seconds * 1_000_000 +
-      attoseconds / 1_000_000_000_000)
+    fatalError()
   }
 }
 
@@ -44,9 +40,7 @@ extension std.chrono.nanoseconds {
   @available(SwiftStdlib 5.7, *)
   public init(_ duration: Duration) {
     let (seconds, attoseconds) = duration.components
-    self = __swift_interopMakeChronoNanoseconds(
-      seconds * 1_000_000_000 +
-      attoseconds / 1_000_000_000)
+    fatalError()
   }
 }
 
