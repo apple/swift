@@ -161,7 +161,7 @@ static void runInsertAndMergeTest(llvm::ArrayRef<Instruction> values) {
   assert(!lastMergeEntry && "ended while still building a merge list");
 
   entries.sort(creationOrder);
-  entries.checkSameAs(merger.release());
+  entries.checkSameAs(std::get<0>(merger.release()));
 }
 
 static void runInsertAtFrontTest(llvm::ArrayRef<unsigned> values) {
@@ -171,7 +171,7 @@ static void runInsertAtFrontTest(llvm::ArrayRef<unsigned> values) {
     merger.insertAtFront(entries.create(value));
   }
   entries.sort(reverseCreationOrder);
-  entries.checkSameAs(merger.release());
+  entries.checkSameAs(std::get<0>(merger.release()));
 }
 
 static void runConcreteTests() {

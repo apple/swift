@@ -19,6 +19,7 @@
 #define SWIFT_BASIC_LISTMERGER_H
 
 #include <assert.h>
+#include <tuple>
 
 namespace swift {
 
@@ -62,13 +63,31 @@ namespace swift {
 /// to the merger and before being released except by the merger.
 template <class Node, class NodeTraits>
 class ListMerger {
+public:
+  class LastInsertionPoint {
+    friend class ListMerger;
+    Node node = Node();
+    bool isKnownLastOfEquals = false;
+
+  public:
+    LastInsertionPoint() {}
+
+    void nodeWasRemoved(Node removedNode) {
+      if (node == removedNode) {
+        *this = LastInsertionPoint();
+      }
+    }
+  };
+
+private:
   Node root;
-  Node lastInsertionPoint = Node();
-  bool lastInsertionPointIsKnownLastOfEquals = false;
+  LastInsertionPoint lastInsertionPoint;
+
 public:
   /// Construct a merger with the given sorted list as its current list.
-  ListMerger(Node initialList = Node())
-    : root(initialList) {}
+  ListMerger(Node initialList = Node(),
+             LastInsertionPoint insertionPoint = LastInsertionPoint())
+      : root(initialList), lastInsertionPoint(insertionPoint) {}
 
   /// Add a single node to this merger's current list.
   ///
@@ -86,7 +105,7 @@ public:
     Node stopper = Node();
 
     // If we have a previous insertion point, compare against it.
-    if (Node lastIP = lastInsertionPoint) {
+    if (Node lastIP = lastInsertionPoint.node) {
       int comparison = NodeTraits::compare(lastIP, newNode);
 
       // If it compares equal, put the new node immediately after the
@@ -169,7 +188,7 @@ public:
 
     // If we have a previous insertion point, check for the presumed-common
     // case that we're inserting something that should immediately follow it.
-    if (auto lastIP = lastInsertionPoint) {
+    if (auto lastIP = lastInsertionPoint.node) {
       lastIP = findLastOfEqualsFromLastIP(lastIP);
 
       // Compare against the next node after lastIP, if it exists.
@@ -246,7 +265,7 @@ public:
 
     // If we have a previous insertion point, compare the new root
     // against it.
-    if (Node lastIP = lastInsertionPoint) {
+    if (Node lastIP = lastInsertionPoint.node) {
       int comparison = NodeTraits::compare(lastIP, rootOfNewList);
 
       // If it compares equal, we've got an insertion point where
@@ -341,10 +360,10 @@ public:
 
   /// Get the current list that's been built up, and clear the internal
   /// state of this merger.
-  Node release() {
-    Node result = root;
+  std::tuple<Node, LastInsertionPoint> release() {
+    auto result = std::make_tuple(root, lastInsertionPoint);
     root = Node();
-    lastInsertionPoint = Node();
+    lastInsertionPoint = LastInsertionPoint();
     return result;
   }
 
@@ -352,16 +371,16 @@ private:
   /// Set the last point at which we inserted a node, and specify
   /// whether we know it was the last in its sequence of equals.
   void setLastInsertionPoint(Node lastIP, bool knownEndOfEquals) {
-    lastInsertionPoint = lastIP;
-    lastInsertionPointIsKnownLastOfEquals = knownEndOfEquals;
+    lastInsertionPoint.node = lastIP;
+    lastInsertionPoint.isKnownLastOfEquals = knownEndOfEquals;
   }
 
   /// Given the value of lastInsertionPoint (passed in to avoid
   /// reloading it), find the last node in the sequence of equals that
   /// contains it.
   Node findLastOfEqualsFromLastIP(Node lastIP) const {
-    assert(lastIP == lastInsertionPoint);
-    if (!lastInsertionPointIsKnownLastOfEquals)
+    assert(lastIP == lastInsertionPoint.node);
+    if (!lastInsertionPoint.isKnownLastOfEquals)
       return findLastOfEquals(lastIP);
     return lastIP;
   }

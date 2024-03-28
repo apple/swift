@@ -1,7 +1,7 @@
 SWIFT_SRCROOT=${CURDIR}/../..
 SRCROOT=${SWIFT_SRCROOT}/..
 LLVM_SRCROOT=${SRCROOT}/llvm/
-LLVM_OBJROOT=${SRCROOT}/build/Ninja-DebugAssert/llvm-macosx-x86_64
+LLVM_OBJROOT=${SRCROOT}/build/Ninja-DebugAssert/llvm-macosx-$(shell uname -m)
 
 HEADERS=${SWIFT_SRCROOT}/include/swift/Basic/ListMerger.h
 
