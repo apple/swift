@@ -676,9 +676,13 @@ class BuildScriptInvocation(object):
                             is_enabled=self.args.build_wasmstdlib)
         builder.add_product(products.WasmLLVMRuntimeLibs,
                             is_enabled=self.args.build_wasmstdlib)
+        builder.add_product(products.WasmThreadsLLVMRuntimeLibs,
+                            is_enabled=self.args.build_wasmstdlib)
         builder.add_product(products.WasmKit,
                             is_enabled=self.args.build_wasmkit)
         builder.add_product(products.WasmStdlib,
+                            is_enabled=self.args.build_wasmstdlib)
+        builder.add_product(products.WasmThreadsStdlib,
                             is_enabled=self.args.build_wasmstdlib)
 
         # Keep SwiftDriver at last.

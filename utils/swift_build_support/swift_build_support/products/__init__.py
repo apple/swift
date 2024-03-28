@@ -37,9 +37,9 @@ from .swiftinspect import SwiftInspect
 from .swiftpm import SwiftPM
 from .swiftsyntax import SwiftSyntax
 from .tsan_libdispatch import TSanLibDispatch
-from .wasisysroot import WASILibc, WasmLLVMRuntimeLibs
+from .wasisysroot import WASILibc, WasmLLVMRuntimeLibs, WasmThreadsLLVMRuntimeLibs
 from .wasmkit import WasmKit
-from .wasmstdlib import WasmStdlib
+from .wasmstdlib import WasmStdlib, WasmThreadsStdlib
 from .xctest import XCTest
 from .zlib import Zlib
 
@@ -76,5 +76,7 @@ __all__ = [
     'WASILibc',
     'WasmLLVMRuntimeLibs',
     'WasmKit',
-    'WasmStdlib'
+    'WasmStdlib',
+    'WasmThreadsLLVMRuntimeLibs',
+    'WasmThreadsStdlib',
 ]
