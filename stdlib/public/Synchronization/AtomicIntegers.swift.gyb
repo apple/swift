@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift Atomics open source project
 //
-// Copyright (c) 2023 Apple Inc. and the Swift project authors
+// Copyright (c) 2023-2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -14,15 +14,19 @@ import Builtin
 
 % from SwiftAtomics import *
 
-% for (intType, intStorage, builtinInt) in intTypes:
+% for U in ["", "U"]:
+%  for bits in atomicBits:
+%  intType = U + "Int" + bits
+%  intStorage = "_Atomic" + bits + "BitStorage"
 
 //===----------------------------------------------------------------------===//
 // ${intType} AtomicRepresentable conformance
 //===----------------------------------------------------------------------===//
 
-% if intType == "Int64" or intType == "UInt64":
-#if (_pointerBitWidth(_32) && _hasAtomicBitWidth(_64)) || _pointerBitWidth(_64)
-% end
+%  if bits != "":
+%   # Assume that everyone has word-sized atomics, but check for the rest
+#if _hasAtomicBitWidth(_${bits})
+%  end
 
 @available(SwiftStdlib 6.0, *)
 extension ${intType}: AtomicRepresentable {
@@ -107,7 +111,7 @@ extension Atomic where Value == ${intType} {
   @_alwaysEmitIntoClient
   @_transparent
   public func ${lowerFirst(name)}(
-    _ operand: ${intType}${" = 1" if "crement" in name else ""},
+    _ operand: ${intType},
     ordering: AtomicUpdateOrdering
   ) -> (oldValue: ${intType}, newValue: ${intType}) {
     let original = switch ordering {
@@ -128,7 +132,7 @@ extension Atomic where Value == ${intType} {
 #error("Unsupported platform")
 #endif
 %     else:
-      Builtin.atomicrmw_${atomicOperationName(intType, builtinName)}_${llvmOrder}_${builtinInt}(
+      Builtin.atomicrmw_${atomicOperationName(intType, builtinName)}_${llvmOrder}_Int${bits}(
         rawAddress,
         operand._value
       )
@@ -231,8 +235,9 @@ extension Atomic where Value == ${intType} {
   }
 }
 
-% if intType == "Int64" or intType == "UInt64":
-#endif
-% end
+%  if bits != "":
+#endif // _hasAtomicBitWidth
+%  end
 
+% end
 % end

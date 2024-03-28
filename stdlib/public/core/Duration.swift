@@ -46,7 +46,8 @@ public struct Duration: Sendable {
     self._high = _high
   }
 
-  internal init(_attoseconds: _Int128) {
+  @available(SwiftStdlib 6.0, *)
+  internal init(_attoseconds: Int128) {
     self.init(_high: _attoseconds.high, low: _attoseconds.low)
   }
 
@@ -77,12 +78,14 @@ public struct Duration: Sendable {
   ///   - attosecondsComponent: The attosecond component portion of the 
   ///                           `Duration` value.
   public init(secondsComponent: Int64, attosecondsComponent: Int64) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     self = Duration.seconds(secondsComponent) +
-           Duration(_attoseconds: _Int128(attosecondsComponent))
+           Duration(_attoseconds: Int128(attosecondsComponent))
   }
 
-  internal var _attoseconds: _Int128 {
-    _Int128(high: _high, low: _low)
+  @available(SwiftStdlib 6.0, *)
+  internal var _attoseconds: Int128 {
+    Int128(low: _low, high: _high)
   }
 }
 
@@ -94,6 +97,7 @@ extension Duration {
   /// attoseconds value will not exceed 1e18 or be lower than -1e18.
   @available(SwiftStdlib 5.7, *)
   public var components: (seconds: Int64, attoseconds: Int64) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     let (seconds, attoseconds) = _attoseconds.dividedBy1e18()
     return (Int64(seconds), Int64(attoseconds))
   }
@@ -109,13 +113,14 @@ extension Duration {
   /// - Returns: A `Duration` representing a given number of seconds.
   @available(SwiftStdlib 5.7, *)
   public static func seconds<T: BinaryInteger>(_ seconds: T) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(seconds).multiplied(by: 1_000_000_000_000_000_000 as UInt64))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: Int128(seconds) * 1_000_000_000_000_000_000)
   }
   
   /// Construct a `Duration` given a duration and scale, taking care so that
   /// exact integer durations are preserved exactly.
   internal init(_ duration: Double, scale: UInt64) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     // Split the duration into integral and fractional parts, as we need to
     // handle them slightly differently to ensure that integer values are
     // never rounded if `scale` is representable as Double.
@@ -124,9 +129,9 @@ extension Duration {
     self.init(_attoseconds:
       // This term may trap due to overflow, but it cannot round, so if the
       // input `seconds` is an exact integer, we get an exact integer result.
-      _Int128(integralPart).multiplied(by: scale) +
+      Int128(integralPart) * Int128(scale) +
       // This term may round, but cannot overflow.
-      _Int128((fractionalPart * Double(scale)).rounded())
+      Int128((fractionalPart * Double(scale)).rounded())
     )
   }
 
@@ -151,8 +156,8 @@ extension Duration {
   public static func milliseconds<T: BinaryInteger>(
     _ milliseconds: T
   ) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(milliseconds).multiplied(by: 1_000_000_000_000_000 as UInt64))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: Int128(milliseconds) * 1_000_000_000_000_000)
   }
 
   /// Construct a `Duration` given a number of seconds milliseconds as a 
@@ -176,8 +181,8 @@ extension Duration {
   public static func microseconds<T: BinaryInteger>(
     _ microseconds: T
   ) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(microseconds).multiplied(by: 1_000_000_000_000 as UInt64))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: Int128(microseconds) * 1_000_000_000_000)
   }
 
   /// Construct a `Duration` given a number of seconds microseconds as a 
@@ -201,8 +206,8 @@ extension Duration {
   public static func nanoseconds<T: BinaryInteger>(
     _ nanoseconds: T
   ) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(nanoseconds).multiplied(by: 1_000_000_000))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: Int128(nanoseconds) * 1_000_000_000)
   }
 }
 
@@ -229,6 +234,7 @@ extension Duration: Codable {
 extension Duration: Hashable {
   @available(SwiftStdlib 5.7, *)
   public func hash(into hasher: inout Hasher) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     hasher.combine(_attoseconds)
   }
 }
@@ -237,6 +243,7 @@ extension Duration: Hashable {
 extension Duration: Equatable {
   @available(SwiftStdlib 5.7, *)
   public static func == (_ lhs: Duration, _ rhs: Duration) -> Bool {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     return lhs._attoseconds == rhs._attoseconds
   }
 }
@@ -245,6 +252,7 @@ extension Duration: Equatable {
 extension Duration: Comparable {
   @available(SwiftStdlib 5.7, *)
   public static func < (_ lhs: Duration, _ rhs: Duration) -> Bool {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     return lhs._attoseconds < rhs._attoseconds
   }
 }
@@ -252,25 +260,32 @@ extension Duration: Comparable {
 @available(SwiftStdlib 5.7, *)
 extension Duration: AdditiveArithmetic {
   @available(SwiftStdlib 5.7, *)
-  public static var zero: Duration { Duration(_attoseconds: 0) }
+  public static var zero: Duration {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: 0)
+  }
 
   @available(SwiftStdlib 5.7, *)
   public static func + (_ lhs: Duration, _ rhs: Duration) -> Duration {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     return Duration(_attoseconds: lhs._attoseconds + rhs._attoseconds)
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func - (_ lhs: Duration, _ rhs: Duration) -> Duration {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     return Duration(_attoseconds: lhs._attoseconds - rhs._attoseconds)
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func += (_ lhs: inout Duration, _ rhs: Duration) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     lhs = lhs + rhs
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func -= (_ lhs: inout Duration, _ rhs: Duration) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     lhs = lhs - rhs
   }
 }
@@ -279,12 +294,13 @@ extension Duration: AdditiveArithmetic {
 extension Duration {
   @available(SwiftStdlib 5.7, *)
   public static func / (_ lhs: Duration, _ rhs: Double) -> Duration {
-    return Duration(_attoseconds:
-      _Int128(Double(lhs._attoseconds) / rhs))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: Int128(Double(lhs._attoseconds) / rhs))
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func /= (_ lhs: inout Duration, _ rhs: Double) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     lhs = lhs / rhs
   }
 
@@ -292,33 +308,39 @@ extension Duration {
   public static func / <T: BinaryInteger>(
     _ lhs: Duration, _ rhs: T
   ) -> Duration {
-    Duration(_attoseconds: lhs._attoseconds / _Int128(rhs))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: lhs._attoseconds / Int128(rhs))
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func /= <T: BinaryInteger>(_ lhs: inout Duration, _ rhs: T) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     lhs = lhs / rhs
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func / (_ lhs: Duration, _ rhs: Duration) -> Double {
-    Double(lhs._attoseconds) / Double(rhs._attoseconds)
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Double(lhs._attoseconds) / Double(rhs._attoseconds)
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func * (_ lhs: Duration, _ rhs: Double) -> Duration {
-    Duration(_attoseconds: _Int128(Double(lhs._attoseconds) * rhs))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: Int128(Double(lhs._attoseconds) * rhs))
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func * <T: BinaryInteger>(
     _ lhs: Duration, _ rhs: T
   ) -> Duration {
-    Duration(_attoseconds: lhs._attoseconds * _Int128(rhs))
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
+    return Duration(_attoseconds: lhs._attoseconds * Int128(rhs))
   }
 
   @available(SwiftStdlib 5.7, *)
   public static func *= <T: BinaryInteger>(_ lhs: inout Duration, _ rhs: T) {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     lhs = lhs * rhs
   }
 }
@@ -328,9 +350,26 @@ extension Duration {
 extension Duration: CustomStringConvertible {
   @available(SwiftStdlib 5.7, *)
   public var description: String {
+    guard #available(SwiftStdlib 6.0, *) else { fatalError() }
     return (Double(_attoseconds) / 1e18).description + " seconds"
   }
 }
 
 @available(SwiftStdlib 5.7, *)
 extension Duration: DurationProtocol { }
+
+@available(SwiftStdlib 6.0, *)
+extension Int128 {
+  internal func dividedBy1e18() -> (quotient: Self, remainder: Int64) {
+    // Division-by-constant magic number from [Warren 2013, page 212].
+    let magic: Int128 = 12259964326927110866866776217202473469
+    var q = self.multipliedFullWidth(by: magic).high &>> 55
+    // Adjust q if self was negative.
+    q &+= self < 0 ? 1 : 0
+    // We don't need to bother computing the high 64b of the remainder,
+    // since it's guaranteed to be in (-1e18, 1e18).
+    let r = Int64(truncatingIfNeeded: self) &-
+            Int64(truncatingIfNeeded: q) &* 1_000_000_000_000_000_000
+    return (q, r)
+  }
+}

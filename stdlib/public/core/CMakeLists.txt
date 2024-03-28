@@ -226,11 +226,13 @@ split_embedded_sources(
   EMBEDDED DurationProtocol.swift
   EMBEDDED FloatingPointRandom.swift
   EMBEDDED Instant.swift
+  EMBEDDED Int128.swift
     NORMAL Mirror.swift
     NORMAL PlaygroundDisplay.swift
     NORMAL CommandLine.swift
   EMBEDDED SliceBuffer.swift
     NORMAL StaticBigInt.swift
+  EMBEDDED UInt128.swift
     NORMAL UnfoldSequence.swift
     NORMAL UnsafeBufferPointerSlice.swift
     NORMAL VarArgs.swift
@@ -248,7 +250,6 @@ split_embedded_sources(
   EMBEDDED IntegerTypes.swift.gyb
   EMBEDDED UnsafeBufferPointer.swift.gyb
   EMBEDDED UnsafeRawBufferPointer.swift.gyb
-  EMBEDDED Int128.swift.gyb
   EMBEDDED Tuple.swift.gyb
   )
 

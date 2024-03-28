@@ -2,7 +2,7 @@
 #
 # This source file is part of the Swift.org open source project
 #
-# Copyright (c) 2023 Apple Inc. and the Swift project authors
+# Copyright (c) 2023-2024 Apple Inc. and the Swift project authors
 # Licensed under Apache License v2.0 with Runtime Library Exception
 #
 # See https://swift.org/LICENSE.txt for license information
@@ -21,22 +21,7 @@ atomicTypes = [
     ("_Atomic128BitStorage", "128", "16", "Builtin.Int128", "WordPair"),
 ]
 
-intTypes = [
-    # Swift, Storage Type, Builtin
-    ("Int8", "_Atomic8BitStorage", "Int8"),
-    ("Int16", "_Atomic16BitStorage", "Int16"),
-    ("Int32", "_Atomic32BitStorage", "Int32"),
-    ("Int64", "_Atomic64BitStorage", "Int64"),
-
-    # We handle the word type's storage in source.
-    ("Int", "", ""),
-    ("UInt", "", ""),
-
-    ("UInt8", "_Atomic8BitStorage", "Int8"),
-    ("UInt16", "_Atomic16BitStorage", "Int16"),
-    ("UInt32", "_Atomic32BitStorage", "Int32"),
-    ("UInt64", "_Atomic64BitStorage", "Int64"),
-]
+atomicBits = ["", "8", "16", "32", "64", "128"]
 
 loadOrderings = [
     # Swift, API name, doc name, LLVM name
