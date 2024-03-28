@@ -54,9 +54,7 @@ extension DistributedActor {
     let unownedExecutor = self.unownedExecutor
     let expectationCheck = _taskIsCurrentExecutor(unownedExecutor._executor)
 
-    // TODO: offer information which executor we actually got
     precondition(expectationCheck,
-        // TODO: figure out a way to get the typed repr out of the unowned executor
         "Incorrect actor executor assumption; Expected '\(self.unownedExecutor)' executor. \(message())",
         file: file, line: line)
   }
@@ -103,8 +101,6 @@ extension DistributedActor {
 
     let unownedExecutor = self.unownedExecutor
     guard _taskIsCurrentExecutor(unownedExecutor._executor) else {
-      // TODO: offer information which executor we actually got
-      // TODO: figure out a way to get the typed repr out of the unowned executor
       let msg = "Incorrect actor executor assumption; Expected '\(unownedExecutor)' executor. \(message())"
       /// TODO: implement the logic in-place perhaps rather than delegating to precondition()?
       assertionFailure(msg, file: file, line: line) // short-cut so we get the exact same failure reporting semantics
@@ -187,6 +183,12 @@ extension DistributedActor {
   }
 }
 
+/// WARNING: This function will CRASH rather than return `false` in new runtimes
+///
+/// It eventually calls into `SerialExecutor.checkIsolated` which allows even
+/// for non Task code to assume isolation in certain situations, however this
+/// API cannot be made "return false", and instead will always crash if it
+/// were to return false.
 @available(SwiftStdlib 5.1, *)
 @usableFromInline
 @_silgen_name("swift_task_isCurrentExecutor")

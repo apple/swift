@@ -155,8 +155,12 @@ public:
     return reinterpret_cast<DefaultActor*>(Identity);
   }
 
+  bool hasSerialExecutorWitnessTable() const {
+    return !isGeneric() && !isDefaultActor();
+  }
+
   const SerialExecutorWitnessTable *getSerialExecutorWitnessTable() const {
-    assert(!isGeneric() && !isDefaultActor());
+    assert(hasSerialExecutorWitnessTable());
     auto table = Implementation & WitnessTableMask;
     return reinterpret_cast<const SerialExecutorWitnessTable*>(table);
   }

@@ -255,3 +255,6 @@ Added: __swift_exceptionPersonality
 Added: _swift_willThrowTypedImpl
 Added: __swift_willThrowTypedImpl
 Added: __swift_enableSwizzlingOfAllocationAndRefCountingFunctions_forInstrumentsOnly
+
+// Runtime bincompat functions for Concurrency runtime to detect legacy mode
+Added: _swift_bincompat_useLegacyNonCrashingExecutorChecks

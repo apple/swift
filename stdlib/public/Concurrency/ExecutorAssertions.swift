@@ -106,11 +106,12 @@ extension Actor {
       return
     }
 
+    // NOTE: This method will CRASH in new runtime versions,
+    // if it would have previously returned `false`.
+    // It will call through to SerialExecutor.checkIsolated` as a last resort.
     let expectationCheck = _taskIsCurrentExecutor(self.unownedExecutor.executor)
 
-    // TODO: offer information which executor we actually got
     precondition(expectationCheck,
-        // TODO: figure out a way to get the typed repr out of the unowned executor
         "Incorrect actor executor assumption; Expected '\(self.unownedExecutor)' executor. \(message())",
         file: file, line: line)
   }
@@ -247,8 +248,6 @@ extension Actor {
     }
 
     guard _taskIsCurrentExecutor(self.unownedExecutor.executor) else {
-      // TODO: offer information which executor we actually got
-      // TODO: figure out a way to get the typed repr out of the unowned executor
       let msg = "Incorrect actor executor assumption; Expected '\(self.unownedExecutor)' executor. \(message())"
       /// TODO: implement the logic in-place perhaps rather than delegating to precondition()?
       assertionFailure(msg, file: file, line: line) // short-cut so we get the exact same failure reporting semantics

@@ -29,7 +29,7 @@ import Distributed
       let system = LocalTestingDistributedActorSystem()
 
       tests.test("5.7 actor, no availability executor property => no custom executor") {
-        expectCrashLater(withMessage: "Fatal error: Incorrect actor executor assumption; Expected 'MainActor' executor.")
+        expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected MainActor executor")
         try! await FiveSevenActor_NothingExecutor(actorSystem: system).test(x: 42)
       }
 
@@ -38,7 +38,7 @@ import Distributed
       }
 
       tests.test("5.7 actor, 5.9 executor property => no custom executor") {
-        expectCrashLater(withMessage: "Fatal error: Incorrect actor executor assumption; Expected 'MainActor' executor.")
+        expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected MainActor executor")
         try! await FiveSevenActor_FiveNineExecutor(actorSystem: system).test(x: 42)
       }
 

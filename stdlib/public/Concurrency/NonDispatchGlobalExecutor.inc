@@ -61,3 +61,10 @@ static void swift_task_enqueueMainExecutorImpl(Job *job) {
   swift_reportError(0, "operation unsupported without libdispatch: "
                        "swift_task_enqueueMainExecutor");
 }
+
+SWIFT_CC(swift)
+static void swift_task_checkIsolatedImpl(SerialExecutorRef executor) {
+  _task_serialExecutor_checkIsolated(
+      executor.getIdentity(), swift_getObjectType(executor.getIdentity()),
+      executor.getSerialExecutorWitnessTable());
+}

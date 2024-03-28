@@ -275,3 +275,13 @@ Added: _swift_task_pushTaskExecutorPreference
 Added: _$ss26withTaskExecutorPreference_9isolation9operationxSch_pSg_ScA_pSgYixyYaq_YKXEtYaq_YKs5ErrorR_r0_lF
 // async function pointer to Swift.withTaskExecutorPreference<A, B where B: Swift.Error>(_: Swift.TaskExecutor?, isolation: isolated Swift.Actor?, operation: () async throws(B) -> A) async throws(B) -> A
 Added: _$ss26withTaskExecutorPreference_9isolation9operationxSch_pSg_ScA_pSgYixyYaq_YKXEtYaq_YKs5ErrorR_r0_lFTu
+
+// === SerialExecutor.checkIsolated()
+Added: _swift_task_checkIsolated
+Added: _swift_task_checkIsolated_hook
+// (extension in Swift):Swift.SerialExecutor.checkIsolated() -> ()
+Added: _$sScfsE13checkIsolatedyyF
+// dispatch thunk of Swift.SerialExecutor.checkIsolated() -> ()
+Added: _$sScf13checkIsolatedyyFTj
+// method descriptor for Swift.SerialExecutor.checkIsolated() -> ()
+Added: _$sScf13checkIsolatedyyFTq

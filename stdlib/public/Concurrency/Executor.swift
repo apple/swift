@@ -100,6 +100,43 @@ public protocol SerialExecutor: Executor {
   ///            perspective–to execute code assuming one on the other.
   @available(SwiftStdlib 5.9, *)
   func isSameExclusiveExecutionContext(other: Self) -> Bool
+
+  /// Last resort "fallback" isolation check, called when the concurrency runtime
+  /// is comparing executors e.g. during ``assumeIsolated()`` and is unable to prove
+  /// serial equivalence between the expected (this object), and the current executor.
+  ///
+  /// During executor comparison, the Swift concurrency runtime attempts to compare
+  /// current and expected executors in a few ways (including "complex" equality
+  /// between executors (see ``isSameExclusiveExecutionContext(other:)``), and if all
+  /// those checks fail, this method is invoked on the expected executor.
+  ///
+  /// This method MUST crash if it is unable to prove that the current execution
+  /// context belongs to this executor. At this point usual executor comparison would
+  /// have already failed, though the executor may have some external tracking of
+  /// threads it owns, and may be able to prove isolation nevertheless.
+  ///
+  /// A default implementation is provided that unconditionally crashes the
+  /// program, and prevents calling code from proceeding with potentially
+  /// not thread-safe execution.
+  ///
+  /// - Warning: This method must crash and halt program execution if unable
+  ///     to prove the isolation of the calling context.
+  @available(SwiftStdlib 6.0, *)
+  func checkIsolated()
+
+}
+
+@available(SwiftStdlib 6.0, *)
+extension SerialExecutor {
+
+  @available(SwiftStdlib 6.0, *)
+  public func checkIsolated() {
+    #if !$Embedded
+    fatalError("Unexpected isolation context, expected to be executing on \(Self.self)")
+    #else
+    Builtin.int_trap()
+    #endif
+  }
 }
 
 /// An executor that may be used as preferred executor by a task.
@@ -311,16 +348,26 @@ extension UnownedTaskExecutor: Equatable {
   }
 }
 
-/// Checks if the current task is running on the expected executor.
+/// Returns either `true` or will CRASH if called from a different executor
+/// than the passed `executor`.
+///
+/// This method will attempt to verify the current executor against `executor`,
+/// and as a last-resort call through to `SerialExecutor.checkIsolated`.
+///
+/// This method will never return `false`. It either can verify we're on the
+/// correct executor, or will crash the program. It should be used in
+/// isolation correctness guaranteeing APIs.
 ///
 /// Generally, Swift programs should be constructed such that it is statically
 /// known that a specific executor is used, for example by using global actors or
 /// custom executors. However, in some APIs it may be useful to provide an
 /// additional runtime check for this, especially when moving towards Swift
 /// concurrency from other runtimes which frequently use such assertions.
+///
 /// - Parameter executor: The expected executor.
+@_spi(ConcurrencyExecutors)
 @available(SwiftStdlib 5.9, *)
-@_silgen_name("swift_task_isOnExecutor")
+@_silgen_name("swift_task_isOnExecutor") // This function will CRASH rather than return `false`!
 public func _taskIsOnExecutor<Executor: SerialExecutor>(_ executor: Executor) -> Bool
 
 @_spi(ConcurrencyExecutors)
@@ -359,6 +406,13 @@ internal func _getJobTaskId(_ job: UnownedJob) -> UInt64
 internal func _task_serialExecutor_isSameExclusiveExecutionContext<E>(current currentExecutor: E, executor: E) -> Bool
     where E: SerialExecutor {
   currentExecutor.isSameExclusiveExecutionContext(other: executor)
+}
+
+@available(SwiftStdlib 6.0, *)
+@_silgen_name("_task_serialExecutor_checkIsolated")
+internal func _task_serialExecutor_checkIsolated<E>(executor: E)
+    where E: SerialExecutor {
+  executor.checkIsolated()
 }
 
 /// Obtain the executor ref by calling the executor's `asUnownedSerialExecutor()`.

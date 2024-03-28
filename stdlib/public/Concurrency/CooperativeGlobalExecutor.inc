@@ -18,6 +18,7 @@
 ///   swift_task_enqueueGlobalImpl
 ///   swift_task_enqueueGlobalWithDelayImpl
 ///   swift_task_enqueueMainExecutorImpl
+///   swift_task_checkIsolatedImpl
 /// as well as any cooperative-executor-specific functions in the runtime.
 ///
 ///===------------------------------------------------------------------===///
@@ -134,6 +135,13 @@ static void insertDelayedJob(Job *newJob, JobDeadline deadline) {
   }
   JobQueueTraits::setNext(newJob, nullptr);
   *position = newJob;
+}
+
+SWIFT_CC(swift)
+static void swift_task_checkIsolatedImpl(SerialExecutorRef executor) {
+  _task_serialExecutor_checkIsolated(
+      executor.getIdentity(), swift_getObjectType(executor.getIdentity()),
+      executor.getSerialExecutorWitnessTable());
 }
 
 /// Insert a job into the cooperative global queue with a delay.

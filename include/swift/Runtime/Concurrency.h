@@ -715,6 +715,11 @@ void swift_task_enqueue(Job *job, SerialExecutorRef executor);
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_enqueueGlobal(Job *job);
 
+/// Invoke an executor's `checkIsolated` or otherwise equivalent API,
+/// that will crash if the current executor is NOT the passed executor.
+SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
+void swift_task_checkIsolated(SerialExecutorRef executor);
+
 /// A count in nanoseconds.
 using JobDelay = unsigned long long;
 
@@ -729,6 +734,9 @@ void swift_task_enqueueGlobalWithDeadline(long long sec, long long nsec,
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_enqueueMainExecutor(Job *job);
 
+/// WARNING: This method is expected to CRASH when caller is not on the
+/// expected executor.
+///
 /// Return true if the caller is running in a Task on the passed Executor.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 bool swift_task_isOnExecutor(
@@ -780,6 +788,12 @@ SWIFT_CC(swift) void (*swift_task_enqueueGlobalWithDeadline_hook)(
     long long tnsec,
     int clock, Job *job,
     swift_task_enqueueGlobalWithDeadline_original original);
+
+typedef SWIFT_CC(swift) void (*swift_task_checkIsolated_original)(SerialExecutorRef executor);
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift) void (*swift_task_checkIsolated_hook)(
+    SerialExecutorRef executor, swift_task_checkIsolated_original original);
+
 
 typedef SWIFT_CC(swift) bool (*swift_task_isOnExecutor_original)(
     HeapObject *executor,

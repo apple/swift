@@ -1,7 +1,10 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-build-swift %import-libdispatch -Xfrontend -disable-availability-checking -enable-actor-data-race-checks -parse-as-library %s -o %t/a.out -module-name main
 // RUN: %target-codesign %t/a.out
-// RUN: env %env-SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=1 %target-run %t/a.out 2>&1 | %FileCheck %s
+
+// NOTE: This test specifically tests the crashing behavior of `checkIsolated`,
+// because this behavior is currently disabled
+// RUN: env %env-SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=crash %target-run %t/a.out
 
 // REQUIRES: executable_test
 // REQUIRES: concurrency
@@ -12,6 +15,7 @@
 // UNSUPPORTED: back_deployment_runtime
 // UNSUPPORTED: single_threaded_concurrency
 
+import StdlibUnittest
 import _Concurrency
 import Dispatch
 
@@ -47,6 +51,7 @@ actor MyActor {
   var counter = 0
 
   func onMyActor() {
+    dispatchPrecondition(condition: .notOnQueue(DispatchQueue.main))
     counter = counter + 1
   }
 
@@ -57,20 +62,33 @@ actor MyActor {
   }
 }
 
-@main
-struct Runner {
-  static func main() async {
-    print("Launching a main-actor task")
-    // CHECK: warning: data race detected: @MainActor function at main/data_race_detection.swift:25 was not called on the main thread
-    launchFromMainThread()
-    sleep(1)
+/// These tests now eventually end up calling `dispatch_assert_queue`,
+/// after the introduction of checkIsolated in `swift_task_isCurrentExecutorImpl`
+@main struct Main {
+  static func main() {
+    if #available(SwiftStdlib 5.9, *) {
+      let tests = TestSuite("data_race_detection")
 
-    let actor = MyActor()
-    let actorFn = await actor.getTaskOnMyActor()
-    print("Launching an actor-instance task")
-    // CHECK: warning: data race detected: actor-isolated function at main/data_race_detection.swift:54 was not called on the same actor
-    launchTask(actorFn)
+      tests.test("Expect MainActor") {
+        expectCrashLater()
+        print("Launching a main-actor task")
+        launchFromMainThread()
+        sleep(1)
+      }
 
-    sleep(1)
+      tests.test("Expect same executor") {
+        expectCrashLater(withMessage: "Incorrect actor executor assumption")
+        Task.detached {
+          let actor = MyActor()
+          let actorFn = await actor.getTaskOnMyActor()
+          print("Launching an actor-instance task")
+          launchTask(actorFn)
+        }
+
+        sleep(2)
+      }
+
+      runAllTests()
+    }
   }
 }

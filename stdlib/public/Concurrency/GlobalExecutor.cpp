@@ -90,6 +90,17 @@ SWIFT_CC(swift)
 void (*swift::swift_task_enqueueMainExecutor_hook)(
     Job *job, swift_task_enqueueMainExecutor_original original) = nullptr;
 
+SWIFT_CC(swift)
+void (*swift::swift_task_checkIsolated_hook)(
+    SerialExecutorRef executor,
+    swift_task_checkIsolated_original original) = nullptr;
+
+extern "C" SWIFT_CC(swift)
+    bool _task_serialExecutor_checkIsolated(
+        HeapObject *executor,
+        const Metadata *selfType,
+        const SerialExecutorWitnessTable *wtable);
+
 #if SWIFT_CONCURRENCY_COOPERATIVE_GLOBAL_EXECUTOR
 #include "CooperativeGlobalExecutor.inc"
 #elif SWIFT_CONCURRENCY_ENABLE_DISPATCH
@@ -132,6 +143,13 @@ void swift::swift_task_enqueueGlobalWithDeadline(
     swift_task_enqueueGlobalWithDeadlineImpl(sec, nsec, tsec, tnsec, clock, job);
 }
 
+void swift::swift_task_checkIsolated(SerialExecutorRef executor) {
+  if (swift_task_checkIsolated_hook)
+    swift_task_checkIsolated_hook(executor, swift_task_checkIsolatedImpl);
+  else
+    swift_task_checkIsolatedImpl(executor);
+}
+
 // Implemented in Swift because we need to obtain the user-defined flags on the executor ref.
 //
 // We could inline this with effort, though.
@@ -154,6 +172,12 @@ TaskExecutorRef _task_executor_getTaskExecutorRef(
     const SerialExecutorWitnessTable *wtable);
 #pragma clang diagnostic pop
 
+
+/// WARNING: This method is expected to CRASH in new runtimes, and cannot be
+/// used to implement "log warnings" mode. We would need a new entry point to
+/// implement a "only log warnings" actor isolation checking mode, and it would
+/// no be able handle more complex situations, as `SerialExecutor.checkIsolated`
+/// is able to (by calling into dispatchPrecondition on old runtimes).
 SWIFT_CC(swift)
 static bool swift_task_isOnExecutorImpl(HeapObject *executor,
                                         const Metadata *selfType,

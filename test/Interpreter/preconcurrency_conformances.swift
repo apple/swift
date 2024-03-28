@@ -86,19 +86,19 @@ extension ActorTest : @preconcurrency P {
 //--- Crash1.swift
 import Types
 print(await runTest(Test.self))
-// CHECK: error: data race detected: @MainActor function at Types/Types.swift:16 was not called on the main thread
+// CHECK: Incorrect actor executor assumption; Expected MainActor executor
 
 //--- Crash2.swift
 import Types
 print(await runAccessors(Test.self))
-// CHECK: error: data race detected: @MainActor function at Types/Types.swift:15 was not called on the main thread
+// CHECK: Incorrect actor executor assumption; Expected MainActor executor
 
 //--- Crash3.swift
 import Types
 print(await runTest(ActorTest.self))
-// CHECK: error: data race detected: actor-isolated function at Types/Types.swift:33 was not called on the same actor
+// CHECK: Incorrect actor executor assumption
 
 //--- Crash4.swift
 import Types
 print(await runAccessors(ActorTest.self))
-// CHECK: error: data race detected: actor-isolated function at Types/Types.swift:30 was not called on the same actor
+// CHECK: Incorrect actor executor assumption
