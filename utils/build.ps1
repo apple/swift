@@ -1925,9 +1925,6 @@ try {
 
 if (-not $SkipBuild) {
   Fetch-Dependencies
-}
-
-if (-not $SkipBuild) {
   Invoke-BuildStep Build-CMark $HostArch
   Invoke-BuildStep Build-BuildTools $HostArch
   Invoke-BuildStep Build-Compilers $HostArch
