@@ -1902,6 +1902,10 @@ void swift::salvageDebugInfo(SILInstruction *I) {
         }
       }
   }
+
+  if (auto load = LoadOperation(I)) {
+    salvageLoadDebugInfo(load);
+  }
 }
 
 void swift::salvageLoadDebugInfo(LoadOperation load) {

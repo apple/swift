@@ -320,9 +320,7 @@ splitAggregateLoad(LoadOperation loadInst, CanonicalizeInstruction &pass) {
   }
 
   // Preserve the original load's debug information.
-  if (pass.preserveDebugInfo) {
-    swift::salvageLoadDebugInfo(loadInst);
-  }
+  swift::salvageLoadDebugInfo(loadInst);
   // Remove the now unused borrows.
   for (auto *borrow : borrows)
     nextII = killInstAndIncidentalUses(borrow, nextII, pass);

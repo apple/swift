@@ -1,6 +1,5 @@
-// RUN: %target-sil-opt -opt-mode=none -silgen-cleanup -sil-print-debuginfo -sil-verify-all %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECKDEB
-
-// TODO: add -opt-mode=speed after calling salvageLoadDebugInfo() from salvageDebugInfo().
+// RUN: %target-sil-opt -opt-mode=none -silgen-cleanup -sil-print-debuginfo -sil-verify-all %s | %FileCheck %s --check-prefix=CHECK
+// RUN: %target-sil-opt -opt-mode=speed -silgen-cleanup -sil-print-debuginfo -sil-verify-all %s | %FileCheck %s --check-prefix=CHECK
 
 import Builtin
 
