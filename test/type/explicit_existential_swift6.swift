@@ -65,6 +65,10 @@ protocol HasAssoc {
   func foo()
 }
 
+protocol HasAssocGeneric<Assoc> {
+  associatedtype Assoc
+}
+
 do {
   enum MyError: Error {
     case bad(Any)
@@ -92,7 +96,7 @@ func testHasAssoc(_ x: Any, _: any HasAssoc) {
 
     func method() -> any HasAssoc {}
     func existentialArray() ->  [any HasAssoc] {}
-    func existentialcSequence() ->  any Sequence<HasAssoc> {}
+    func existentialcSequence() ->  any Sequence<any HasAssoc> {}
   }
 }
 
@@ -330,6 +334,8 @@ func testAnyFixIt() {
   let _: (HasAssoc).Type = ConformingType.self
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-27=any ((HasAssoc)).Type}}
   let _: ((HasAssoc)).Type = ConformingType.self
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-32=any ((HasAssoc).Type).Type}}
+  let _: ((HasAssoc).Type).Type
   // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{30-38=(any HasAssoc)}}
   let _: HasAssoc.Protocol = HasAssoc.self
@@ -348,10 +354,33 @@ func testAnyFixIt() {
   let _: (HasAssoc).Protocol = (any HasAssoc).self
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
   let _: HasAssoc? = ConformingType()
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
+  let _: HasAssoc!
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-23=(any HasAssoc.Type)}}
   let _: HasAssoc.Type? = ConformingType.self
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
   let _: HasAssoc.Protocol? = (any HasAssoc).self
+
+  // https://github.com/apple/swift/issues/72588
+
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{30-38=any HasAssoc}}
+  let _: any HasAssocGeneric<HasAssoc>
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{31-39=any HasAssoc}}
+  let _: any (HasAssocGeneric<HasAssoc>)
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{35-43=any HasAssoc}}
+  func f1(_: some HasAssocGeneric<HasAssoc> & HasAssoc) {}
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{37-45=any HasAssoc}}
+  func f2(_: some ((HasAssocGeneric<HasAssoc>)) & (HasAssoc)) {}
+
+  // https://github.com/apple/swift/issues/65027
+
+  // expected-error@+2:10 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-29=any HasAssoc & HasAssoc}}
+  // expected-error@+1:21 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-29=any HasAssoc & HasAssoc}}
+  let _: HasAssoc & HasAssoc
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{11-31=any Empty & ((HasAssoc))}}
+  let _: (C & ((HasAssoc)))
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-48=(any (Empty & (HasAssoc & Empty)).Type.Type)}}
+  let _: (C & (HasAssoc & C)).Type.Type?
 
   // expected-error@+1 {{optional 'any' type must be written '(any HasAssoc)?'}}{{10-23=(any HasAssoc)?}}
   let _: any HasAssoc? = nil
