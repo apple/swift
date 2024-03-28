@@ -598,9 +598,20 @@ internal func _resumeUnsafeThrowingContinuationWithError<T>(
 /// - SeeAlso: `withCheckedContinuation(function:_:)`
 /// - SeeAlso: `withCheckedThrowingContinuation(function:_:)`
 @available(SwiftStdlib 5.1, *)
-@_unsafeInheritExecutor
 @_alwaysEmitIntoClient
 public func withUnsafeContinuation<T>(
+  isolation: isolated (any Actor)? = #isolation,
+  _ fn: (UnsafeContinuation<T, Never>) -> Void
+) async -> T {
+  return await Builtin.withUnsafeContinuation {
+    fn(UnsafeContinuation<T, Never>($0))
+  }
+}
+
+@available(SwiftStdlib 5.1, *)
+@_unsafeInheritExecutor
+@_alwaysEmitIntoClient
+public func __abi_withUnsafeContinuation<T>(
   _ fn: (UnsafeContinuation<T, Never>) -> Void
 ) async -> T {
   return await Builtin.withUnsafeContinuation {
@@ -634,9 +645,20 @@ public func withUnsafeContinuation<T>(
 /// - SeeAlso: `withCheckedContinuation(function:_:)`
 /// - SeeAlso: `withCheckedThrowingContinuation(function:_:)`
 @available(SwiftStdlib 5.1, *)
-@_unsafeInheritExecutor
 @_alwaysEmitIntoClient
 public func withUnsafeThrowingContinuation<T>(
+  isolation: isolated (any Actor)? = #isolation,
+  _ fn: (UnsafeContinuation<T, Error>) -> Void
+) async throws -> T {
+  return try await Builtin.withUnsafeThrowingContinuation {
+    fn(UnsafeContinuation<T, Error>($0))
+  }
+}
+
+@available(SwiftStdlib 5.1, *)
+@_unsafeInheritExecutor
+@_alwaysEmitIntoClient
+public func __abi_withUnsafeThrowingContinuation<T>(
   _ fn: (UnsafeContinuation<T, Error>) -> Void
 ) async throws -> T {
   return try await Builtin.withUnsafeThrowingContinuation {
