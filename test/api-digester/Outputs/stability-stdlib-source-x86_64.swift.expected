@@ -317,3 +317,4 @@ TypeAlias UnsafeMutablePointer.Stride has generic signature change from <Pointee
 TypeAlias UnsafePointer.Distance has generic signature change from <Pointee> to <Pointee where Pointee : ~Copyable>
 TypeAlias UnsafePointer.Pointee has generic signature change from <Pointee> to <Pointee where Pointee : ~Copyable>
 TypeAlias UnsafePointer.Stride has generic signature change from <Pointee> to <Pointee where Pointee : ~Copyable>
+Func FixedWidthInteger.&*(_:_:) has been added as a protocol requirement

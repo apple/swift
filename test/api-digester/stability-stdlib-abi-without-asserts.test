@@ -807,5 +807,6 @@ Var UnsafePointer._rawValue is now with @_preInverseGenerics
 Var UnsafePointer.hashValue has mangled name changing from 'Swift.UnsafePointer.hashValue : Swift.Int' to '(extension in Swift):Swift.UnsafePointer< where A: ~Swift.Copyable>.hashValue : Swift.Int'
 Var UnsafePointer.hashValue is now with @_preInverseGenerics
 Var UnsafePointer.pointee has been removed
+Func FixedWidthInteger.&*(_:_:) has been added as a protocol requirement
 
 // *** DO NOT DISABLE OR XFAIL THIS TEST. *** (See comment above.)

@@ -644,3 +644,14 @@ Added: _$ss9UnmanagedVyxG15Synchronization27AtomicOptionalRepresentableADWP
 // protocol conformance descriptor for <A where A: Synchronization.AtomicOptionalRepresentable> A? : Synchronization.AtomicRepresentable in Synchronization
 Added: _$sxSg15Synchronization19AtomicRepresentableA2B0b8OptionalC0RzlMc
 
+// protocol conformance descriptor for Swift.Int128 : Synchronization.AtomicRepresentable in Synchronization
+Added: _$ss6Int128V15Synchronization19AtomicRepresentableACMc
+
+// protocol witness table for Swift.Int128 : Synchronization.AtomicRepresentable in Synchronization
+Added: _$ss6Int128V15Synchronization19AtomicRepresentableACWP
+
+// protocol conformance descriptor for Swift.UInt128 : Synchronization.AtomicRepresentable in Synchronization
+Added: _$ss7UInt128V15Synchronization19AtomicRepresentableACMc
+
+// protocol witness table for Swift.UInt128 : Synchronization.AtomicRepresentable in Synchronization
+Added: _$ss7UInt128V15Synchronization19AtomicRepresentableACWP
