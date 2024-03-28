@@ -257,7 +257,8 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
         // Void to _ then warn, because that is redundant.
         if (auto DAE = dyn_cast<DiscardAssignmentExpr>(destExpr)) {
           if (auto CE = dyn_cast<CallExpr>(AE->getSrc())) {
-            if (isa_and_nonnull<FuncDecl>(CE->getCalledValue()) &&
+            if (getAsDecl<FuncDecl>(
+                    CE->getCalledValue(/*skipFunctionConversions=*/true)) &&
                 CE->getType()->isVoid()) {
               Ctx.Diags
                   .diagnose(DAE->getLoc(),
@@ -311,7 +312,7 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       // FIXME: Duplicate labels on enum payloads should be diagnosed
       // when declared, not when called.
       if (auto *CE = dyn_cast_or_null<CallExpr>(E)) {
-        auto calledValue = CE->getCalledValue();
+        auto calledValue = CE->getCalledValue(/*skipFunctionConversions=*/true);
         if (calledValue && isa<EnumElementDecl>(calledValue)) {
           auto *args = CE->getArgs();
           SmallVector<Identifier, 4> scratch;
@@ -1463,6 +1464,9 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       auto fnExpr = call->getSemanticFn();
       if (auto dotSyntax = dyn_cast<DotSyntaxCallExpr>(fnExpr))
         fnExpr = dotSyntax->getSemanticFn();
+
+      if (auto *FCE = dyn_cast<FunctionConversionExpr>(fnExpr))
+        fnExpr = FCE->getSubExpr();
 
       auto DRE = dyn_cast<DeclRefExpr>(fnExpr);
       if (!DRE || !DRE->getDecl()->isOperator())
@@ -5093,7 +5097,7 @@ static void diagnoseUnintendedOptionalBehavior(const Expr *E,
         return declRef->getDecl();
 
       if (auto *apply = dyn_cast<ApplyExpr>(E)) {
-        auto *decl = apply->getCalledValue();
+        auto *decl = apply->getCalledValue(/*skipFunctionConversions=*/true);
         if (isa_and_nonnull<AbstractFunctionDecl>(decl))
           return decl;
       }
@@ -5232,9 +5236,10 @@ static void diagnoseUnintendedOptionalBehavior(const Expr *E,
 
     void diagnoseIfUnintendedInterpolation(CallExpr *segment,
                                            UnintendedInterpolationKind kind) {
-      if (interpolationWouldBeUnintended(segment->getCalledValue(), kind))
+      if (interpolationWouldBeUnintended(
+              segment->getCalledValue(/*skipFunctionConversions=*/true), kind))
         if (auto firstArg =
-              getFirstArgIfUnintendedInterpolation(segment->getArgs(), kind))
+                getFirstArgIfUnintendedInterpolation(segment->getArgs(), kind))
           diagnoseUnintendedInterpolation(firstArg, kind);
     }
 
@@ -5445,7 +5450,7 @@ static void maybeDiagnoseCallToKeyValueObserveMethod(const Expr *E,
     KVOObserveCallWalker(ASTContext &ctx) : C(ctx) {}
 
     void maybeDiagnoseCallExpr(CallExpr *expr) {
-      auto fn = expr->getCalledValue();
+      auto fn = expr->getCalledValue(/*skipFunctionConversions=*/true);
       if (!fn)
         return;
       SmallVector<KeyPathExpr *, 1> keyPathArgs;
@@ -5583,9 +5588,10 @@ static void diagnoseComparisonWithNaN(const Expr *E, const DeclContext *DC) {
       // Dig out the function declaration.
       if (auto Fn = BE->getFn()) {
         if (auto DSCE = dyn_cast<DotSyntaxCallExpr>(Fn)) {
-          comparisonDecl = DSCE->getCalledValue();
+          comparisonDecl =
+              DSCE->getCalledValue(/*skipFunctionConversions=*/true);
         } else {
-          comparisonDecl = BE->getCalledValue();
+          comparisonDecl = BE->getCalledValue(/*skipFunctionConversions=*/true);
         }
       }
 

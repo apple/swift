@@ -1695,20 +1695,46 @@ static bool isRequirementOrWitness(const ConstraintLocatorBuilder &locator) {
          locator.endsWith<LocatorPathElt::Witness>();
 }
 
-AnyFunctionType *ConstraintSystem::adjustFunctionTypeForConcurrency(
-    AnyFunctionType *fnType, ValueDecl *decl, DeclContext *dc,
+FunctionType *ConstraintSystem::adjustFunctionTypeForConcurrency(
+    FunctionType *fnType, Type baseType, ValueDecl *decl, DeclContext *dc,
     unsigned numApplies, bool isMainDispatchQueue, OpenedTypeMap &replacements,
     ConstraintLocatorBuilder locator) {
 
-  return swift::adjustFunctionTypeForConcurrency(
-      fnType, decl, dc, numApplies, isMainDispatchQueue,
-      GetClosureType{*this}, ClosureIsolatedByPreconcurrency{*this},
-      [&](Type type) {
+  auto *adjustedTy = swift::adjustFunctionTypeForConcurrency(
+      fnType, decl, dc, numApplies, isMainDispatchQueue, GetClosureType{*this},
+      ClosureIsolatedByPreconcurrency{*this}, [&](Type type) {
         if (replacements.empty())
           return type;
 
         return openType(type, replacements, locator);
       });
+
+  if (Context.LangOpts.hasFeature(Feature::InferSendableFromCaptures)) {
+    if (auto *FD = dyn_cast<AbstractFunctionDecl>(decl)) {
+      auto *DC = FD->getDeclContext();
+      // All global functions should be @Sendable
+      if (DC->isModuleScopeContext()) {
+        if (!adjustedTy->getExtInfo().isSendable()) {
+          adjustedTy =
+              adjustedTy->withExtInfo(adjustedTy->getExtInfo().withSendable());
+        }
+      } else if (isPartialApplication(getConstraintLocator(locator))) {
+        if (baseType &&
+            (baseType->is<AnyMetatypeType>() || baseType->isSendableType())) {
+          auto referenceTy = adjustedTy->getResult()->castTo<FunctionType>();
+          referenceTy =
+              referenceTy->withExtInfo(referenceTy->getExtInfo().withSendable())
+                  ->getAs<FunctionType>();
+
+          adjustedTy =
+              FunctionType::get(adjustedTy->getParams(), referenceTy,
+                                adjustedTy->getExtInfo().withSendable());
+        }
+      }
+    }
+  }
+
+  return adjustedTy->castTo<FunctionType>();
 }
 
 /// For every parameter in \p type that has an error type, replace that
@@ -1781,9 +1807,9 @@ ConstraintSystem::getTypeOfReference(ValueDecl *value,
     auto origOpenedType = openedType;
     if (!isRequirementOrWitness(locator)) {
       unsigned numApplies = getNumApplications(value, false, functionRefKind);
-      openedType = cast<FunctionType>(adjustFunctionTypeForConcurrency(
-          origOpenedType, func, useDC, numApplies, false, replacements,
-          locator));
+      openedType = adjustFunctionTypeForConcurrency(
+          origOpenedType, /*baseType=*/Type(), func, useDC, numApplies, false,
+          replacements, locator);
     }
 
     // The reference implicitly binds 'self'.
@@ -1799,14 +1825,6 @@ ConstraintSystem::getTypeOfReference(ValueDecl *value,
     auto numLabelsToRemove = getNumRemovedArgumentLabels(
         funcDecl, /*isCurriedInstanceReference=*/false, functionRefKind);
 
-    if (Context.LangOpts.hasFeature(Feature::InferSendableFromCaptures)) {
-      // All global functions should be @Sendable
-      if (funcDecl->getDeclContext()->isModuleScopeContext()) {
-        funcType =
-            funcType->withExtInfo(funcType->getExtInfo().withSendable());
-      }
-    }
-
     auto openedType = openFunctionType(funcType, locator, replacements,
                                        funcDecl->getDeclContext())
                           ->removeArgumentLabels(numLabelsToRemove);
@@ -1818,9 +1836,9 @@ ConstraintSystem::getTypeOfReference(ValueDecl *value,
     if (!isRequirementOrWitness(locator)) {
       unsigned numApplies = getNumApplications(
           funcDecl, false, functionRefKind);
-      openedType = cast<FunctionType>(adjustFunctionTypeForConcurrency(
-          origOpenedType->castTo<FunctionType>(), funcDecl, useDC, numApplies,
-          false, replacements, locator));
+      openedType = adjustFunctionTypeForConcurrency(
+          origOpenedType->castTo<FunctionType>(), /*baseType=*/Type(), funcDecl,
+          useDC, numApplies, false, replacements, locator);
     }
 
     if (isForCodeCompletion() && openedType->hasError()) {
@@ -2788,20 +2806,6 @@ ConstraintSystem::getTypeOfMemberReference(
     // FIXME: Verify ExtInfo state is correct, not working by accident.
     FunctionType::ExtInfo info;
 
-    if (Context.LangOpts.hasFeature(Feature::InferSendableFromCaptures)) {
-      if (isPartialApplication(locator) &&
-          (resolvedBaseTy->is<AnyMetatypeType>() ||
-           baseOpenedTy->isSendableType())) {
-        // Add @Sendable to functions without conditional conformances
-        functionType =
-            functionType
-                ->withExtInfo(functionType->getExtInfo().withSendable())
-                ->getAs<FunctionType>();
-      }
-      // Unapplied values should always be Sendable
-      info = info.withSendable();
-    }
-
     // We'll do other adjustment later, but we need to handle parameter
     // isolation to avoid assertions.
     if (fullFunctionType->getIsolation().isParameter())
@@ -2819,11 +2823,12 @@ ConstraintSystem::getTypeOfMemberReference(
     unsigned numApplies = getNumApplications(
         value, hasAppliedSelf, functionRefKind);
     openedType = adjustFunctionTypeForConcurrency(
-        origOpenedType->castTo<AnyFunctionType>(), value, useDC, numApplies,
-        isMainDispatchQueueMember(locator), replacements, locator);
+        origOpenedType->castTo<FunctionType>(), resolvedBaseTy, value, useDC,
+        numApplies, isMainDispatchQueueMember(locator), replacements, locator);
   } else if (auto subscript = dyn_cast<SubscriptDecl>(value)) {
     openedType = adjustFunctionTypeForConcurrency(
-        origOpenedType->castTo<AnyFunctionType>(), subscript, useDC,
+        origOpenedType->castTo<FunctionType>(), resolvedBaseTy, subscript,
+        useDC,
         /*numApplies=*/2, /*isMainDispatchQueue=*/false, replacements, locator);
   } else if (auto var = dyn_cast<VarDecl>(value)) {
     // Adjust the function's result type, since that's the Var's actual type.
@@ -2952,7 +2957,8 @@ Type ConstraintSystem::getEffectiveOverloadType(ConstraintLocator *locator,
       // FIXME: Verify ExtInfo state is correct, not working by accident.
       FunctionType::ExtInfo info;
       type = adjustFunctionTypeForConcurrency(
-          FunctionType::get(indices, elementTy, info), subscript, useDC,
+          FunctionType::get(indices, elementTy, info), overload.getBaseType(),
+          subscript, useDC,
           /*numApplies=*/1, /*isMainDispatchQueue=*/false, emptyReplacements,
           locator);
     } else if (auto var = dyn_cast<VarDecl>(decl)) {
@@ -3000,7 +3006,8 @@ Type ConstraintSystem::getEffectiveOverloadType(ConstraintLocator *locator,
           decl, hasAppliedSelf, overload.getFunctionRefKind());
 
       type = adjustFunctionTypeForConcurrency(
-                 type->castTo<FunctionType>(), decl, useDC, numApplies,
+                 type->castTo<FunctionType>(), overload.getBaseType(), decl,
+                 useDC, numApplies,
                  /*isMainDispatchQueue=*/false, emptyReplacements, locator)
                  ->getResult();
     }

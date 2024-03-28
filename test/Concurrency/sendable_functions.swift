@@ -46,19 +46,3 @@ extension S: Sendable where T: Sendable {
 
 @available(SwiftStdlib 5.1, *)
 @MainActor @Sendable func globalActorFuncAsync() async { }
-
-func test_initializer_ref() {
-  func test<T>(_: @Sendable (T, T) -> Array<T>) {
-  }
-
-  // Type of `initRef` should be @Sendable but due to implicitly injected autoclosure it isn't
-  let initRef = Array.init as (Int, Int) -> Array<Int>
-
-  // FIXME: incorrect non-Sendable diagnostic is produced due to `autoclosure` wrapping `Array.init`
-  test(initRef)
-  // expected-warning@-1 {{converting non-sendable function value to '@Sendable (Int, Int) -> Array<Int>' may introduce data races}}
-
-  // FIXME: Same here
-  test(Array.init as (Int, Int) -> Array<Int>)
-  // expected-warning@-1 {{converting non-sendable function value to '@Sendable (Int, Int) -> Array<Int>' may introduce data races}}
-}
