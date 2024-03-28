@@ -7985,6 +7985,16 @@ void constraints::dumpAnchor(ASTNode anchor, SourceManager *SM,
       out << '@';
       pattern->getLoc().print(out, *SM);
     }
+  } else if (auto *decl = anchor.dyn_cast<Decl *>()) {
+    if (auto *VD = dyn_cast<ValueDecl>(decl)) {
+      VD->dumpRef(out);
+    } else {
+      out << "<<" << Decl::getKindName(decl->getKind()) << ">>";
+      if (SM) {
+        out << "@";
+        decl->getLoc().print(out, *SM);
+      }
+    }
   }
   // TODO(diagnostics): Implement the rest of the cases.
 }

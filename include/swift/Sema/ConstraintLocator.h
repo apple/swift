@@ -820,18 +820,6 @@ public:
   }
 };
 
-class LocatorPathElt::ProtocolRequirement final : public StoredPointerElement<ValueDecl> {
-public:
-  ProtocolRequirement(ValueDecl *decl)
-      : StoredPointerElement(PathElementKind::ProtocolRequirement, decl) {}
-
-  ValueDecl *getDecl() const { return getStoredPointer(); }
-
-  static bool classof(const LocatorPathElt *elt) {
-    return elt->getKind() == PathElementKind::ProtocolRequirement;
-  }
-};
-
 class LocatorPathElt::GenericParameter final : public StoredPointerElement<GenericTypeParamType> {
 public:
   GenericParameter(GenericTypeParamType *type)

@@ -1027,7 +1027,6 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
 
   // Initialized by the setup operation.
   std::optional<ConstraintSystem> cs;
-  ConstraintLocator *locator = nullptr;
   ConstraintLocator *reqLocator = nullptr;
   ConstraintLocator *witnessLocator = nullptr;
   Type witnessType, openWitnessType;
@@ -1116,8 +1115,8 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
       selfTy = syntheticEnv->mapTypeIntoContext(selfTy);
 
     // Open up the type of the requirement.
-    reqLocator = cs->getConstraintLocator(
-        static_cast<Expr *>(nullptr), LocatorPathElt::ProtocolRequirement(req));
+    reqLocator =
+        cs->getConstraintLocator(req, ConstraintLocator::ProtocolRequirement);
     OpenedTypeMap reqReplacements;
     reqType = cs->getTypeOfMemberReference(selfTy, req, dc,
                                            /*isDynamicResult=*/false,
@@ -1152,10 +1151,8 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
 
     // Open up the witness type.
     witnessType = witness->getInterfaceType();
-    // FIXME: witness as a base locator?
-    locator = cs->getConstraintLocator({});
-    witnessLocator = cs->getConstraintLocator({},
-                                              LocatorPathElt::Witness(witness));
+    witnessLocator =
+        cs->getConstraintLocator(req, LocatorPathElt::Witness(witness));
     if (witness->getDeclContext()->isTypeContext()) {
       openWitnessType = cs->getTypeOfMemberReference(
           selfTy, witness, dc, /*isDynamicResult=*/false,
@@ -1175,44 +1172,8 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
   // Match a type in the requirement to a type in the witness.
   auto matchTypes = [&](Type reqType,
                         Type witnessType) -> std::optional<RequirementMatch> {
-    // `swift_attr` attributes in the type context were ignored before,
-    // which means that we need to maintain status quo to avoid breaking
-    // witness matching by stripping everything concurrency related from
-    // inner types.
-    auto shouldStripConcurrency = [&]() {
-      if (!req->isObjC())
-        return false;
-
-      auto &ctx = dc->getASTContext();
-      return !(ctx.isSwiftVersionAtLeast(6) ||
-               ctx.LangOpts.StrictConcurrencyLevel ==
-                   StrictConcurrency::Complete);
-    };
-
-    if (shouldStripConcurrency()) {
-      if (reqType->is<FunctionType>()) {
-        auto *fnTy = reqType->castTo<FunctionType>();
-        SmallVector<AnyFunctionType::Param, 4> params;
-        llvm::transform(fnTy->getParams(), std::back_inserter(params),
-                        [&](const AnyFunctionType::Param &param) {
-                          return param.withType(
-                              param.getPlainType()->stripConcurrency(
-                                  /*recursive=*/true,
-                                  /*dropGlobalActor=*/true));
-                        });
-
-        auto resultTy =
-            fnTy->getResult()->stripConcurrency(/*recursive=*/true,
-                                                /*dropGlobalActor=*/true);
-
-        reqType = FunctionType::get(params, resultTy, fnTy->getExtInfo());
-      } else {
-        reqType = reqType->stripConcurrency(/*recursive=*/true,
-                                            /*dropGlobalActor=*/true);
-      }
-    }
-
-    cs->addConstraint(ConstraintKind::Bind, reqType, witnessType, locator);
+    cs->addConstraint(ConstraintKind::Bind, reqType, witnessType,
+                      witnessLocator);
     // FIXME: Check whether this has already failed.
     return std::nullopt;
   };
@@ -1236,14 +1197,31 @@ swift::matchWitness(WitnessChecker::RequirementEnvironmentCache &reqEnvCache,
           return *result;
       }
     }
-    bool requiresNonSendable = false;
-    if (!solution || solution->Fixes.size()) {
-      /// If the *only* problems are that `@Sendable` attributes are missing,
-      /// allow the match in some circumstances.
-      requiresNonSendable = solution
-        && llvm::all_of(solution->Fixes, [](constraints::ConstraintFix *fix) {
-          return fix->getKind() == constraints::FixKind::AddSendableAttribute;
-        });
+
+    bool requiresNonSendable = [&]() {
+      if (!solution)
+        return false;
+
+      // If the *only* problems are that `@Sendable` attributes are missing,
+      // allow the match in some circumstances.
+      if (!solution->Fixes.empty()) {
+        return llvm::all_of(solution->Fixes,
+                            [](constraints::ConstraintFix *fix) {
+                              return fix->getKind() ==
+                                     constraints::FixKind::AddSendableAttribute;
+                            });
+      }
+
+      // If there are no other issues, let's check whether this are
+      // missing Sendable conformances when matching ObjC requirements.
+      // This is not an error until Swift 6 because `swift_attr` wasn't
+      // allowed in type contexts initially.
+      return req->isObjC() &&
+             solution->getFixedScore()
+                     .Data[SK_MissingSynthesizableConformance] > 0;
+    }();
+
+    if (!solution || !solution->Fixes.empty()) {
       if (!requiresNonSendable)
         return RequirementMatch(witness, MatchKind::TypeConflict,
                                 witnessType);

@@ -5578,6 +5578,35 @@ bool ConstraintSystem::repairFailures(
     return false;
   }
 
+  if (auto *VD = getAsDecl<ValueDecl>(anchor)) {
+    // Matching a witness to a ObjC protocol requirement.
+    if (VD->isObjC() && VD->isProtocolRequirement() &&
+        path[0].is<LocatorPathElt::Witness>() && 
+        // Note that the condition below is very important,
+        // we need to wait until the very last moment to strip
+        // the concurrency annotations from the inner most type.
+        conversionsOrFixes.empty()) {
+      // Allow requirements to introduce `swift_attr` annotations
+      // (note that `swift_attr` in type contexts weren't supported
+      // before) and for witnesses to adopt them gradually by matching
+      // with a warning in non-strict concurrency mode.
+      if (!(Context.isSwiftVersionAtLeast(6) ||
+            Context.LangOpts.StrictConcurrencyLevel ==
+                StrictConcurrency::Complete)) {
+        auto strippedLHS = lhs->stripConcurrency(/*resursive=*/true,
+                                                 /*dropGlobalActor=*/true);
+        auto strippedRHS = rhs->stripConcurrency(/*resursive=*/true,
+                                                 /*dropGlobalActor=*/true);
+        auto result = matchTypes(strippedLHS, strippedRHS, matchKind,
+                                 flags | TMF_ApplyingFix, locator);
+        if (!result.isFailure()) {
+          increaseScore(SK_MissingSynthesizableConformance, locator);
+          return true;
+        }
+      }
+    }
+  }
+
   auto elt = path.back();
   switch (elt.getKind()) {
   case ConstraintLocator::LValueConversion: {
@@ -8552,7 +8581,7 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyConformsToConstraint(
         auto synthesizeConformance = [&]() {
           ProtocolConformanceRef synthesized(protocol);
           auto witnessLoc = getConstraintLocator(
-              /*anchor=*/{}, LocatorPathElt::Witness(witness));
+              locator.getAnchor(), LocatorPathElt::Witness(witness));
           SynthesizedConformances.insert({witnessLoc, synthesized});
           return recordConformance(synthesized);
         };

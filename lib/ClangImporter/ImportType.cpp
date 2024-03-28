@@ -1916,7 +1916,13 @@ private:
     auto composition =
         ProtocolCompositionType::get(ctx, members, inverses, explicitAnyObject);
 
-    return { composition, true };
+    // If we started from a protocol or a composition we should already
+    // be in an existential context. Otherwise we'd have to wrap a new
+    // composition into an existential.
+    if (isa<ProtocolType>(ty) || isa<ProtocolCompositionType>(ty))
+      return {composition, true};
+
+    return {ExistentialType::get(composition), true};
   }
 
   /// Visitor action: Recurse into the children of this type and try to add
