@@ -251,6 +251,15 @@ operator()(CanType dependentType, Type conformingReplacementType,
         PackConformance::get(conformingPack, conformedProtocol, conformances));
   }
 
+  // All conformances for invertible protocols are builtin, so they're already
+  // abstract in a sense.
+  if (conformedProtocol->getInvertibleProtocolKind()) {
+    auto &ctx = conformedProtocol->getASTContext();
+    return ProtocolConformanceRef(
+        ctx.getBuiltinConformance(conformingReplacementType, conformedProtocol,
+                                  BuiltinConformanceKind::Synthesized));
+  }
+
   assert((conformingReplacementType->is<ErrorType>() ||
           conformingReplacementType->is<SubstitutableType>() ||
           conformingReplacementType->is<DependentMemberType>() ||

@@ -832,6 +832,15 @@ bool SubstitutionMap::isIdentity() const {
         continue;
     }
 
+    // Is it a builtin conformance to an invertible protocol?
+    if (conf.isConcrete()
+        && conf.getRequirement()->getInvertibleProtocolKind()) {
+      ProtocolConformance *concreteConf = conf.getConcrete();
+      RootProtocolConformance *rootConf = concreteConf->getRootConformance();
+      if (isa<BuiltinProtocolConformance>(rootConf))
+        continue;
+    }
+
     return false;
   }
 
