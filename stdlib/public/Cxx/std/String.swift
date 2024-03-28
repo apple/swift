@@ -21,7 +21,9 @@ extension std.string {
   ///   Swift string.
   public init(_ string: String) {
     self.init()
-    for char in string.utf8 {
+    let utf8 = string.utf8
+    self.reserve(utf8.count)
+    for char in utf8 {
       self.push_back(value_type(bitPattern: char))
     }
   }
