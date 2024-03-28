@@ -3226,7 +3226,10 @@ void SILSerializer::writeSILBlock(const SILModule *SILMod) {
   // serialize everything.
   // FIXME: Resilience: could write out vtable for fragile classes.
   for (const auto &vt : SILMod->getVTables()) {
-    if ((ShouldSerializeAll || vt->isSerialized()) &&
+    if ((ShouldSerializeAll || vt->isSerialized() ||
+         // Write VTables of package classes if package-cmo is enabled.
+         (SILMod->getOptions().EnableSerializePackage &&
+          vt->getClass()->getEffectiveAccess() >= swift::AccessLevel::Package)) &&
         SILMod->shouldSerializeEntitiesAssociatedWithDeclContext(vt->getClass()))
       writeSILVTable(*vt);
   }
@@ -3248,9 +3251,11 @@ void SILSerializer::writeSILBlock(const SILModule *SILMod) {
 
   // Write out fragile WitnessTables.
   for (const SILWitnessTable &wt : SILMod->getWitnessTables()) {
-    if ((ShouldSerializeAll || wt.isSerialized()) &&
-        SILMod->shouldSerializeEntitiesAssociatedWithDeclContext(
-                                         wt.getConformance()->getDeclContext()))
+    if ((ShouldSerializeAll || wt.isSerialized() ||
+         // Write witness table of package protocol conformance if package-cmo is enabled.
+         (SILMod->getOptions().EnableSerializePackage &&
+          hasPublicOrPackageVisibility(wt.getLinkage(), true))) &&
+        SILMod->shouldSerializeEntitiesAssociatedWithDeclContext(wt.getConformance()->getDeclContext()))
       writeSILWitnessTable(wt);
   }
 
