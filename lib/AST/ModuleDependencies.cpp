@@ -481,6 +481,58 @@ void SwiftDependencyTracker::addCommonSearchPathDeps(
   // Add VFSOverlay file.
   for (auto &Overlay: Opts.VFSOverlayFiles)
     FS->status(Overlay);
+
+  // Add plugin dylibs from the toolchain only by look through the plugin search
+  // directory.
+  auto recordFiles = [&](StringRef Path) {
+    std::error_code EC;
+    for (auto I = FS->dir_begin(Path, EC);
+         !EC && I != llvm::vfs::directory_iterator(); I = I.increment(EC)) {
+      if (I->type() != llvm::sys::fs::file_type::regular_file)
+        continue;
+#if defined(_WIN32)
+      constexpr StringRef libPrefix{};
+      constexpr StringRef libSuffix = ".dll";
+#else
+      constexpr StringRef libPrefix = "lib";
+      constexpr StringRef libSuffix = LTDL_SHLIB_EXT;
+#endif
+      StringRef filename = llvm::sys::path::filename(I->path());
+      if (filename.starts_with(libPrefix) && filename.ends_with(libSuffix))
+        FS->status(I->path());
+    }
+  };
+  for (auto &entry : Opts.PluginSearchOpts) {
+    switch (entry.getKind()) {
+
+    // '-load-plugin-library <library path>'.
+    case PluginSearchOption::Kind::LoadPluginLibrary: {
+      auto &val = entry.get<PluginSearchOption::LoadPluginLibrary>();
+      FS->status(val.LibraryPath);
+      break;
+    }
+
+    // '-load-plugin-executable <executable path>#<module name>, ...'.
+    case PluginSearchOption::Kind::LoadPluginExecutable: {
+      // We don't have executable plugin in toolchain.
+      break;
+    }
+
+    // '-plugin-path <library search path>'.
+    case PluginSearchOption::Kind::PluginPath: {
+      auto &val = entry.get<PluginSearchOption::PluginPath>();
+      recordFiles(val.SearchPath);
+      break;
+    }
+
+    // '-external-plugin-path <library search path>#<server path>'.
+    case PluginSearchOption::Kind::ExternalPluginPath: {
+      auto &val = entry.get<PluginSearchOption::ExternalPluginPath>();
+      recordFiles(val.SearchPath);
+      break;
+    }
+    }
+  }
 }
 
 void SwiftDependencyTracker::startTracking() {

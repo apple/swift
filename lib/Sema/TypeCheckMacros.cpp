@@ -290,7 +290,9 @@ initializeExecutablePlugin(ASTContext &ctx,
   if (!libraryPath.empty()) {
 #if SWIFT_BUILD_SWIFT_SYNTAX
     llvm::SmallString<128> resolvedLibraryPath;
-    auto fs = ctx.SourceMgr.getFileSystem();
+    auto fs = ctx.ClangImporterOpts.HasClangIncludeTreeRoot
+                  ? llvm::vfs::getRealFileSystem()
+                  : ctx.SourceMgr.getFileSystem();
     if (auto err = fs->getRealPath(libraryPath, resolvedLibraryPath)) {
       return llvm::createStringError(err, err.message());
     }
