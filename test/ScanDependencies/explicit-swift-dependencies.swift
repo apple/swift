@@ -51,5 +51,5 @@ import F
 // CHECK-NEXT:            "{{.*}}{{/|\\}}F-{{.*}}.swiftmodule"
 // CHECK-DAG:             "-swift-module-file=Swift={{.*}}{{/|\\}}Swift-{{.*}}.swiftmodule"
 // CHECK-DAG:             "-swift-module-file=SwiftOnoneSupport={{.*}}{{/|\\}}SwiftOnoneSupport-{{.*}}.swiftmodule"
-// CHECK-DAG:             "-fmodule-file=F={{.*}}{{/|\\}}F-{{.*}}.pcm",
-// CHECK-DAG:             "-fmodule-file=SwiftShims={{.*}}{{/|\\}}SwiftShims-{{.*}}.pcm",
+// CHECK-DAG:             "-fmodule-file=F={{.*}}{{/|\\}}F-{{.*}}.pcm"
+// CHECK-DAG:             "-fmodule-file=SwiftShims={{.*}}{{/|\\}}SwiftShims-{{.*}}.pcm"
