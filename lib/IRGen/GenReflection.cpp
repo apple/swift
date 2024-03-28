@@ -1667,6 +1667,11 @@ llvm::ArrayRef<CanType> IRGenModule::getOrCreateSpecialStlibBuiltinTypes() {
 }
 
 void IRGenModule::emitBuiltinReflectionMetadata() {
+  if (getSILModule().getOptions().DropAllSILAfterSerialization) {
+    // We're asked to emit an empty IR module
+    return;
+  }
+
   if (getSwiftModule()->isStdlibModule()) {
     auto SpecialBuiltins = getOrCreateSpecialStlibBuiltinTypes();
     BuiltinTypes.insert(SpecialBuiltins.begin(), SpecialBuiltins.end());

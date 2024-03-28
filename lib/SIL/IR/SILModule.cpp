@@ -484,6 +484,16 @@ SILVTable *SILModule::lookUpVTable(const ClassDecl *C,
   return Vtbl;
 }
 
+void SILModule::eraseAllVTables() {
+  for (auto vt : vtables)
+    vt->~SILVTable();
+
+  VTableMap.clear();
+  SpecializedVTableMap.clear();
+  vtables.clear();
+  VTableEntryCache.clear();
+}
+
 SILMoveOnlyDeinit *SILModule::lookUpMoveOnlyDeinit(const NominalTypeDecl *C,
                                                    bool deserializeLazily) {
   if (!C)

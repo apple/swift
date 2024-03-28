@@ -997,6 +997,9 @@ SILPassPipelinePlan::getPerformancePassPipeline(const SILOptions &Options) {
   if (Options.StopOptimizationAfterSerialization)
     return P;
 
+  if (Options.DropAllSILAfterSerialization)
+    P.addDropAllSILPass();
+
   // After serialization run the function pass pipeline to iteratively lower
   // high-level constructs like @_semantics calls.
   addMidLevelFunctionPipeline(P);
@@ -1054,6 +1057,9 @@ SILPassPipelinePlan::getOnonePassPipeline(const SILOptions &Options) {
   // First serialize the SIL if we are asked to.
   P.startPipeline("Serialization");
   P.addSerializeSILPass();
+
+  if (Options.DropAllSILAfterSerialization)
+    P.addDropAllSILPass();
 
   // Now that we have serialized, propagate debug info.
   P.addMovedAsyncVarDebugInfoPropagator();

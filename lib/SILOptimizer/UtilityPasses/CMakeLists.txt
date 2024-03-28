@@ -13,6 +13,7 @@ target_sources(swiftSILOptimizer PRIVATE
   ComputeLoopInfo.cpp
   ConstantEvaluatorTester.cpp
   ConstantEvaluableSubsetChecker.cpp
+  DropAllSILPass.cpp
   EpilogueARCMatcherDumper.cpp
   EpilogueRetainReleaseMatcherDumper.cpp
   FunctionOrderPrinter.cpp

@@ -170,6 +170,10 @@ public:
   /// Whether to stop the optimization pipeline after serializing SIL.
   bool StopOptimizationAfterSerialization = false;
 
+  /// Whether to drop all SIL after serializing SIL and continue compilation
+  /// with an empty SIL module.
+  bool DropAllSILAfterSerialization = false;
+
   /// Whether to stop the optimization pipeline right before we lower ownership
   /// and go from OSSA to non-ownership SIL.
   bool StopOptimizationBeforeLoweringOwnership = false;

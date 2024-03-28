@@ -1912,7 +1912,7 @@ void IRGenModule::cleanupClangCodeGenMetadata() {
 bool IRGenModule::finalize() {
   const char *ModuleHashVarName = "llvm.swift_module_hash";
   if (IRGen.Opts.OutputKind == IRGenOutputKind::ObjectFile &&
-      !Module.getGlobalVariable(ModuleHashVarName)) {
+      !Module.getGlobalVariable(ModuleHashVarName) && !getSILModule().getOptions().DropAllSILAfterSerialization) {
     // Create a global variable into which we will store the hash of the
     // module (used for incremental compilation).
     // We have to create the variable now (before we emit the global lists).
@@ -1968,6 +1968,14 @@ bool IRGenModule::finalize() {
   for (auto &F : Module.functions())
     if (F.hasDLLImportStorageClass())
       F.setDSOLocal(false);
+
+  if (getSILModule().getOptions().DropAllSILAfterSerialization) {
+    // We're asked to emit an empty IR module, check that that's actually true
+    if (Module.global_size() != 0 || Module.size() != 0) {
+      Module.dump();
+      llvm::report_fatal_error("Module is not empty");
+    }
+  }
 
   return true;
 }

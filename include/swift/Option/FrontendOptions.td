@@ -580,6 +580,10 @@ def enable_single_module_llvm_emission: Flag<["-"], "enable-single-module-llvm-e
   Flags<[FrontendOption, NoInteractiveOption]>,
   HelpText<"Emit LLVM IR into a single LLVM module in multithreaded mode.">;
 
+def emit_empty_object_file : Flag<["-"], "emit-empty-object-file">,
+  Flags<[FrontendOption, NoInteractiveOption]>,
+  HelpText<"Produce a valid but dummy object file when building a library module">;
+
 def stack_promotion_checks : Flag<["-"], "emit-stack-promotion-checks">,
   HelpText<"Emit runtime checks for correct stack promotion of objects.">;
 
