@@ -1298,6 +1298,9 @@ ASTBuilder::findDeclContext(NodePointer node) {
         continue;
       }
 
+      if (!ext->isWrittenWithConstraints() && !genericSig)
+        return ext;
+
       auto extSig = ext->getGenericSignature().getCanonicalSignature();
       if (extSig == genericSig) {
         return ext;

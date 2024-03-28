@@ -1763,6 +1763,54 @@ bool ExtensionDecl::isConstrainedExtension() const {
   return !typeSig->isEqual(extSig);
 }
 
+bool ExtensionDecl::isWrittenWithConstraints() const {
+  auto nominal = getExtendedNominal();
+  if (!nominal)
+    return false;
+
+  // If there's no generic signature, then it's written without constraints.
+  CanGenericSignature extSig = getGenericSignature().getCanonicalSignature();
+  if (!extSig)
+    return false;
+
+  CanGenericSignature typeSig =
+      nominal->getGenericSignature().getCanonicalSignature();
+
+  // Get the requirements and inverses for both the extension and type.
+  SmallVector<Requirement, 2> extReqs;
+  SmallVector<InverseRequirement, 2> extInverseReqs;
+  extSig->getRequirementsWithInverses(extReqs, extInverseReqs);
+
+  SmallVector<Requirement, 2> typeReqs;
+  SmallVector<InverseRequirement, 2> typeInverseReqs;
+  typeSig->getRequirementsWithInverses(typeReqs, typeInverseReqs);
+
+  // If the (non-inverse) requirements are different between the extension and
+  // the original type, it's written with constraints. Note that
+  // the extension can only add requirements, so we need only check the size
+  // (not the specific requirements).
+  if (extReqs.size() > typeReqs.size()) {
+    return true;
+  }
+
+  assert(extReqs.size() == typeReqs.size());
+
+  // If the type has no inverse requirements, there are no extra constraints
+  // to write.
+  if (typeInverseReqs.empty()) {
+    return false;
+  }
+
+  // If the extension has no inverse requirements, then there are no constraints
+  // that need to be written down.
+  if (extInverseReqs.empty()) {
+    return false;
+  }
+
+  // We have inverses that need to be written out.
+  return true;
+}
+
 bool ExtensionDecl::isInSameDefiningModule() const {
   auto decl = getExtendedNominal();
   auto extensionAlterName = getAlternateModuleName();

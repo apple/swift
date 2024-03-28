@@ -1864,6 +1864,32 @@ public:
   /// the original nominal type context.
   bool isInSameDefiningModule() const;
 
+  /// Determine whether this extension is equivalent to one that requires at
+  /// at least some constraints to be written in the source.
+  ///
+  /// This result will differ from `isConstrainedExtension()` when any of
+  /// the generic parameters of the type are invertible, e.g.,
+  /// \code
+  /// struct X<T: ~Copyable>: ~Copyable { }
+  ///
+  /// // Implies `T: Copyable`. This extension `!isWrittenWithConstraints()`
+  /// // and `isConstrainedExtension()`.
+  /// extension X { }
+  ///
+  /// // This extension `isWrittenWithConstraints()`
+  /// // and `!isConstrainedExtension()`.
+  /// extension X where T: ~Copyable { }
+  ///
+  /// // Implies `T: Copyable`. This extension `isWrittenWithConstraints()`
+  /// // and `isConstrainedExtension()`.
+  /// extension X where T: P { }
+  ///
+  /// // This extension `isWrittenWithConstraints()`
+  /// // and `isConstrainedExtension()`.
+  /// extension X where T: Q, T: ~Copyable { }
+  /// \endcode
+  bool isWrittenWithConstraints() const;
+
   /// Returns the name of the category specified by the \c \@_objcImplementation
   /// attribute, or \c None if the name is invalid or
   /// \c isObjCImplementation() is false.

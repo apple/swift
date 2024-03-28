@@ -62,6 +62,20 @@ extension XQ: Q where T: ~Copyable {
   struct A { }
 }
 
+protocol HasResult {
+  associatedtype Success
+}
+
+extension Result: HasResult {
+  func testMe() -> Success? {
+    var x: Result.Success? = nil
+    if case let .success(s) = self {
+      x = s
+    }
+    return x
+  }
+}
+
 // Class metadata
 
 @_fixed_layout
