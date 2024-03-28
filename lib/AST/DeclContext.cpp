@@ -263,6 +263,25 @@ DeclContext *DeclContext::getInnermostSkippedFunctionContext() {
   return nullptr;
 }
 
+DeclContext *DeclContext::getInnermostClosureForSelfCapture() {
+  auto dc = this;
+  if (auto closure = dyn_cast<ClosureExpr>(dc)) {
+    return closure;
+  }
+
+  // Stop searching if we find a type decl, since types always
+  // redefine what 'self' means, even when nested inside a closure.
+  if (dc->isTypeContext()) {
+    return nullptr;
+  }
+
+  if (auto parent = dc->getParent()) {
+    return parent->getInnermostClosureForSelfCapture();
+  }
+
+  return nullptr;
+}
+
 DeclContext *DeclContext::getParentForLookup() const {
   if (isa<ExtensionDecl>(this)) {
     // If we are inside an extension, skip directly

@@ -4380,7 +4380,7 @@ struct CaptureListEntry {
   explicit CaptureListEntry(PatternBindingDecl *PBD);
 
   VarDecl *getVar() const;
-  bool isSimpleSelfCapture() const;
+  bool isSimpleSelfCapture(bool excludeWeakCaptures = true) const;
 };
 
 /// CaptureListExpr - This expression represents the capture list on an explicit

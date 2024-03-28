@@ -23,11 +23,27 @@ final class Weak: Sendable {
         _ = property
         fatalError("Self was unexpectedly captured strongly")
       } else {
-        print("Self was captured weakly")
+        print("Self was captured weakly (1)")
+      }
+    }
+
+    runIn10ms { [weak self] in
+      guard let self else {
+        print("Self was captured weakly (2)")
+        return
+      }
+
+      // Use implicit self -- this should not result in a strong capture
+      _ = property
+
+      runIn10ms { [self] in
+        // Use implicit self -- this should not result in a strong capture
+        _ = property
+        fatalError("Self was unexpectedly captured strongly")
       }
     }
   }
 }
 
 Weak().test()
-try await Task.sleep(nanoseconds: 20_000_000)
+try await Task.sleep(nanoseconds: 30_000_000)

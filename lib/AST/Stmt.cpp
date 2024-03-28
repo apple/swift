@@ -526,19 +526,28 @@ void LabeledConditionalStmt::setCond(StmtCondition e) {
 }
 
 /// Whether or not this conditional stmt rebinds self with a `let self`
-/// or `let self = self` condition. If `requireLoadExpr` is `true`,
-/// additionally requires that the RHS of the self condition is a `LoadExpr`.
+/// or `let self = self` condition.
+///  - If `requiresCaptureListRef` is `true`, additionally requires that the
+///    RHS of the self condition references a var defined in a capture list.
+///  - If `requireLoadExpr` is `true`, additionally requires that the RHS of
+///    the self condition is a `LoadExpr`.
 bool LabeledConditionalStmt::rebindsSelf(ASTContext &Ctx,
+                                         bool requiresCaptureListRef,
                                          bool requireLoadExpr) const {
-  return llvm::any_of(getCond(), [&Ctx, requireLoadExpr](const auto &cond) {
-    return cond.rebindsSelf(Ctx, requireLoadExpr);
+  return llvm::any_of(getCond(), [&Ctx, requiresCaptureListRef,
+                                  requireLoadExpr](const auto &cond) {
+    return cond.rebindsSelf(Ctx, requiresCaptureListRef, requireLoadExpr);
   });
 }
 
 /// Whether or not this conditional stmt rebinds self with a `let self`
-/// or `let self = self` condition. If `requireLoadExpr` is `true`,
-/// additionally requires that the RHS of the self condition is a `LoadExpr`.
+/// or `let self = self` condition.
+///  - If `requiresCaptureListRef` is `true`, additionally requires that the
+///    RHS of the self condition references a var defined in a capture list.
+///  - If `requireLoadExpr` is `true`, additionally requires that the RHS of
+///    the self condition is a `LoadExpr`.
 bool StmtConditionElement::rebindsSelf(ASTContext &Ctx,
+                                       bool requiresCaptureListRef,
                                        bool requireLoadExpr) const {
   auto pattern = getPatternOrNull();
   if (!pattern) {
@@ -578,8 +587,22 @@ bool StmtConditionElement::rebindsSelf(ASTContext &Ctx,
   if (auto *DRE = dyn_cast<DeclRefExpr>(
           exprToCheckForDRE->getSemanticsProvidingExpr())) {
     auto *decl = DRE->getDecl();
-    return decl && decl->hasName() ? decl->getName().isSimpleName(Ctx.Id_self)
-                                   : false;
+
+    bool definedInCaptureList = false;
+    if (auto varDecl = dyn_cast_or_null<VarDecl>(DRE->getDecl())) {
+      definedInCaptureList = varDecl->isCaptureList();
+    }
+
+    if (requiresCaptureListRef && !definedInCaptureList) {
+      return false;
+    }
+
+    bool isVariableNamedSelf = false;
+    if (decl && decl->hasName()) {
+      isVariableNamedSelf = decl->getName().isSimpleName(Ctx.Id_self);
+    }
+
+    return isVariableNamedSelf;
   }
 
   return false;

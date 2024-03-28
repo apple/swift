@@ -1353,21 +1353,28 @@ VarDecl *CaptureListEntry::getVar() const {
   return PBD->getSingleVar();
 }
 
-bool CaptureListEntry::isSimpleSelfCapture() const {
+bool CaptureListEntry::isSimpleSelfCapture(bool excludeWeakCaptures) const {
   auto *Var = getVar();
   auto &ctx = Var->getASTContext();
 
   if (Var->getName() != ctx.Id_self)
     return false;
 
-  if (auto *attr = Var->getAttrs().getAttribute<ReferenceOwnershipAttr>())
-    if (attr->get() == ReferenceOwnership::Weak)
-      return false;
-
   if (PBD->getPatternList().size() != 1)
     return false;
 
   auto *expr = PBD->getInit(0);
+
+  if (auto *attr = Var->getAttrs().getAttribute<ReferenceOwnershipAttr>()) {
+    if (attr->get() == ReferenceOwnership::Weak && excludeWeakCaptures) {
+      return false;
+    }
+  }
+
+  // Look through any ImplicitConversionExpr that may contain the DRE
+  if (auto conversion = dyn_cast_or_null<ImplicitConversionExpr>(expr)) {
+    expr = conversion->getSubExpr();
+  }
 
   if (auto *DRE = dyn_cast<DeclRefExpr>(expr)) {
     if (auto *VD = dyn_cast<VarDecl>(DRE->getDecl())) {

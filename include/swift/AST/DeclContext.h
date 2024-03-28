@@ -504,6 +504,14 @@ public:
         const_cast<DeclContext *>(this)->getInnermostSkippedFunctionContext();
   }
 
+  /// Returns the innermost context that is a ClosureExpr, which defines how
+  /// self behaves, unless within a type context that redefines self.
+  LLVM_READONLY
+  DeclContext *getInnermostClosureForSelfCapture();
+  const DeclContext *getInnermostClosureForSelfCapture() const {
+    return const_cast<DeclContext *>(this)->getInnermostClosureForSelfCapture();
+  }
+
   /// Returns the semantic parent of this context.  A context has a
   /// parent if and only if it is not a module context.
   DeclContext *getParent() const {
