@@ -44,6 +44,7 @@ import SubE
 // CHECK-DAG:     "clang": "_SwiftConcurrencyShims"
 // CHECK: ],
 
+// CHECK:      "contextHash":
 // CHECK:      "extraPcmArgs": [
 // CHECK-NEXT:    "-Xcc",
 // CHECK-NEXT:    "-target",
@@ -95,7 +96,6 @@ import SubE
 // CHECK: ],
 // CHECK-NEXT: "details": {
 
-// CHECK: "contextHash": "{{.*}}",
 // CHECK: "commandLine": [
 // CHECK: "-compile-module-from-interface"
 // CHECK: "-target"
@@ -104,6 +104,7 @@ import SubE
 // CHECK: "-swift-version"
 // CHECK: "5"
 // CHECK: ],
+// CHECK: "contextHash": "{{.*}}",
 // CHECK" "extraPcmArgs": [
 // CHECK"   "-target",
 // CHECK"   "-fapinotes-swift-version=5"

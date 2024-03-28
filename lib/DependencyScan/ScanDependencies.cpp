@@ -816,9 +816,6 @@ static void writeJSON(llvm::raw_ostream &out,
       if (!moduleInterfacePath.empty()) {
         writeJSONSingleField(out, "moduleInterfacePath", moduleInterfacePath, 5,
                              /*trailingComma=*/true);
-        writeJSONSingleField(out, "contextHash", swiftTextualDeps->context_hash,
-                             5,
-                             /*trailingComma=*/true);
         out.indent(5 * 2);
         out << "\"compiledModuleCandidates\": [\n";
         for (int i = 0,
@@ -849,6 +846,9 @@ static void writeJSON(llvm::raw_ostream &out,
       }
       out.indent(5 * 2);
       out << "],\n";
+      writeJSONSingleField(out, "contextHash", swiftTextualDeps->context_hash,
+                           5,
+                           /*trailingComma=*/true);
       bool hasBridgingHeaderPath =
           swiftTextualDeps->bridging_header_path.data &&
           get_C_string(swiftTextualDeps->bridging_header_path)[0] != '\0';
@@ -1244,9 +1244,7 @@ generateFullDependencyGraph(const CompilerInstance &instance,
                             bridgedOverlayDependencyNames);
 
         details->swift_textual_details = {
-            moduleInterfacePath,
-            create_empty_set(),
-            bridgingHeaderPath,
+            moduleInterfacePath, create_empty_set(), bridgingHeaderPath,
             create_set(
                 swiftSourceDeps->textualModuleDetails.bridgingSourceFiles),
             create_set(swiftSourceDeps->textualModuleDetails
@@ -1255,7 +1253,9 @@ generateFullDependencyGraph(const CompilerInstance &instance,
             create_set(swiftSourceDeps->textualModuleDetails.buildCommandLine),
             create_set(swiftSourceDeps->bridgingHeaderBuildCommandLine),
             create_set(swiftSourceDeps->textualModuleDetails.extraPCMArgs),
-            /*contextHash*/ create_null(),
+            /*contextHash*/
+            create_clone(
+                instance.getInvocation().getModuleScanningHash().c_str()),
             /*isFramework*/ false,
             /*CASFS*/
             create_clone(swiftSourceDeps->textualModuleDetails
