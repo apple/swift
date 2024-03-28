@@ -791,7 +791,8 @@ function(add_swift_target_library_single target name)
         BACK_DEPLOYMENT_LIBRARY
         ENABLE_LTO
         MODULE_DIR
-        BOOTSTRAPPING)
+        BOOTSTRAPPING
+        INSTALL_BINARY_SWIFTMODULE)
   set(SWIFTLIB_SINGLE_multiple_parameter_options
         C_COMPILE_FLAGS
         DEPENDS
@@ -850,6 +851,10 @@ function(add_swift_target_library_single target name)
      NOT SWIFTLIB_SINGLE_ONLY_SWIFTMODULE)
     message(FATAL_ERROR
         "Either SHARED, STATIC, or OBJECT_LIBRARY must be specified")
+  endif()
+
+  if(NOT DEFINED SWIFTLIB_INSTALL_BINARY_SWIFTMODULE)
+    set(SWIFTLIB_INSTALL_BINARY_SWIFTMODULE TRUE)
   endif()
 
   # Determine the subdirectory where this library will be installed.
@@ -1010,7 +1015,8 @@ function(add_swift_target_library_single target name)
       DEPLOYMENT_VERSION_TVOS ${SWIFTLIB_SINGLE_DEPLOYMENT_VERSION_TVOS}
       DEPLOYMENT_VERSION_WATCHOS ${SWIFTLIB_SINGLE_DEPLOYMENT_VERSION_WATCHOS}
       MACCATALYST_BUILD_FLAVOR "${SWIFTLIB_SINGLE_MACCATALYST_BUILD_FLAVOR}"
-      ${BOOTSTRAPPING_arg})
+      ${BOOTSTRAPPING_arg}
+      INSTALL_BINARY_SWIFTMODULE ${SWIFTLIB_INSTALL_BINARY_SWIFTMODULE})
   add_swift_source_group("${SWIFTLIB_SINGLE_EXTERNAL_SOURCES}")
 
   # If there were any swift sources, then a .swiftmodule may have been created.
@@ -1801,6 +1807,7 @@ function(add_swift_target_library name)
         DEPLOYMENT_VERSION_TVOS
         DEPLOYMENT_VERSION_WATCHOS
         INSTALL_IN_COMPONENT
+        INSTALL_BINARY_SWIFTMODULE
         DARWIN_INSTALL_NAME_DIR
         DEPLOYMENT_VERSION_MACCATALYST
         MACCATALYST_BUILD_FLAVOR
@@ -1923,6 +1930,10 @@ function(add_swift_target_library name)
     list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-warn-implicit-overrides")
     list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-Xfrontend;-enable-ossa-modules")
     list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-Xfrontend;-enable-lexical-lifetimes=false")
+  endif()
+
+  if(NOT DEFINED SWIFTLIB_INSTALL_BINARY_SWIFTMODULE)
+    set(SWIFTLIB_INSTALL_BINARY_SWIFTMODULE TRUE)
   endif()
 
   if(NOT SWIFT_BUILD_RUNTIME_WITH_HOST_COMPILER AND NOT BUILD_STANDALONE AND
@@ -2320,6 +2331,7 @@ function(add_swift_target_library name)
         ENABLE_LTO "${SWIFT_STDLIB_ENABLE_LTO}"
         GYB_SOURCES ${SWIFTLIB_GYB_SOURCES}
         PREFIX_INCLUDE_DIRS ${SWIFTLIB_PREFIX_INCLUDE_DIRS}
+        INSTALL_BINARY_SWIFTMODULE ${SWIFTLIB_INSTALL_BINARY_SWIFTMODULE}
       )
     if(NOT SWIFT_BUILT_STANDALONE AND NOT "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
       add_dependencies(${VARIANT_NAME} clang)

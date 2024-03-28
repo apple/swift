@@ -75,7 +75,8 @@ add_swift_target_library(swiftDarwin ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES}
     ${swiftDarwin_common_options}
     TARGET_SDKS "${swiftDarwin_target_sdks}"
     INSTALL_IN_COMPONENT sdk-overlay
-    MACCATALYST_BUILD_FLAVOR "zippered")
+    MACCATALYST_BUILD_FLAVOR "zippered"
+    INSTALL_BINARY_SWIFTMODULE FALSE)
 
 if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB)
   set(SWIFT_ENABLE_REFLECTION OFF)
