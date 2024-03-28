@@ -2292,11 +2292,11 @@ NodePointer Demangler::demangleImplFunctionType() {
 
   const char *CoroAttr = nullptr;
   if (nextIf('A'))
-    CoroAttr = "@yield_once";
+    CoroAttr = "yield_once";
   else if (nextIf('G'))
-    CoroAttr = "@yield_many";
+    CoroAttr = "yield_many";
   if (CoroAttr)
-    type->addChild(createNode(Node::Kind::ImplFunctionAttribute, CoroAttr), *this);
+    type->addChild(createNode(Node::Kind::ImplCoroutineKind, CoroAttr), *this);
 
   if (nextIf('h')) {
     type->addChild(createNode(Node::Kind::ImplFunctionAttribute, "@Sendable"),

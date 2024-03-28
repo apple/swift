@@ -56,6 +56,11 @@ SILFunction *getOrCreateReabstractionThunk(SILOptFunctionBuilder &fb,
                                            CanSILFunctionType fromType,
                                            CanSILFunctionType toType);
 
+SILValue reabstractCoroutine(
+    SILBuilder &builder, SILOptFunctionBuilder &fb, SILLocation loc,
+    SILValue fn, CanSILFunctionType toType,
+    std::function<SubstitutionMap(SubstitutionMap)> remapSubstitutions);
+
 /// Reabstracts the given function-typed value `fn` to the target type `toType`.
 /// Remaps substitutions using `remapSubstitutions`.
 SILValue reabstractFunction(

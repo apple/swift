@@ -604,6 +604,8 @@ NOTE(autodiff_cannot_differentiate_through_multiple_results,none,
      "cannot differentiate through multiple results", ())
 NOTE(autodiff_cannot_differentiate_through_inout_arguments,none,
      "cannot differentiate through 'inout' arguments", ())
+NOTE(autodiff_cannot_differentiate_through_direct_yield,none,
+     "cannot differentiate through a direct yield result", ())
 NOTE(autodiff_enums_unsupported,none,
      "differentiating enum values is not yet supported", ())
 NOTE(autodiff_stored_property_parent_not_differentiable,none,

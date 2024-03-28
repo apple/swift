@@ -571,17 +571,33 @@ getResultOptions(ImplResultInfoOptions implOptions) {
   return result;
 }
 
+static SILCoroutineKind
+getCoroutineKind(ImplCoroutineKind kind) {
+  switch (kind) {
+  case ImplCoroutineKind::None:
+    return SILCoroutineKind::None;
+  case ImplCoroutineKind::YieldOnce:
+    return SILCoroutineKind::YieldOnce;
+  case ImplCoroutineKind::YieldMany:
+    return SILCoroutineKind::YieldMany;
+  }
+  llvm_unreachable("unknown coroutine kind");
+}
+
 Type ASTBuilder::createImplFunctionType(
     Demangle::ImplParameterConvention calleeConvention,
+    Demangle::ImplCoroutineKind coroutineKind,
     ArrayRef<Demangle::ImplFunctionParam<Type>> params,
+    ArrayRef<Demangle::ImplFunctionYield<Type>> yields,
     ArrayRef<Demangle::ImplFunctionResult<Type>> results,
     std::optional<Demangle::ImplFunctionResult<Type>> errorResult,
     ImplFunctionTypeFlags flags) {
   GenericSignature genericSig;
 
-  SILCoroutineKind funcCoroutineKind = SILCoroutineKind::None;
   ParameterConvention funcCalleeConvention =
     getParameterConvention(calleeConvention);
+  SILCoroutineKind funcCoroutineKind =
+    getCoroutineKind(coroutineKind);
 
   SILFunctionTypeRepresentation representation;
   switch (flags.getRepresentation()) {
@@ -641,6 +657,13 @@ Type ASTBuilder::createImplFunctionType(
     auto type = param.getType()->getCanonicalType();
     auto conv = getParameterConvention(param.getConvention());
     auto options = *getParameterOptions(param.getOptions());
+    funcParams.emplace_back(type, conv, options);
+  }
+
+  for (const auto &yield : yields) {
+    auto type = yield.getType()->getCanonicalType();
+    auto conv = getParameterConvention(yield.getConvention());
+    auto options = *getParameterOptions(yield.getOptions());
     funcParams.emplace_back(type, conv, options);
   }
 

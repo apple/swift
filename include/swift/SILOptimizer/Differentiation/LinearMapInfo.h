@@ -77,9 +77,9 @@ private:
   /// For differentials: these are successor enums.
   llvm::DenseMap<SILBasicBlock *, EnumDecl *> branchingTraceDecls;
 
-  /// Mapping from `apply` instructions in the original function to the
+  /// Mapping from `apply` / `begin_apply` instructions in the original function to the
   /// corresponding linear map tuple type index.
-  llvm::DenseMap<ApplyInst *, unsigned> linearMapIndexMap;
+  llvm::DenseMap<FullApplySite, unsigned> linearMapIndexMap;
 
   /// Mapping from predecessor-successor basic block pairs in the original
   /// function to the corresponding branching trace enum case.
@@ -112,9 +112,9 @@ private:
   void populateBranchingTraceDecl(SILBasicBlock *originalBB,
                                   SILLoopInfo *loopInfo);
 
-  /// Given an `apply` instruction, conditionally gets a linear map tuple field
-  /// AST type for its linear map function if it is active.
-  Type getLinearMapType(ADContext &context, ApplyInst *ai);
+  /// Given an `apply` / `begin_apply` instruction, conditionally gets a linear
+  /// map tuple field AST type for its linear map function if it is active.
+  Type getLinearMapType(ADContext &context, FullApplySite fai);
 
   /// Generates linear map struct and branching enum declarations for the given
   /// function. Linear map structs are populated with linear map fields and a
@@ -180,18 +180,18 @@ public:
   }
 
   /// Finds the linear map index in the pullback tuple for the given
-  /// `apply` instruction in the original function.
-  unsigned lookUpLinearMapIndex(ApplyInst *ai) const {
-    assert(ai->getFunction() == original);
-    auto lookup = linearMapIndexMap.find(ai);
+  /// `apply` / `begin_apply` instruction in the original function.
+  unsigned lookUpLinearMapIndex(FullApplySite fas) const {
+    assert(fas->getFunction() == original);
+    auto lookup = linearMapIndexMap.find(fas);
     assert(lookup != linearMapIndexMap.end() &&
            "No linear map field corresponding to the given `apply`");
     return lookup->getSecond();
   }
 
-  Type lookUpLinearMapType(ApplyInst *ai) const {
-    unsigned idx = lookUpLinearMapIndex(ai);
-    return getLinearMapTupleType(ai->getParentBlock())->getElement(idx).getType();
+  Type lookUpLinearMapType(FullApplySite fas) const {
+    unsigned idx = lookUpLinearMapIndex(fas);
+    return getLinearMapTupleType(fas->getParent())->getElement(idx).getType();
   }
 
   bool hasHeapAllocatedContext() const {

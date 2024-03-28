@@ -672,8 +672,10 @@ extension DifferentiableWrapper: Differentiable where Value: Differentiable {}
 // accesses.
 
 struct Struct: Differentiable {
-  // expected-error @+2 {{expression is not differentiable}}
-  // expected-note @+1 {{cannot differentiate access to property 'Struct._x' because 'Struct.TangentVector' does not have a stored property named '_x'}}
+  // expected-error @+4 {{expression is not differentiable}}
+  // expected-error @+3 {{expression is not differentiable}}
+  // expected-note @+2 {{cannot differentiate access to property 'Struct._x' because 'Struct.TangentVector' does not have a stored property named '_x'}}
+  // expected-note @+1 {{cannot differentiate access to property 'Struct._x' because 'Struct.TangentVector' does not have a stored property named '_x'}}  
   @DifferentiableWrapper @DifferentiableWrapper var x: Float = 10
 
   @Wrapper var y: Float = 20
@@ -696,12 +698,9 @@ func projectedValueAccess(_ s: Struct) -> Float {
 // https://github.com/apple/swift/issues/55084
 // Test `wrapperValue.modify` differentiation.
 
-// expected-error @+2 {{function is not differentiable}}
-// expected-note @+2 {{when differentiating this function definition}}
 @differentiable(reverse)
 func modify(_ s: Struct, _ x: Float) -> Float {
   var s = s
-  // expected-note @+1 {{differentiation of coroutine calls is not yet supported}}
   s.x *= x * s.z
   return s.x
 }
@@ -806,45 +805,56 @@ public func f_54819<Scalar: Differentiable>(
 // Coroutines (SIL function yields, `begin_apply`) (not yet supported)
 //===----------------------------------------------------------------------===//
 
-struct HasCoroutineAccessors: Differentiable {
+struct HasReadAccessors: Differentiable {
   var stored: Float
   var computed: Float {
     // `_read` is a coroutine: `(Self) -> () -> ()`.
     _read { yield stored }
+  }
+}
+
+struct HasModifyAccessors: Differentiable {
+  var stored: Float
+  var computed: Float {
+    get { stored }
     // `_modify` is a coroutine: `(inout Self) -> () -> ()`.
     _modify { yield &stored }
   }
 }
+
 // expected-error @+2 {{function is not differentiable}}
 // expected-note @+2 {{when differentiating this function definition}}
 @differentiable(reverse)
-func testAccessorCoroutines(_ x: HasCoroutineAccessors) -> HasCoroutineAccessors {
+func testReadAccessorCoroutines(_ x: HasReadAccessors) -> Float {
+  // expected-note @+1 {{cannot differentiate through a direct yield result}}
+  return x.computed
+}
+
+@differentiable(reverse)
+func testModifyAccessorCoroutines(_ x: HasModifyAccessors) -> Float {
   var x = x
-  // expected-note @+1 {{differentiation of coroutine calls is not yet supported}}
   x.computed = x.computed
-  return x
+  return x.computed
 }
 
 // TF-1078: Diagnose `_modify` accessor application with active `inout` argument.
-// expected-error @+2 {{function is not differentiable}}
-// expected-note @+2 {{when differentiating this function definition}}
 @differentiable(reverse)
 func TF_1078(array: [Float], x: Float) -> Float {
   var array = array
   // Array subscript assignment below calls `Array.subscript.modify`.
-  // expected-note @+1 {{differentiation of coroutine calls is not yet supported}}
+  // expected-error @+2 {{expression is not differentiable}}
+  // expected-note @+1 {{cannot differentiate functions that have not been marked '@differentiable' and that are defined in other files}}
   array[0] = x
   return array[0]
 }
 
 // TF-1115: Diagnose `_modify` accessor application with initially non-active `inout` argument.
-// expected-error @+2 {{function is not differentiable}}
-// expected-note @+2 {{when differentiating this function definition}}
 @differentiable(reverse)
 func TF_1115(_ x: Float) -> Float {
   var array: [Float] = [0]
   // Array subscript assignment below calls `Array.subscript.modify`.
-  // expected-note @+1 {{differentiation of coroutine calls is not yet supported}}
+  // expected-error @+2 {{expression is not differentiable}}
+  // expected-note @+1 {{cannot differentiate functions that have not been marked '@differentiable' and that are defined in other files}}
   array[0] = x
   return array[0]
 }
@@ -862,13 +872,10 @@ extension Float {
   }
 }
 
-// expected-error @+2 {{function is not differentiable}}
-// expected-note @+2 {{when differentiating this function definition}}
 @differentiable(reverse)
 func TF_1115_modifyNonSelfProjection(x: Float) -> Float {
   var result: Float = 0
   // Assignment below calls `Float.projection.modify`.
-  // expected-note @+1 {{differentiation of coroutine calls is not yet supported}}
   result.projection = x
   return result
 }

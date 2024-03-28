@@ -150,7 +150,9 @@ public:
 
   Type createImplFunctionType(
       Demangle::ImplParameterConvention calleeConvention,
+      Demangle::ImplCoroutineKind coroutineKind,
       ArrayRef<Demangle::ImplFunctionParam<Type>> params,
+      ArrayRef<Demangle::ImplFunctionYield<Type>> yields,
       ArrayRef<Demangle::ImplFunctionResult<Type>> results,
       std::optional<Demangle::ImplFunctionResult<Type>> errorResult,
       ImplFunctionTypeFlags flags);

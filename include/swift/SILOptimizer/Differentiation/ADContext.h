@@ -17,6 +17,7 @@
 #ifndef SWIFT_SILOPTIMIZER_UTILS_DIFFERENTIATION_ADCONTEXT_H
 #define SWIFT_SILOPTIMIZER_UTILS_DIFFERENTIATION_ADCONTEXT_H
 
+#include "swift/SIL/ApplySite.h"
 #include "swift/SILOptimizer/Differentiation/Common.h"
 #include "swift/SILOptimizer/Differentiation/DifferentiationInvoker.h"
 
@@ -51,6 +52,12 @@ struct NestedApplyInfo {
   /// The original pullback type before reabstraction. `None` if the pullback
   /// type is not reabstracted.
   std::optional<CanSILFunctionType> originalPullbackType;
+  /// Index of `apply` pullback in nested pullback call
+  unsigned pullbackIdx = -1U;
+  /// Pullback value itself that is memoized in some cases (e.g. pullback is
+  /// called by `begin_apply`, but should be destroyed after `end_apply`).
+  SILValue pullback = SILValue();
+  SILValue beginApplyToken = SILValue();
 };
 
 /// Per-module contextual information for the Differentiation pass.
@@ -97,7 +104,7 @@ private:
 
   /// Mapping from original `apply` instructions to their corresponding
   /// `NestedApplyInfo`s.
-  llvm::DenseMap<ApplyInst *, NestedApplyInfo> nestedApplyInfo;
+  llvm::DenseMap<FullApplySite, NestedApplyInfo> nestedApplyInfo;
 
   /// List of generated functions (JVPs, VJPs, pullbacks, and thunks).
   /// Saved for deletion during cleanup.
@@ -185,7 +192,7 @@ public:
     invokers.insert({witness, DifferentiationInvoker(witness)});
   }
 
-  llvm::DenseMap<ApplyInst *, NestedApplyInfo> &getNestedApplyInfo() {
+  llvm::DenseMap<FullApplySite, NestedApplyInfo> &getNestedApplyInfo() {
     return nestedApplyInfo;
   }
 

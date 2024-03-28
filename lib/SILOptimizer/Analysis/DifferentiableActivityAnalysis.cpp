@@ -81,6 +81,8 @@ void DifferentiableActivityInfo::analyze(DominanceInfo *di,
       s << val << '\n';
   });
   // Outputs are indirect result buffers and return values, count `m`.
+  // For the purposes of differentiation, we consider yields to be results as
+  // well
   collectAllFormalResultsInTypeOrder(function, outputValues);
   LLVM_DEBUG({
     auto &s = getADDebugStream();
@@ -312,14 +314,17 @@ void DifferentiableActivityInfo::setUsefulAndPropagateToOperands(
       for (auto incomingValue : incomingValues)
         setUsefulAndPropagateToOperands(incomingValue, dependentVariableIndex);
       return;
-    } else if (bbArg->isTerminatorResult()) {
+    }
+
+    if (bbArg->isTerminatorResult()) {
       if (TryApplyInst *tai = dyn_cast<TryApplyInst>(bbArg->getTerminatorForResult())) {
         propagateUseful(tai, dependentVariableIndex);
         return;
-      } else
-        llvm::report_fatal_error("unknown terminator with result");
-   } else
-      llvm::report_fatal_error("do not know how to handle this incoming bb argument");
+      }
+      llvm::report_fatal_error("unknown terminator with result");
+    }
+
+    llvm::report_fatal_error("do not know how to handle this incoming bb argument");
   }
   
   auto *inst = value->getDefiningInstruction();

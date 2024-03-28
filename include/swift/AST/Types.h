@@ -5174,8 +5174,11 @@ public:
   /// Returns the number of function potential semantic results:
   ///  * Usual results
   ///  * Inout parameters
+  ///  * yields
   unsigned getNumAutoDiffSemanticResults() const {
-    return getNumResults() + getNumAutoDiffSemanticResultsParameters();
+    return getNumResults() +
+           getNumAutoDiffSemanticResultsParameters() +
+           getNumYields();
   }
 
   /// Get the generic signature that the component types are specified

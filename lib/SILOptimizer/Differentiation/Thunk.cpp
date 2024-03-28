@@ -326,6 +326,41 @@ SILFunction *getOrCreateReabstractionThunk(SILOptFunctionBuilder &fb,
   return thunk;
 }
 
+// FIXME: This is pretty rudimentary as of now as there is no proper AST type
+// for coroutine and therefore we cannot e.g. store a coroutine into a tuple or
+// do other things that are allowed with first-class function types. For now we
+// have to unsafely bitcast coroutine to function type and vice versa. This
+// function should be rethought when we will have proper AST coroutine types.
+SILValue reabstractCoroutine(
+    SILBuilder &builder, SILOptFunctionBuilder &fb, SILLocation loc,
+    SILValue fn, CanSILFunctionType toType,
+    std::function<SubstitutionMap(SubstitutionMap)> remapSubstitutions) {
+  auto &module = *fn->getModule();
+  auto fromType = fn->getType().getAs<SILFunctionType>();
+  auto unsubstFromType = fromType->getUnsubstitutedType(module);
+  auto unsubstToType = toType->getUnsubstitutedType(module);
+
+  LLVM_DEBUG(auto &s = getADDebugStream() << "Converting coroutine\n";
+             s << "  From type: " << fromType << '\n';
+             s << "  To type: " << toType << '\n'; s << '\n');
+  
+  if (fromType != unsubstFromType)
+    fn = builder.createConvertFunction(
+        loc, fn, SILType::getPrimitiveObjectType(unsubstFromType),
+        /*withoutActuallyEscaping*/ false);
+
+  fn = builder.createConvertFunction(loc, fn,
+                                     SILType::getPrimitiveObjectType(unsubstToType),
+                                     /*withoutActuallyEscaping*/ false);
+  
+  if (toType != unsubstToType)
+    fn = builder.createConvertFunction(loc, fn,
+                                       SILType::getPrimitiveObjectType(toType),
+                                       /*withoutActuallyEscaping*/ false);
+
+  return fn;
+}
+
 SILValue reabstractFunction(
     SILBuilder &builder, SILOptFunctionBuilder &fb, SILLocation loc,
     SILValue fn, CanSILFunctionType toType,

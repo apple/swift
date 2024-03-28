@@ -101,6 +101,10 @@ DifferentiabilityWitnessFunctionKind::getAsDerivativeFunctionKind() const {
   llvm_unreachable("invalid derivative kind");
 }
 
+void AutoDiffConfig::dump() const {
+  print(llvm::errs());
+}
+
 void AutoDiffConfig::print(llvm::raw_ostream &s) const {
   s << "(parameters=";
   parameterIndices->print(s);
@@ -354,22 +358,30 @@ GenericSignature autodiff::getConstrainedDerivativeGenericSignature(
   // Require differentiability results to conform to `Differentiable`.
   SmallVector<SILResultInfo, 2> originalResults;
   getSemanticResults(originalFnTy, diffParamIndices, originalResults);
+  unsigned firstSemanticParamResultIdx = originalFnTy->getNumResults();
+  unsigned firstYieldResultIndex = originalFnTy->getNumResults() +
+      originalFnTy->getNumAutoDiffSemanticResultsParameters();
   for (unsigned resultIdx : diffResultIndices->getIndices()) {
     // Handle formal original result.
-    if (resultIdx < originalFnTy->getNumResults()) {
+    if (resultIdx < firstSemanticParamResultIdx) {
       auto resultType = originalResults[resultIdx].getInterfaceType();
       addRequirement(resultType);
-      continue;
+    } else if (resultIdx < firstYieldResultIndex) {
+      // Handle original semantic result parameters.
+      auto resultParamIndex = resultIdx - originalFnTy->getNumResults();
+      auto resultParamIt = std::next(
+        originalFnTy->getAutoDiffSemanticResultsParameters().begin(),
+        resultParamIndex);
+      auto paramIndex =
+        std::distance(originalFnTy->getParameters().begin(), &*resultParamIt);
+      addRequirement(originalFnTy->getParameters()[paramIndex].getInterfaceType());
+    } else {
+      // Handle formal original yields.
+      assert(originalFnTy->isCoroutine());
+      assert(originalFnTy->getCoroutineKind() == SILCoroutineKind::YieldOnce);
+      auto yieldResultIndex = resultIdx - firstYieldResultIndex;
+      addRequirement(originalFnTy->getYields()[yieldResultIndex].getInterfaceType());
     }
-    // Handle original semantic result parameters.
-    // FIXME: Constraint generic yields when we will start supporting them
-    auto resultParamIndex = resultIdx - originalFnTy->getNumResults();
-    auto resultParamIt = std::next(
-      originalFnTy->getAutoDiffSemanticResultsParameters().begin(),
-      resultParamIndex);
-    auto paramIndex =
-      std::distance(originalFnTy->getParameters().begin(), &*resultParamIt);
-    addRequirement(originalFnTy->getParameters()[paramIndex].getInterfaceType());
   }
 
   return buildGenericSignature(ctx, derivativeGenSig,

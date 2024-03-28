@@ -20,6 +20,7 @@
 #include "swift/AST/DiagnosticsSIL.h"
 #include "swift/AST/Expr.h"
 #include "swift/AST/SemanticAttrs.h"
+#include "swift/SIL/ApplySite.h"
 #include "swift/SIL/SILDifferentiabilityWitness.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/Projection.h"
@@ -112,7 +113,7 @@ void collectAllDirectResultsInTypeOrder(SILFunction &function,
 /// Given a function call site, gathers all of its actual results (both direct
 /// and indirect) in an order defined by its result type.
 void collectAllActualResultsInTypeOrder(
-    ApplyInst *ai, ArrayRef<SILValue> extractedDirectResults,
+    FullApplySite fai, ArrayRef<SILValue> extractedDirectResults,
     SmallVectorImpl<SILValue> &results);
 
 /// For an `apply` instruction with active results, compute:
@@ -120,7 +121,7 @@ void collectAllActualResultsInTypeOrder(
 /// - The set of minimal parameter and result indices for differentiating the
 ///   `apply` instruction.
 void collectMinimalIndicesForFunctionCall(
-    ApplyInst *ai, const AutoDiffConfig &parentConfig,
+    FullApplySite fai, const AutoDiffConfig &parentConfig,
     const DifferentiableActivityInfo &activityInfo,
     SmallVectorImpl<SILValue> &results, SmallVectorImpl<unsigned> &paramIndices,
     SmallVectorImpl<unsigned> &resultIndices);

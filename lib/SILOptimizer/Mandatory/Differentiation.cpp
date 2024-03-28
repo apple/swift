@@ -156,6 +156,19 @@ static bool diagnoseUnsupportedControlFlow(ADContext &context,
         isa<CheckedCastBranchInst>(term) ||
         isa<CheckedCastAddrBranchInst>(term) || isa<TryApplyInst>(term))
       continue;
+
+    // We can differentiate only indirect yields.
+    if (auto *yi = dyn_cast<YieldInst>(term)) {
+#ifndef NDEBUG
+      for (const auto &val : yi->getAllOperands()) {
+        // This should be diagnosed earlier in VJPCloner.
+        assert(yi->getYieldInfoForOperand(val).isAutoDiffSemanticResult() &&
+               "unsupported result");
+      }
+#endif
+      continue;
+    }
+
     // If terminator is an unsupported branching terminator, emit an error.
     if (term->isBranch()) {
       context.emitNondifferentiabilityError(
@@ -541,10 +554,20 @@ emitDerivativeFunctionReference(
         }
       }
       // Check and diagnose non-differentiable results.
+      unsigned firstSemanticParamResultIdx = originalFnTy->getNumResults();
+      unsigned firstYieldResultIndex = originalFnTy->getNumResults() +
+        originalFnTy->getNumAutoDiffSemanticResultsParameters();
       for (auto resultIndex : desiredResultIndices->getIndices()) {
         SILType resultType;
-        if (resultIndex >= originalFnTy->getNumResults()) {
-          auto semanticResultParamIdx = resultIndex - originalFnTy->getNumResults();
+        if (resultIndex >= firstYieldResultIndex) {
+          auto yieldResultIndex = resultIndex - firstYieldResultIndex;
+          auto yield = originalFnTy->getYields()[yieldResultIndex];
+          // We can only differentiate indirect yields. This should be diagnosed
+          // earlier in VJPCloner.
+          assert(yield.isAutoDiffSemanticResult() && "unsupported result");
+          resultType = yield.getSILStorageInterfaceType();
+        } else if (resultIndex >= firstSemanticParamResultIdx) {
+          auto semanticResultParamIdx = resultIndex - firstSemanticParamResultIdx;
           auto semanticResultParam =
               *std::next(originalFnTy->getAutoDiffSemanticResultsParameters().begin(),
                          semanticResultParamIdx);
@@ -553,7 +576,7 @@ emitDerivativeFunctionReference(
           resultType = originalFnTy->getResults()[resultIndex]
                            .getSILStorageInterfaceType();
         }
-        if (!resultType.isDifferentiable(context.getModule())) {
+        if (!resultType || !resultType.isDifferentiable(context.getModule())) {
           context.emitNondifferentiabilityError(
               original, invoker, diag::autodiff_nondifferentiable_result);
           return std::nullopt;

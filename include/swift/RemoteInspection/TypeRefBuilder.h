@@ -1134,7 +1134,9 @@ public:
 
   const FunctionTypeRef *createImplFunctionType(
       Demangle::ImplParameterConvention calleeConvention,
+      Demangle::ImplCoroutineKind coroutineKind,
       llvm::ArrayRef<Demangle::ImplFunctionParam<const TypeRef *>> params,
+      llvm::ArrayRef<Demangle::ImplFunctionYield<const TypeRef *>> yields,
       llvm::ArrayRef<Demangle::ImplFunctionResult<const TypeRef *>> results,
       std::optional<Demangle::ImplFunctionResult<const TypeRef *>> errorResult,
       ImplFunctionTypeFlags flags) {

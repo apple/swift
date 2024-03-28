@@ -553,6 +553,7 @@ struct [[nodiscard]] ManglingError {
     UnknownEncoding,
     InvalidImplCalleeConvention,
     InvalidImplDifferentiability,
+    InvalidImplCoroutineKind,
     InvalidImplFunctionAttribute,
     InvalidImplParameterConvention,
     InvalidImplParameterTransferring,

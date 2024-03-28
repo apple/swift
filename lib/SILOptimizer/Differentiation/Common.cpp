@@ -17,6 +17,7 @@
 #include "swift/Basic/STLExtras.h"
 #define DEBUG_TYPE "differentiation"
 
+#include "swift/SIL/ApplySite.h"
 #include "swift/SILOptimizer/Differentiation/Common.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/SILOptimizer/Differentiation/ADContext.h"
@@ -145,6 +146,20 @@ void collectAllFormalResultsInTypeOrder(SILFunction &function,
     auto *argument = function.getArgumentsWithoutIndirectResults()[i];
     results.push_back(argument);
   }
+  // Treat yields as semantic results. Note that we can only differentiate
+  // @yield_once with simple control flow, so we can assume that the function
+  // contains only a single `yield` instruction
+  auto yieldIt =
+    std::find_if(function.begin(), function.end(),
+      [](const SILBasicBlock &BB) -> bool {
+        const TermInst *TI = BB.getTerminator();
+        return isa<YieldInst>(TI);
+    });
+  if (yieldIt != function.end()) {
+    auto *yieldInst = cast<YieldInst>(yieldIt->getTerminator());
+    for (auto yield : yieldInst->getOperandValues())
+      results.push_back(yield);
+  }
 }
 
 void collectAllDirectResultsInTypeOrder(SILFunction &function,
@@ -161,30 +176,30 @@ void collectAllDirectResultsInTypeOrder(SILFunction &function,
 }
 
 void collectAllActualResultsInTypeOrder(
-    ApplyInst *ai, ArrayRef<SILValue> extractedDirectResults,
+    FullApplySite fai, ArrayRef<SILValue> extractedDirectResults,
     SmallVectorImpl<SILValue> &results) {
-  auto calleeConvs = ai->getSubstCalleeConv();
+  auto calleeConvs = fai.getSubstCalleeConv();
   unsigned indResIdx = 0, dirResIdx = 0;
   for (auto &resInfo : calleeConvs.getResults()) {
     results.push_back(resInfo.isFormalDirect()
                           ? extractedDirectResults[dirResIdx++]
-                          : ai->getIndirectSILResults()[indResIdx++]);
+                          : fai.getIndirectSILResults()[indResIdx++]);
   }
 }
 
 void collectMinimalIndicesForFunctionCall(
-    ApplyInst *ai, const AutoDiffConfig &parentConfig,
+    FullApplySite ai, const AutoDiffConfig &parentConfig,
     const DifferentiableActivityInfo &activityInfo,
     SmallVectorImpl<SILValue> &results, SmallVectorImpl<unsigned> &paramIndices,
     SmallVectorImpl<unsigned> &resultIndices) {
-  auto calleeFnTy = ai->getSubstCalleeType();
-  auto calleeConvs = ai->getSubstCalleeConv();
+  auto calleeFnTy = ai.getSubstCalleeType();
+  auto calleeConvs = ai.getSubstCalleeConv();
 
   // Parameter indices are indices (in the callee type signature) of parameter
   // arguments that are varied or are arguments.
   // Record all parameter indices in type order.
   unsigned currentParamIdx = 0;
-  for (auto applyArg : ai->getArgumentsWithoutIndirectResults()) {
+  for (auto applyArg : ai.getArgumentsWithoutIndirectResults()) {
     if (activityInfo.isActive(applyArg, parentConfig))
       paramIndices.push_back(currentParamIdx);
     ++currentParamIdx;
@@ -196,7 +211,7 @@ void collectMinimalIndicesForFunctionCall(
   forEachApplyDirectResult(ai, [&](SILValue directResult) {
     directResults.push_back(directResult);
   });
-  auto indirectResults = ai->getIndirectSILResults();
+  auto indirectResults = ai.getIndirectSILResults();
   // Record all results and result indices in type order.
   results.reserve(calleeFnTy->getNumResults());
   unsigned dirResIdx = 0;
@@ -225,8 +240,18 @@ void collectMinimalIndicesForFunctionCall(
     if (!param.isAutoDiffSemanticResult())
       continue;
     unsigned idx = paramAndIdx.index() + calleeFnTy->getNumIndirectFormalResults();
-    results.push_back(ai->getArgument(idx));
+    results.push_back(ai.getArgument(idx));
     resultIndices.push_back(semanticResultParamResultIndex++);
+  }
+
+  // Record all yields. While we do not have a way to represent direct yields
+  // (_read accessors) we run activity analysis for them. These will be
+  // diagnosed later.
+  if (BeginApplyInst *bai = dyn_cast<BeginApplyInst>(*ai)) {
+    for (const auto &yieldAndIdx : enumerate(calleeConvs.getYields())) {
+      results.push_back(bai->getYieldedValues()[yieldAndIdx.index()]);
+      resultIndices.push_back(semanticResultParamResultIndex++);
+    }
   }
 
   // Make sure the function call has active results.
