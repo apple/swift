@@ -928,6 +928,13 @@ FuncDecl *GetDistributedThunkRequest::evaluate(Evaluator &evaluator,
     return nullptr;
   }
 
+  auto systemTy = getConcreteReplacementForProtocolActorSystemType(distributedTarget);
+  if (!systemTy || !systemTy->getAnyNominal()) {
+    // If the declared actor system type is illegal (e.g. non-existing type),
+    // bail out before trying to synthesize the thunk.
+    return nullptr;
+  }
+
   if (auto func = dyn_cast<FuncDecl>(distributedTarget)) {
     // not via `ensureDistributedModuleLoaded` to avoid generating a warning,
     // we won't be emitting the offending decl after all.
@@ -1033,6 +1040,16 @@ NormalProtocolConformance *GetDistributedActorImplicitCodableRequest::evaluate(
   auto classDecl = dyn_cast<ClassDecl>(nominal);
   if (!classDecl) {
     // we only synthesize the conformance for concrete actors
+    return nullptr;
+  }
+
+  auto systemTy = getDistributedActorSystemType(nominal);
+  if (!systemTy || !systemTy->getAnyNominal()) {
+    return nullptr;
+  }
+
+  auto idTy = getDistributedActorIDType(nominal);
+  if (!idTy || !idTy->getAnyNominal()) {
     return nullptr;
   }
 
