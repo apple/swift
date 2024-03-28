@@ -175,6 +175,7 @@ LANGUAGE_FEATURE(ExpressionMacroDefaultArguments, 422, "Expression macro as call
 LANGUAGE_FEATURE(BuiltinStoreRaw, 0, "Builtin.storeRaw")
 LANGUAGE_FEATURE(BuiltinCreateTask, 0, "Builtin.createTask and Builtin.createDiscardingTask")
 SUPPRESSIBLE_LANGUAGE_FEATURE(AssociatedTypeImplements, 0, "@_implements on associated types")
+LANGUAGE_FEATURE(BuiltinAddressOfRawLayout, 0, "Builtin.addressOfRawLayout")
 
 // Swift 6
 UPCOMING_FEATURE(ConciseMagicFile, 274, 6)

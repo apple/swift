@@ -633,6 +633,7 @@ CONSTANT_OWNERSHIP_BUILTIN(None, GetEnumTag)
 CONSTANT_OWNERSHIP_BUILTIN(None, InjectEnumTag)
 CONSTANT_OWNERSHIP_BUILTIN(Owned, DistributedActorAsAnyActor)
 CONSTANT_OWNERSHIP_BUILTIN(Guaranteed, ExtractFunctionIsolation) // unreachable
+CONSTANT_OWNERSHIP_BUILTIN(None, AddressOfRawLayout)
 
 #undef CONSTANT_OWNERSHIP_BUILTIN
 

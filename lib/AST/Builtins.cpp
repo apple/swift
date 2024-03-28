@@ -2141,6 +2141,15 @@ static ValueDecl *getInjectEnumTag(ASTContext &ctx, Identifier id) {
   return builder.build(id);
 }
 
+static ValueDecl *getAddressOfRawLayout(ASTContext &ctx, Identifier id) {
+  BuiltinFunctionBuilder builder(ctx, /* genericParamCount */ 1);
+
+  builder.addParameter(makeGenericParam(), ParamSpecifier::Borrowing);
+  builder.setResult(makeConcrete(ctx.TheRawPointerType));
+
+  return builder.build(id);
+}
+
 /// An array of the overloaded builtin kinds.
 static const OverloadedBuiltinKind OverloadedBuiltinKinds[] = {
   OverloadedBuiltinKind::None,
@@ -3214,6 +3223,9 @@ ValueDecl *swift::getBuiltinValueDecl(ASTContext &Context, Identifier Id) {
 
   case BuiltinValueKind::DistributedActorAsAnyActor:
     return getDistributedActorAsAnyActor(Context, Id);
+
+  case BuiltinValueKind::AddressOfRawLayout:
+    return getAddressOfRawLayout(Context, Id);
   }
 
   llvm_unreachable("bad builtin value!");

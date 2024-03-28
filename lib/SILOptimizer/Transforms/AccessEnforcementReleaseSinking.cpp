@@ -159,6 +159,7 @@ static bool isBarrier(SILInstruction *inst) {
     case BuiltinValueKind::GetEnumTag:
     case BuiltinValueKind::InjectEnumTag:
     case BuiltinValueKind::ExtractFunctionIsolation:
+    case BuiltinValueKind::AddressOfRawLayout:
       return false;
 
     // Handle some rare builtins that may be sensitive to object lifetime

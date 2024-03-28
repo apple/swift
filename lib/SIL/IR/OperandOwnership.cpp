@@ -892,6 +892,7 @@ BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, TargetOSVersionAtLeast)
 BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, GetEnumTag)
 BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, InjectEnumTag)
 BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, DistributedActorAsAnyActor)
+BUILTIN_OPERAND_OWNERSHIP(InstantaneousUse, AddressOfRawLayout)
 OperandOwnership OperandOwnershipBuiltinClassifier::visitCopy(BuiltinInst *bi,
                                                               StringRef) {
   if (bi->getFunction()->getConventions().useLoweredAddresses()) {

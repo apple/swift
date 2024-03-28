@@ -2,6 +2,7 @@
 // RUN: %{python} %utils/chex.py < %s > %t/raw_layout.sil
 // RUN: %target-swift-frontend -enable-experimental-feature RawLayout -emit-ir -disable-availability-checking %t/raw_layout.sil | %FileCheck %t/raw_layout.sil --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize
 
+import Builtin
 import Swift
 
 // CHECK-LABEL: @"$s{{[A-Za-z0-9_]*}}4LockVWV" = {{.*}} %swift.vwtable
@@ -142,6 +143,33 @@ struct BadBuffer: ~Copyable {
     let buffer: SmallVectorOf3<Int64?>
 }
 
+sil @use_lock : $@convention(thin) (@in_guaranteed Lock) -> () {
+entry(%L: $*Lock):
+    return undef : $()
+}
+
+sil @use_keymaster_locks : $@convention(thin) (@in_guaranteed Keymaster) -> () {
+entry(%K: $*Keymaster):
+    %f = function_ref @use_lock : $@convention(thin) (@in_guaranteed Lock) -> ()
+    %a = struct_element_addr %K : $*Keymaster, #Keymaster.lock1
+    apply %f(%a) : $@convention(thin) (@in_guaranteed Lock) -> ()
+    %b = struct_element_addr %K : $*Keymaster, #Keymaster.lock2
+    apply %f(%b) : $@convention(thin) (@in_guaranteed Lock) -> ()
+    %c = struct_element_addr %K : $*Keymaster, #Keymaster.lock2
+    apply %f(%c) : $@convention(thin) (@in_guaranteed Lock) -> ()
+    return undef : $()
+}
+
+// CHECK: define {{.*}}swiftcc ptr @get_cell_addr(ptr %"Cell<T>", ptr {{.*}} swiftself [[SELF:%.*]])
+// CHECK-NEXT:   entry:
+// CHECK-NEXT:     ret ptr [[SELF]]
+sil @get_cell_addr : $@convention(method) <T> (@in_guaranteed Cell<T>) -> UnsafeMutablePointer<T> {
+entry(%0 : $*Cell<T>):
+    %1 = builtin "addressOfRawLayout"(%0 : $*Cell<T>) : $Builtin.RawPointer
+    %2 = struct $UnsafeMutablePointer<T> (%1 : $Builtin.RawPointer)
+    return %2 : $UnsafeMutablePointer<T>
+}
+
 // Dependent layout metadata initialization:
 
 // Cell<T>
@@ -165,20 +193,3 @@ struct BadBuffer: ~Copyable {
 
 // CHECK-LABEL: define {{.*}} swiftcc %swift.metadata_response @"$s{{[A-Za-z0-9_]*}}14SmallVectorBufVMr"(ptr %"SmallVectorBuf<T>", ptr {{.*}}, ptr {{.*}})
 // CHECK: call void @swift_initRawStructMetadata(ptr %"SmallVectorBuf<T>", {{i64|i32}} 0, ptr {{%.*}}, {{i64|i32}} 8)
-
-sil @use_lock : $@convention(thin) (@in_guaranteed Lock) -> () {
-entry(%L: $*Lock):
-    return undef : $()
-}
-
-sil @use_keymaster_locks : $@convention(thin) (@in_guaranteed Keymaster) -> () {
-entry(%K: $*Keymaster):
-    %f = function_ref @use_lock : $@convention(thin) (@in_guaranteed Lock) -> ()
-    %a = struct_element_addr %K : $*Keymaster, #Keymaster.lock1
-    apply %f(%a) : $@convention(thin) (@in_guaranteed Lock) -> ()
-    %b = struct_element_addr %K : $*Keymaster, #Keymaster.lock2
-    apply %f(%b) : $@convention(thin) (@in_guaranteed Lock) -> ()
-    %c = struct_element_addr %K : $*Keymaster, #Keymaster.lock2
-    apply %f(%c) : $@convention(thin) (@in_guaranteed Lock) -> ()
-    return undef : $()
-}

@@ -2667,6 +2667,7 @@ static void visitBuiltinAddress(BuiltinInst *builtin,
     // These builtins take a generic 'T' as their operand.
     case BuiltinValueKind::GetEnumTag:
     case BuiltinValueKind::InjectEnumTag:
+    case BuiltinValueKind::AddressOfRawLayout:
       visitor(&builtin->getAllOperands()[0]);
       return;
 

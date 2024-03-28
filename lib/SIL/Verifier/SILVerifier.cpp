@@ -600,6 +600,12 @@ struct ImmutableAddressUseVerifier {
           if (builtinKind == BuiltinValueKind::GetEnumTag) {
             return false;
           }
+
+          // The optimizer cannot reason about a raw layout type's address due
+          // to it not respecting formal access scopes.
+          if (builtinKind == BuiltinValueKind::AddressOfRawLayout) {
+            return false;
+          }
         }
 
         // Otherwise this is a builtin that we are not expecting to see, so bail
