@@ -154,7 +154,7 @@ bb0:
 
 // CHECK-LABEL: sil [ossa] @test_beginborrow_parsing :
 // CHECK:   %1 = begin_borrow [pointer_escape] %0 : $Builtin.NativeObject
-// CHECK-LABE: } // end sil function 'test_beginborrow_parsing'
+// CHECK-LABEL: } // end sil function 'test_beginborrow_parsing'
 sil [ossa] @test_beginborrow_parsing : $@convention(thin) (@owned Builtin.NativeObject) -> () {
 bb0(%0 : @owned $Builtin.NativeObject):
   %1 = begin_borrow [pointer_escape] %0 : $Builtin.NativeObject
