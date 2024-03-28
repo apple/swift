@@ -4832,6 +4832,9 @@ NOTE(add_explicit_escaping,none,
 ERROR(converting_func_loses_global_actor,none,
       "converting function value of type %0 to %1 loses global actor %2",
       (Type, Type, Type))
+ERROR(sendable_isolated_function,none,
+      "%0 function cannot be converted to a synchronous '@Sendable' function type",
+      (ActorIsolation))
 ERROR(capture_across_type_decl,none,
       "%0 declaration cannot close over value %1 defined in outer scope",
       (DescriptiveDeclKind, Identifier))

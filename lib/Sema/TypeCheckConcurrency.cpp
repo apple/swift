@@ -2385,6 +2385,57 @@ namespace {
       }
     }
 
+    // There are cases where the isolation of a closure is not represented
+    // in the closure type, e.g. when @_inheritActorContext is used. Once
+    // the closure actor isolation has been determined, this function checks
+    // that actor-isolated closures cannot be synchronously called from outside
+    // the actor.
+    void checkClosureIsolation(AbstractClosureExpr *closure) {
+      auto &ctx = getDeclContext()->getASTContext();
+
+      if (closure->getType()->hasError())
+        return;
+
+      // Non-Sendable isolated functions cannot be passed over an isolation
+      // boundary, and async functions must always hop to the actor in the
+      // closure body. In both cases, it's always fine for the closure to
+      // be actor isolated.
+      auto *closureType = closure->getType()->getAs<FunctionType>();
+      if (!closureType->isSendable() || closureType->isAsync())
+        return;
+
+      auto isolation = closure->getActorIsolation();
+      switch (isolation) {
+      case ActorIsolation::Unspecified:
+      case ActorIsolation::Nonisolated:
+      case ActorIsolation::NonisolatedUnsafe:
+        return;
+
+      case ActorIsolation::GlobalActor:
+        // If the closure type has a global actor, either converting away the
+        // global actor has already been diagnosed, or the global actor matches
+        // the isolation.
+        if (closureType->getGlobalActor())
+          return;
+
+        break;
+
+      case ActorIsolation::Erased:
+        if (closureType->getIsolation().isErased())
+          return;
+
+        break;
+
+      case ActorIsolation::ActorInstance:
+        break;
+      }
+
+      ctx.Diags.diagnose(closure->getLoc(),
+                         diag::sendable_isolated_function,
+                         isolation)
+        .warnUntilSwiftVersion(6);
+    }
+
     bool refineRequiredIsolation(ActorIsolation refinedIsolation) {
       if (requiredIsolationLoc.isInvalid())
         return false;
@@ -2669,6 +2720,7 @@ namespace {
 
       if (auto *closure = dyn_cast<AbstractClosureExpr>(expr)) {
         closure->setActorIsolation(determineClosureIsolation(closure));
+        checkClosureIsolation(closure);
         checkLocalCaptures(closure);
         contextStack.push_back(closure);
         return Action::Continue(expr);

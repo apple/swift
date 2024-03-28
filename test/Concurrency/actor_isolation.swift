@@ -1610,3 +1610,28 @@ nonisolated func accessAcrossActors() {
   // expected-warning@+1 {{main actor-isolated static property 'shared' can not be referenced from a non-isolated context; this is an error in the Swift 6 language mode}}
   let _ = MainActorIsolated.shared
 }
+
+func requireSendableInheritContext(@_inheritActorContext _: @Sendable () -> ()) {}
+
+actor InvalidInheritedActorIsolation {
+  func actorFunction() {}
+
+  func test() {
+    // expected-warning@+1 {{actor-isolated function cannot be converted to a synchronous '@Sendable' function type; this is an error in Swift 6}}
+    requireSendableInheritContext {
+      self.actorFunction()
+    }
+  }
+}
+
+@MainActor
+class InvalidInheritedGlobalActorIsolation {
+  func mainActorFunction() {}
+
+  func test() {
+    // expected-warning@+1 {{main actor-isolated function cannot be converted to a synchronous '@Sendable' function type; this is an error in Swift 6}}
+    requireSendableInheritContext {
+      self.mainActorFunction()
+    }
+  }
+}
