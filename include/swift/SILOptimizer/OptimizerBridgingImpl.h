@@ -19,11 +19,12 @@
 #ifndef SWIFT_SILOPTIMIZER_OPTIMIZERBRIDGING_IMPL_H
 #define SWIFT_SILOPTIMIZER_OPTIMIZERBRIDGING_IMPL_H
 
-#include "swift/SILOptimizer/OptimizerBridging.h"
+#include "swift/Demangling/Demangle.h"
 #include "swift/SILOptimizer/Analysis/AliasAnalysis.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DeadEndBlocksAnalysis.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
+#include "swift/SILOptimizer/OptimizerBridging.h"
 #include "swift/SILOptimizer/PassManager/PassManager.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 

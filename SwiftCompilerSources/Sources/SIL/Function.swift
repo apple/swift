@@ -31,6 +31,12 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     hasher.combine(ObjectIdentifier(self))
   }
 
+  public var isTrapNoReturn: Bool { bridged.isTrapNoReturn() }
+
+  public var isAutodiffVJP: Bool { bridged.isAutodiffVJP() }
+
+  public var specializationLevel: Int { bridged.specializationLevel() }
+  
   public var hasOwnership: Bool { bridged.hasOwnership() }
 
   public var hasLoweredAddresses: Bool { bridged.hasLoweredAddresses() }
@@ -59,6 +65,10 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
     entryBlock.arguments.lazy.map { $0 as! FunctionArgument }
   }
 
+  public func argument(at index: Int) -> FunctionArgument {
+    entryBlock.arguments[index] as! FunctionArgument
+  }
+
   /// All instructions of all blocks.
   public var instructions: LazySequence<FlattenSequence<LazyMapSequence<BasicBlockList, InstructionList>>> {
     blocks.lazy.flatMap { $0.instructions }
@@ -82,6 +92,8 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
   public var isTransparent: Bool { bridged.isTransparent() }
 
   public var isAsync: Bool { bridged.isAsync() }
+
+  public var isReabstractionThunk: Bool { bridged.isReabstractionThunk() }
 
   /// True if this is a `[global_init]` function.
   ///

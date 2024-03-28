@@ -500,7 +500,7 @@ bool swift::splitAllCondBrCriticalEdgesWithNonTrivialArgs(
   return true;
 }
 
-static bool isSafeNonExitTerminator(TermInst *ti) {
+bool isSafeNonExitTerminator(TermInst *ti) {
   switch (ti->getTermKind()) {
   case TermKind::BranchInst:
   case TermKind::CondBranchInst:
@@ -529,14 +529,13 @@ static bool isSafeNonExitTerminator(TermInst *ti) {
   llvm_unreachable("Unhandled TermKind in switch.");
 }
 
-static bool isTrapNoReturnFunction(ApplyInst *ai) {
+bool swift::isTrapNoReturnFunction(SILFunction *f) {
   const char *fatalName = MANGLE_AS_STRING(
       MANGLE_SYM(s18_fatalErrorMessageyys12StaticStringV_AcCSutF));
-  auto *fn = ai->getReferencedFunctionOrNull();
 
   // We use endswith here since if we specialize fatal error we will always
   // prepend the specialization records to fatalName.
-  if (!fn || !fn->getName().endswith(fatalName))
+  if (!f || !f->getName().endswith(fatalName))
     return false;
 
   return true;
@@ -571,7 +570,8 @@ bool swift::findAllNonFailureExitBBs(
     // non-failure exit bb. Add it to our list and continue.
     auto prevIter = std::prev(SILBasicBlock::iterator(ti));
     if (auto *ai = dyn_cast<ApplyInst>(&*prevIter)) {
-      if (ai->isCalleeNoReturn() && !isTrapNoReturnFunction(ai)) {
+      if (ai->isCalleeNoReturn() &&
+          !isTrapNoReturnFunction(ai->getReferencedFunctionOrNull())) {
         bbs.push_back(&bb);
         continue;
       }

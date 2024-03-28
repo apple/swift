@@ -108,6 +108,10 @@ public protocol ApplySite : Instruction {
 extension ApplySite {
   public var callee: Value { operands[ApplyOperandConventions.calleeIndex].value }
 
+  public var hasSubstitutions: Bool {
+    return substitutionMap.hasAnySubstitutableParams
+  }
+
   public var isAsync: Bool {
     return callee.type.isAsyncFunction
   }
@@ -126,7 +130,15 @@ extension ApplySite {
     return false
   }
 
-  /// Returns the subset of operands that are argument operands.
+  public var isCalleeNoReturn: Bool {
+    bridged.ApplySite_isCalleeNoReturn()  
+  }
+
+  public var isCalleeTrapNoReturn: Bool {
+    referencedFunction?.isTrapNoReturn ?? false
+  }
+
+  /// Returns the subset of operands which are argument operands.
   ///
   /// This does not include the callee function operand.
   public var argumentOperands: OperandArray {

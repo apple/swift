@@ -164,7 +164,8 @@ public func registerOptimizerTests() {
     lifetimeDependenceUseTest,
     linearLivenessTest,
     parseTestSpecificationTest,
-    variableIntroducerTest
+    variableIntroducerTest,
+    gatherCallSitesTest
   )
 
   // Finally register the thunk they all call through.

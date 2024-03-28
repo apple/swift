@@ -10,25 +10,31 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <cassert>
 #define DEBUG_TYPE "sil-passmanager"
 
 #include "swift/SILOptimizer/PassManager/PassManager.h"
+#include "../../IRGen/IRGenModule.h"
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/SILOptimizerRequests.h"
 #include "swift/Demangling/Demangle.h"
-#include "../../IRGen/IRGenModule.h"
+#include "swift/Demangling/Demangler.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/DynamicCasts.h"
+#include "swift/SIL/SILBridging.h"
 #include "swift/SIL/SILCloner.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/FunctionOrder.h"
+#include "swift/SILOptimizer/IPO/ClosureSpecializer.h"
 #include "swift/SILOptimizer/OptimizerBridging.h"
 #include "swift/SILOptimizer/PassManager/PrettyStackTrace.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
-#include "swift/SILOptimizer/Utils/Devirtualize.h"
+#include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/ConstantFolding.h"
+#include "swift/SILOptimizer/Utils/Devirtualize.h"
+#include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "swift/SILOptimizer/Utils/OptimizerStatsUtils.h"
 #include "swift/SILOptimizer/Utils/SILInliner.h"
 #include "swift/SILOptimizer/Utils/SILOptFunctionBuilder.h"
@@ -41,7 +47,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/ManagedStatic.h"
-
 #include <fstream>
 
 using namespace swift;
@@ -1569,6 +1574,26 @@ void SwiftPassInvocation::endVerifyFunction() {
 SwiftPassInvocation::~SwiftPassInvocation() {}
 
 //===----------------------------------------------------------------------===//
+//                           SIL Bridging
+//===----------------------------------------------------------------------===//
+bool BridgedFunction::mayBindDynamicSelf() const {
+  return swift::mayBindDynamicSelf(getFunction());
+}
+
+bool BridgedFunction::isTrapNoReturn() const {
+  return swift::isTrapNoReturnFunction(getFunction());
+}
+
+bool BridgedFunction::isAutodiffVJP() const {
+  return swift::isDifferentiableFuncComponent(
+      getFunction(), swift::AutoDiffFunctionComponent::VJP);
+}
+
+SwiftInt BridgedFunction::specializationLevel() const {
+  return swift::getSpecializationLevel(getFunction());
+}
+
+//===----------------------------------------------------------------------===//
 //                           OptimizerBridging
 //===----------------------------------------------------------------------===//
 
@@ -1754,6 +1779,40 @@ BridgedOwnedString BridgedPassContext::mangleWithDeadArgs(const SwiftInt * _Null
     Mangler.setArgumentDead((unsigned)idx);
   }
   return Mangler.mangle();
+}
+
+BridgedOwnedString BridgedPassContext::mangleWithClosureArgs(
+  BridgedValueArray bridgedClosureArgs,
+  BridgedArrayRef bridgedClosureArgIndices,
+  BridgedFunction applySiteCallee
+) const {
+  auto pass = Demangle::SpecializationPass::ClosureSpecializer;
+  auto isSerialized = applySiteCallee.getFunction()->isSerialized();
+  Mangle::FunctionSignatureSpecializationMangler mangler(
+      pass, isSerialized, applySiteCallee.getFunction());
+
+  llvm::SmallVector<swift::SILValue, 16> closureArgsStorage;
+  auto closureArgs = bridgedClosureArgs.getValues(closureArgsStorage);
+  auto closureArgIndices = bridgedClosureArgIndices.unbridged<SwiftInt>();
+
+  assert(closureArgs.size() == closureArgIndices.size() &&
+         "Number of closures arguments and number of closure indices do not match!");
+
+  for (size_t i = 0; i < closureArgs.size(); i++) {
+    auto closureArg = closureArgs[i];
+    auto closureArgIndex = closureArgIndices[i];
+
+    if (auto *PAI = dyn_cast<PartialApplyInst>(closureArg)) {
+      mangler.setArgumentClosureProp(closureArgIndex,
+                                     const_cast<PartialApplyInst *>(PAI));
+    } else {
+      auto *TTTFI = cast<ThinToThickFunctionInst>(closureArg);
+      mangler.setArgumentClosureProp(closureArgIndex, 
+                                     const_cast<ThinToThickFunctionInst *>(TTTFI));
+    }
+  }
+
+  return mangler.mangle();
 }
 
 BridgedGlobalVar BridgedPassContext::createGlobalVariable(BridgedStringRef name, BridgedType type, bool isPrivate) const {

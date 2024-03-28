@@ -549,6 +549,13 @@ public:
     // Handle whatever AST types are known to hold functions. Namely tuples.
     return ty->isNoEscape();
   }
+  
+  bool isThickFunction() const {
+    if (auto *fTy = getASTType()->getAs<SILFunctionType>()) {
+      return fTy->getRepresentation() == SILFunctionType::Representation::Thick;
+    }
+    return false;
+  }
 
   bool isAsyncFunction() const {
     if (auto *fTy = getASTType()->getAs<SILFunctionType>()) {

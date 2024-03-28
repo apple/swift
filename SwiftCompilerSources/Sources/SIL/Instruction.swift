@@ -900,7 +900,16 @@ class ConvertFunctionInst : SingleValueInstruction, UnaryInstruction {
 }
 
 final public
-class ThinToThickFunctionInst : SingleValueInstruction, UnaryInstruction {}
+class ThinToThickFunctionInst : SingleValueInstruction, UnaryInstruction {
+  public var callee: Value { operand.value }
+
+  public var referencedFunction: Function? {
+    if let fri = callee as? FunctionRefInst {
+      return fri.referencedFunction
+    }
+    return nil
+  }
+}
 
 final public class ThickToObjCMetatypeInst : SingleValueInstruction {}
 final public class ObjCToThickMetatypeInst : SingleValueInstruction {}

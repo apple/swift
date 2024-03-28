@@ -262,6 +262,10 @@ bool BridgedType::containsNoEscapeFunction() const {
   return unbridged().containsNoEscapeFunction();
 }
 
+bool BridgedType::isThickFunction() const {
+  return unbridged().isThickFunction();
+}
+
 bool BridgedType::isAsyncFunction() const {
   return unbridged().isAsyncFunction();
 }
@@ -530,6 +534,10 @@ bool BridgedSubstitutionMap::isEmpty() const {
   return unbridged().empty();
 }
 
+bool BridgedSubstitutionMap::hasAnySubstitutableParams() const {
+  return unbridged().hasAnySubstitutableParams();
+}
+
 //===----------------------------------------------------------------------===//
 //                                BridgedLocation
 //===----------------------------------------------------------------------===//
@@ -633,6 +641,10 @@ bool BridgedFunction::isTransparent() const {
 
 bool BridgedFunction::isAsync() const {
   return getFunction()->isAsync();
+}
+
+bool BridgedFunction::isReabstractionThunk() const {
+  return getFunction()->isThunk() == swift::IsReabstractionThunk;
 }
 
 bool BridgedFunction::isGlobalInitFunction() const {
@@ -1281,6 +1293,10 @@ BridgedASTType BridgedInstruction::ApplySite_getSubstitutedCalleeType() const {
 
 SwiftInt BridgedInstruction::ApplySite_getNumArguments() const {
   return swift::ApplySite(unbridged()).getNumArguments();
+}
+
+bool BridgedInstruction::ApplySite_isCalleeNoReturn() const {
+  return swift::ApplySite(unbridged()).isCalleeNoReturn();
 }
 
 SwiftInt BridgedInstruction::FullApplySite_numIndirectResultArguments() const {

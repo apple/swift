@@ -190,6 +190,8 @@ bool mergeBasicBlockWithSuccessor(SILBasicBlock *bb, DominanceInfo *domInfo,
 /// quadratic.
 bool mergeBasicBlocks(SILFunction *f);
 
+bool isTrapNoReturnFunction(SILFunction *f);
+
 /// Return true if we conservatively find all bb's that are non-failure exit
 /// basic blocks and place them in \p bbs. If we find something we don't
 /// understand, bail.

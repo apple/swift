@@ -347,6 +347,7 @@ struct BridgedType {
   BRIDGED_INLINE bool isMetatype() const;
   BRIDGED_INLINE bool isNoEscapeFunction() const;
   BRIDGED_INLINE bool containsNoEscapeFunction() const;
+  BRIDGED_INLINE bool isThickFunction() const;
   BRIDGED_INLINE bool isAsyncFunction() const;
   BRIDGED_INLINE bool isEmpty(BridgedFunction f) const;
   BRIDGED_INLINE TraitResult canBeClass() const;
@@ -373,7 +374,8 @@ struct BridgedType {
   BRIDGED_INLINE bool isEndCaseIterator(EnumElementIterator i) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedType getEnumCasePayload(EnumElementIterator i, BridgedFunction f) const;
   BRIDGED_INLINE SwiftInt getNumTupleElements() const;
-  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedType getTupleElementType(SwiftInt idx) const;
+  SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedType
+  getTupleElementType(SwiftInt idx) const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedType getFunctionTypeWithNoEscape(bool withNoEscape) const;
 };
 
@@ -547,6 +549,7 @@ struct BridgedFunction {
   BRIDGED_INLINE bool isAvailableExternally() const;
   BRIDGED_INLINE bool isTransparent() const;
   BRIDGED_INLINE bool isAsync() const;
+  BRIDGED_INLINE bool isReabstractionThunk() const;
   BRIDGED_INLINE bool isGlobalInitFunction() const;
   BRIDGED_INLINE bool isGlobalInitOnceFunction() const;
   BRIDGED_INLINE bool isDestructor() const;
@@ -554,6 +557,7 @@ struct BridgedFunction {
   BRIDGED_INLINE bool hasSemanticsAttr(BridgedStringRef attrName) const;
   BRIDGED_INLINE bool hasUnsafeNonEscapableResult() const;
   BRIDGED_INLINE bool hasResultDependsOnSelf() const;
+  bool mayBindDynamicSelf() const;
   BRIDGED_INLINE EffectsKind getEffectAttribute() const;
   BRIDGED_INLINE PerformanceConstraints getPerformanceConstraints() const;
   BRIDGED_INLINE InlineStrategy getInlineStrategy() const;
@@ -566,6 +570,9 @@ struct BridgedFunction {
   BRIDGED_INLINE void setIsPerformanceConstraint(bool isPerfConstraint) const;
   BRIDGED_INLINE bool isResilientNominalDecl(BridgedNominalTypeDecl decl) const;
   BRIDGED_INLINE BridgedType getLoweredType(BridgedASTType type) const;
+  bool isTrapNoReturn() const;
+  bool isAutodiffVJP() const;
+  SwiftInt specializationLevel() const;
 
   enum class ParseEffectsMode {
     argumentEffectsFromSource,
@@ -658,6 +665,7 @@ struct BridgedSubstitutionMap {
 
   BRIDGED_INLINE BridgedSubstitutionMap();
   BRIDGED_INLINE bool isEmpty() const;
+  BRIDGED_INLINE bool hasAnySubstitutableParams() const;
 };
 
 struct BridgedTypeArray {
@@ -917,6 +925,7 @@ struct BridgedInstruction {
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedSubstitutionMap ApplySite_getSubstitutionMap() const;
   SWIFT_IMPORT_UNSAFE BRIDGED_INLINE BridgedASTType ApplySite_getSubstitutedCalleeType() const;
   BRIDGED_INLINE SwiftInt ApplySite_getNumArguments() const;
+  BRIDGED_INLINE bool ApplySite_isCalleeNoReturn() const;
   BRIDGED_INLINE SwiftInt FullApplySite_numIndirectResultArguments() const;
 
   // =========================================================================//

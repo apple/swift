@@ -57,6 +57,26 @@ final public class BasicBlock : CustomStringConvertible, HasShortDescription, Ha
     successors.count == 1 ? successors[0] : nil
   }
 
+  /// All function exiting blocks except for ones with an `unreachable` terminator,
+  /// not immediately preceded by an apply of a no-return function.
+  public var isReachableExitBlock: Bool {
+    switch terminator {
+      case let termInst where termInst.isFunctionExiting:
+        return true
+      case is UnreachableInst:
+        if let instBeforeUnreachable = terminator.previous,
+           let ai = instBeforeUnreachable as? ApplyInst,
+           ai.isCalleeNoReturn && !ai.isCalleeTrapNoReturn
+        {
+          return true
+        }
+
+        return false
+      default:
+        return false
+    }
+  }
+
   /// The index of the basic block in its function.
   /// This has O(n) complexity. Only use it for debugging
   public var index: Int {

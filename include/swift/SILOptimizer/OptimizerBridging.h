@@ -235,6 +235,9 @@ struct BridgedPassContext {
   SWIFT_IMPORT_UNSAFE BridgedOwnedString mangleWithDeadArgs(const SwiftInt * _Nullable deadArgs,
                                                             SwiftInt numDeadArgs,
                                                             BridgedFunction function) const;
+  SWIFT_IMPORT_UNSAFE BridgedOwnedString mangleWithClosureArgs(BridgedValueArray closureArgs,
+                                                               BridgedArrayRef closureArgIndices,
+                                                               BridgedFunction applySiteCallee) const;
 
   SWIFT_IMPORT_UNSAFE BridgedGlobalVar createGlobalVariable(BridgedStringRef name, BridgedType type,
                                                             bool isPrivate) const;
