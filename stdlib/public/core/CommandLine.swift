@@ -20,7 +20,7 @@ internal func _swift_stdlib_getUnsafeArgvArgc(_: UnsafeMutablePointer<Int32>)
 
 /// Command-line arguments for the current process.
 @frozen // namespace
-public enum CommandLine {
+public enum CommandLine : ~_BitwiseCopyable {
   /// The backing static variable for argument count may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
   @usableFromInline
@@ -101,8 +101,5 @@ public enum CommandLine {
     }
   }
 }
-
-@available(*, unavailable)
-extension CommandLine : _BitwiseCopyable {}
 
 #endif // SWIFT_STDLIB_HAS_COMMANDLINE

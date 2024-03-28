@@ -16,23 +16,24 @@
 #ifndef SWIFT_TYPE_CHECK_REQUESTS_H
 #define SWIFT_TYPE_CHECK_REQUESTS_H
 
-#include "swift/AST/ActorIsolation.h"
-#include "swift/AST/AnyFunctionRef.h"
 #include "swift/AST/ASTNode.h"
 #include "swift/AST/ASTTypeIDs.h"
+#include "swift/AST/ActorIsolation.h"
+#include "swift/AST/AnyFunctionRef.h"
 #include "swift/AST/CatchNode.h"
 #include "swift/AST/Effects.h"
+#include "swift/AST/Evaluator.h"
 #include "swift/AST/GenericParamList.h"
 #include "swift/AST/GenericSignature.h"
-#include "swift/AST/Type.h"
-#include "swift/AST/Evaluator.h"
 #include "swift/AST/Pattern.h"
 #include "swift/AST/PluginRegistry.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/SimpleRequest.h"
 #include "swift/AST/SourceFile.h"
+#include "swift/AST/Type.h"
 #include "swift/AST/TypeResolutionStage.h"
 #include "swift/Basic/Statistic.h"
+#include "swift/Basic/TaggedUnion.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/TinyPtrVector.h"
@@ -78,13 +79,63 @@ void simple_display(
 
 void simple_display(llvm::raw_ostream &out, ASTContext *ctx);
 
+/// Emulates the following enum with associated values:
+/// enum InheritedTypeResult {
+///     case inherited(Type)
+///     case SuppressedInference(KnownProtocolKind)
+///     case `default`
+/// }
+class InheritedTypeResult {
+  struct Inherited {
+    Type ty;
+  };
+  struct SuppressedInference {
+    KnownProtocolKind kp;
+  };
+  struct Default {};
+  using Payload = TaggedUnion<Inherited, SuppressedInference, Default>;
+  Payload payload;
+  InheritedTypeResult(Payload payload) : payload(payload) {}
+
+public:
+  enum class Kind {
+    Inherited,
+    SuppressedInference,
+    Default,
+  };
+  static InheritedTypeResult forInherited(Type ty) { return {Inherited{ty}}; }
+  static InheritedTypeResult forSuppressedInference(KnownProtocolKind kp) {
+    return {SuppressedInference{kp}};
+  }
+  static InheritedTypeResult forDefault() { return {Default{}}; }
+  operator Kind() {
+    if (payload.isa<Inherited>()) {
+      return Kind::Inherited;
+    } else if (payload.isa<SuppressedInference>()) {
+      return Kind::SuppressedInference;
+    }
+    return Kind::Default;
+  }
+  explicit operator bool() { return !payload.isa<Default>(); }
+  Type getInheritedTypeOrNull() {
+    if (auto *inherited = payload.dyn_cast<Inherited>())
+      return inherited->ty;
+    return Type();
+  }
+  Type getInheritedType() { return payload.get<Inherited>().ty; }
+  KnownProtocolKind getSuppressedInference() {
+    return payload.get<SuppressedInference>().kp;
+  }
+};
+
 /// Request the type from the ith entry in the inheritance clause for the
 /// given declaration.
 class InheritedTypeRequest
     : public SimpleRequest<
           InheritedTypeRequest,
-          Type(llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *>,
-               unsigned, TypeResolutionStage),
+          InheritedTypeResult(
+              llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *>,
+              unsigned, TypeResolutionStage),
           RequestFlags::SeparatelyCached> {
 public:
   using SimpleRequest::SimpleRequest;
@@ -93,7 +144,7 @@ private:
   friend SimpleRequest;
 
   // Evaluation.
-  Type
+  InheritedTypeResult
   evaluate(Evaluator &evaluator,
            llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> decl,
            unsigned index, TypeResolutionStage stage) const;
@@ -106,8 +157,8 @@ public:
 
   // Caching
   bool isCached() const;
-  std::optional<Type> getCachedResult() const;
-  void cacheResult(Type value) const;
+  std::optional<InheritedTypeResult> getCachedResult() const;
+  void cacheResult(InheritedTypeResult value) const;
 };
 
 /// Request the superclass type for the given class.

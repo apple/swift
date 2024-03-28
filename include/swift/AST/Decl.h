@@ -586,7 +586,7 @@ protected:
     IsDebuggerAlias : 1
   );
 
-  SWIFT_INLINE_BITFIELD(NominalTypeDecl, GenericTypeDecl, 1+1+1,
+  SWIFT_INLINE_BITFIELD(NominalTypeDecl, GenericTypeDecl, 1+1+1+1,
     /// Whether we have already added implicitly-defined initializers
     /// to this declaration.
     AddedImplicitInitializers : 1,
@@ -595,7 +595,10 @@ protected:
     HasLazyConformances : 1,
 
     /// Whether this nominal type is having its semantic members resolved.
-    IsComputingSemanticMembers : 1
+    IsComputingSemanticMembers : 1,
+
+    /// Whether ~BitwiseCopyable appeared in the type's inheritance list.
+    SuppressedBitwiseCopyable : 1
   );
 
   SWIFT_INLINE_BITFIELD_FULL(ProtocolDecl, NominalTypeDecl, 1+1+1+1+1+1+1+1+1+1+1+1+1+1+8,
@@ -4105,6 +4108,7 @@ protected:
     ExtensionGeneration = 0;
     Bits.NominalTypeDecl.HasLazyConformances = false;
     Bits.NominalTypeDecl.IsComputingSemanticMembers = false;
+    Bits.NominalTypeDecl.SuppressedBitwiseCopyable = false;
   }
 
   friend class ProtocolType;
@@ -4428,6 +4432,14 @@ public:
   /// If you need a more precise answer, ask this Decl's corresponding
   /// Type if it `isEscapable` instead of using this.
   CanBeInvertible::Result canBeEscapable() const;
+
+  bool suppressesBitwiseCopyable() const {
+    return Bits.NominalTypeDecl.SuppressedBitwiseCopyable;
+  }
+
+  void setSuppressesBitwiseCopyable() {
+    Bits.NominalTypeDecl.SuppressedBitwiseCopyable = true;
+  }
 
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Decl *D) {

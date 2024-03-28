@@ -1,5 +1,6 @@
 // RUN: %target-typecheck-verify-swift                       \
 // RUN:     -enable-experimental-feature NonescapableTypes   \
+// RUN:     -enable-experimental-feature NoncopyableGenerics \
 // RUN:     -enable-experimental-feature BitwiseCopyable     \
 // RUN:     -enable-builtin-module                           \
 // RUN:     -debug-diagnostic-names
@@ -35,11 +36,14 @@ func take<T : _BitwiseCopyable>(_ t: T) {}
 func passInternalUsableStruct(_ s: InternalUsableStruct) { take(s) } // expected-error{{type_does_not_conform_decl_owner}}
                                                                      // expected-note@-8{{where_requirement_failure_one_subst}}
 
-func passMemoryLayout<T>(_ m: MemoryLayout<T>) { take(m) } // expected-error{{conformance_availability_unavailable}}
+func passMemoryLayout<T>(_ m: MemoryLayout<T>) { take(m) } // expected-error{{global function 'take' requires that 'MemoryLayout<T>' conform to '_BitwiseCopyable'}}
+                                                           // expected-note@-11{{where 'T' = 'MemoryLayout<T>'}}
 
-func passCommandLine(_ m: CommandLine) { take(m) } // expected-error{{conformance_availability_unavailable}}
+func passCommandLine(_ m: CommandLine) { take(m) } // expected-error{{global function 'take' requires that 'CommandLine' conform to '_BitwiseCopyable'}}
+                                                   // expected-note@-14{{where 'T' = 'CommandLine'}}
 
-func passUnicode(_ m: Unicode) { take(m) } // expected-error{{conformance_availability_unavailable}}
+func passUnicode(_ m: Unicode) { take(m) } // expected-error{{global function 'take' requires that 'Unicode' conform to '_BitwiseCopyable'}}
+                                           // expected-note@-17{{where 'T' = 'Unicode'}}
 
 import Builtin
 
@@ -62,3 +66,21 @@ enum E_Raw_String : String {
 }
 
 func passE_Raw_String(_ e: E_Raw_String) { take(e) }
+
+struct S_Suppressed : ~_BitwiseCopyable {
+  var i: Int
+}
+
+func passS_Suppressed(_ s: S_Suppressed) { take(s) } // expected-error{{global function 'take' requires that 'S_Suppressed' conform to '_BitwiseCopyable'}}
+                                                     // expected-note@-46{{where 'T' = 'S_Suppressed'}}
+
+struct S_Suppressed_Extension {}
+extension S_Suppressed_Extension : ~_BitwiseCopyable {} // expected-error{{conformance to 'BitwiseCopyable' cannot be suppressed in an extension}}
+
+struct S_Explicit_Suppressed : _BitwiseCopyable, ~_BitwiseCopyable {} // expected-error{{cannot both conform to and suppress conformance to 'BitwiseCopyable'}}
+
+func passS_Explicit_Suppressed(_ s: S_Explicit_Suppressed) { take(s) }
+
+struct S_Suppressed_Explicit : ~_BitwiseCopyable, _BitwiseCopyable {} // expected-error{{cannot both conform to and suppress conformance to 'BitwiseCopyable'}}
+
+func passS_Explicit_Suppressed(_ s: S_Suppressed_Explicit) { take(s) }

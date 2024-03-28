@@ -1655,8 +1655,12 @@ Type InheritedTypes::getResolvedType(unsigned i,
   ASTContext &ctx = Decl.is<const ExtensionDecl *>()
                         ? Decl.get<const ExtensionDecl *>()->getASTContext()
                         : Decl.get<const TypeDecl *>()->getASTContext();
-  return evaluateOrDefault(ctx.evaluator, InheritedTypeRequest{Decl, i, stage},
-                           Type());
+  auto result =
+      evaluateOrDefault(ctx.evaluator, InheritedTypeRequest{Decl, i, stage},
+                        InheritedTypeResult::forDefault());
+  if (result == InheritedTypeResult::Kind::Inherited)
+    return result.getInheritedType();
+  return Type();
 }
 
 ExtensionDecl::ExtensionDecl(SourceLoc extensionLoc,
