@@ -258,6 +258,13 @@ def visualc_tools_version : Separate<["-"], "visualc-tools-version">,
          SwiftSymbolGraphExtractOption, SwiftAPIDigesterOption]>,
   HelpText<"VisualC++ ToolSet Version">, MetaVarName<"<version>">;
 
+// Android Options
+
+def sysroot : Separate<["-"], "sysroot">,
+  Flags<[ArgumentIsPath, FrontendOption, SwiftAPIExtractOption,
+         SwiftSymbolGraphExtractOption, SwiftAPIDigesterOption]>,
+  HelpText<"Native Platform sysroot">, MetaVarName<"<sysroot>">;
+
 // Standard Options
 def _DASH_DASH : Option<["--"], "", KIND_REMAINING_ARGS>,
   Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>;

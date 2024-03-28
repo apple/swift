@@ -243,6 +243,10 @@ void ToolChain::addCommonFrontendArgs(const OutputInfo &OI,
     arguments.push_back(inputArgs.MakeArgString(A->getValue()));
   }
 
+  if (const Arg *A = inputArgs.getLastArg(options::OPT_sysroot)) {
+    arguments.push_back("-sysroot");
+    arguments.push_back(inputArgs.MakeArgString(A->getValue()));
+  }
 
   if (llvm::sys::Process::StandardErrHasColors()) {
     arguments.push_back("-color-diagnostics");
