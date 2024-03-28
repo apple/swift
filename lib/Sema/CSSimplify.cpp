@@ -3041,6 +3041,13 @@ matchFunctionThrowing(ConstraintSystem &cs,
   }
 }
 
+static bool isWitnessMatching(ConstraintLocatorBuilder locator) {
+  SmallVector<LocatorPathElt, 4> path;
+  (void) locator.getLocatorParts(path);
+  return (path.size() == 1 &&
+          path[0].is<LocatorPathElt::Witness>());
+}
+
 bool
 ConstraintSystem::matchFunctionIsolations(FunctionType *func1,
                                           FunctionType *func2,
@@ -3054,8 +3061,11 @@ ConstraintSystem::matchFunctionIsolations(FunctionType *func1,
   // function-conversion score to make sure this solution is worse than
   // an exact match.
   // FIXME: there may be a better way. see https://github.com/apple/swift/pull/62514
-  auto matchIfConversion = [&]() -> bool {
-    if (kind < ConstraintKind::Subtype)
+  auto matchIfConversion = [&](bool isErasure = false) -> bool {
+    // We generally require a conversion here, but allow some lassitude
+    // if we're doing witness-matching.
+    if (kind < ConstraintKind::Subtype &&
+        !(isErasure && isWitnessMatching(locator)))
       return false;
     increaseScore(SK_FunctionConversion, locator);
     return true;
@@ -3154,7 +3164,7 @@ ConstraintSystem::matchFunctionIsolations(FunctionType *func1,
     // isolation as a conversion.
     case FunctionTypeIsolation::Kind::NonIsolated:
     case FunctionTypeIsolation::Kind::GlobalActor:
-      return matchIfConversion();
+      return matchIfConversion(/*erasure*/ true);
 
     // Parameter isolation is value-dependent and can't be erased in the
     // abstract, though.  We need to be able to recover the isolation from
