@@ -43,6 +43,7 @@
 #include "clang/AST/Attr.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/AttributeCommonInfo.h"
+#include "clang/Index/USRGeneration.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
@@ -2428,7 +2429,28 @@ giveUpFastPath:
         break;
       }
 
-      if (!privateDiscriminator.empty()) {
+      if (importedFromClang &&
+          !privateDiscriminator.empty()) {
+        // This is a clang imported class template, that's
+        // serialized using original template name, and
+        // its USR that denotes the specific specialization.
+        auto members = nominal->lookupDirect(memberName);
+        for (const auto &m: members) {
+          if (!m->hasClangNode())
+            continue;
+          if (auto *ctd = dyn_cast<clang::ClassTemplateDecl>(m->getClangDecl())) {
+            for (const auto *spec: ctd->specializations()) {
+              llvm::SmallString<128> buffer;
+              clang::index::generateUSRForDecl(spec, buffer);
+              if (privateDiscriminator.str() == buffer) {
+                if (auto import =
+                  getContext().getClangModuleLoader()->importDeclDirectly(spec))
+                  values.push_back(cast<ValueDecl>(import));
+              }
+            }
+          }
+        }
+      } else if (!privateDiscriminator.empty()) {
         ModuleDecl *searchModule = M;
         if (!searchModule)
           searchModule = nominal->getModuleContext();
