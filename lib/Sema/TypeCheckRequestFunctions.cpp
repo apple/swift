@@ -26,7 +26,7 @@
 
 using namespace swift;
 
-Type InheritedTypeRequest::evaluate(
+InheritedTypeResult InheritedTypeRequest::evaluate(
     Evaluator &evaluator,
     llvm::PointerUnion<const TypeDecl *, const ExtensionDecl *> decl,
     unsigned index, TypeResolutionStage stage) const {
@@ -73,13 +73,29 @@ Type InheritedTypeRequest::evaluate(
 
   const TypeLoc &typeLoc = InheritedTypes(decl).getEntry(index);
 
+  if (auto typeRepr = typeLoc.getTypeRepr()) {
+    if (auto itr = dyn_cast<InverseTypeRepr>(typeRepr)) {
+      Type inheritedTy = resolution->resolveType(itr->getConstraint());
+      auto kp = inheritedTy->getKnownProtocol();
+      if (kp == KnownProtocolKind::BitwiseCopyable) {
+        if (auto *extension = dyn_cast<const ExtensionDecl *>(decl)) {
+          extension->diagnose(diag::suppress_bitwise_copyable_extension);
+          return InheritedTypeResult::forInherited(
+              ErrorType::get(dc->getASTContext()));
+        }
+        return InheritedTypeResult::forSuppressedInference(*kp);
+      }
+    }
+  }
+
   Type inheritedType;
   if (typeLoc.getTypeRepr())
     inheritedType = resolution->resolveType(typeLoc.getTypeRepr());
   else
     inheritedType = typeLoc.getType();
 
-  return inheritedType ? inheritedType : ErrorType::get(dc->getASTContext());
+  return InheritedTypeResult::forInherited(
+      inheritedType ? inheritedType : ErrorType::get(dc->getASTContext()));
 }
 
 Type
@@ -92,7 +108,8 @@ SuperclassTypeRequest::evaluate(Evaluator &evaluator,
   for (unsigned int idx : classDecl->getInherited().getIndices()) {
     auto result = evaluateOrDefault(evaluator,
                                     InheritedTypeRequest{classDecl, idx, stage},
-                                    Type());
+                                    InheritedTypeResult::forDefault())
+                      .getInheritedTypeOrNull();
     if (!result)
       continue;
 
@@ -119,9 +136,12 @@ SuperclassTypeRequest::evaluate(Evaluator &evaluator,
 Type EnumRawTypeRequest::evaluate(Evaluator &evaluator,
                                   EnumDecl *enumDecl) const {
   for (unsigned int idx : enumDecl->getInherited().getIndices()) {
-    auto inheritedType = evaluateOrDefault(evaluator,
-        InheritedTypeRequest{enumDecl, idx, TypeResolutionStage::Interface},
-        Type());
+    auto inheritedType =
+        evaluateOrDefault(
+            evaluator,
+            InheritedTypeRequest{enumDecl, idx, TypeResolutionStage::Interface},
+            InheritedTypeResult::forDefault())
+            .getInheritedTypeOrNull();
     if (!inheritedType) continue;
 
     // Skip protocol conformances.

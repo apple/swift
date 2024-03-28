@@ -116,16 +116,33 @@ bool InheritedTypeRequest::isCached() const {
   return std::get<2>(getStorage()) == TypeResolutionStage::Interface;
 }
 
-std::optional<Type> InheritedTypeRequest::getCachedResult() const {
+std::optional<InheritedTypeResult>
+InheritedTypeRequest::getCachedResult() const {
   auto &typeLoc = getTypeLoc();
   if (typeLoc.wasValidated())
-    return typeLoc.getType();
+    return InheritedTypeResult::forInherited(typeLoc.getType());
+
+  // Checking for suppressed inference after the first time is relatively
+  // cheap: type resolution will have been cached.
 
   return std::nullopt;
 }
 
-void InheritedTypeRequest::cacheResult(Type value) const {
-  const_cast<TypeLoc &>(getTypeLoc()).setType(value);
+void InheritedTypeRequest::cacheResult(InheritedTypeResult value) const {
+  switch (value) {
+  case InheritedTypeResult::Kind::Inherited:
+    const_cast<TypeLoc &>(getTypeLoc()).setType(value.getInheritedType());
+    break;
+  case InheritedTypeResult::Kind::Default:
+    const_cast<TypeLoc &>(getTypeLoc()).setType(Type());
+    break;
+  case InheritedTypeResult::Kind::SuppressedInference: {
+    auto *decl = cast<const TypeDecl *>(std::get<0>(getStorage()));
+    auto *nominal = const_cast<NominalTypeDecl *>(cast<NominalTypeDecl>(decl));
+    nominal->setSuppressesBitwiseCopyable();
+    break;
+  }
+  }
 }
 
 //----------------------------------------------------------------------------//

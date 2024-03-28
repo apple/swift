@@ -135,7 +135,9 @@ static void checkInheritanceClause(
 
     // Validate the type.
     InheritedTypeRequest request{declUnion, i, TypeResolutionStage::Interface};
-    Type inheritedTy = evaluateOrDefault(ctx.evaluator, request, Type());
+    Type inheritedTy = evaluateOrDefault(ctx.evaluator, request,
+                                         InheritedTypeResult::forDefault())
+                           .getInheritedTypeOrNull();
 
     // If we couldn't resolve an the inherited type, or it contains an error,
     // ignore it.
