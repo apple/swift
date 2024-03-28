@@ -263,6 +263,10 @@ void IRGenModule::emitClangDecl(const clang::Decl *decl) {
     // Unfortunately, implicitly defined CXXDestructorDecls don't have a real
     // body, so we need to traverse these manually.
     if (auto *dtor = dyn_cast<clang::CXXDestructorDecl>(next)) {
+      if (dtor->isImplicit() && dtor->isDefaulted() && !dtor->isDeleted() &&
+          !dtor->doesThisDeclarationHaveABody())
+        clangSema.DefineImplicitDestructor(dtor->getLocation(), dtor);
+
       if (dtor->isImplicit() || dtor->hasBody()) {
         auto cxxRecord = dtor->getParent();
 
