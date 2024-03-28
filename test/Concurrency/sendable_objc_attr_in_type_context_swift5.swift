@@ -58,6 +58,7 @@ void doSomethingConcurrently(__attribute__((noescape)) void SWIFT_SENDABLE (^blo
 @end
 
 @protocol InnerSendableTypes
+-(void) testComposition:(SWIFT_SENDABLE MyValue *)composition;
 -(void) test:(NSDictionary<NSString *, SWIFT_SENDABLE id> *)options;
 -(void) testWithCallback:(NSString *)name handler:(MAIN_ACTOR void (^)(NSDictionary<NSString *, SWIFT_SENDABLE id> *, NSError * _Nullable))handler;
 @end
@@ -109,21 +110,26 @@ func test_sendable_attr_in_type_context(test: Test) {
 }
 
 class TestConformanceWithStripping : InnerSendableTypes {
-  func test(_ options: [String: Any]) { // Ok
+  func testComposition(_: MyValue) {
+    // expected-warning@-1 {{sendability of function types in instance method 'testComposition' does not match requirement in protocol 'InnerSendableTypes'; this is an error in the Swift 6 language mode}}
+  }
+
+  func test(_ options: [String: Any]) {
+    // expected-warning@-1 {{sendability of function types in instance method 'test' does not match requirement in protocol 'InnerSendableTypes'; this is an error in the Swift 6 language mode}}
   }
 
   func test(withCallback name: String, handler: @escaping @MainActor ([String : Any], (any Error)?) -> Void) { // Ok
+    // expected-warning@-1 {{sendability of function types in instance method 'test(withCallback:handler:)' does not match requirement in protocol 'InnerSendableTypes'; this is an error in the Swift 6 language mode}}
   }
 }
 
 class TestConformanceWithoutStripping : InnerSendableTypes {
-  // expected-error@-1 {{type 'TestConformanceWithoutStripping' does not conform to protocol 'InnerSendableTypes'}}
-
-  func test(_ options: [String: any Sendable]) {
-    // expected-note@-1 {{candidate has non-matching type '([String : any Sendable]) -> ()'}}
+  func testComposition(_: any MyValue & Sendable) { // Ok
   }
 
-  func test(withCallback name: String, handler: @escaping @MainActor ([String : any Sendable], (any Error)?) -> Void) {
-    // expected-note@-1 {{candidate has non-matching type '(String, @escaping @MainActor ([String : any Sendable], (any Error)?) -> Void) -> ()'}}
+  func test(_ options: [String: any Sendable]) { // Ok
+  }
+
+  func test(withCallback name: String, handler: @escaping @MainActor ([String : any Sendable], (any Error)?) -> Void) { // Ok
   }
 }

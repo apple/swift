@@ -158,7 +158,7 @@ struct OpaqueTypes<E> {
   func returnSequenceOfIntBad() -> some Sequence<Int> {
     // expected-note@-1 {{opaque return type declared here}}
     return ConcreteSequence<E>()
-    // expected-error@-1 {{return type of instance method 'returnSequenceOfIntBad()' requires that 'E' conform to 'Int'}}
+    // expected-error@-1 {{return type of instance method 'returnSequenceOfIntBad()' requires the types 'E' and 'Int' be equivalent}}
   }
 
   // Invalid

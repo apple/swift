@@ -590,3 +590,31 @@ func f62787_1(x: Bool) -> Optional<some Collection<Int>> {
   } 
   return nil // expected-error{{underlying type for opaque result type 'Optional<some Collection<Int>>' could not be inferred from return expression}}
 }
+
+// rdar://124482122 - Make sure that constraints are respected by opaque types
+protocol P3<A> {
+  associatedtype A: P1
+}
+
+do {
+  struct G<A: P1>: P3 {}
+
+  struct S: P1 {}
+
+  class A {}
+
+  func test1() -> some P3<Int> { // expected-note {{opaque return type declared here}}
+    return G<S>()
+    // expected-error@-1 {{return type of local function 'test1()' requires the types 'S' and 'Int' be equivalent}}
+  }
+
+  func test2() -> some P3<G<S>> { // expected-note {{opaque return type declared here}}
+    return G<S>()
+    // expected-error@-1 {{return type of local function 'test2()' requires the types 'S' and 'G<S>' be equivalent}}
+  }
+
+  func test3() -> some P1 & A { // expected-note {{opaque return type declared here}}
+    S()
+    // expected-error@-1 {{return type of local function 'test3()' requires that 'S' inherit from 'A'}}
+  }
+}

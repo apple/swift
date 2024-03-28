@@ -2687,6 +2687,12 @@ ERROR(type_does_not_conform_anyobject_decl_owner,none,
 ERROR(type_does_not_conform_in_opaque_return,none,
       "return type of %kind0 requires that %1 %select{conform to %2|be a class type}3",
       (const ValueDecl *, Type, Type, bool))
+ERROR(type_is_not_equal_in_opaque_return,none,
+      "return type of %kind0 requires the types %1 and %2 be equivalent",
+      (const ValueDecl *, Type, Type))
+ERROR(types_not_inherited_in_opaque_return,none,
+      "return type of %kind0 requires that %1 inherit from %2",
+      (const ValueDecl *, Type, Type))
 ERROR(types_not_equal_decl,none,
       "%kind0 requires the types %1 and %2 be equivalent",
       (const ValueDecl *, Type, Type))

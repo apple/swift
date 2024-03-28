@@ -129,13 +129,12 @@ import _Concurrency
 // CHECK-LABEL: class NXSender :
 // CHECK: func sendAny(_ obj: any Sendable) -> any Sendable
 // CHECK: func sendOptionalAny(_ obj: (any Sendable)?) -> (any Sendable)?
-// FIXME(https://github.com/apple/swift/issues/65730): Compositions not wrappped in existentials
-// CHECK: func sendSendable(_ sendable: SendableClass & Sendable) -> SendableClass & Sendable
-// CHECK: func sendSendableSubclasses(_ sendableSubclass: NonSendableClass & Sendable) -> NonSendableClass & Sendable
+// CHECK: func sendSendable(_ sendable: any SendableClass & Sendable) -> any SendableClass & Sendable
+// CHECK: func sendSendableSubclasses(_ sendableSubclass: any NonSendableClass & Sendable) -> any NonSendableClass & Sendable
 // CHECK: func sendProto(_ obj: any LabellyProtocol & Sendable) -> any LabellyProtocol & Sendable
 // CHECK: func sendProtos(_ obj: any LabellyProtocol & ObjCClub & Sendable) -> any LabellyProtocol & ObjCClub & Sendable
 // CHECK: func sendAnyArray(_ array: [any Sendable]) -> [any Sendable]
-// CHECK: func sendGeneric(_ generic: GenericObject<SendableClass> & Sendable) -> GenericObject<SendableClass> & Sendable
+// CHECK: func sendGeneric(_ generic: any GenericObject<SendableClass> & Sendable) -> any GenericObject<SendableClass> & Sendable
 // CHECK: func sendPtr(_ val: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer
 // CHECK: func sendStringArray(_ obj: [String]) -> [String]
 // CHECK: func sendAnyTypedef(_ obj: any Sendable) -> any Sendable

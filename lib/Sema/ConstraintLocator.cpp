@@ -304,9 +304,7 @@ void LocatorPathElt::dump(raw_ostream &out) const {
     break;
   }
   case ConstraintLocator::ProtocolRequirement: {
-    auto reqElt = elt.castTo<LocatorPathElt::ProtocolRequirement>();
-    out << "protocol requirement ";
-    reqElt.getDecl()->dumpRef(out);
+    out << "protocol requirement";
     break;
   }
   case ConstraintLocator::Witness: {
