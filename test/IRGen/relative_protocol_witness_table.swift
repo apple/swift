@@ -344,7 +344,7 @@ public func requireFormallyResilientWitness<T: ResilientProto> (_ t: T) {
 }
 
 // EVO: define{{.*}} swiftcc void @"$s1A27useFormallyResilientWitnessyyF"()
-// EVO: call swiftcc void @"$s1A31requireFormallyResilientWitnessyyx9resilient0C5ProtoRzlF"(ptr noalias %4, ptr %1, ptr @"$s9resilient15ResilientStructVyxGAA0B5ProtoAAWP{{(.ptrauth)?}}")
+// EVO: call swiftcc void @"$s1A31requireFormallyResilientWitnessyyx9resilient0C5ProtoRzlF"(ptr noalias %{{[0-9]+}}, ptr %{{[0-9]+}}, ptr @"$s9resilient15ResilientStructVyxGAA0B5ProtoAAWP{{(.ptrauth)?}}")
 public func useFormallyResilientWitness() {
   requireFormallyResilientWitness(ResilientStruct(1))
 }
