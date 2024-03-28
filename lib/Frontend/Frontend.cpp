@@ -745,18 +745,18 @@ bool CompilerInstance::setUpModuleLoaders() {
   bool ExplicitModuleBuild =
       Invocation.getFrontendOptions().DisableImplicitModules;
   if (ExplicitModuleBuild ||
-      !Invocation.getSearchPathOptions().ExplicitSwiftModuleMap.empty() ||
+      !Invocation.getSearchPathOptions().ExplicitSwiftModuleMapPath.empty() ||
       !Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs.empty()) {
     if (Invocation.getCASOptions().EnableCaching)
       ESML = ExplicitCASModuleLoader::create(
           *Context, getObjectStore(), getActionCache(), getDependencyTracker(),
-          MLM, Invocation.getSearchPathOptions().ExplicitSwiftModuleMap,
+          MLM, Invocation.getSearchPathOptions().ExplicitSwiftModuleMapPath,
           Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs,
           IgnoreSourceInfoFile);
     else
       ESML = ExplicitSwiftModuleLoader::create(
           *Context, getDependencyTracker(), MLM,
-          Invocation.getSearchPathOptions().ExplicitSwiftModuleMap,
+          Invocation.getSearchPathOptions().ExplicitSwiftModuleMapPath,
           Invocation.getSearchPathOptions().ExplicitSwiftModuleInputs,
           IgnoreSourceInfoFile);
   }

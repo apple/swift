@@ -476,7 +476,7 @@ public:
   std::vector<std::string> CandidateCompiledModules;
 
   /// A map of explicit Swift module information.
-  std::string ExplicitSwiftModuleMap;
+  std::string ExplicitSwiftModuleMapPath;
 
   /// Module inputs specified with -swift-module-input,
   /// <ModuleName, Path to .swiftmodule file>

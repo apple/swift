@@ -1847,8 +1847,8 @@ InterfaceSubContextDelegateImpl::InterfaceSubContextDelegateImpl(
   }
 
   // Pass down -explicit-swift-module-map-file
-  StringRef explicitSwiftModuleMap = searchPathOpts.ExplicitSwiftModuleMap;
-  genericSubInvocation.getSearchPathOptions().ExplicitSwiftModuleMap =
+  StringRef explicitSwiftModuleMap = searchPathOpts.ExplicitSwiftModuleMapPath;
+  genericSubInvocation.getSearchPathOptions().ExplicitSwiftModuleMapPath =
     explicitSwiftModuleMap.str();
 
   // Pass down VFSOverlay flags (do not need to inherit the options because
@@ -2192,6 +2192,7 @@ struct ExplicitSwiftModuleLoader::Implementation {
     for (auto &entry : ExplicitClangModuleMap) {
       const auto &moduleMapPath = entry.getValue().moduleMapPath;
       if (!moduleMapPath.empty() &&
+          entry.getValue().isBridgingHeaderDependency &&
           moduleMapsSeen.find(moduleMapPath) == moduleMapsSeen.end()) {
         moduleMapsSeen.insert(moduleMapPath);
         extraClangArgs.push_back(

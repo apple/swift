@@ -269,9 +269,11 @@ struct ExplicitClangModuleInputInfo {
   ExplicitClangModuleInputInfo(
       std::string moduleMapPath, std::string modulePath,
       bool isFramework = false, bool isSystem = false,
+      bool isBridgingHeaderDependency = true,
       std::optional<std::string> moduleCacheKey = std::nullopt)
       : moduleMapPath(moduleMapPath), modulePath(modulePath),
         isFramework(isFramework), isSystem(isSystem),
+        isBridgingHeaderDependency(isBridgingHeaderDependency),
         moduleCacheKey(moduleCacheKey) {}
   // Path of the Clang module map file.
   std::string moduleMapPath;
@@ -281,6 +283,8 @@ struct ExplicitClangModuleInputInfo {
   bool isFramework = false;
   // A flag that indicates whether this module is a system module
   bool isSystem = false;
+  // A flag that indicates whether this is a module dependency of a textual header input
+  bool isBridgingHeaderDependency = true;
   // The cache key for clang module.
   std::optional<std::string> moduleCacheKey;
 };
@@ -367,7 +371,12 @@ private:
         swiftModuleSourceInfoPath, swiftModuleCacheKey, clangModuleCacheKey;
     std::optional<std::vector<std::string>> headerDependencyPaths;
     std::string clangModuleMapPath = "", clangModulePath = "";
-    bool isFramework = false, isSystem = false;
+    bool isFramework = false, isSystem = false,
+         // The default value is 'true' in case the build system does not yet
+         // support emitting this field, in which case we must be conservative and
+         // ensure all dependencies get '-fmodule-map-file', instead of strictly
+         // module dependencies of textual header inputs.
+         isBridgingHeaderDependency = true;
     for (auto &entry : *mapNode) {
       auto key = getScalaNodeText(entry.getKey());
       if (key == "prebuiltHeaderDependencyPaths") {
@@ -394,6 +403,8 @@ private:
           swiftModuleCacheKey = val.str();
         } else if (key == "clangModuleCacheKey") {
           clangModuleCacheKey = val.str();
+        } else if (key == "isBridgingHeaderDependency") {
+          isBridgingHeaderDependency = parseBoolValue(val);
         } else {
           // Being forgiving for future fields.
           continue;
@@ -423,6 +434,7 @@ private:
                                          clangModulePath,
                                          isFramework,
                                          isSystem,
+                                         isBridgingHeaderDependency,
                                          clangModuleCacheKey);
       clangModuleMap.try_emplace(moduleName, std::move(entry));
     }

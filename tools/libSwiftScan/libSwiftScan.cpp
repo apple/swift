@@ -365,6 +365,12 @@ swiftscan_swift_binary_detail_get_header_dependency(
   return details->swift_binary_details.header_dependency;
 }
 
+swiftscan_string_set_t *
+swiftscan_swift_binary_detail_get_header_dependency_module_dependencies(
+    swiftscan_module_details_t details) {
+  return details->swift_binary_details.header_dependencies_module_dependnecies;
+}
+
 bool swiftscan_swift_binary_detail_get_is_framework(
     swiftscan_module_details_t details) {
   return details->swift_binary_details.is_framework;

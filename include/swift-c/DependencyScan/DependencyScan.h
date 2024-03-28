@@ -25,7 +25,7 @@
 /// SWIFTSCAN_VERSION_MINOR should increase when there are API additions.
 /// SWIFTSCAN_VERSION_MAJOR is intended for "major" source/ABI breaking changes.
 #define SWIFTSCAN_VERSION_MAJOR 0
-#define SWIFTSCAN_VERSION_MINOR 7
+#define SWIFTSCAN_VERSION_MINOR 8
 
 SWIFTSCAN_BEGIN_DECLS
 
@@ -204,6 +204,10 @@ swiftscan_swift_binary_detail_get_swift_overlay_dependencies(
 
 SWIFTSCAN_PUBLIC swiftscan_string_ref_t
 swiftscan_swift_binary_detail_get_header_dependency(
+    swiftscan_module_details_t details);
+
+SWIFTSCAN_PUBLIC swiftscan_string_set_t *
+swiftscan_swift_binary_detail_get_header_dependency_module_dependencies(
     swiftscan_module_details_t details);
 
 SWIFTSCAN_PUBLIC bool
