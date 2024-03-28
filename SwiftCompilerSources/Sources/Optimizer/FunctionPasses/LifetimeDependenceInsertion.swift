@@ -31,9 +31,6 @@ private func log(prefix: Bool = true, _ message: @autoclosure () -> String) {
 let lifetimeDependenceInsertionPass = FunctionPass(
   name: "lifetime-dependence-insertion")
 { (function: Function, context: FunctionPassContext) in
-  if !context.options.hasFeature(.NonescapableTypes) {
-    return
-  }
   log(prefix: false, "\n--- Inserting lifetime dependence markers in \(function.name)")
 
   for instruction in function.instructions {

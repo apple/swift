@@ -1660,12 +1660,16 @@ bool DataflowState::process(
 
         {
           auto diag = diag::sil_movechecking_consuming_use_here;
-          diagnose(astContext, mvi->getLoc().getSourceLoc(), diag);
+          if (auto sourceLoc = mvi->getLoc().getSourceLoc()) {
+            diagnose(astContext, sourceLoc, diag);
+          }
         }
 
         {
           auto diag = diag::sil_movechecking_nonconsuming_use_here;
-          diagnose(astContext, iter->second->getLoc().getSourceLoc(), diag);
+          if (auto sourceLoc = iter->second->getLoc().getSourceLoc()) {
+            diagnose(astContext, sourceLoc, diag);
+          }
         }
 
         emittedSingleDiagnostic = true;
@@ -1690,13 +1694,17 @@ bool DataflowState::process(
 
           {
             auto diag = diag::sil_movechecking_consuming_use_here;
-            diagnose(astContext, mvi->getLoc().getSourceLoc(), diag);
+            if (auto sourceLoc = mvi->getLoc().getSourceLoc()) {
+              diagnose(astContext, sourceLoc, diag);
+            }
           }
 
           {
             auto diag = diag::sil_movechecking_nonconsuming_use_here;
             for (auto *user : iter->second->pairedUseInsts) {
-              diagnose(astContext, user->getLoc().getSourceLoc(), diag);
+              if (auto sourceLoc = user->getLoc().getSourceLoc()) {
+                diagnose(astContext, sourceLoc, diag);
+              }
             }
           }
 
@@ -2115,12 +2123,16 @@ bool ConsumeOperatorCopyableAddressesChecker::performSingleBasicBlockAnalysis(
     }
 
     auto diag = diag::sil_movechecking_consuming_use_here;
-    diagnose(astCtx, mvi->getLoc().getSourceLoc(), diag);
+    if (auto sourceLoc = mvi->getLoc().getSourceLoc()) {
+      diagnose(astCtx, sourceLoc, diag);
+    }
 
     {
       auto diag = diag::sil_movechecking_nonconsuming_use_here;
       for (auto *user : interestingClosureUsers) {
-        diagnose(astCtx, user->getLoc().getSourceLoc(), diag);
+        if (auto sourceLoc = user->getLoc().getSourceLoc()) {
+          diagnose(astCtx, sourceLoc, diag);
+        }
       }
     }
 
@@ -2157,12 +2169,16 @@ bool ConsumeOperatorCopyableAddressesChecker::performSingleBasicBlockAnalysis(
 
     {
       auto diag = diag::sil_movechecking_consuming_use_here;
-      diagnose(astCtx, mvi->getLoc().getSourceLoc(), diag);
+      if (auto sourceLoc = mvi->getLoc().getSourceLoc()) {
+        diagnose(astCtx, sourceLoc, diag);
+      }
     }
 
     {
       auto diag = diag::sil_movechecking_nonconsuming_use_here;
-      diagnose(astCtx, interestingUser->getLoc().getSourceLoc(), diag);
+      if (auto sourceLoc = interestingUser->getLoc().getSourceLoc()) {
+        diagnose(astCtx, sourceLoc, diag);
+      }
     }
 
     // We purposely continue to see if at least in simple cases, we can flag

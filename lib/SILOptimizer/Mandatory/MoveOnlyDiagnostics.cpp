@@ -60,7 +60,13 @@ static void diagnose(ASTContext &context, SILInstruction *inst, Diag<T...> diag,
   if (SilentlyEmitDiagnostics)
     return;
 
-  context.Diags.diagnose(loc.getSourceLoc(), diag, std::forward<U>(args)...);
+  auto sourceLoc = loc.getSourceLoc();
+  auto diagKind = context.Diags.declaredDiagnosticKindFor(diag.ID);
+  // Do not emit notes on invalid source locations.
+  if (!sourceLoc && diagKind == DiagnosticKind::Note) {
+    return;
+  }
+  context.Diags.diagnose(sourceLoc, diag, std::forward<U>(args)...);
 }
 
 template <typename... T, typename... U>

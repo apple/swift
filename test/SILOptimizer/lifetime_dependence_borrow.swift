@@ -3,6 +3,7 @@
 // RUN:   -verify \
 // RUN:   -sil-verify-all \
 // RUN:   -module-name test \
+// RUN:   -enable-experimental-feature NoncopyableGenerics \
 // RUN:   -enable-experimental-feature NonescapableTypes
 
 // REQUIRES: asserts
@@ -15,8 +16,7 @@ struct CN: ~Copyable {
 }
 
 // Some Bufferview-ish thing.
-@_nonescapable
-struct BV {
+struct BV : ~Escapable {
   let p: UnsafeRawPointer
   let i: Int
 
@@ -35,8 +35,7 @@ struct BV {
 }
 
 // Some MutableBufferview-ish thing.
-@_nonescapable
-struct MBV : ~Copyable {
+struct MBV : ~Escapable, ~Copyable {
   let p: UnsafeRawPointer
   let i: Int
   
@@ -53,8 +52,7 @@ struct MBV : ~Copyable {
 }
 
 // Nonescapable wrapper.
-@_nonescapable
-struct NEBV {
+struct NEBV : ~Escapable {
   var bv: BV
 
   init(_ bv: consuming BV) {

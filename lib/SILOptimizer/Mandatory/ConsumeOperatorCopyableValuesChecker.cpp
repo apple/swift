@@ -155,6 +155,8 @@ bool CheckerLivenessInfo::compute() {
             }
           }
         }
+        // FIXME: this ignores all other forms of Borrow ownership, such as
+        // partial_apply [onstack] and mark_dependence [nonescaping].
         break;
       }
       case OperandOwnership::GuaranteedForwarding:
@@ -250,8 +252,10 @@ void ConsumeOperatorCopyableValuesChecker::emitDiagnosticForMove(
   diagnose(astContext, getSourceLocFromValue(borrowedValue),
            diag::sil_movechecking_value_used_after_consume,
            borrowedValueName);
-  diagnose(astContext, mvi->getLoc().getSourceLoc(),
-           diag::sil_movechecking_consuming_use_here);
+  if (auto sourceLoc = mvi->getLoc().getSourceLoc()) {
+    diagnose(astContext, sourceLoc,
+             diag::sil_movechecking_consuming_use_here);
+  }
 
   // Then we do a bit of work to figure out where /all/ of the later uses than
   // mvi are so we can emit notes to the user telling them this is a problem
@@ -281,8 +285,10 @@ void ConsumeOperatorCopyableValuesChecker::emitDiagnosticForMove(
       case PrunedLiveness::NonLifetimeEndingUse:
       case PrunedLiveness::LifetimeEndingUse:
         LLVM_DEBUG(llvm::dbgs() << "Emitting note for in block use: " << inst);
-        diagnose(astContext, inst.getLoc().getSourceLoc(),
-                 diag::sil_movechecking_nonconsuming_use_here);
+        if (auto sourceLoc = inst.getLoc().getSourceLoc()) {
+          diagnose(astContext, sourceLoc,
+                   diag::sil_movechecking_nonconsuming_use_here);
+        }
         break;
       }
     }
@@ -340,8 +346,10 @@ void ConsumeOperatorCopyableValuesChecker::emitDiagnosticForMove(
         case PrunedLiveness::LifetimeEndingUse:
           LLVM_DEBUG(llvm::dbgs()
                      << "(3) Emitting diagnostic for user: " << inst);
-          diagnose(astContext, inst.getLoc().getSourceLoc(),
-                   diag::sil_movechecking_nonconsuming_use_here);
+          if (auto sourceLoc = inst.getLoc().getSourceLoc()) {
+            diagnose(astContext, sourceLoc,
+                     diag::sil_movechecking_nonconsuming_use_here);
+          }
           break;
         }
       }
@@ -366,8 +374,10 @@ void ConsumeOperatorCopyableValuesChecker::emitDiagnosticForMove(
       if (livenessInfo.nonLifetimeEndingUsesInLiveOut.contains(&inst)) {
         LLVM_DEBUG(llvm::dbgs()
                    << "(1) Emitting diagnostic for user: " << inst);
-        diagnose(astContext, inst.getLoc().getSourceLoc(),
-                 diag::sil_movechecking_nonconsuming_use_here);
+        if (auto sourceLoc = inst.getLoc().getSourceLoc()) {
+          diagnose(astContext, sourceLoc,
+                   diag::sil_movechecking_nonconsuming_use_here);
+        }
         continue;
       }
 
@@ -388,8 +398,10 @@ void ConsumeOperatorCopyableValuesChecker::emitDiagnosticForMove(
 
           LLVM_DEBUG(llvm::dbgs()
                      << "(2) Emitting diagnostic for user: " << inst);
-          diagnose(astContext, inst.getLoc().getSourceLoc(),
-                   diag::sil_movechecking_nonconsuming_use_here);
+          if (auto sourceLoc = inst.getLoc().getSourceLoc()) {
+            diagnose(astContext, sourceLoc,
+                     diag::sil_movechecking_nonconsuming_use_here);
+          }
         }
       }
     }

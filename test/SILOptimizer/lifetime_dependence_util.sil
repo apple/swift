@@ -1,4 +1,6 @@
 // RUN: %target-sil-opt -test-runner %s \
+// RUN:     -module-name Swift \
+// RUN:     -enable-experimental-feature NoncopyableGenerics \
 // RUN:     -enable-experimental-feature NonescapableTypes \
 // RUN:     -o /dev/null 2>&1 | %FileCheck %s
 
@@ -8,6 +10,8 @@
 sil_stage canonical
 
 import Builtin
+
+@_marker public protocol Escapable {}
 
 enum FakeOptional<T> {
 case none
@@ -36,15 +40,13 @@ sil_vtable D {
   #D.field!read: @d_field_read
 }
 
-@_nonescapable
-struct NE {
+struct NE : ~Escapable {
   var d: D
   @_unsafeNonescapableResult
   init() { }
 }
 
-@_nonescapable
-struct NEWrap {
+struct NEWrap : ~Escapable {
   var ne: NE
   @_unsafeNonescapableResult
   init() { }

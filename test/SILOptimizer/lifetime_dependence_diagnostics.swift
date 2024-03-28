@@ -1,14 +1,14 @@
 // RUN: %target-swift-frontend %s -emit-sil \
 // RUN:   -sil-verify-all \
 // RUN:   -module-name test \
+// RUN:   -enable-experimental-feature NoncopyableGenerics \
 // RUN:   -enable-experimental-feature NonescapableTypes \
 // RUN:   2>&1 | %FileCheck %s
 
 // REQUIRES: asserts
 // REQUIRES: swift_in_compiler
 
-@_nonescapable
-struct BV {
+struct BV : ~Escapable {
   let p: UnsafeRawPointer
   let c: Int
   @_unsafeNonescapableResult
@@ -21,6 +21,12 @@ struct BV {
 func bv_copy(_ bv: borrowing BV) -> _copy(bv) BV {
   copy bv
 }
+
+struct NCInt: ~Copyable {
+  var value: Int
+}
+
+func takeClosure(_: () -> ()) {}
 
 // No mark_dependence is needed for a inherited scope.
 //
@@ -44,4 +50,11 @@ func bv_borrow_copy(_ bv: borrowing BV) -> _borrow(bv) BV {
 // CHECK-LABEL: } // end sil function '$s4test010bv_borrow_C00B0AA2BVVAEYls_tF'
 func bv_borrow_borrow(bv: borrowing BV) -> _borrow(bv) BV {
   bv_borrow_copy(bv)
+}
+
+// This already has a mark_dependence [nonescaping] before diagnostics. If it triggers diagnostics again, it will fail
+// because lifetime dependence does not expect a dependence directly on an 'inout' address without any 'begin_access'
+// marker.
+func ncint_capture(ncInt: inout NCInt) {
+  takeClosure { _ = ncInt.value }
 }

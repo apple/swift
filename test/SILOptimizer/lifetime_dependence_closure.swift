@@ -4,6 +4,7 @@
 // RUN:   -sil-verify-all \
 // RUN:   -module-name test \
 // RUN:   -disable-experimental-parser-round-trip \
+// RUN:   -enable-experimental-feature NoncopyableGenerics \
 // RUN:   -enable-experimental-feature NonescapableTypes
 
 // REQUIRES: asserts
@@ -15,8 +16,7 @@ struct NCInt: ~Copyable {
   init(_ value: Int) { self.value = value }
 }
 
-@_nonescapable
-struct NEInt /*: ~Escapable*/ {
+struct NEInt : ~Escapable {
   let value: Int
 
   init(borrowed: borrowing NCInt) -> _borrow(borrowed) Self {
