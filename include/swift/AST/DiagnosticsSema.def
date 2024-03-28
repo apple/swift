@@ -5842,6 +5842,15 @@ ERROR(async_named_decl_must_be_available_from_async,none,
 ERROR(async_unavailable_decl,none,
       "%kindbase0 is unavailable from asynchronous contexts%select{|; %1}1",
       (const ValueDecl *, StringRef))
+ERROR(actor_isolated_sync_closure_type_erased, none,
+      "synchronous %0 %kind1 cannot be passed as a %2",
+      (ActorIsolation, const ValueDecl *, Type))
+ERROR(actor_isolated_sync_closure_type_erased_no_decl, none,
+      "synchronous %0 cannot be passed as a %1",
+      (Type, Type))
+NOTE(actor_isolated_sync_closure_type_erased_note, none,
+     "Due to type erasure, the caller of the synchronous closure will not hop "
+     "to the closure's global actor before invoking it", ())
 
 //------------------------------------------------------------------------------
 // MARK: String Processing

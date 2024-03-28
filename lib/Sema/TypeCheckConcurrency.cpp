@@ -2049,6 +2049,127 @@ bool swift::diagnoseApplyArgSendability(ApplyExpr *apply, const DeclContext *dec
   return false;
 }
 
+/// Emit an error if we are passing off an actor isolated synchronous closure as
+/// an argument where we will type erase the actor isolation. Remember,
+/// synchronous closures are hopped to by the caller, so once we have lost that
+/// the synchronous closure is global actor isolated, we can no longer guarantee
+/// that the hop will occur. This is different than sendability.
+static bool diagnoseApplyArgTypeErasedSynchronousIsolatedClosures(
+    ApplyExpr *apply, const DeclContext *declContext) {
+  auto isolationCrossing = apply->getIsolationCrossing();
+  if (!isolationCrossing.has_value())
+    return false;
+
+  auto fnExprType = apply->getFn()->getType();
+  if (!fnExprType)
+    return false;
+
+  auto fnType = fnExprType->getAs<FunctionType>();
+  if (!fnType)
+    return false;
+
+  auto argList = apply->getArgs();
+  if (!argList)
+    return false;
+
+  auto params = fnType->getParams();
+  for (unsigned paramIdx : indices(params)) {
+    const auto &param = params[paramIdx];
+
+    // Dig out the location of the argument.
+    SourceLoc argLoc = apply->getLoc();
+
+    auto arg = argList->get(paramIdx);
+    if (arg.getStartLoc().isValid())
+      argLoc = arg.getStartLoc();
+
+    // Determine the type of the argument, ignoring any implicit
+    // conversions that could have stripped sendability.
+    Expr *argExpr = arg.getExpr();
+    if (!argExpr)
+      continue;
+
+    auto *expr = argExpr->findOriginalValue();
+    if (!expr)
+      continue;
+
+    // If we are passing a method, we will have chained autoclosure + dot
+    // expr. Look through them to find the actual decl ref expr.
+    if (auto *dot = dyn_cast<DotSyntaxCallExpr>(expr)) {
+      if (auto *autoClosure = dyn_cast_or_null<AutoClosureExpr>(dot->getFn())) {
+        while (auto *newClosure = dyn_cast_or_null<AutoClosureExpr>(
+                   autoClosure->getSingleExpressionBody())) {
+          autoClosure = newClosure;
+        }
+
+        if (auto *callExpr =
+                dyn_cast<CallExpr>(autoClosure->getSingleExpressionBody())) {
+          if (auto *innerDot = dyn_cast<DotSyntaxCallExpr>(callExpr->getFn())) {
+            expr = innerDot->getFn();
+          }
+        }
+      }
+    }
+
+    // See if we have a cast to a Sendable type.
+    if (auto *cast = dyn_cast<ForcedCheckedCastExpr>(expr)) {
+      auto *fType = cast->getType()->getAs<AnyFunctionType>();
+      if (!fType)
+        continue;
+      auto globalActor = fType->getGlobalActor();
+      if (!globalActor)
+        continue;
+      auto &ctx = declContext->getASTContext();
+
+      auto *paramType = param.getParameterType()->getAs<AnyFunctionType>();
+      if (paramType && (!paramType->hasExtInfo() || !paramType->isAsync())) {
+        ctx.Diags.diagnose(argLoc, diag::actor_isolated_sync_closure_type_erased_no_decl,
+                           fType, paramType);
+        ctx.Diags.diagnose(argLoc,
+                           diag::actor_isolated_sync_closure_type_erased_note);
+        return true;
+      }
+    }
+
+    auto *declRef = dyn_cast<DeclRefExpr>(expr);
+    if (!declRef)
+      continue;
+
+    // If we find an actual specified isolation and we are not global actor
+    // isolated, continue.
+    ActorIsolation isolation;
+    if ((isolation = getActorIsolation(declRef->getDecl()))) {
+      if (!isolation.isGlobalActor())
+        continue;
+    } else {
+      auto *type = declRef->getType()->getAs<AnyFunctionType>();
+      if (!type)
+        continue;
+      auto globalActor = type->getGlobalActor();
+      if (!globalActor)
+        continue;
+
+      isolation = ActorIsolation::forGlobalActor(globalActor);
+    }
+    assert(isolation);
+
+    auto *argType = argExpr->findOriginalType()->getAs<AnyFunctionType>();
+    if (!argType || (argType->hasExtInfo() && argType->isAsync()))
+      continue;
+
+    auto *paramType = param.getParameterType()->getAs<AnyFunctionType>();
+    if (paramType && (!paramType->hasExtInfo() || !paramType->isAsync())) {
+      auto &ctx = declContext->getASTContext();
+      ctx.Diags.diagnose(argLoc, diag::actor_isolated_sync_closure_type_erased,
+                         isolation, declRef->getDecl(), paramType);
+      ctx.Diags.diagnose(argLoc,
+                         diag::actor_isolated_sync_closure_type_erased_note);
+      return true;
+    }
+  }
+  return false;
+}
+
 namespace {
   /// Check for adherence to the actor isolation rules, emitting errors
   /// when actor-isolated declarations are used in an unsafe manner.
@@ -3554,6 +3675,11 @@ namespace {
       if (!ctx.LangOpts.hasFeature(Feature::RegionBasedIsolation)) {
         diagnoseApplyArgSendability(apply, getDeclContext());
       }
+
+      // Check that we are not passing a type erased isolated synchronous
+      // closure to the apply.
+      diagnoseApplyArgTypeErasedSynchronousIsolatedClosures(apply,
+                                                            getDeclContext());
 
       // Check for sendability of the result type if we do not have a
       // transferring result.
