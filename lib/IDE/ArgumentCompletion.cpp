@@ -175,6 +175,24 @@ void ArgumentTypeCheckCompletionCallback::sawSolutionImpl(const Solution &S) {
   if (!isExpressionResultTypeUnconstrained(S, ParentCall)) {
     ExpectedCallType = getTypeForCompletion(S, ParentCall);
   }
+  // If we recorded a fix to allow a type mismatch for the ParentCall,
+  // use the type `ParentCall` should have had as the expected call type.
+  // For example, in the following the call to `bar` gets assigned a type
+  // of `String` but we want to report `Int` as the expected call type.
+  //
+  // func foo(_ x: Int) {}
+  // func bar() -> String {}
+  // foo(bar(#^COMPLETE^#))
+  for (auto Fix : S.Fixes) {
+    if (auto CM = dyn_cast<AllowArgumentMismatch>(Fix)) {
+      if (simplifyLocatorToAnchor(CM->getLocator()) == ASTNode(ParentCall)) {
+        ExpectedCallType = CM->getToType();
+      }
+    }
+  }
+  if (ExpectedCallType && ExpectedCallType->hasUnresolvedType()) {
+    ExpectedCallType = Type();
+  }
 
   auto *CallLocator = CS.getConstraintLocator(ParentCall);
   auto *CalleeLocator = S.getCalleeLocator(CallLocator);

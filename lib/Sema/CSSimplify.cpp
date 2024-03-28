@@ -5697,23 +5697,6 @@ bool ConstraintSystem::repairFailures(
       }
     }
 
-    if (isForCodeCompletion()) {
-      // If the argument contains the code completion location, the user has not
-      // finished typing out this argument yet. Treat the mismatch as valid so
-      // we don't penalize this solution.
-      if (auto *arg = getAsExpr(simplifyLocatorToAnchor(loc))) {
-        // Ignore synthesized args like $match in implicit pattern match
-        // operator calls. Their source location is usually the same as the
-        // other (explicit) argument's so source range containment alone isn't
-        // sufficient.
-        bool isSynthesizedArg = arg->isImplicit() && isa<DeclRefExpr>(arg);
-        if (!isSynthesizedArg && isForCodeCompletion() &&
-            containsIDEInspectionTarget(arg) && !lhs->isVoid() &&
-            !lhs->isUninhabited())
-          return true;
-      }
-    }
-
     if (repairByInsertingExplicitCall(lhs, rhs))
       break;
 
@@ -5981,8 +5964,27 @@ bool ConstraintSystem::repairFailures(
       }
     }
 
+    FixBehavior fixBehavior = FixBehavior::Error;
+
+    if (isForCodeCompletion()) {
+      // If the argument contains the code completion location, the user has not
+      // finished typing out this argument yet. Treat the mismatch as valid so
+      // we don't penalize this solution.
+      if (auto *arg = getAsExpr(simplifyLocatorToAnchor(loc))) {
+        // Ignore synthesized args like $match in implicit pattern match
+        // operator calls. Their source location is usually the same as the
+        // other (explicit) argument's so source range containment alone isn't
+        // sufficient.
+        bool isSynthesizedArg = arg->isImplicit() && isa<DeclRefExpr>(arg);
+        if (!isSynthesizedArg && isForCodeCompletion() &&
+            containsIDEInspectionTarget(arg) && !lhs->isVoid() &&
+            !lhs->isUninhabited())
+          fixBehavior = FixBehavior::Suppress;
+      }
+    }
+
     conversionsOrFixes.push_back(
-        AllowArgumentMismatch::create(*this, lhs, rhs, loc));
+        AllowArgumentMismatch::create(*this, lhs, rhs, loc, fixBehavior));
     break;
   }
 
