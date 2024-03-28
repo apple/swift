@@ -695,6 +695,45 @@ extension Task where Failure == Never {
 }
 
 @available(SwiftStdlib 5.1, *)
+@_silgen_name("swift_task_enqueueTaskOnExecutor")
+func _enqueueTaskOnExecutor(_ task: Builtin.NativeObject, _ executor: UnownedSerialExecutor)
+
+@available(SwiftStdlib 5.1, *)
+extension Actor {
+  public nonisolated func send(
+    @_inheritActorContext @_implicitSelfCapture operation: __owned @Sendable @escaping (isolated Self) async -> Void
+  ) {
+    let flags = taskCreateFlags(
+            priority: nil, isChildTask: false, copyTaskLocals: true,
+            inheritContext: true, enqueueJob: false,
+            addPendingGroupTaskUnconditionally: false)
+
+    // Create the asynchronous task.
+    let (task, _) = Builtin.createAsyncTask(flags, {
+      await operation(self)
+    })
+    Builtin.retain(task)
+    _enqueueTaskOnExecutor(task, unownedExecutor)
+  }
+
+  public nonisolated func send(
+    @_inheritActorContext @_implicitSelfCapture operation: __owned @Sendable @escaping () async -> Void
+  ) {
+    let flags = taskCreateFlags(
+            priority: nil, isChildTask: false, copyTaskLocals: false,
+            inheritContext: true, enqueueJob: false,
+            addPendingGroupTaskUnconditionally: false)
+
+    // Create the asynchronous task.
+    let (task, _) = Builtin.createAsyncTask(flags, {
+      await operation()
+    })
+    Builtin.retain(task)
+    _enqueueTaskOnExecutor(task, unownedExecutor)
+  }
+}
+
+@available(SwiftStdlib 5.1, *)
 extension Task where Failure == Error {
 #if SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
   @discardableResult
