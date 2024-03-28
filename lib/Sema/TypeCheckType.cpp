@@ -6047,26 +6047,44 @@ private:
   }
 
   void emitInsertAnyFixit(InFlightDiagnostic &diag, DeclRefTypeRepr *T) const {
-    TypeRepr *replaceRepr = T;
+    TypeRepr *replacementSource = T;
 
     // Insert parens in expression context for '(any P).self'
     bool needsParens = (exprCount != 0);
+
+    // Compute the replacement source (the node to which to apply `any`).
     if (reprStack.size() > 1) {
-      auto parentIt = reprStack.end() - 2;
-      needsParens = existentialNeedsParens(*parentIt);
+      auto it = reprStack.end() - 1;
+      auto replacementSourceIt = it;
 
-      // Expand to include parenthesis before checking if the parent needs
-      // to be replaced.
-      while (parentIt != reprStack.begin() &&
-             (*parentIt)->getWithoutParens() != *parentIt)
-        parentIt -= 1;
+      // Backtrack the stack and expand the replacement source to any parent
+      // compositions or `.Type` metatypes, skipping only parentheses.
+      //
+      // - `P` → `any P`.
+      // - `P.Type` → `any P.Type`
+      // - `X & P` → `any X & P`, not `X & any P`.
+      // - `(X & P).Type` → `any (X & P).Type`, not `(any X & P).Type`.
+      do {
+        --it;
+        if ((*it)->getWithoutParens() != *it) {
+          continue;
+        }
 
-      // For existential metatypes, 'any' is applied to the metatype.
-      if ((*parentIt)->getKind() == TypeReprKind::Metatype) {
-        replaceRepr = *parentIt;
-        if (parentIt != reprStack.begin())
-          needsParens = existentialNeedsParens(*(parentIt - 1));
+        if (isa<CompositionTypeRepr>(*it) || isa<MetatypeTypeRepr>(*it)) {
+          replacementSourceIt = it;
+          continue;
+        }
+
+        break;
+      } while (it != reprStack.begin());
+
+      // Whether parentheses are necessary is determined by the immediate parent
+      // of the replacement source.
+      if (replacementSourceIt != reprStack.begin()) {
+        needsParens = existentialNeedsParens(*(replacementSourceIt - 1));
       }
+
+      replacementSource = *replacementSourceIt;
     }
 
     llvm::SmallString<64> fix;
@@ -6074,13 +6092,13 @@ private:
       llvm::raw_svector_ostream OS(fix);
       if (needsParens)
         OS << "(";
-      ExistentialTypeRepr existential(SourceLoc(), replaceRepr);
+      ExistentialTypeRepr existential(SourceLoc(), replacementSource);
       existential.print(OS);
       if (needsParens)
         OS << ")";
     }
 
-    diag.fixItReplace(replaceRepr->getSourceRange(), fix);
+    diag.fixItReplace(replacementSource->getSourceRange(), fix);
   }
 
   void checkDeclRefTypeRepr(DeclRefTypeRepr *T) const {
