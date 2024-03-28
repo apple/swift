@@ -241,7 +241,7 @@ public var S_IFIFO: Int32 { return Int32(0x1000) }
 public var S_IREAD: Int32  { return Int32(0x0100) }
 public var S_IWRITE: Int32 { return Int32(0x0080) }
 public var S_IEXEC: Int32  { return Int32(0x0040) }
-#else
+#elseif !os(Android)
 public var S_IFMT: mode_t   { return mode_t(0o170000) }
 public var S_IFIFO: mode_t  { return mode_t(0o010000) }
 public var S_IFCHR: mode_t  { return mode_t(0o020000) }
