@@ -1,7 +1,7 @@
 """
 LLDB Formatters for LLVM data types for use in the swift project.
 
-Load into LLDB with 'command script import /path/to/lldbDataFormatters.py'
+Load into LLDB with 'command script import /path/to/lldbSwiftDataFormatters.py'
 """
 
 import sys
@@ -9,18 +9,19 @@ from enum import Enum
 
 
 def __lldb_init_module(debugger, internal_dict):
-    debugger.HandleCommand('type category define -e swift -l c++')
+    category = 'swift-compiler-internals'
+    debugger.HandleCommand(f'type category define -e {category} -l c++')
 
     tName = 'lldbSwiftDataFormatters.SmallBitVectorSummaryProvider'
     debugger.HandleCommand('type summary add -w llvm '
-                           '-F %s -x "^llvm::SmallBitVector$"' % tName)
-    debugger.HandleCommand('type summary add --expand --skip-references -w swift '
+                           f'-F {tName} -x "^llvm::SmallBitVector$"')
+    debugger.HandleCommand(f'type summary add --expand --skip-references -w {category} '
                            '-F lldbSwiftDataFormatters.DemangleNodeSummaryProvider '
                            '-x "^swift::Demangle::Node$"')
-    debugger.HandleCommand('type synthetic add --skip-references -w swift '
+    debugger.HandleCommand(f'type synthetic add --skip-references -w {category} '
                            '-l lldbSwiftDataFormatters.DemangleNodeSynthProvider '
                            '-x "^swift::Demangle::Node$"')
-    debugger.HandleCommand('type summary add -w swift '
+    debugger.HandleCommand(f'type summary add -w {category} '
                            '-s "${var.Pointer%S}" '
                            'swift::Identifier')
 
