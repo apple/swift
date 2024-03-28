@@ -629,6 +629,40 @@ SequenceTypeTests.test("allSatisfy/Predicate") {
 }
 
 //===----------------------------------------------------------------------===//
+// count(where:)
+//===----------------------------------------------------------------------===//
+
+SequenceTypeTests.test("count/Predicate") {
+  for test in predicateCountTests {
+    let s = MinimalSequence<OpaqueValue<Int>>(
+      elements: test.sequence.map { OpaqueValue($0) })
+    expectEqual(
+      test.expected,
+      s.count(where: { test.includeElement($0.value) }),
+      stackTrace: SourceLocStack().with(test.loc))
+  }
+}
+
+SequenceTypeTests.test("count/Predicate/throws") {
+  struct E: Error, Equatable {}
+  
+  // FIXME: remove `throws(E)` annotations once error type is inferred
+  do throws(E) {
+    let c = try ([] as [Int]).count(where: { (_) throws(E) in throw E() })
+    expectEqual(c, 0)
+  } catch {
+    expectUnreachable()
+  }
+  
+  do throws(E) {
+    let c = try [1, 2, 3].count(where: { (_) throws(E) in throw E() })
+    expectUnreachable()
+  } catch {
+    expectEqual(error, E())
+  }
+}
+
+//===----------------------------------------------------------------------===//
 // reduce()
 //===----------------------------------------------------------------------===//
 

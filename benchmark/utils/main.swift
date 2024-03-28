@@ -52,6 +52,7 @@ import Chars
 import ClassArrayGetter
 import CodableTest
 import Combos
+import CountAlgo
 import CreateObjects
 import CxxSetToCollection
 import CxxStringConversion
@@ -245,6 +246,7 @@ register(CharacterRecognizer.benchmarks)
 register(Chars.benchmarks)
 register(CodableTest.benchmarks)
 register(Combos.benchmarks)
+register(CountAlgo.benchmarks)
 register(ClassArrayGetter.benchmarks)
 register(CreateObjects.benchmarks)
 register(CxxSetToCollection.benchmarks)
