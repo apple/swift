@@ -55,6 +55,7 @@
 #include "swift/Strings.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Index/USRGeneration.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallString.h"
@@ -2116,8 +2117,25 @@ void Serializer::writeCrossReference(const DeclContext *DC, uint32_t pathLen) {
 
     bool isProtocolExt = DC->getParent()->getExtendedProtocolDecl();
 
+    Identifier name = generic->getName();
+    if (generic->hasClangNode()) {
+      if (auto *ctsd = dyn_cast_or_null<clang::ClassTemplateSpecializationDecl>(generic->getClangDecl())) {
+        auto it = name.str().find("<");
+        if (it != StringRef::npos) {
+          // Serialize a C++ class template specialization name as original
+          // class template name, and use its USR as the discriminator, that
+          // will let Swift find the correct specialization when this cross
+          // reference is deserialized.
+          name = getASTContext().getIdentifier(name.str().substr(0, it));
+          assert(discriminator.empty());
+          llvm::SmallString<128> buffer;
+          clang::index::generateUSRForDecl(ctsd, buffer);
+          discriminator = getASTContext().getIdentifier(buffer.str());
+        }
+      }
+    }
     XRefTypePathPieceLayout::emitRecord(Out, ScratchRecord, abbrCode,
-                                        addDeclBaseNameRef(generic->getName()),
+                                        addDeclBaseNameRef(name),
                                         addDeclBaseNameRef(discriminator),
                                         isProtocolExt,
                                         generic->hasClangNode());
@@ -2290,8 +2308,26 @@ void Serializer::writeCrossReference(const Decl *D) {
       discriminator = containingFile->getDiscriminatorForPrivateDecl(type);
     }
 
+    Identifier name = type->getName();
+    if (type->hasClangNode()) {
+      if (auto *ctsd = dyn_cast_or_null<clang::ClassTemplateSpecializationDecl>(type->getClangDecl())) {
+        auto it = name.str().find("<");
+        if (it != StringRef::npos) {
+          // Serialize a C++ class template specialization name as original
+          // class template name, and use its USR as the discriminator, that
+          // will let Swift find the correct specialization when this cross
+          // reference is deserialized.
+          name = getASTContext().getIdentifier(name.str().substr(0, it));
+          assert(discriminator.empty());
+          llvm::SmallString<128> buffer;
+          clang::index::generateUSRForDecl(ctsd, buffer);
+          discriminator = getASTContext().getIdentifier(buffer.str());
+        }
+      }
+    }
+
     XRefTypePathPieceLayout::emitRecord(Out, ScratchRecord, abbrCode,
-                                        addDeclBaseNameRef(type->getName()),
+                                        addDeclBaseNameRef(name),
                                         addDeclBaseNameRef(discriminator),
                                         isProtocolExt, D->hasClangNode());
     return;
