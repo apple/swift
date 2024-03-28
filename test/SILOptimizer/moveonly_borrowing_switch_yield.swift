@@ -5,7 +5,7 @@ extension List {
         _read {
             switch self.head {
             case .empty: fatalError()
-            case .more(_borrowing box):
+            case .more(let box):
                 yield box.wrapped.element
             }
             //yield head.peek
@@ -76,7 +76,7 @@ enum Link<Element>: ~Copyable {
         _read {
             switch self {
             case .empty: fatalError()
-            case .more(_borrowing box):
+            case .more(let box):
                 yield box.wrapped.element
             }
         }
@@ -103,7 +103,7 @@ extension List {
     
     mutating func pop() -> Element {
         let h = self.head
-        switch h {
+        switch consume h {
         case .empty: fatalError()
         case .more(let box):
             let node = box.move()

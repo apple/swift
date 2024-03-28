@@ -25,7 +25,7 @@ extension NoncopyableList.Link {
     func find(where predicate: (Element)->Bool) -> Maybe<Element> {
         switch self {
         case .empty: return .none
-        case .more(_borrowing box):
+        case .more(let box):
             if predicate(box.wrapped.element) { return .some(box.wrapped.element) }
             return box.wrapped.next.find(where: predicate)
         }

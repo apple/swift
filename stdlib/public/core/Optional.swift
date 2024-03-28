@@ -846,7 +846,7 @@ public func ?? <T: ~Copyable>(
   optional: consuming T?,
   defaultValue: @autoclosure () throws -> T?
 ) rethrows -> T? {
-  switch optional {
+  switch consume optional {
   case .some(let value):
     return value
   case .none:

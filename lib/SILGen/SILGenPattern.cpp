@@ -3218,12 +3218,123 @@ static void switchCaseStmtSuccessCallback(SILGenFunction &SGF,
   SGF.Cleanups.emitBranchAndCleanups(sharedDest, caseBlock, args);
 }
 
+// TODO: Integrate this with findStorageExprForMoveOnly, which does almost the
+// same check.
+static bool isBorrowableSubject(SILGenFunction &SGF,
+                                Expr *subjectExpr) {
+  // Look through forwarding expressions.
+  for (;;) {
+    subjectExpr = subjectExpr->getValueProvidingExpr();
+    
+    // Look through loads.
+    if (auto load = dyn_cast<LoadExpr>(subjectExpr)) {
+      subjectExpr = load->getSubExpr();
+      continue;
+    }
+    
+    // Look through optional force-projections.
+    // We can't look through optional evaluations here because wrapping the
+    // value up in an Optional at the end needs a copy/move to create the
+    // temporary optional.
+    if (auto force = dyn_cast<ForceValueExpr>(subjectExpr)) {
+      subjectExpr = force->getSubExpr();
+      continue;
+    }
+
+    // Look through parens.
+    if (auto paren = dyn_cast<ParenExpr>(subjectExpr)) {
+      subjectExpr = paren->getSubExpr();
+      continue;
+    }
+
+    // Look through `try` and `await`.
+    if (auto tryExpr = dyn_cast<TryExpr>(subjectExpr)) {
+      subjectExpr = tryExpr->getSubExpr();
+      continue;
+    }
+    if (auto awaitExpr = dyn_cast<AwaitExpr>(subjectExpr)) {
+      subjectExpr = awaitExpr->getSubExpr();
+      continue;
+    }
+    
+    break;
+  }
+  
+  // An explicit `borrow` expression requires us to do a borrowing access.
+  if (isa<BorrowExpr>(subjectExpr)) {
+    return true;
+  }
+  
+  AbstractStorageDecl *storage;
+  AccessSemantics access;
+  
+  // A subject is potentially borrowable if it's some kind of storage reference.
+  if (auto declRef = dyn_cast<DeclRefExpr>(subjectExpr)) {
+    storage = dyn_cast<AbstractStorageDecl>(declRef->getDecl());
+    access = declRef->getAccessSemantics();
+  } else if (auto memberRef = dyn_cast<MemberRefExpr>(subjectExpr)) {
+    storage = dyn_cast<AbstractStorageDecl>(memberRef->getMember().getDecl());
+    access = memberRef->getAccessSemantics();
+  } else if (auto subscript = dyn_cast<SubscriptExpr>(subjectExpr)) {
+    storage = dyn_cast<AbstractStorageDecl>(subscript->getMember().getDecl());
+    access = subscript->getAccessSemantics();
+  } else {
+    return false;
+  }
+  
+  // If the member being referenced isn't storage, there's no benefit to
+  // borrowing it.
+  if (!storage) {
+    return false;
+  }
+  
+  // Check the access strategy used to read the storage.
+  auto strategy = storage->getAccessStrategy(access,
+                                             AccessKind::Read,
+                                             SGF.SGM.SwiftModule,
+                                             SGF.F.getResilienceExpansion());
+                                             
+  switch (strategy.getKind()) {
+  case AccessStrategy::Kind::Storage:
+    // Accessing storage directly benefits from borrowing.
+    return true;
+  case AccessStrategy::Kind::DirectToAccessor:
+  case AccessStrategy::Kind::DispatchToAccessor:
+    // If we use an accessor, the kind of accessor affects whether we get
+    // a reference we can borrow or a temporary that will be consumed.
+    switch (strategy.getAccessor()) {
+    case AccessorKind::Get:
+    case AccessorKind::DistributedGet:
+      // Get returns an owned value.
+      return false;
+    case AccessorKind::Read:
+    case AccessorKind::Modify:
+    case AccessorKind::Address:
+    case AccessorKind::MutableAddress:
+      // Read, modify, and addressors yield a borrowable reference.
+      return true;
+    case AccessorKind::Init:
+    case AccessorKind::Set:
+    case AccessorKind::WillSet:
+    case AccessorKind::DidSet:
+      llvm_unreachable("should not be involved in a read");
+    }
+    llvm_unreachable("switch not covered?");
+    
+  case AccessStrategy::Kind::MaterializeToTemporary:
+  case AccessStrategy::Kind::DispatchToDistributedThunk:
+    return false;
+  }
+  llvm_unreachable("switch not covered?");
+}
+
 void SILGenFunction::emitSwitchStmt(SwitchStmt *S) {
   LLVM_DEBUG(llvm::dbgs() << "emitting switch stmt\n";
              S->dump(llvm::dbgs());
              llvm::dbgs() << '\n');
 
-  auto subjectTy = S->getSubjectExpr()->getType();
+  auto subjectExpr = S->getSubjectExpr();
+  auto subjectTy = subjectExpr->getType();
   auto subjectLoweredTy = getLoweredType(subjectTy);
   auto subjectLoweredAddress =
     silConv.useLoweredAddresses() && subjectLoweredTy.isAddressOnly(F);
@@ -3244,7 +3355,14 @@ void SILGenFunction::emitSwitchStmt(SwitchStmt *S) {
   if (getASTContext().LangOpts.hasFeature(Feature::BorrowingSwitch)) {
     if (subjectTy->isNoncopyable()) {
       // Determine the overall ownership behavior of the switch, based on the
-      // patterns' ownership behavior.
+      // subject expression and the patterns' ownership behavior.
+      
+      // If the subject expression is borrowable, then perform the switch as
+      // a borrow. (A `consume` expression would render the expression
+      // non-borrowable.) Otherwise, perform it as a consume.
+      ownership = isBorrowableSubject(*this, subjectExpr)
+        ? ValueOwnership::Shared
+        : ValueOwnership::Owned;
       for (auto caseLabel : S->getCases()) {
         for (auto item : caseLabel->getCaseLabelItems()) {
           ownership = std::max(ownership, item.getPattern()->getOwnership());

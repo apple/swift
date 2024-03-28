@@ -25,7 +25,7 @@ func borrowParam(x: borrowing Outer) {
     // CHECK: [[MARK:%.*]] = mark_unresolved_non_copyable_value [strict] [no_consume_or_assign]
     // CHECK: [[BORROW:%.*]] = begin_borrow [[MARK]]
     switch x {
-    case _borrowing y:
+    case let y:
         // CHECK: apply {{.*}}([[BORROW]])
         use(y)
     }
@@ -39,7 +39,7 @@ func borrowParam(x: borrowing Outer) {
     // CHECK: [[MARK:%.*]] = mark_unresolved_non_copyable_value [strict] [no_consume_or_assign] [[COPY_INNER]]
     // CHECK: [[BORROW:%.*]] = begin_borrow [[MARK]]
     switch x.storedInner {
-    case _borrowing y:
+    case let y:
         // CHECK: apply {{.*}}([[BORROW]])
         use(y)
     }
@@ -56,22 +56,24 @@ func borrowParam(x: borrowing Outer) {
     // CHECK: [[MARK2:%.*]] = mark_unresolved_non_copyable_value [strict] [no_consume_or_assign] [[COPY2]]
     // CHECK: [[BORROW2:%.*]] = begin_borrow [[MARK2]]
     switch x.readInner {
-    case _borrowing y:
+    case let y:
         // CHECK: apply {{.*}}([[BORROW2]])
         use(y)
     }
     // CHECK: end_apply [[TOKEN]]
     // CHECK: end_borrow [[BORROW_OUTER]]
 
+    // `temporary()` is an rvalue, so we 
     // CHECK: [[FN:%.*]] = function_ref @{{.*}}9temporary
     // CHECK: [[TMP:%.*]] = apply [[FN]]()
     // CHECK: [[BORROW_OUTER:%.*]] = begin_borrow [fixed] [[TMP]]
-    // CHECK: [[COPY:%.*]] = copy_value [[BORROW_OUTER]]
-    // CHECK: [[MARK:%.*]] = mark_unresolved_non_copyable_value [strict] [no_consume_or_assign] [[COPY]]
-    // CHECK: [[BORROW:%.*]] = begin_borrow [[MARK]]
+    // CHECK: end_borrow [[BORROW_OUTER]]
+    // CHECK: store [[TMP]] to [init] [[Y:%.*]] :
+    // CHECK: [[MARK:%.*]] = mark_unresolved_non_copyable_value [no_consume_or_assign] [[Y]]
     switch temporary() {
-    case _borrowing y:
-        // CHECK: apply {{.*}}([[BORROW]])
+    case let y:
+        // CHECK: [[LOAD_BORROW:%.*]] = load_borrow [[MARK]]
+        // CHECK: apply {{.*}}([[LOAD_BORROW]])
         use(y)
     }
 }

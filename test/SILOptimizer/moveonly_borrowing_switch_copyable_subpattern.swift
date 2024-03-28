@@ -19,7 +19,7 @@ func nibble(_: borrowing String) {}
 
 func test(borrowing foo: borrowing Foo) {
     switch foo {
-    case .nonCopyablePayload(_borrowing x): // expected-warning{{}}
+    case .nonCopyablePayload(let x): // expected-warning{{}}
         break
 
     // OK to form a normal `let` binding when the payload is copyable.

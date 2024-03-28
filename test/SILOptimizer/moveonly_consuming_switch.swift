@@ -57,7 +57,7 @@ extension List {
     }
         
     mutating func pop() -> Element {
-        switch self {
+        switch consume self {
         case .node(let element, let box):
             self = box.move()
             return element

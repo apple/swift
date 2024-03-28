@@ -777,6 +777,9 @@ Pattern::getOwnership(
     void visitNamedPattern(NamedPattern *p) {
       switch (p->getDecl()->getIntroducer()) {
       case VarDecl::Introducer::Let:
+        // `let` defaults to the prevailing ownership of the switch.
+        break;
+      
       case VarDecl::Introducer::Var:
         // If the subpattern type is copyable, then we can bind the variable
         // by copying without requiring more than a borrow of the original.
@@ -786,7 +789,7 @@ Pattern::getOwnership(
         // TODO: An explicit `consuming` binding kind consumes regardless of
         // type.
       
-        // Noncopyable `let` and `var` consume the bound value to move it into
+        // Noncopyable `var` consumes the bound value to move it into
         // a new independent variable.
         increaseOwnership(ValueOwnership::Owned, p);
         break;
@@ -797,8 +800,8 @@ Pattern::getOwnership(
         break;
         
       case VarDecl::Introducer::Borrowing:
-        // `borrow` bindings borrow parts of the value in-place so they don't
-        // need stronger access to the subject value.
+        // `borrow` bindings borrow parts of the value in-place.
+        increaseOwnership(ValueOwnership::Shared, p);        
         break;
       }
     }
