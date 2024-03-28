@@ -4669,7 +4669,7 @@ ERROR(value_of_module_type,none,
       "expected module member name after module name", ())
 
 ERROR(value_of_metatype_type,none,
-      "expected member name or constructor call after type name%select{|; this "
+      "expected member name or initializer call after type name%select{|; this "
       "will be an error in Swift 6}0", (bool))
 
 NOTE(add_parens_to_type,none,
@@ -6516,9 +6516,9 @@ ERROR(dynamic_replacement_replaced_not_objc_dynamic, none,
 ERROR(dynamic_replacement_replacement_not_objc_dynamic, none,
       "%0 is marked @objc dynamic", (DeclName))
 ERROR(dynamic_replacement_replaced_constructor_is_convenience, none,
-      "replaced constructor %0 is marked as convenience", (DeclNameRef))
+      "replaced initializer %0 is marked as convenience", (DeclNameRef))
 ERROR(dynamic_replacement_replaced_constructor_is_not_convenience, none,
-      "replaced constructor %0 is not marked as convenience", (DeclNameRef))
+      "replaced initializer %0 is not marked as convenience", (DeclNameRef))
 
 //------------------------------------------------------------------------------
 // MARK: @_typeEraser()

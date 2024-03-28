@@ -186,7 +186,7 @@ func testAnyTypeExpr() {
   func test(_: (any P).Type) {}
   test((any P).self)
 
-  // expected-error@+2 {{expected member name or constructor call after type name}}
+  // expected-error@+2 {{expected member name or initializer call after type name}}
   // expected-note@+1 {{use '.self' to reference the type object}}
   let invalid = any P
   test(invalid)

@@ -40,10 +40,10 @@ extension TheReplaceables {
 }
 
 extension K {
-  @_dynamicReplacement(for: init(i:)) // expected-error{{replaced constructor 'init(i:)' is not marked as convenience}}
+  @_dynamicReplacement(for: init(i:)) // expected-error{{replaced initializer 'init(i:)' is not marked as convenience}}
   convenience init(ri: Int) { }
 
-  @_dynamicReplacement(for: init(c:)) // expected-error{{replaced constructor 'init(c:)' is marked as convenience}})
+  @_dynamicReplacement(for: init(c:)) // expected-error{{replaced initializer 'init(c:)' is marked as convenience}})
   init(rc: Int) { }
 
   @_dynamicReplacement(for:finalFunction())
