@@ -59,6 +59,7 @@ func client() {
   onMacOS10_15()
   onMacOS11_0() // expected-error {{is only available in macOS 11.0 or newer}}
   // expected-note @-1 {{add 'if #available' version check}}
+  // expected-note @-2 {{change the @available attribute of the global function on macOS from 10.15 to 11.0}}
   onMacOSDeprecated()
 
   if #available(_iOS14Aligned, *) {
@@ -68,6 +69,7 @@ func client() {
   if #unavailable(_iOS14Aligned) {
     onMacOS11_0() // expected-error {{is only available in macOS 11.0 or newer}}
     // expected-note @-1 {{add 'if #available' version check}}
+    // expected-note @-2 {{change the @available attribute of the global function on macOS from 10.15 to 11.0}}
   } else {
     onMacOS11_0()
   }

@@ -1821,11 +1821,6 @@ static void fixAvailabilityForDecl(SourceRange ReferenceRange, const Decl *D,
   if (TypeChecker::diagnosticIfDeclCannotBePotentiallyUnavailable(D).has_value())
     return;
 
-  if (getActiveAvailableAttribute(D, Context)) {
-    // For QoI, in future should emit a fixit to update the existing attribute.
-    return;
-  }
-
   // For some declarations (variables, enum elements), the location in concrete
   // syntax to suggest the Fix-It may differ from the declaration to which
   // we attach availability attributes in the abstract syntax tree during
@@ -1833,6 +1828,23 @@ static void fixAvailabilityForDecl(SourceRange ReferenceRange, const Decl *D,
   const Decl *ConcDecl = concreteSyntaxDeclForAvailableAttribute(D);
 
   DescriptiveDeclKind KindForDiagnostic = ConcDecl->getDescriptiveKind();
+
+  if (auto Attr = getActiveAvailableAttribute(D, Context)) {
+    if (Attr->isUnconditionallyUnavailable()) {
+      return;
+    }
+    SourceManager &SM = Context.SourceMgr;
+    auto Version = SM.extractText(Lexer::getCharSourceRangeFromSourceRange(
+                                      SM, Attr->IntroducedRange))
+                       .str();
+    auto Required = RequiredRange.getLowerEndpoint().getAsString();
+    Context.Diags
+        .diagnose(ReferenceRange.Start, diag::update_availability_attribute,
+                  KindForDiagnostic, Attr->platformString(), Version, Required)
+        .fixItReplace(Attr->IntroducedRange, Required);
+    return;
+  }
+
   SourceLoc InsertLoc;
 
   // To avoid exposing the pattern binding declaration to the user, get the

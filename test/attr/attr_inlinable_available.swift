@@ -194,12 +194,16 @@ public func deployedUseBeforeInliningTarget(
   _: BeforeInliningTarget,
   _: AtInliningTarget,
   _: BetweenTargets, // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.14.5}} {{191:18-22=10.14.5}}
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.15}} {{191:18-22=10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 11}} {{191:18-22=11}}
 ) {
   defer {
     _ = AtDeploymentTarget()
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 11}} {{191:18-22=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
@@ -207,6 +211,7 @@ public func deployedUseBeforeInliningTarget(
   _ = BetweenTargets()
   _ = AtDeploymentTarget()
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 11}} {{191:18-22=11}}
 
   if #available(macOS 11, *) {
     _ = AfterDeploymentTarget()
@@ -219,12 +224,16 @@ public func deployedUseAtInliningTarget(
   _: BeforeInliningTarget,
   _: AtInliningTarget,
   _: BetweenTargets, // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.14.5}}
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}}
 ) {
   defer {
     _ = AtDeploymentTarget()
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
@@ -232,6 +241,7 @@ public func deployedUseAtInliningTarget(
   _ = BetweenTargets()
   _ = AtDeploymentTarget()
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}}
 
   if #available(macOS 11, *) {
     _ = AfterDeploymentTarget()
@@ -245,11 +255,14 @@ public func deployedUseBetweenTargets(
   _: AtInliningTarget,
   _: BetweenTargets,
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 10.15}} {{251:18-25=10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 11}} {{251:18-25=11}}
 ) {
   defer {
     _ = AtDeploymentTarget()
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 11}} {{251:18-25=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
@@ -257,6 +270,7 @@ public func deployedUseBetweenTargets(
   _ = BetweenTargets()
   _ = AtDeploymentTarget()
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 11}} {{251:18-25=11}}
 
   if #available(macOS 11, *) {
     _ = AfterDeploymentTarget()
@@ -271,10 +285,12 @@ public func deployedUseAtDeploymentTarget(
   _: BetweenTargets,
   _: AtDeploymentTarget,
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.15 to 11}} {{280:18-23=11}}
 ) {
   defer {
     _ = AtDeploymentTarget()
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+   // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.15 to 11}} {{280:18-23=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
@@ -282,6 +298,7 @@ public func deployedUseAtDeploymentTarget(
   _ = BetweenTargets()
   _ = AtDeploymentTarget()
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+ // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.15 to 11}} {{280:18-23=11}}
 
   if #available(macOS 11, *) {
     _ = AfterDeploymentTarget()
@@ -404,19 +421,27 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
   _: BeforeInliningTarget,
   _: AtInliningTarget,
   _: BetweenTargets, // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.14.5}} {{418:18-22=10.14.5}}
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.15}} {{418:18-22=10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 11}} {{418:18-22=11}}
 ) {
   defer {
     _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+   // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.15}} {{418:18-22=10.15}}
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 11}} {{418:18-22=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
   _ = AtInliningTarget()
   _ = BetweenTargets() // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.14.5}} {{418:18-22=10.14.5}}
   _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 10.15}} {{418:18-22=10.15}}
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.9 to 11}} {{418:18-22=11}}
 
   if #available(macOS 10.14.5, *) {
     _ = BetweenTargets()
@@ -435,19 +460,27 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
   _: BeforeInliningTarget,
   _: AtInliningTarget,
   _: BetweenTargets, // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.14.5}} {{457:18-23=10.14.5}}
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}} {{457:18-23=10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}} {{457:18-23=11}}
 ) {
   defer {
     _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}}  {{457:18-23=10.15}}
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+   // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}} {{457:18-23=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
   _ = AtInliningTarget()
   _ = BetweenTargets() // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.14.5}}  {{457:18-23=10.14.5}}
   _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}} {{457:18-23=10.15}}
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}} {{457:18-23=11}}
 
   if #available(macOS 10.14.5, *) {
     _ = BetweenTargets()
@@ -467,18 +500,24 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
   _: AtInliningTarget,
   _: BetweenTargets,
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 10.15}} {{496:18-25=10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 11}} {{496:18-25=11}}
 ) {
   defer {
     _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 10.15}}  {{496:18-25=10.15}}
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+    // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 11}} {{496:18-25=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
   _ = AtInliningTarget()
   _ = BetweenTargets()
   _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 10.15}} {{496:18-25=10.15}}
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.14.5 to 11}} {{496:18-25=11}}
 
   if #available(macOS 10.15, *) {
     _ = AtDeploymentTarget()
@@ -496,10 +535,12 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
   _: BetweenTargets,
   _: AtDeploymentTarget,
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.15 to 11}} {{530:18-23=11}}
 ) {
   defer {
     _ = AtDeploymentTarget()
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+   // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.15 to 11}} {{530:18-23=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
@@ -507,6 +548,7 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
   _ = BetweenTargets()
   _ = AtDeploymentTarget()
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.15 to 11}} {{530:18-23=11}}
 
   if #available(macOS 11, *) {
     _ = AfterDeploymentTarget()
@@ -628,6 +670,7 @@ public func spiDeployedUseNoAvailable( // expected-note 3 {{add @available attri
   _ = BetweenTargets()
   _ = AtDeploymentTarget()
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the pattern binding on macOS from 10.15 to 11}} {{665:18-23=11}}
 
   if #available(macOS 11, *) {
     _ = AfterDeploymentTarget()
@@ -770,19 +813,27 @@ public func backDeployedToInliningTarget(
   _: BeforeInliningTarget,
   _: AtInliningTarget,
   _: BetweenTargets, // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.14.5}} {{809:18-23=10.14.5}}
   _: AtDeploymentTarget, // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}} {{809:18-23=10.15}}
   _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}} {{809:18-23=11}}
 ) {
   defer {
     _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+   // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}} {{809:18-23=10.15}}
     _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+   // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}} {{809:18-23=11}}
   }
   _ = NoAvailable()
   _ = BeforeInliningTarget()
   _ = AtInliningTarget()
   _ = BetweenTargets() // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.14.5}} {{809:18-23=10.14.5}}
   _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 10.15}} {{809:18-23=10.15}}
   _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+  // expected-note@-1 {{change the @available attribute of the global function on macOS from 10.10 to 11}} {{809:18-23=11}}
 
   if #available(macOS 10.14.5, *) {
     _ = BetweenTargets()
@@ -1027,8 +1078,9 @@ public struct PublicStruct { // expected-note 21 {{add @available attribute}}
       _ = AtInliningTarget()
       _ = BetweenTargets()
       _ = AtDeploymentTarget() // expected-error {{'AtDeploymentTarget' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}} expected-note {{add 'if #available'}}
+      // expected-note@-1 {{change the @available attribute of the pattern binding on macOS from 10.14.5 to 10.15}} {{1072:20-27=10.15}}
       _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
-
+      // expected-note@-1 {{change the @available attribute of the pattern binding on macOS from 10.14.5 to 11}} {{1072:20-27=11}}
       if #available(macOS 10.15, *) {
         _ = AtDeploymentTarget()
       }
@@ -1044,6 +1096,7 @@ public struct PublicStruct { // expected-note 21 {{add @available attribute}}
       _ = BetweenTargets()
       _ = AtDeploymentTarget()
       _ = AfterDeploymentTarget() // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}} expected-note {{add 'if #available'}}
+      // expected-note@-1{{change the @available attribute of the pattern binding on macOS from 10.14.5 to 11}} {{1072:20-27=11}}
 
       if #available(macOS 11, *) {
         _ = AfterDeploymentTarget()
@@ -1279,6 +1332,7 @@ extension BetweenTargets {
     _: BetweenTargets,
     _: AtDeploymentTarget,
     _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+    // expected-note@-1 {{change the @available attribute of the extension on macOS from 10.15 to 11}} {{1326:18-23=11}}
   ) {}
 }
 
@@ -1291,6 +1345,7 @@ extension BetweenTargets { // expected-note {{add @available attribute to enclos
     _: BetweenTargets,
     _: AtDeploymentTarget,
     _: AfterDeploymentTarget // expected-error {{'AfterDeploymentTarget' is only available in macOS 11 or newer}}
+    // expected-note@-1 {{change the @available attribute of the instance method on macOS from 10.15 to 11}} {{1340:20-25=11}}
   ) {}
 }
 
@@ -1334,6 +1389,7 @@ extension BetweenTargets {
 
 @available(macOS 10.10, *)
 extension BetweenTargets { // expected-error {{'BetweenTargets' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
+  // expected-note@-1 {{change the @available attribute of the extension on macOS from 10.10 to 10.14.5}} {{1390:18-23=10.14.5}}
   public func publicFuncInExcessivelyAvailableExtension() {}
 }
 
@@ -1481,10 +1537,13 @@ public protocol BeforeInliningTargetProtoWithAssoc {
   associatedtype C: AtInliningTargetProto
   associatedtype D: BetweenTargetsProto // expected-error {{'BetweenTargetsProto' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.9 to 10.14.5}} {{1533:18-22=10.14.5}}
   associatedtype E: AtDeploymentTargetProto // expected-error {{'AtDeploymentTargetProto' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.9 to 10.15}} {{1533:18-22=10.15}}
   associatedtype F: AfterDeploymentTargetProto // expected-error {{'AfterDeploymentTargetProto' is only available in}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.9 to 11}} {{1533:18-22=11}}
 }
 
 @available(macOS 10.10, *)
@@ -1494,10 +1553,13 @@ public protocol AtInliningTargetProtoWithAssoc {
   associatedtype C: AtInliningTargetProto
   associatedtype D: BetweenTargetsProto // expected-error {{'BetweenTargetsProto' is only available in macOS 10.14.5 or newer; clients of 'Test' may have a lower deployment target}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.10 to 10.14.5}} {{1549:18-23=10.14.5}}
   associatedtype E: AtDeploymentTargetProto // expected-error {{'AtDeploymentTargetProto' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2 {{change the @available attribute of the protocol on macOS from 10.10 to 10.15}}
   associatedtype F: AfterDeploymentTargetProto // expected-error {{'AfterDeploymentTargetProto' is only available in}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2 {{change the @available attribute of the protocol on macOS from 10.10 to 11}}
 }
 
 @available(macOS 10.14.5, *)
@@ -1508,8 +1570,10 @@ public protocol BetweenTargetsProtoWithAssoc {
   associatedtype D: BetweenTargetsProto
   associatedtype E: AtDeploymentTargetProto // expected-error {{'AtDeploymentTargetProto' is only available in macOS 10.15 or newer; clients of 'Test' may have a lower deployment target}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.14.5 to 10.15}} {{1565:18-25=10.15}}
   associatedtype F: AfterDeploymentTargetProto // expected-error {{'AfterDeploymentTargetProto' is only available in}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.14.5 to 11}} {{1565:18-25=11}}
 }
 
 @available(macOS 10.15, *)
@@ -1521,6 +1585,7 @@ public protocol AtDeploymentTargetProtoWithAssoc {
   associatedtype E: AtDeploymentTargetProto
   associatedtype F: AfterDeploymentTargetProto // expected-error {{'AfterDeploymentTargetProto' is only available in}}
   // expected-note@-1{{add @available attribute to enclosing associated type}}
+  // expected-note@-2{{change the @available attribute of the protocol on macOS from 10.15 to 11}} {{1579:18-23=11}}
 }
 
 @available(macOS 11, *)
