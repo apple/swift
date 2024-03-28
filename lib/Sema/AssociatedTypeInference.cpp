@@ -2426,13 +2426,17 @@ AssociatedTypeInference::computeFailureTypeWitness(
   for (const auto &witness : valueWitnesses) {
     if (isAsyncIteratorProtocolNext(witness.first)) {
       if (auto witnessFunc = dyn_cast<AbstractFunctionDecl>(witness.second)) {
+        auto thrownError = witnessFunc->getEffectiveThrownErrorType();
+
         // If it doesn't throw, Failure == Never.
-        if (!witnessFunc->hasThrows())
+        if (!thrownError)
           return AbstractTypeWitness(assocType, ctx.getNeverType());
 
-        // If it isn't 'rethrows', Failure == any Error.
-        if (!witnessFunc->getAttrs().hasAttribute<RethrowsAttr>())
-          return AbstractTypeWitness(assocType, ctx.getErrorExistentialType());
+        // If it isn't 'rethrows', use the thrown error type;.
+        if (!witnessFunc->getAttrs().hasAttribute<RethrowsAttr>()) {
+          return AbstractTypeWitness(assocType,
+                                     dc->mapTypeIntoContext(*thrownError));
+        }
 
         for (auto req : witnessFunc->getGenericSignature().getRequirements()) {
           if (req.getKind() == RequirementKind::Conformance) {

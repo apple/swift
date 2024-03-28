@@ -111,8 +111,9 @@ public protocol AsyncIteratorProtocol<Element, Failure> {
 
 @available(SwiftStdlib 5.1, *)
 extension AsyncIteratorProtocol {
-  /// Default implementation of `next()` in terms of `next()`, which is
-  /// required to maintain backward compatibility with existing async iterators.
+  /// Default implementation of `next(isolation:)` in terms of `next()`, which
+  /// is required to maintain backward compatibility with existing async
+  /// iterators.
   @available(SwiftStdlib 6.0, *)
   @inlinable
   public mutating func next(isolation actor: isolated (any Actor)?) async throws(Failure) -> Element? {
@@ -121,5 +122,17 @@ extension AsyncIteratorProtocol {
     } catch {
       throw error as! Failure
     }
+  }
+}
+
+@available(SwiftStdlib 5.1, *)
+extension AsyncIteratorProtocol {
+  /// Default implementation of `next()` in terms of `next(isolation:)`, which
+  /// is required to maintain backward compatibility with existing async
+  /// iterators.
+  @available(SwiftStdlib 6.0, *)
+  @inlinable
+  public mutating func next() async throws(Failure) -> Element? {
+    return try await next(isolation: nil)
   }
 }
