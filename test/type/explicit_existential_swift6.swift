@@ -354,6 +354,8 @@ func testAnyFixIt() {
   let _: (HasAssoc).Protocol = (any HasAssoc).self
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
   let _: HasAssoc? = ConformingType()
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
+  let _: HasAssoc!
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-23=(any HasAssoc.Type)}}
   let _: HasAssoc.Type? = ConformingType.self
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
