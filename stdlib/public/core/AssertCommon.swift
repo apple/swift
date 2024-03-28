@@ -81,6 +81,10 @@ internal func _fatalErrorFlags() -> UInt32 {
 #endif
 }
 
+#if $Embedded
+public var assertLineNumber: UInt = 0
+#endif
+
 /// This function should be used only in the implementation of user-level
 /// assertions.
 ///
@@ -94,7 +98,9 @@ internal func _assertionFailure(
   file: StaticString, line: UInt,
   flags: UInt32
 ) -> Never {
-#if !$Embedded
+#if $Embedded
+  assertLineNumber = line
+#else
   prefix.withUTF8Buffer {
     (prefix) -> Void in
     message.withUTF8Buffer {
