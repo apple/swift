@@ -54,7 +54,12 @@ bool checkDistributedActorSystemAdHocProtocolRequirements(
 bool checkDistributedActorSystem(const NominalTypeDecl *system);
 
 /// Typecheck a distributed method declaration
-bool checkDistributedFunction(AbstractFunctionDecl *decl);
+bool checkDistributedFunction(AbstractFunctionDecl *decl,
+                              ClassDecl *inSpecificActor);
+
+inline bool checkDistributedFunction(AbstractFunctionDecl *decl) {
+  return checkDistributedFunction(decl, /*inSpecificActor=*/nullptr);
+}
 
 /// Typecheck a distributed computed (get-only) property declaration.
 /// They are effectively checked the same way as argument-less methods.

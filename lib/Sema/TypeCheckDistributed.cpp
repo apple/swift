@@ -393,8 +393,10 @@ bool swift::checkDistributedActorSystemAdHocProtocolRequirements(
 static bool checkDistributedTargetResultType(
     ModuleDecl *module, ValueDecl *valueDecl,
     Type serializationRequirement,
+    ClassDecl *conformingActor,
     bool diagnose) {
   auto &C = valueDecl->getASTContext();
+  auto DC = valueDecl->getDeclContext();
 
   if (serializationRequirement && serializationRequirement->hasError()) {
     return false;
@@ -432,6 +434,18 @@ static bool checkDistributedTargetResultType(
         module->checkConformance(resultType, serializationReq);
     if (conformance.isInvalid()) {
       if (diagnose) {
+        if (conformingActor) {
+          if (auto protocol = dyn_cast<ProtocolDecl>(DC)) {
+            conformingActor->diagnose(
+                diag::
+                    distributed_actor_cannot_conform_to_protocol_failed_serialization_requirement_compat,
+                conformingActor->getName(),
+                protocol->getName(),
+                valueDecl->getDescriptiveKind(),
+                valueDecl);
+          }
+        }
+
         llvm::StringRef conformanceToSuggest = isCodableRequirement ?
                                                "Codable" : // Codable is a typealias, easier to diagnose like that
                                                serializationReq->getNameStr();
@@ -498,39 +512,41 @@ bool swift::checkDistributedActorSystem(const NominalTypeDecl *system) {
 ///
 /// \returns \c true if there was a problem with adding the attribute, \c false
 /// otherwise.
-bool swift::checkDistributedFunction(AbstractFunctionDecl *func) {
+bool swift::checkDistributedFunction(AbstractFunctionDecl *func, ClassDecl *inSpecificActor) {
   if (!func->isDistributed())
     return false;
 
+  if (inSpecificActor)
+    assert(isa<ProtocolDecl>(func->getDeclContext()) &&
+        "Checking a distributed function in a specified context nominal, "
+           "is only supposed to be used with a protocol func checked against an "
+           "adopting concrete distributed actor");
+
   auto &C = func->getASTContext();
   return evaluateOrDefault(C.evaluator,
-                           CheckDistributedFunctionRequest{func},
+                           CheckDistributedFunctionRequest{func, inSpecificActor},
                            false); // no error if cycle
 }
 
 bool CheckDistributedFunctionRequest::evaluate(
-    Evaluator &evaluator, AbstractFunctionDecl *func) const {
+    Evaluator &evaluator, AbstractFunctionDecl *func, ClassDecl *conformingActor) const {
   if (auto *accessor = dyn_cast<AccessorDecl>(func)) {
-    auto *var = cast<VarDecl>(accessor->getStorage());
-    assert(var->isDistributed() && accessor->isDistributedGetter());
+    assert(cast<VarDecl>(accessor->getStorage()) && accessor->isDistributedGetter());
   } else {
     assert(func->isDistributed());
   }
 
   auto &C = func->getASTContext();
+  auto DC = func->getDeclContext();
   auto module = func->getParentModule();
 
   /// If no distributed module is available, then no reason to even try checks.
   if (!C.getLoadedModule(C.Id_Distributed))
     return true;
 
-//  // No checking for protocol requirements because they are not required
-//  // to have `SerializationRequirement`.
-//  if (isa<ProtocolDecl>(func->getDeclContext()))
-//    return false;
-
   Type serializationReqType =
-      getDistributedActorSerializationType(func->getDeclContext());
+    getDistributedActorSerializationType(
+      conformingActor ? conformingActor : func->getDeclContext());
 
   for (auto param: *func->getParameters()) {
     // --- Check the parameter conforming to serialization requirements
@@ -546,8 +562,24 @@ bool CheckDistributedFunctionRequest::evaluate(
       auto srl = serializationReqType->getExistentialLayout();
       for (auto req: srl.getProtocols()) {
         if (module->checkConformance(paramTy, req).isInvalid()) {
+
+          // If this is a protocol requirement, but we're checking it against a
+          // conforming specific actor, we should diagnose this DA cannot
+          // conform to this protocol, as its serialization requirement is not
+          // compatible.
+          if (conformingActor) {
+            if (auto protocol = dyn_cast<ProtocolDecl>(DC)) {
+              conformingActor->diagnose(
+                  diag::
+                      distributed_actor_cannot_conform_to_protocol_failed_serialization_requirement_compat,
+                  conformingActor->getName(),
+                  protocol->getName(),
+                  func->getDescriptiveKind(), func);
+            }
+          }
+
           auto diag = func->diagnose(
-              diag::distributed_actor_func_param_not_codable,
+              diag::distributed_actor_func_param_not_serializable,
               param->getArgumentName().str(), param->getInterfaceType(),
               func->getDescriptiveKind(),
               serializationRequirementIsCodable ? "Codable"
@@ -597,7 +629,7 @@ bool CheckDistributedFunctionRequest::evaluate(
 
   // --- Result type must be either void or a serialization requirement conforming type
   if (checkDistributedTargetResultType(module, func, serializationReqType,
-                                       /*diagnose=*/true)) {
+                                       conformingActor, /*diagnose=*/true)) {
     return true;
   }
 
@@ -643,7 +675,8 @@ bool swift::checkDistributedActorProperty(VarDecl *var, bool diagnose) {
       getDistributedActorSerializationType(var->getDeclContext());
 
   auto module = var->getModuleContext();
-  if (checkDistributedTargetResultType(module, var, serializationRequirement, diagnose)) {
+  if (checkDistributedTargetResultType(module, var, serializationRequirement,
+                                       /*conformingActor=*/nullptr, diagnose)) {
     return true;
   }
 
@@ -699,7 +732,7 @@ void TypeChecker::checkDistributedActor(SourceFile *SF, NominalTypeDecl *nominal
   // If applicable, this will create the default 'init(transport:)' initializer
   (void)nominal->getDefaultInitializer();
 
-  for (auto member : nominal->getMembers()) {
+  for (auto member : nominal->getAllMembers()) {
     // --- Ensure 'distributed func' all thunks
     if (auto *var = dyn_cast<VarDecl>(member)) {
       if (!var->isDistributed())
@@ -728,6 +761,26 @@ void TypeChecker::checkDistributedActor(SourceFile *SF, NominalTypeDecl *nominal
 
       if (auto thunk = func->getDistributedThunk()) {
         SF->addDelayedFunction(thunk);
+      }
+    }
+  }
+
+  // === Protocol methods, which may not have had specified requirements
+  // but have default implementations; which may not be compatible with our
+  // serialization requirement
+  //
+  // Check if protocol inherited distributed functions are compatible with
+  // this distributed actor's serialization requirement, i.e. distributed-check
+  // all the distributed functions.
+  if (auto da = dyn_cast<ClassDecl>(nominal)) {
+    for (auto proto : nominal->getAllProtocols()) {
+      for (auto member : proto->getMembers()) {
+        if (auto func = dyn_cast<AbstractFunctionDecl>(member)) {
+          checkDistributedFunction(func, /*inSpecificActor=*/da);
+        } else if (auto var = dyn_cast<VarDecl>(member)) {
+          auto getter = var->getAccessor(AccessorKind::Get);
+          checkDistributedFunction(getter, /*inSpecificActor=*/da);
+        }
       }
     }
   }
