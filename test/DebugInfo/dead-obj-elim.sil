@@ -1,0 +1,39 @@
+// RUN: %target-sil-opt -enable-sil-verify-all -deadobject-elim %s | %FileCheck %s
+
+sil_stage canonical
+
+import Builtin
+import Swift
+
+struct MyObject {
+  var _storage: (UInt8, UInt8)
+}
+
+// CHECK-LABEL: sil @$myFunc
+sil @$myFunc : $@convention(thin) (UInt8) -> UInt8 {
+[global: ]
+bb0(%0 : $UInt8):
+  debug_value %0 : $UInt8, let, name "value", argno 1
+  // CHECK-NOT: alloc_stack
+  %2 = alloc_stack $MyObject, var, name "obj"
+  %24 = integer_literal $Builtin.Int8, 3
+  %25 = struct_extract %0 : $UInt8, #UInt8._value
+  %26 = integer_literal $Builtin.Int1, -1
+  %27 = builtin "uadd_with_overflow_Int8"(%25 : $Builtin.Int8, %24 : $Builtin.Int8, %26 : $Builtin.Int1) : $(Builtin.Int8, Builtin.Int1)
+  %28 = tuple_extract %27 : $(Builtin.Int8, Builtin.Int1), 0
+  %29 = tuple_extract %27 : $(Builtin.Int8, Builtin.Int1), 1
+  cond_fail %29 : $Builtin.Int1, "arithmetic overflow"
+  %31 = struct $UInt8 (%28 : $Builtin.Int8)
+  %34 = struct_element_addr %2 : $*MyObject, #MyObject._storage
+  %35 = tuple_element_addr %34 : $*(UInt8, UInt8), 0
+  %36 = tuple_element_addr %34 : $*(UInt8, UInt8), 1
+  // The store below should be replaced by a debug_value with the same operand as the store (%0)
+  // The fragment refers to the member being modified
+  // CHECK-NOT: store
+  // CHECK: debug_value %0 : $UInt8, var, name "obj", type $*MyObject, expr op_fragment:#MyObject._storage:op_tuple_fragment:$(UInt8, UInt8):1
+  store %0 to %36 : $*UInt8
+  // CHECK: debug_value %{{[0-9]}} : $UInt8, var, name "obj", type $*MyObject, expr op_fragment:#MyObject._storage:op_tuple_fragment:$(UInt8, UInt8):0
+  store %31 to %35 : $*UInt8
+  dealloc_stack %2 : $*MyObject
+  return %31 : $UInt8
+} // end sil function '$myFunc'
