@@ -2191,19 +2191,17 @@ struct ExplicitSwiftModuleLoader::Implementation {
     std::vector<std::string> &extraClangArgs = Ctx.ClangImporterOpts.ExtraArgs;
     for (auto &entry : ExplicitClangModuleMap) {
       const auto &moduleMapPath = entry.getValue().moduleMapPath;
-      if (!moduleMapPath.empty() &&
+      const auto &modulePath = entry.getValue().modulePath;
+      if (!modulePath.empty()) {
+        extraClangArgs.push_back(
+           (Twine("-fmodule-file=" + modulePath))
+                .str());
+      } else if (!moduleMapPath.empty() &&
           moduleMapsSeen.find(moduleMapPath) == moduleMapsSeen.end()) {
         moduleMapsSeen.insert(moduleMapPath);
         extraClangArgs.push_back(
             (Twine("-fmodule-map-file=") + moduleMapPath).str());
-      }
-
-      const auto &modulePath = entry.getValue().modulePath;
-      if (!modulePath.empty()) {
-        extraClangArgs.push_back(
-            (Twine("-fmodule-file=") + entry.getKey() + "=" + modulePath)
-                .str());
-      }
+      }      
     }
   }
 

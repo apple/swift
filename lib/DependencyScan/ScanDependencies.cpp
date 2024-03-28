@@ -276,15 +276,8 @@ static llvm::Error resolveExplicitModuleInputs(
       assert(clangDepDetails && "Expected Clang Module dependency.");
       if (!resolvingDepInfo.isClangModule()) {
         commandLine.push_back("-Xcc");
-        commandLine.push_back("-fmodule-file=" + depModuleID.ModuleName + "=" +
+        commandLine.push_back("-fmodule-file=" +
                               clangDepDetails->mappedPCMPath);
-        if (!instance.getInvocation()
-                 .getClangImporterOptions()
-                 .UseClangIncludeTree) {
-          commandLine.push_back("-Xcc");
-          commandLine.push_back("-fmodule-map-file=" +
-                                remapPath(clangDepDetails->moduleMapFile));
-        }
       }
       if (!clangDepDetails->moduleCacheKey.empty()) {
         commandLine.push_back("-Xcc");
