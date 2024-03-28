@@ -188,9 +188,10 @@ SIMPLE_DECL_ATTR(_staticInitializeObjCMetadata, StaticInitializeObjCMetadata,
 DECL_ATTR(_restatedObjCConformance, RestatedObjCConformance,
   OnProtocol | UserInaccessible | LongAttribute | RejectByParser | NotSerialized | ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
   70)
-DECL_ATTR(_objcImplementation, ObjCImplementation,
+DECL_ATTR(implementation, ObjCImplementation,
   OnExtension | OnAbstractFunction | UserInaccessible | ABIBreakingToAdd | ABIBreakingToRemove | APIBreakingToAdd | APIBreakingToRemove,
   72)
+DECL_ATTR_ALIAS(_objcImplementation, ObjCImplementation)
 DECL_ATTR(_optimize, Optimize,
   OnAbstractFunction | OnSubscript | OnVar | UserInaccessible | ABIStableToAdd | ABIStableToRemove | APIStableToAdd | APIStableToRemove,
   73)

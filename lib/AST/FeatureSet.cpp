@@ -687,6 +687,9 @@ static bool usesFeatureGlobalActorIsolatedTypesUsability(Decl *decl) {
   return false;
 }
 
+UNINTERESTING_FEATURE(ObjCImplementation)
+UNINTERESTING_FEATURE(CImplementation)
+
 // ----------------------------------------------------------------------------
 // MARK: - FeatureSet
 // ----------------------------------------------------------------------------

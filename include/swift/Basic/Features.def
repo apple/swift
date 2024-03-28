@@ -367,6 +367,12 @@ EXPERIMENTAL_FEATURE(IsolatedAny2, true)
 // Enable usability improvements for global-actor-isolated types.
 EXPERIMENTAL_FEATURE(GlobalActorIsolatedTypesUsability, false)
 
+// Enable @implementation on extensions of ObjC classes.
+EXPERIMENTAL_FEATURE(ObjCImplementation, true)
+
+// Enable @implementation on @_cdecl functions.
+EXPERIMENTAL_FEATURE(CImplementation, true)
+
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE
 #undef UPCOMING_FEATURE

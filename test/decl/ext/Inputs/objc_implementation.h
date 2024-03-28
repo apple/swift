@@ -1,3 +1,5 @@
+#if __OBJC__
+
 @import Foundation;
 
 @interface ObjCBaseClass
@@ -125,6 +127,9 @@
 
 @end
 
+@interface ObjCClass (EmptyCategory)
+@end
+
 @protocol PartiallyOptionalProtocol
 
 - (void)requiredMethod1;
@@ -186,11 +191,18 @@
 
 @end
 
+@protocol EmptyObjCProto
+@end
+
+#endif
+
 void CImplFunc1(int param);
 void CImplFunc2(int param);
 
 void CImplFuncMismatch1(int param);
 void CImplFuncMismatch2(int param);
+
+#if __OBJC__
 void CImplFuncMismatch3(_Nullable id param);
 void CImplFuncMismatch4(_Nullable id param);
 void CImplFuncMismatch5(_Nonnull id param);
@@ -199,6 +211,8 @@ _Nullable id CImplFuncMismatch3a(int param);
 _Nullable id CImplFuncMismatch4a(int param);
 _Nonnull id CImplFuncMismatch5a(int param);
 _Nonnull id CImplFuncMismatch6a(int param);
+#endif
+
 void CImplFuncNameMismatch1(int param);
 void CImplFuncNameMismatch2(int param);
 
@@ -212,6 +226,3 @@ void CImplStructStaticFunc1(int param) __attribute__((swift_name("CImplStruct.st
 struct ObjCStruct {
   int foo;
 };
-
-@protocol EmptyObjCProto
-@end

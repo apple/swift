@@ -2947,7 +2947,7 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
           S.DeclTypeAbbrCodes[ObjCImplementationDeclAttrLayout::Code];
       ObjCImplementationDeclAttrLayout::emitRecord(S.Out, S.ScratchRecord,
           abbrCode, theAttr->isImplicit(), theAttr->isCategoryNameInvalid(),
-          categoryNameID);
+          theAttr->isEarlyAdopter(), categoryNameID);
       return;
     }
 

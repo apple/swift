@@ -1739,6 +1739,9 @@ ERROR(swift_native_objc_runtime_base_not_on_root_class,none,
       "@_swift_native_objc_runtime_base_not_on_root_class can only be applied "
       "to root classes", ())
 
+WARNING(objc_implementation_early_spelling_deprecated,none,
+        "'@_objcImplementation' is deprecated; use '@implementation' instead",
+        ())
 ERROR(attr_objc_implementation_must_be_unconditional,none,
       "only unconditional extensions can implement an Objective-C '@interface'",
       ())
@@ -1917,8 +1920,7 @@ NOTE(objc_implementation_one_matched_requirement,none,
      (ValueDecl *, ObjCSelector, bool, StringRef))
 
 WARNING(wrap_objc_implementation_will_become_error,none,
-        "%0; this will become an error before '@_objcImplementation' is "
-        "stabilized",
+        "%0; this will become an error after adopting '@implementation'",
         (DiagnosticInfo *))
 
 ERROR(cdecl_not_at_top_level,none,

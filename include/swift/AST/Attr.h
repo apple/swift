@@ -184,8 +184,9 @@ protected:
       isUnchecked : 1
     );
 
-    SWIFT_INLINE_BITFIELD(ObjCImplementationAttr, DeclAttribute, 1,
-      isCategoryNameInvalid : 1
+    SWIFT_INLINE_BITFIELD(ObjCImplementationAttr, DeclAttribute, 2,
+      isCategoryNameInvalid : 1,
+      isEarlyAdopter : 1
     );
 
     SWIFT_INLINE_BITFIELD(NonisolatedAttr, DeclAttribute, 1,
@@ -2424,11 +2425,19 @@ public:
   Identifier CategoryName;
 
   ObjCImplementationAttr(Identifier CategoryName, SourceLoc AtLoc,
-                         SourceRange Range, bool Implicit = false,
+                         SourceRange Range, bool isEarlyAdopter = false,
+                         bool Implicit = false,
                          bool isCategoryNameInvalid = false)
       : DeclAttribute(DeclAttrKind::ObjCImplementation, AtLoc, Range, Implicit),
         CategoryName(CategoryName) {
     Bits.ObjCImplementationAttr.isCategoryNameInvalid = isCategoryNameInvalid;
+    Bits.ObjCImplementationAttr.isEarlyAdopter = isEarlyAdopter;
+  }
+
+  /// Early adopters use the \c \@_objcImplementation spelling. For backwards
+  /// compatibility, issues with them are diagnosed as warnings, not errors.
+  bool isEarlyAdopter() const {
+    return Bits.ObjCImplementationAttr.isEarlyAdopter;
   }
 
   bool isCategoryNameInvalid() const {

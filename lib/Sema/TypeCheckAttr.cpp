@@ -1516,9 +1516,31 @@ void AttributeChecker::visitNonObjCAttr(NonObjCAttr *attr) {
   }
 }
 
+static bool hasObjCImplementationFeature(Decl *D, ObjCImplementationAttr *attr,
+                                         Feature requiredFeature) {
+  if (D->getASTContext().LangOpts.hasFeature(requiredFeature))
+    return true;
+
+  // Allow the use of @_objcImplementation *without* Feature::ObjCImplementation
+  // as long as you're using the early adopter syntax. (Avoids breaking existing
+  // adopters.)
+  if (requiredFeature == Feature::ObjCImplementation && attr->isEarlyAdopter())
+    return true;
+
+  // Either you're using Feature::ObjCImplementation without the early adopter
+  // syntax, or you're using Feature::CImplementation. Either way, no go.
+  swift::diagnoseAndRemoveAttr(D, attr, diag::requires_experimental_feature,
+                               attr->getAttrName(), attr->isDeclModifier(),
+                               getFeatureName(requiredFeature));
+  return false;
+}
+
 void AttributeChecker::
 visitObjCImplementationAttr(ObjCImplementationAttr *attr) {
   if (auto ED = dyn_cast<ExtensionDecl>(D)) {
+    if (!hasObjCImplementationFeature(D, attr, Feature::ObjCImplementation))
+      return;
+
     if (ED->isConstrainedExtension())
       diagnoseAndRemoveAttr(attr,
                             diag::attr_objc_implementation_must_be_unconditional);
@@ -1575,6 +1597,9 @@ visitObjCImplementationAttr(ObjCImplementationAttr *attr) {
     }
   }
   else if (auto AFD = dyn_cast<AbstractFunctionDecl>(D)) {
+    if (!hasObjCImplementationFeature(D, attr, Feature::CImplementation))
+      return;
+
     if (!attr->CategoryName.empty()) {
       auto diagnostic =
           diagnose(attr->getLocation(),

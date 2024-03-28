@@ -1,4 +1,4 @@
-// RUN: %target-run-simple-swift(-import-objc-header %S/Inputs/objc_implementation.h -D TOP_LEVEL_CODE -swift-version 5) %s | %FileCheck %s
+// RUN: %target-run-simple-swift(-import-objc-header %S/Inputs/objc_implementation.h -D TOP_LEVEL_CODE -swift-version 5 -enable-experimental-feature CImplementation) %s | %FileCheck %s
 // REQUIRES: executable_test
 // REQUIRES: objc_interop
 

@@ -1820,7 +1820,9 @@ StringRef DeclAttribute::getAttrName() const {
   case DeclAttrKind::ObjCRuntimeName:
     return "objc";
   case DeclAttrKind::ObjCImplementation:
-    return "_objcImplementation";
+    if (cast<ObjCImplementationAttr>(this)->isEarlyAdopter())
+      return "_objcImplementation";
+    return "implementation";
   case DeclAttrKind::MainType:
     return "main";
   case DeclAttrKind::DynamicReplacement:

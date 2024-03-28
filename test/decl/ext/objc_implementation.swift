@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -import-objc-header %S/Inputs/objc_implementation.h
+// RUN: %target-typecheck-verify-swift -import-objc-header %S/Inputs/objc_implementation.h -enable-experimental-feature ObjCImplementation -enable-experimental-feature CImplementation
 // REQUIRES: objc_interop
 
 protocol EmptySwiftProto {}
@@ -24,7 +24,7 @@ protocol EmptySwiftProto {}
 
   func categoryMethod(fromHeader3: CInt) {
     // FIXME: should emit expected-DISABLED-error@-1 {{instance method 'categoryMethod(fromHeader3:)' should be implemented in extension for category 'PresentAdditions', not main class interface}}
-    // FIXME: expected-warning@-2 {{instance method 'categoryMethod(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error before '@_objcImplementation' is stabilized}}
+    // FIXME: expected-warning@-2 {{instance method 'categoryMethod(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error after adopting '@implementation'}}
     // FIXME: expected-note@-3 {{add 'private' or 'fileprivate' to define an Objective-C-compatible instance method not declared in the header}} {{3-3=private }}
     // FIXME: expected-note@-4 {{add 'final' to define a Swift instance method that cannot be overridden}} {{3-3=final }}
   }
@@ -38,7 +38,7 @@ protocol EmptySwiftProto {}
   }
 
   func methodNot(fromHeader3: CInt) {
-    // expected-warning@-1 {{instance method 'methodNot(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error before '@_objcImplementation' is stabilized}}
+    // expected-warning@-1 {{instance method 'methodNot(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error after adopting '@implementation'}}
     // expected-note@-2 {{add 'private' or 'fileprivate' to define an Objective-C-compatible instance method not declared in the header}} {{3-3=private }}
     // expected-note@-3 {{add 'final' to define a Swift instance method that cannot be overridden}} {{3-3=final }}
   }
@@ -114,7 +114,7 @@ protocol EmptySwiftProto {}
   }
 
   internal var propertyNotFromHeader1: CInt
-  // expected-warning@-1 {{property 'propertyNotFromHeader1' does not match any property declared in the headers for 'ObjCClass'; did you use the property's Swift name?; this will become an error before '@_objcImplementation' is stabilized}}
+  // expected-warning@-1 {{property 'propertyNotFromHeader1' does not match any property declared in the headers for 'ObjCClass'; did you use the property's Swift name?; this will become an error after adopting '@implementation'}}
   // expected-note@-2 {{add 'private' or 'fileprivate' to define an Objective-C-compatible property not declared in the header}} {{3-11=private}}
   // expected-note@-3 {{add 'final' to define a Swift property that cannot be overridden}} {{3-3=final }}
 
@@ -170,7 +170,7 @@ protocol EmptySwiftProto {}
   }
 
   func classMethod2(_: CInt) {
-    // expected-warning@-1 {{instance method 'classMethod2' does not match class method declared in header; this will become an error before '@_objcImplementation' is stabilized}} {{3-3=class }}
+    // expected-warning@-1 {{instance method 'classMethod2' does not match class method declared in header; this will become an error after adopting '@implementation'}} {{3-3=class }}
   }
 
   class func classMethod3(_: Float) {
@@ -182,7 +182,7 @@ protocol EmptySwiftProto {}
   }
 
   class func instanceMethod2(_: CInt) {
-    // expected-warning@-1 {{class method 'instanceMethod2' does not match instance method declared in header; this will become an error before '@_objcImplementation' is stabilized}} {{3-9=}}
+    // expected-warning@-1 {{class method 'instanceMethod2' does not match instance method declared in header; this will become an error after adopting '@implementation'}} {{3-9=}}
   }
 
   public init(notFromHeader1: CInt) {
@@ -233,19 +233,19 @@ protocol EmptySwiftProto {}
 
 @_objcImplementation(PresentAdditions) extension ObjCClass {
   // expected-note@-1 {{previously implemented by extension here}}
-  // expected-warning@-2 {{extension for category 'PresentAdditions' should provide implementation for instance method 'categoryMethod(fromHeader4:)'; this will become an error before '@_objcImplementation' is stabilized}}
-  // FIXME: give better diagnostic expected-warning@-3 {{extension for category 'PresentAdditions' should provide implementation for instance method 'categoryMethod(fromHeader3:)'; this will become an error before '@_objcImplementation' is stabilized}}
+  // expected-warning@-2 {{extension for category 'PresentAdditions' should provide implementation for instance method 'categoryMethod(fromHeader4:)'; this will become an error after adopting '@implementation'}}
+  // FIXME: give better diagnostic expected-warning@-3 {{extension for category 'PresentAdditions' should provide implementation for instance method 'categoryMethod(fromHeader3:)'; this will become an error after adopting '@implementation'}}
 
   func method(fromHeader3: CInt) {
     // FIXME: should emit expected-DISABLED-error@-1 {{instance method 'method(fromHeader3:)' should be implemented in extension for main class interface, not category 'PresentAdditions'}}
-    // FIXME: expected-warning@-2 {{instance method 'method(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error before '@_objcImplementation' is stabilized}}
+    // FIXME: expected-warning@-2 {{instance method 'method(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error after adopting '@implementation'}}
     // FIXME: expected-note@-3 {{add 'private' or 'fileprivate' to define an Objective-C-compatible instance method not declared in the header}} {{3-3=private }}
     // FIXME: expected-note@-4 {{add 'final' to define a Swift instance method that cannot be overridden}} {{3-3=final }}
   }
 
   var propertyFromHeader7: CInt {
     // FIXME: should emit expected-DISABLED-error@-1 {{property 'propertyFromHeader7' should be implemented in extension for main class interface, not category 'PresentAdditions'}}
-    // FIXME: expected-warning@-2 {{property 'propertyFromHeader7' does not match any property declared in the headers for 'ObjCClass'; did you use the property's Swift name?; this will become an error before '@_objcImplementation' is stabilized}}
+    // FIXME: expected-warning@-2 {{property 'propertyFromHeader7' does not match any property declared in the headers for 'ObjCClass'; did you use the property's Swift name?; this will become an error after adopting '@implementation'}}
     // FIXME: expected-note@-3 {{add 'private' or 'fileprivate' to define an Objective-C-compatible property not declared in the header}} {{3-3=private }}
     // FIXME: expected-note@-4 {{add 'final' to define a Swift property that cannot be overridden}} {{3-3=final }}
     get { return 1 }
@@ -268,7 +268,7 @@ protocol EmptySwiftProto {}
   }
 
   func categoryMethodNot(fromHeader3: CInt) {
-    // expected-warning@-1 {{instance method 'categoryMethodNot(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error before '@_objcImplementation' is stabilized}}
+    // expected-warning@-1 {{instance method 'categoryMethodNot(fromHeader3:)' does not match any instance method declared in the headers for 'ObjCClass'; did you use the instance method's Swift name?; this will become an error after adopting '@implementation'}}
     // expected-note@-2 {{add 'private' or 'fileprivate' to define an Objective-C-compatible instance method not declared in the header}} {{3-3=private }}
     // expected-note@-3 {{add 'final' to define a Swift instance method that cannot be overridden}} {{3-3=final }}
   }
@@ -293,10 +293,10 @@ protocol EmptySwiftProto {}
 }
 
 @_objcImplementation(SwiftNameTests) extension ObjCClass {
-  // expected-warning@-1 {{extension for category 'SwiftNameTests' should provide implementation for instance method 'methodSwiftName6B()'; this will become an error before '@_objcImplementation' is stabilized}}
+  // expected-warning@-1 {{extension for category 'SwiftNameTests' should provide implementation for instance method 'methodSwiftName6B()'; this will become an error after adopting '@implementation'}}
 
   func methodSwiftName1() {
-    // expected-warning@-1 {{selector 'methodSwiftName1' for instance method 'methodSwiftName1()' not found in header; did you mean 'methodObjCName1'?; this will become an error before '@_objcImplementation' is stabilized}} {{3-3=@objc(methodObjCName1) }}
+    // expected-warning@-1 {{selector 'methodSwiftName1' for instance method 'methodSwiftName1()' not found in header; did you mean 'methodObjCName1'?; this will become an error after adopting '@implementation'}} {{3-3=@objc(methodObjCName1) }}
   }
 
   @objc(methodObjCName2) func methodSwiftName2() {
@@ -309,7 +309,7 @@ protocol EmptySwiftProto {}
   }
 
   @objc(methodWrongObjCName4) func methodSwiftName4() {
-    // expected-warning@-1 {{selector 'methodWrongObjCName4' for instance method 'methodSwiftName4()' not found in header; did you mean 'methodObjCName4'?; this will become an error before '@_objcImplementation' is stabilized}} {{9-29=methodObjCName4}}
+    // expected-warning@-1 {{selector 'methodWrongObjCName4' for instance method 'methodSwiftName4()' not found in header; did you mean 'methodObjCName4'?; this will become an error after adopting '@implementation'}} {{9-29=methodObjCName4}}
   }
 
   @objc(methodObjCName5) func methodWrongSwiftName5() {
@@ -322,16 +322,16 @@ protocol EmptySwiftProto {}
 }
 
 @_objcImplementation(AmbiguousMethods) extension ObjCClass {
-  // expected-warning@-1 {{found multiple implementations that could match instance method 'ambiguousMethod4(with:)' with selector 'ambiguousMethod4WithCInt:'; this will become an error before '@_objcImplementation' is stabilized}}
+  // expected-warning@-1 {{found multiple implementations that could match instance method 'ambiguousMethod4(with:)' with selector 'ambiguousMethod4WithCInt:'; this will become an error after adopting '@implementation'}}
 
   @objc func ambiguousMethod1(with: CInt) {
-    // expected-warning@-1 {{instance method 'ambiguousMethod1(with:)' could match several different members declared in the header; this will become an error before '@_objcImplementation' is stabilized}}
+    // expected-warning@-1 {{instance method 'ambiguousMethod1(with:)' could match several different members declared in the header; this will become an error after adopting '@implementation'}}
     // expected-note@-2 {{instance method 'ambiguousMethod1(with:)' (with selector 'ambiguousMethod1WithCInt:') is a potential match; insert '@objc(ambiguousMethod1WithCInt:)' to use it}} {{8-8=(ambiguousMethod1WithCInt:)}}
     // expected-note@-3 {{instance method 'ambiguousMethod1(with:)' (with selector 'ambiguousMethod1WithCChar:') is a potential match; insert '@objc(ambiguousMethod1WithCChar:)' to use it}} {{8-8=(ambiguousMethod1WithCChar:)}}
   }
 
   func ambiguousMethod1(with: CChar) {
-    // expected-warning@-1 {{instance method 'ambiguousMethod1(with:)' could match several different members declared in the header; this will become an error before '@_objcImplementation' is stabilized}}
+    // expected-warning@-1 {{instance method 'ambiguousMethod1(with:)' could match several different members declared in the header; this will become an error after adopting '@implementation'}}
     // expected-note@-2 {{instance method 'ambiguousMethod1(with:)' (with selector 'ambiguousMethod1WithCInt:') is a potential match; insert '@objc(ambiguousMethod1WithCInt:)' to use it}} {{3-3=@objc(ambiguousMethod1WithCInt:) }}
     // expected-note@-3 {{instance method 'ambiguousMethod1(with:)' (with selector 'ambiguousMethod1WithCChar:') is a potential match; insert '@objc(ambiguousMethod1WithCChar:)' to use it}} {{3-3=@objc(ambiguousMethod1WithCChar:) }}
   }
@@ -342,11 +342,11 @@ protocol EmptySwiftProto {}
 
   func ambiguousMethod2(with: CChar) {
     // FIXME: OK, matches -ambiguousMethod2WithCChar: because the WithCInt: variant has been eliminated
-    // FIXME: expected-warning@-2 {{selector 'ambiguousMethod2With:' for instance method 'ambiguousMethod2(with:)' not found in header; did you mean 'ambiguousMethod2WithCChar:'?; this will become an error before '@_objcImplementation' is stabilized}}
+    // FIXME: expected-warning@-2 {{selector 'ambiguousMethod2With:' for instance method 'ambiguousMethod2(with:)' not found in header; did you mean 'ambiguousMethod2WithCChar:'?; this will become an error after adopting '@implementation'}}
   }
 
   func ambiguousMethod3(with: CInt) {
-    // expected-warning@-1 {{instance method 'ambiguousMethod3(with:)' could match several different members declared in the header; this will become an error before '@_objcImplementation' is stabilized}}
+    // expected-warning@-1 {{instance method 'ambiguousMethod3(with:)' could match several different members declared in the header; this will become an error after adopting '@implementation'}}
     // expected-note@-2 {{instance method 'ambiguousMethod3(with:)' (with selector 'ambiguousMethod3WithCInt:') is a potential match; insert '@objc(ambiguousMethod3WithCInt:)' to use it}} {{3-3=@objc(ambiguousMethod3WithCInt:) }}
     // expected-note@-3 {{instance method 'ambiguousMethod3(with:)' (with selector 'ambiguousMethod3WithCChar:') is a potential match; insert '@objc(ambiguousMethod3WithCChar:)' to use it}} {{3-3=@objc(ambiguousMethod3WithCChar:) }}
   }
@@ -404,7 +404,7 @@ protocol EmptySwiftProto {}
 }
 
 @_objcImplementation(Conformance) extension ObjCClass {
-  // expected-warning@-1 {{extension for category 'Conformance' should provide implementation for instance method 'requiredMethod2()'; this will become an error before '@_objcImplementation' is stabilized}}
+  // expected-warning@-1 {{extension for category 'Conformance' should provide implementation for instance method 'requiredMethod2()'; this will become an error after adopting '@implementation'}}
   // no-error concerning 'optionalMethod2()'
 
   func requiredMethod1() {}
@@ -432,14 +432,21 @@ protocol EmptySwiftProto {}
   func nonPointerArgument(_: CInt!) {} // expected-error {{method cannot be in an @_objcImplementation extension of a class (without final or @nonobjc) because the type of the parameter cannot be represented in Objective-C}}
 }
 
+// Intentionally using `@_objcImplementation` for this test; do not upgrade!
+@_objcImplementation(EmptyCategory) extension ObjCClass {
+  // expected-warning@-1 {{'@_objcImplementation' is deprecated; use '@implementation' instead}} {{2-21=implementation}}
+}
+
 @_objcImplementation extension ObjCImplSubclass {
-    @objc(initFromProtocol1:)
+  // expected-warning@-1 {{'@_objcImplementation' is deprecated; use '@implementation' instead}} {{2-21=implementation}}
+  @objc(initFromProtocol1:)
     required public init?(fromProtocol1: CInt) {
       // OK
     }
 }
 
 @_objcImplementation extension ObjCBasicInitClass {
+  // expected-warning@-1 {{'@_objcImplementation' is deprecated; use '@implementation' instead}} {{2-21=implementation}}
   init() {
     // OK
   }

@@ -6127,13 +6127,15 @@ llvm::Error DeclDeserializer::deserializeDeclCommon() {
       case decls_block::ObjCImplementation_DECL_ATTR: {
         bool isImplicit;
         bool isCategoryNameInvalid;
+        bool isEarlyAdopter;
         uint64_t categoryNameID;
         serialization::decls_block::ObjCImplementationDeclAttrLayout::
             readRecord(scratch, isImplicit, isCategoryNameInvalid,
-                       categoryNameID);
+                       isEarlyAdopter, categoryNameID);
         Identifier categoryName = MF.getIdentifier(categoryNameID);
         Attr = new (ctx) ObjCImplementationAttr(categoryName, SourceLoc(),
-                                                SourceRange(), isImplicit,
+                                                SourceRange(), isEarlyAdopter,
+                                                isImplicit,
                                                 isCategoryNameInvalid);
         break;
       }

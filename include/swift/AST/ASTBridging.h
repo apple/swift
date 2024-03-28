@@ -625,10 +625,10 @@ BridgedObjCAttr BridgedObjCAttr_createParsedSelector(
     BridgedArrayRef cNameLocs, BridgedArrayRef cNames,
     BridgedSourceLoc cRParenLoc);
 
-SWIFT_NAME("BridgedObjCImplementationAttr.createParsed(_:atLoc:range:name:)")
+SWIFT_NAME("BridgedObjCImplementationAttr.createParsed(_:atLoc:range:name:isEarlyAdopter:)")
 BridgedObjCImplementationAttr BridgedObjCImplementationAttr_createParsed(
     BridgedASTContext cContext, BridgedSourceLoc cAtLoc,
-    BridgedSourceRange cRange, BridgedIdentifier cName);
+    BridgedSourceRange cRange, BridgedIdentifier cName, bool isEarlyAdopter);
 
 SWIFT_NAME("BridgedObjCRuntimeNameAttr.createParsed(_:atLoc:range:name:)")
 BridgedObjCRuntimeNameAttr BridgedObjCRuntimeNameAttr_createParsed(

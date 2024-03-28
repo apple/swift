@@ -779,6 +779,11 @@ of a header as non-`Sendable` so that you can make spot exceptions with
 
 ## `@_objcImplementation(CategoryName)`
 
+A pre-stable form of `@implementation`. The main difference between them is that
+many things that are errors with `@implementation` are warnings with
+`@_objcImplementation`, which permitted workarounds for compiler bugs and 
+changes in compiler behavior.
+
 Declares an extension that defines an implementation for the Objective-C
 category `CategoryName` on the class in question, or for the main `@interface`
 if the argument list is omitted.
@@ -841,12 +846,6 @@ Notes:
 
 * We don't currently plan to support ObjC generics.
 
-* Eventually, we want the main `@_objcImplementation` extension to be able to
-  declare stored properties that aren't in the interface. We also want
-  `final` stored properties to be allowed to be resilent Swift types, but
-  it's not clear how to achieve that without boxing them in `__SwiftValue`
-  (which we might do as a stopgap).
-     
 * We should think about ObjC "direct" members, but that would probably
   require a way to spell this in Swift. 
 

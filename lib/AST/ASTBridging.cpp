@@ -662,9 +662,10 @@ BridgedObjCAttr BridgedObjCAttr_createParsedSelector(
 
 BridgedObjCImplementationAttr BridgedObjCImplementationAttr_createParsed(
     BridgedASTContext cContext, BridgedSourceLoc cAtLoc,
-    BridgedSourceRange cRange, BridgedIdentifier cName) {
+    BridgedSourceRange cRange, BridgedIdentifier cName, bool isEarlyAdopter) {
   return new (cContext.unbridged()) ObjCImplementationAttr(
-      cName.unbridged(), cAtLoc.unbridged(), cRange.unbridged());
+      cName.unbridged(), cAtLoc.unbridged(), cRange.unbridged(),
+      isEarlyAdopter);
 }
 
 BridgedObjCRuntimeNameAttr BridgedObjCRuntimeNameAttr_createParsed(

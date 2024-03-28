@@ -3640,7 +3640,9 @@ ParserStatus Parser::parseNewDeclAttribute(DeclAttributes &Attributes,
     if (!name)
       return makeParserSuccess();
 
-    Attributes.add(new (Context) ObjCImplementationAttr(*name, AtLoc, range));
+    bool isEarlyAdopter = (AttrName != "implementation");
+    Attributes.add(new (Context) ObjCImplementationAttr(*name, AtLoc, range,
+                                                        isEarlyAdopter));
     break;
   }
   case DeclAttrKind::ObjCRuntimeName: {
