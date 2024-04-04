@@ -1343,4 +1343,8 @@ def disable_experimental_parser_round_trip : Flag<["-"],
   "disable-experimental-parser-round-trip">,
   HelpText<"Disable round trip through the new swift parser">;
 
+def disable_strict_concurrency_region_based_isolation : Flag<["-"],
+  "disable-region-based-isolation-with-strict-concurrency">,
+  HelpText<"Disable region based isolation when running with strict concurrency enabled">;
+
 } // end let Flags = [FrontendOption, NoDriverOption, HelpHidden]

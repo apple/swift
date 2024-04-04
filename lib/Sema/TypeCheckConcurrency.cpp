@@ -4050,7 +4050,7 @@ namespace {
               decl, useKind,
               refKind + 1, refGlobalActor,
               result.isolation)
-          .warnUntilSwiftVersionIf(preconcurrencyContext, 6);
+          .warnUntilSwiftVersion(6);
 
           if (derivedConformanceType) {
             auto *decl = dyn_cast<ValueDecl>(getDeclContext()->getAsDecl());
