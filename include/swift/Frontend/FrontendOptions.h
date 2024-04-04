@@ -358,7 +358,7 @@ public:
 
   /// Whether the dependency scanner invocation should resolve imports
   /// to filesystem modules in parallel.
-  bool ParallelDependencyScan = false;
+  bool ParallelDependencyScan = true;
 
   /// When performing an incremental build, ensure that cross-module incremental
   /// build metadata is available in any swift modules emitted by this frontend
