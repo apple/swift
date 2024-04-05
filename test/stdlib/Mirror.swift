@@ -921,6 +921,18 @@ mirrors.test("class/Cluster") {
 //===--- Miscellaneous ----------------------------------------------------===//
 //===----------------------------------------------------------------------===//
 
+mirrors.test("Visibility") {
+  struct Secrets {
+    public var exposed: Int = 88
+    var visible: Int = 7
+    private var invisible: Int = 12
+    var computed: Int { return 99 }
+  }
+  let m = Mirror(reflecting: Secrets())
+  let d = m.testDescription
+  expectEqual(d, "[exposed: 88, visible: 7, invisible: 12]")
+}
+
 mirrors.test("Addressing") {
   let m0 = Mirror(reflecting: [1, 2, 3])
   expectEqual(1, m0.descendant(0) as? Int)

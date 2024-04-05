@@ -866,7 +866,7 @@ let ts1 = MyTupleStruct {
   "blah"
 }
 
-// CHECK: MyTupleStruct<(Int, String, Optional<String>), (Double, String)>(first: (Function), second: (3.14159, "blah"))
+// CHECK: MyTupleStruct<(Int, String, Optional<String>), (Double, String)>(first: (), second: (3.14159, "blah"))
 print(ts1)
 
 // Make sure that `weakV` is `Test?` and not `Test??`
