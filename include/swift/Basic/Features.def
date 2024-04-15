@@ -365,7 +365,7 @@ EXPERIMENTAL_FEATURE(ClosureIsolation, true)
 CONDITIONALLY_SUPPRESSIBLE_EXPERIMENTAL_FEATURE(IsolatedAny, true)
 
 // Whether members of extensions respect the enclosing file's imports.
-EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE(ExtensionImportVisibility, true)
+LANGUAGE_FEATURE(ExtensionImportVisibility, 0, true)
 
 // Alias for IsolatedAny
 EXPERIMENTAL_FEATURE(IsolatedAny2, true)
