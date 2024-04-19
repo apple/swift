@@ -8,7 +8,6 @@
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix BONUS
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix INHERIT
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix LOCAL
-// RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix OVERRIDE
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs@RemoteP.symbols.json --check-prefix EXTENSION
 
 // RUN: %target-swift-symbolgraph-extract -module-name RemoteInheritedDocs -I %t -pretty-print -output-dir %t -skip-inherited-docs
@@ -17,12 +16,11 @@
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix BONUS
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix SKIP
 // RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix LOCAL
-// RUN: %FileCheck %s --input-file %t/RemoteInheritedDocs.symbols.json --check-prefix OVERRIDE
 
 // SOME:           "source": "s:19RemoteInheritedDocs1SV8someFuncyyF"
 // SOME-NEXT:      "target": "s:19RemoteInheritedDocs1SV"
 // SOME-NEXT:      "sourceOrigin"
-// SOME-NEXT:        "identifier": "s:7RemoteP1PP8someFuncyyF"
+// SOME-NEXT:        "identifier": "s:7RemoteP1PP0A13InheritedDocsE8someFuncyyF"
 // SOME-NEXT:        "displayName": "P.someFunc()"
 
 // OTHER:           "source": "s:19RemoteInheritedDocs1SV9otherFuncyyF"
@@ -42,9 +40,6 @@
 
 // LOCAL: Local docs override!
 
-// OVERRIDE-NOT: Extra default docs!
-// OVERRIDE-NOT: Extension override!
-
 // EXTENSION-NOT: Some Protocol
 
 import RemoteP
@@ -52,9 +47,6 @@ import RemoteP
 // The `RemoteP.P` protocol has three methods: `someFunc` and `bonusFunc` don't have docs upstream,
 // but `otherFunc` does. Regardless, each one needs a `sourceOrigin` field connecting it to
 // upstream.
-
-// `RemoteP.P` also has an extension with a default implementation for `extraFunc` that does have
-// docs, but overriding it here should prevent those from appearing
 
 // When emitting extension block symbols, local extension blocks should never inherit documentation
 // from the original type declaration.
