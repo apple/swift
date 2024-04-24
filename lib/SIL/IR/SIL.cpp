@@ -369,7 +369,12 @@ bool AbstractStorageDecl::exportsPropertyDescriptor() const {
   // Protocol requirements do not need property descriptors.
   if (isa<ProtocolDecl>(getDeclContext()))
     return false;
-  
+
+  // Static properties in protocol extensions do not need
+  // descriptors as existential Any.Type will not resolve to a value.
+  if (isStatic() && getDeclContext()->getSelfProtocolDecl())
+    return false;
+
   // FIXME: We should support properties and subscripts with '_read' accessors;
   // 'get' is not part of the opaque accessor set there.
   auto *getter = getOpaqueAccessor(AccessorKind::Get);
