@@ -1256,10 +1256,10 @@ public:
 
   void visitVarDecl(VarDecl *vd) {
     // Collect global variables for static properties.
-    // FIXME: We can't statically emit a global variable for generic properties.
     if (vd->isStatic() && vd->hasStorage()) {
       emitTypeMemberGlobalVariable(SGM, vd);
       visitAccessors(vd);
+      SGM.tryEmitPropertyDescriptor(vd);
       return;
     }
 
