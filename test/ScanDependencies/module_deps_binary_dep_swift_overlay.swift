@@ -27,7 +27,6 @@ import BinaryModuleDep
 // CHECK-DAG:          "swift": "_StringProcessing"
 // CHECK-DAG:          "clang": "ClangModuleWithOverlayedDep"
 // CHECK-DAG:          "swiftPrebuiltExternal": "BinaryModuleDep"
-// CHECK-DAG:          "swift": "F"
 // CHECK:          ],
 // CHECK:          "swiftOverlayDependencies": [
 // CHECK-NEXT:       {
@@ -43,7 +42,6 @@ import BinaryModuleDep
 // CHECK-DAG:          "clang": "_SwiftConcurrencyShims"
 // CHECK-DAG:          "swift": "_StringProcessing"
 // CHECK-DAG:          "clang": "ClangModuleWithOverlayedDep"
-// CHECK-DAG:          "swift": "F"
 // CHECK:          ],
 // CHECK:          "swiftOverlayDependencies": [
 // CHECK-NEXT:       {

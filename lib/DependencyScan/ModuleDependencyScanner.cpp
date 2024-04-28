@@ -753,29 +753,17 @@ void ModuleDependencyScanner::resolveSwiftOverlayDependencies(
   // Aggregate both previously-cached and freshly-scanned module results
   auto recordResult = [&cache, &swiftOverlayLookupResult,
                        &swiftOverlayDependencies,
-                       &directDependencies,
                        moduleID](const std::string &moduleName) {
     auto lookupResult = swiftOverlayLookupResult[moduleName];
     if (moduleName != moduleID.ModuleName) {
       if (lookupResult == std::nullopt) {
         const ModuleDependencyInfo *cachedInfo = cache.findDependency(moduleName).value();
         swiftOverlayDependencies.insert({moduleName, cachedInfo->getKind()});
-        // FIXME: Once all clients know to fetch these dependencies from
-        // `swiftOverlayDependencies`, the goal is to no longer have them in
-        // `directDependencies` so the following will need to go away.
-	directDependencies.insert({moduleName, cachedInfo->getKind()});
       } else {
         // Cache discovered module dependencies.
         cache.recordDependencies(lookupResult.value());
-        if (!lookupResult.value().empty()) {
-          swiftOverlayDependencies.insert(
-                                          {moduleName, lookupResult.value()[0].first.Kind});
-          // FIXME: Once all clients know to fetch these dependencies from
-          // `swiftOverlayDependencies`, the goal is to no longer have them in
-          // `directDependencies` so the following will need to go away.
-	  directDependencies.insert(
-                                    {moduleName, lookupResult.value()[0].first.Kind});
-	}
+        if (!lookupResult.value().empty())
+          swiftOverlayDependencies.insert({moduleName, lookupResult.value()[0].first.Kind});
       }
     }
   };
