@@ -226,6 +226,20 @@ getRuntimeVersionThatSupportsDemanglingType(CanType type) {
       // involving them.
     }
 
+    // Any nominal type that has an inverse requirement in its generic signature
+    // uses NoncopyableGenerics. Since inverses are mangled into symbols,
+    // a Swift 6.0+ runtime is needed to demangle them.
+    if (auto nominalTy = dyn_cast<NominalOrBoundGenericNominalType>(t)) {
+      auto *nom = nominalTy->getDecl();
+      if (auto sig = nom->getGenericSignature()) {
+        SmallVector<InverseRequirement, 2> inverses;
+        SmallVector<Requirement, 2> reqs;
+        sig->getRequirementsWithInverses(reqs, inverses);
+        if (!inverses.empty())
+          return addRequirement(Swift_6_0);
+      }
+    }
+
     return false;
   });
 
@@ -358,6 +372,7 @@ getTypeRefByFunction(IRGenModule &IGM,
             Address(bindingsBufPtr, IGM.Int8Ty, IGM.getPointerAlignment()),
             MetadataState::Complete, subs);
 
+        substT = substT.getReferenceStorageReferent(); // FIXME: shot in the dark here
         auto ret = IGF.emitTypeMetadataRef(substT);
         IGF.Builder.CreateRet(ret);
       }
