@@ -2886,6 +2886,10 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
     }
   }
 
+  for (const Arg *A : Args.filtered(OPT_load_pass_plugin_EQ)) {
+    Opts.LLVMPassPlugins.push_back(A->getValue());
+  }
+
   for (const Arg *A : Args.filtered(OPT_verify_type_layout)) {
     Opts.VerifyTypeLayoutNames.push_back(A->getValue());
   }
