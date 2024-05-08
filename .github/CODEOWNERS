@@ -50,6 +50,7 @@
 /docs/Generics.rst                        @slavapestov
 /docs/Generics/                           @slavapestov
 /docs/HowToGuides/                        @AnthonyLatsis @LucianoPAlmeida @xedin
+/docs/Windows*                            @compnerd
 
 # include
 /include/swift/AST/                                @hborla @slavapestov @xedin
