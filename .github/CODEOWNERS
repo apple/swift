@@ -82,6 +82,8 @@
 /include/swift/Sema/                               @hborla @slavapestov @xedin
 /include/swift/Sema/CS*                            @hborla @xedin
 /include/swift/Sema/Constraint*                    @hborla @xedin
+# TODO: /include/swift/Serialization/
+/include/swift/Serialization/SerializedModuleLoader* @artemcm
 /include/swift/SymbolGraphGen/                     @QuietMisdreavus
 /include/swift/Threading                           @al45tair
 
@@ -137,7 +139,8 @@
 /lib/Sema/TypeCheckDistributed*                     @hborla @ktoso @xedin
 /lib/Sema/TypeCheckProtocol*                        @AnthonyLatsis @hborla @slavapestov
 /lib/Sema/TypeCheckType*                            @AnthonyLatsis @hborla @slavapestov @xedin
-/lib/Serialization/SerializedModuleLoader.cpp       @artemcm
+# TODO: /lib/Serialization/
+/lib/Serialization/SerializedModuleLoader*          @artemcm
 /lib/SymbolGraphGen                                 @QuietMisdreavus
 /lib/Threading                                      @al45tair
 
@@ -180,6 +183,7 @@
 /test/ScanDependencies/                             @artemcm
 /test/Sema/                                         @hborla @slavapestov @xedin
 /test/Sema/moveonly*                                @kavon
+# TODO: /test/Serialization/
 /test/SourceKit/                                    @ahoppen @bnbarham @hamishknight @rintaro
 /test/SymbolGraph/                                  @QuietMisdreavus
 /test/abi/                                          @apple/standard-librarians
@@ -233,4 +237,5 @@
 # TODO: /validation-test/SILGen/
 # TODO: /validation-test/SILOptimizer/
 /validation-test/Sema/                    @hborla @slavapestov @xedin
+# TODO: /validation-test/Serialization/
 /validation-test/stdlib/                  @apple/standard-librarians
