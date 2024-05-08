@@ -60,8 +60,8 @@
 /include/swift/AST/*Protocol*                      @hborla @slavapestov
 /include/swift/AST/*Requirement*                   @hborla @slavapestov
 /include/swift/AST/*Substitution*                  @slavapestov
-/include/swift/AST/Evaluator*                      @CodaFi @slavapestov
 /include/swift/AST/DiagnosticsParse.def            @ahoppen @bnbarham @CodaFi @DougGregor @hamishknight @rintaro
+/include/swift/AST/Evaluator*                      @CodaFi @slavapestov
 /include/swift/ClangImporter                       @zoecarver @hyp @egorzhdan @beccadax @ian-twilightcoder
 /include/swift/DependencyScan                      @artemcm
 /include/swift/Driver                              @artemcm
@@ -75,8 +75,8 @@
 # TODO: /include/swift/SIL/
 # TODO: /include/swift/SILOptimizer/
 /include/swift/SIL/*Coverage*                      @ahoppen @bnbarham @hamishknight @rintaro
-/include/swift/SIL/SILProfiler.h                   @ahoppen @bnbarham @hamishknight @rintaro
 /include/swift/SIL/SILDebug*                       @adrian-prantl
+/include/swift/SIL/SILProfiler.h                   @ahoppen @bnbarham @hamishknight @rintaro
 /include/swift/SILOptimizer/Utils/Distributed*     @ktoso
 /include/swift/Sema/                               @hborla @slavapestov @xedin
 /include/swift/Sema/CS*                            @hborla @xedin
@@ -87,11 +87,11 @@
 # lib
 /lib/AST/                                           @hborla @slavapestov @xedin
 /lib/AST/*Availability*                             @tshortli
-/lib/AST/ASTPrinter.cpp                             @hborla @slavapestov @xedin @tshortli
 /lib/AST/*Conformance*                              @slavapestov
 /lib/AST/*Generic*                                  @hborla @slavapestov
 /lib/AST/*Requirement*                              @hborla @slavapestov
 /lib/AST/*Substitution                              @slavapestov
+/lib/AST/ASTPrinter.cpp                             @hborla @slavapestov @xedin @tshortli
 /lib/AST/Evaluator*                                 @CodaFi @slavapestov
 /lib/AST/ModuleLoader.cpp                           @artemcm
 /lib/AST/RequirementMachine/                        @slavapestov
@@ -116,14 +116,14 @@
 /lib/Refactoring/                                   @ahoppen @bnbarham @hamishknight @rintaro
 # TODO: /lib/SIL/
 /lib/SIL/IR/*Coverage*                              @ahoppen @bnbarham @hamishknight @rintaro
-/lib/SIL/IR/SILProfiler.cpp                         @ahoppen @bnbarham @hamishknight @rintaro
 /lib/SIL/IR/SILDebug*                               @adrian-prantl
 /lib/SIL/IR/SILLocation*                            @adrian-prantl
+/lib/SIL/IR/SILProfiler.cpp                         @ahoppen @bnbarham @hamishknight @rintaro
 # TODO: /lib/SILGen/
 /lib/SILGen/*Distributed*                           @ktoso
 # TODO: /lib/SILOptimizer/
-/lib/SILOptimizer/Mandatory/FlowIsolation.cpp       @kavon
 /lib/SILOptimizer/Mandatory/ConsumeOperator*        @kavon
+/lib/SILOptimizer/Mandatory/FlowIsolation.cpp       @kavon
 /lib/SILOptimizer/Mandatory/MoveOnly*               @kavon
 /lib/SILOptimizer/Utils/Distributed*                @ktoso
 /lib/Sema/                                          @hborla @slavapestov @xedin
