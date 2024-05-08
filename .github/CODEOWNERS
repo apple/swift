@@ -65,7 +65,7 @@
 /include/swift/AST/Evaluator*                      @CodaFi @slavapestov
 /include/swift/ClangImporter                       @zoecarver @hyp @egorzhdan @beccadax @ian-twilightcoder
 /include/swift/DependencyScan                      @artemcm
-/include/swift/Driver                              @artemcm
+/include/swift/Driver*/                            @artemcm
 # TODO: /include/swift/IRGen/
 /include/swift/IDE/                                @ahoppen @bnbarham @hamishknight @rintaro
 /include/swift/Index/                              @ahoppen @bnbarham @hamishknight @rintaro
@@ -103,7 +103,7 @@
 /lib/ClangImporter                                  @zoecarver @hyp @egorzhdan @beccadax @ian-twilightcoder
 /lib/ClangImporter/DWARFImporter*                   @adrian-prantl
 /lib/DependencyScan                                 @artemcm
-/lib/Driver                                         @artemcm
+/lib/Driver*/                                       @artemcm
 /lib/DriverTool/autolink_extract_main.cpp           @MaxDesiatov @etcwilde
 /lib/DriverTool/swift_symbolgraph_extract_main.cpp  @QuietMisdreavus
 /lib/Frontend/*ModuleInterface*                     @artemcm @tshortli
@@ -200,6 +200,7 @@
 # tools
 # TODO: /tools
 /tools/SourceKit                                    @ahoppen @bnbarham @hamishknight @rintaro
+/tools/driver/                                      @artemcm
 /tools/lldb-moduleimport-test/                      @adrian-prantl
 /tools/swift-ide-test                               @ahoppen @bnbarham @hamishknight @rintaro
 /tools/swift-inspect                                @mikeash @al45tair @compnerd
@@ -231,6 +232,7 @@
 
 # validation-test
 # TODO: /validation-test/IRGen/
+/validation-test/Driver/                  @artemcm
 /validation-test/IDE/                     @ahoppen @bnbarham @rintaro @hamishknight
 /validation-test/Parse/                   @ahoppen @bnbarham @CodaFi @DougGregor @hamishknight @rintaro
 # TODO: /validation-test/SIL/
