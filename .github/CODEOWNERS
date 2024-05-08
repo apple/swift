@@ -53,6 +53,7 @@
 /docs/Windows*                            @compnerd
 
 # include
+/include/swift-c/DependencyScan/                   @artemcm
 /include/swift/AST/                                @hborla @slavapestov @xedin
 /include/swift/AST/*Availability*                  @tshortli
 /include/swift/AST/*Conformance*                   @slavapestov
@@ -209,6 +210,7 @@
 # unittests
 /unittests/AST/                           @hborla @slavapestov @xedin
 /unittests/AST/*Evaluator*                @CodaFi @slavapestov
+/unittests/DependencyScan/                @artemcm
 /unittests/Parse/                         @ahoppen @bnbarham @CodaFi @DougGregor @hamishknight @rintaro
 # TODO: /unittests/SIL/
 /unittests/Sema/                          @hborla @xedin
