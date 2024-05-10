@@ -2510,6 +2510,16 @@ namespace {
             ->mapTypeIntoContext(decl->getInterfaceType())
             ->getReferenceStorageReferent();
 
+        if (ctx.LangOpts.hasFeature(
+                Feature::GlobalActorIsolatedTypesUsability)) {
+          // FIXME: Directly checking isolation on a globally-isolated function
+          // type returns 'NonIsolated', which shouldn't be the case.
+
+          // Check for the attribute presence until the above is resolved.
+          if (decl->getGlobalActorAttr())
+            continue;
+        }
+
         if (type->hasError())
           continue;
 
@@ -3780,6 +3790,13 @@ namespace {
       }
 
       if (auto func = dyn_cast<FuncDecl>(value)) {
+        if (ctx.LangOpts.hasFeature(
+                Feature::GlobalActorIsolatedTypesUsability)) {
+          bool globallyIsolated = getActorIsolation(value).isGlobalActor();
+          if (func->isSendable() || globallyIsolated)
+            return false;
+        }
+
         if (func->isSendable())
           return false;
 
