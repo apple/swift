@@ -230,6 +230,8 @@ public:
     return Serialized;
   }
 
+  bool isReabstracted() const { return ConvertIndirectToDirect; }
+
   unsigned param2ArgIndex(unsigned ParamIdx) const  {
     return ParamIdx + NumFormalIndirectResults + (hasIndirectErrorResult ? 1: 0);
   }

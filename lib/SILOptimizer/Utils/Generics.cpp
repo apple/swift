@@ -1994,10 +1994,13 @@ GenericFuncSpecializer::GenericFuncSpecializer(
         GenericFunc, ReInfo.isSerialized());
     if (ReInfo.isPrespecialized()) {
       ClonedName = Mangler.manglePrespecialized(ParamSubs);
-    } else {
+    } else if (ReInfo.isReabstracted()) {
       ClonedName = Mangler.mangleReabstracted(ParamSubs,
                                               ReInfo.needAlternativeMangling(),
                                               ReInfo.hasDroppedMetatypeArgs());
+    } else {
+      ClonedName = Mangler.mangleNotReabstracted(ParamSubs,
+                                                 ReInfo.hasDroppedMetatypeArgs());
     }
   }
   LLVM_DEBUG(llvm::dbgs() << "    Specialized function " << ClonedName << '\n');
@@ -3118,6 +3121,62 @@ static bool canDropMetatypeArgs(ApplySite apply, SILFunction *callee) {
   return true;
 }
 
+/// Returns true if there is no store to `addrOp`.
+static bool isNotStoredTo(Operand *addrOp) {
+  auto *allocStack = dyn_cast<AllocStackInst>(addrOp->get());
+  if (!allocStack)
+    return false;
+
+  for (Operand *use : allocStack->getUses()) {
+    if (use == addrOp)
+      continue;
+    SILInstruction *user = use->getUser();
+    if (isa<DeallocStackInst>(user))
+      continue;
+    if (user->mayWriteToMemory())
+      return false;
+  }
+  return true;
+}
+
+static bool canConvertIndirectToDirect(ApplySite apply) {
+  for (Operand &argOp : apply.getArgumentOperands()) {
+    switch (apply.getArgumentConvention(argOp)) {
+      case SILArgumentConvention::Indirect_In_Guaranteed:
+      case SILArgumentConvention::Indirect_In:
+        // If an indirect in-argument is not used in the callee, dead store elimination
+        // might have removed the preceding store to the memory location.
+        // If we would convert such an argument to a _direct_ argument, we would insert
+        // a load before the call - but this load would load an undefined value, because
+        // the store is missing.
+        // We want to avoid this undefined behavior. Also SILMem2Reg cannot handle it.
+        //
+        // Usually this is no problem because there are no dead-store elimination passes
+        // before the specializer in the pipeline. But in theory, it can happen.
+        //
+        // This check is a bad hack, which only covers the common pattern of a stack
+        // location with no stores.
+        // TODO: The real solution is to allow reabstraction but to pass an `undef` as
+        // direct argument. But currently undefs are not handled very well in optimizations.
+        if (isNotStoredTo(&argOp))
+          return false;
+        break;
+      case SILArgumentConvention::Indirect_Inout:
+      case SILArgumentConvention::Indirect_InoutAliasable:
+      case SILArgumentConvention::Pack_Inout:
+      case SILArgumentConvention::Indirect_Out:
+      case SILArgumentConvention::Direct_Unowned:
+      case SILArgumentConvention::Direct_Owned:
+      case SILArgumentConvention::Direct_Guaranteed:
+      case SILArgumentConvention::Pack_Owned:
+      case SILArgumentConvention::Pack_Guaranteed:
+      case SILArgumentConvention::Pack_Out:
+        break;
+    }
+  }
+  return true;
+}
+
 void swift::trySpecializeApplyOfGeneric(
     SILOptFunctionBuilder &FuncBuilder,
     ApplySite Apply, DeadInstructionSet &DeadApplies,
@@ -3171,7 +3230,7 @@ void swift::trySpecializeApplyOfGeneric(
   ReabstractionInfo ReInfo(FuncBuilder.getModule().getSwiftModule(),
                            FuncBuilder.getModule().isWholeModule(), Apply, RefF,
                            Apply.getSubstitutionMap(), Serialized,
-                           /*ConvertIndirectToDirect=*/ true,
+                           canConvertIndirectToDirect(Apply),
                            /*dropMetatypeArgs=*/ canDropMetatypeArgs(Apply, RefF),
                            &ORE);
   if (!ReInfo.canBeSpecialized())
@@ -3197,7 +3256,7 @@ void swift::trySpecializeApplyOfGeneric(
 
   auto *PAI = dyn_cast<PartialApplyInst>(Apply);
 
-  if (PAI && ReInfo.hasConversions()) {
+  if (PAI && ReInfo.hasConversions() && ReInfo.isReabstracted()) {
     // If we have a partial_apply and we converted some results/parameters from
     // indirect to direct there are 3 cases:
     // 1) All uses of the partial_apply are apply sites again. In this case

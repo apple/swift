@@ -440,7 +440,7 @@ bb0(%0 : $*T, %1 : $*T, %2 : $@thin T.Type):
 }
 
 // CHECK-LABEL: sil @return_generic_nonthrowing_closure
-// CHECK: [[F:%[0-9]+]] = function_ref @$s39specialized_generic_nonthrowing_closures5Int32V_Tg5
+// CHECK: [[F:%[0-9]+]] = function_ref @$s39specialized_generic_nonthrowing_closures5Int32V_TG5
 // CHECK: [[R:%[0-9]+]] = thin_to_thick_function [[F]]
 // CHECK: return [[R]]
 sil @return_generic_nonthrowing_closure : $@convention(thin) () -> @owned @callee_owned (@in Int32, @in Int32) -> Bool {
