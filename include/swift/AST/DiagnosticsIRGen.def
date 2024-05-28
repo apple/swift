@@ -80,5 +80,8 @@ ERROR(attr_objc_implementation_resilient_property_deployment_target, none,
       "target to %0 %2 or store this value in an object or 'any' type",
       (StringRef, const llvm::VersionTuple, const llvm::VersionTuple))
 
+ERROR(unable_to_load_pass_plugin,none,
+      "unable to load plugin '%0': '%1'", (StringRef, StringRef))
+
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"
