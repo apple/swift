@@ -1572,3 +1572,14 @@ func testNilCoalescingOperatorRemoveFix() {
   if ("" // This is a comment
       ?? "").isEmpty {} // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1572:9-1573:12=}}
 }
+
+// https://github.com/apple/swift/issues/73029
+func testBinaryOpWrongTypesFix() {
+  struct S<T> {
+    static func ==(lhs: S, rhs: S) -> Bool {
+      true
+    }
+  }
+  func getS<T>(value: T) -> S<T> {}
+  let _ = getS(value: "") == getS(value: 0) // expected-error {{binary operator '==' cannot be applied to operands of type 'S<String>' and 'S<Int>'}}
+}
