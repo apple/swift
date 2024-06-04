@@ -297,7 +297,7 @@ public protocol _ExpressibleByBuiltinIntegerLiteral {
 ///
 /// To add `ExpressibleByIntegerLiteral` conformance to your custom type,
 /// implement the required initializer.
-public protocol ExpressibleByIntegerLiteral {
+public protocol ExpressibleByIntegerLiteral: ~Copyable {
   /// A type that represents an integer literal.
   ///
   /// The standard library integer and floating-point types are all valid types
@@ -340,7 +340,7 @@ public protocol _ExpressibleByBuiltinFloatLiteral {
 ///
 /// To add `ExpressibleByFloatLiteral` conformance to your custom type,
 /// implement the required initializer.
-public protocol ExpressibleByFloatLiteral {
+public protocol ExpressibleByFloatLiteral: ~Copyable {
   /// A type that represents a floating-point literal.
   ///
   /// Valid types for `FloatLiteralType` are `Float`, `Double`, and `Float80`
@@ -375,7 +375,7 @@ public protocol _ExpressibleByBuiltinBooleanLiteral {
 /// To add `ExpressibleByBooleanLiteral` conformance to your custom type,
 /// implement the `init(booleanLiteral:)` initializer that creates an instance
 /// of your type with the given Boolean value.
-public protocol ExpressibleByBooleanLiteral {
+public protocol ExpressibleByBooleanLiteral: ~Copyable {
   /// A type that represents a Boolean literal, such as `Bool`.
   associatedtype BooleanLiteralType: _ExpressibleByBuiltinBooleanLiteral
 

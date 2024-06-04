@@ -57,3 +57,55 @@ public struct Atomic<Value: AtomicRepresentable>: ~Copyable {
 
 @available(SwiftStdlib 6.0, *)
 extension Atomic: @unchecked Sendable where Value: Sendable {}
+
+@available(SwiftStdlib 6.0, *)
+extension Atomic: ExpressibleByNilLiteral where Value: ExpressibleByNilLiteral {
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public init(nilLiteral: ()) {
+    self.init(Value(nilLiteral: ()))
+  }
+}
+
+@available(SwiftStdlib 6.0, *)
+extension Atomic: ExpressibleByBooleanLiteral where Value: ExpressibleByBooleanLiteral {
+  @available(SwiftStdlib 6.0, *)
+  public typealias BooleanLiteralType = Value.BooleanLiteralType
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public init(booleanLiteral value: BooleanLiteralType) {
+    let initialValue = Value(booleanLiteral: value)
+    address.initialize(to: Value.encodeAtomicRepresentation(initialValue))
+  }
+}
+
+@available(SwiftStdlib 6.0, *)
+extension Atomic: ExpressibleByIntegerLiteral where Value: ExpressibleByIntegerLiteral {
+  @available(SwiftStdlib 6.0, *)
+  public typealias IntegerLiteralType = Value.IntegerLiteralType
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public init(integerLiteral value: IntegerLiteralType) {
+    let initialValue = Value(integerLiteral: value)
+    address.initialize(to: Value.encodeAtomicRepresentation(initialValue))
+  }
+}
+
+@available(SwiftStdlib 6.0, *)
+extension Atomic: ExpressibleByFloatLiteral where Value: ExpressibleByFloatLiteral {
+  @available(SwiftStdlib 6.0, *)
+  public typealias FloatLiteralType = Value.FloatLiteralType
+
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public init(floatLiteral value: FloatLiteralType) {
+    let initialValue = Value(floatLiteral: value)
+    address.initialize(to: Value.encodeAtomicRepresentation(initialValue))
+  }
+}
