@@ -15,7 +15,7 @@
 ////////////////////////
 
 /// Classes are always non-sendable, so this is non-sendable
-class NonSendableKlass { // expected-complete-note 51{{}}
+class NonSendableKlass { // expected-complete-note 53{{}}
   // expected-typechecker-only-note @-1 3{{}}
   // expected-tns-note @-2 {{}}
   var field: NonSendableKlass? = nil
@@ -1735,4 +1735,14 @@ func sendableGlobalActorIsolated() {
     // expected-complete-warning @-2 {{capture of 'x' with non-sendable type 'NonSendableKlass' in a `@Sendable` closure}}
   }
   print(x) // expected-tns-note {{access can happen concurrently}}
+}
+
+// We do not get an error here since we are transferring x both times to a main
+// actor isolated thing function. We used to emit an error when using region
+// isolation since we would trip on the store_borrow we used to materialize the
+// value.
+func testIndirectParameterSameIsolationNoError() async {
+  let x = NonSendableKlass()
+  await transferToMain(x) // expected-complete-warning {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
+  await transferToMain(x) // expected-complete-warning {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
 }

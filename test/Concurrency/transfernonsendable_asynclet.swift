@@ -9,7 +9,7 @@
 ////////////////////////
 
 /// Classes are always non-sendable, so this is non-sendable
-class NonSendableKlass { // expected-complete-note 96{{}}
+class NonSendableKlass { // expected-complete-note 99{{}}
   // expected-tns-note @-1 {{}}
   var field: NonSendableKlass? = nil
   var field2: NonSendableKlass? = nil
@@ -34,6 +34,13 @@ final actor FinalActor {
   func useKlass(_ x: NonSendableKlass) {}
 }
 
+actor CustomActorInstance {}
+
+@globalActor
+struct CustomActor {
+  static let shared = CustomActorInstance()
+}
+
 func useInOut<T>(_ x: inout T) {}
 @discardableResult
 func useValue<T>(_ x: T) -> T { x }
@@ -42,6 +49,7 @@ func useValueWrapInOptional<T>(_ x: T) -> T? { x }
 @MainActor func returnValueFromMain<T>() async -> T { fatalError() }
 @MainActor func transferToMain<T>(_ t: T) async {}
 @MainActor func transferToMainInt<T>(_ t: T) async -> Int { 5 }
+@CustomActor func transferToCustomInt<T>(_ t: T) async -> Int { 5 }
 @MainActor func transferToMainIntOpt<T>(_ t: T) async -> Int? { 5 }
 
 func transferToNonIsolated<T>(_ t: T) async {}
@@ -306,18 +314,33 @@ func asyncLet_Let_ActorIsolated_CallBuriedInOtherExpr3() async {
   let _ = await y
 }
 
-// Make sure that we emit an error for transferToMainInt in the async val
-// function itself.
+// Make sure that we do not emit an error for transferToMainInt in the async val
+// function itself since we are sending the value to the same main actor
+// isolated use and transferring it into one async let variable.
 func asyncLet_Let_ActorIsolated_CallBuriedInOtherExpr4() async {
   let x = NonSendableKlass()
 
-  async let y = useValue(transferToMainInt(x) + transferToMainInt(x)) // expected-tns-warning {{sending 'x' risks causing data races}}
-  // expected-tns-note @-1 {{sending 'x' to main actor-isolated global function 'transferToMainInt' risks causing data races between main actor-isolated and local nonisolated uses}}
-  // expected-tns-note @-2:67 {{access can happen concurrently}}
+  async let y = useValue(transferToMainInt(x) + transferToMainInt(x))
+  // expected-complete-warning @-1 {{capture of 'x' with non-sendable type 'NonSendableKlass' in 'async let' binding}}
+  // expected-complete-warning @-2 {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
+  // expected-complete-warning @-3 {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
 
-  // expected-complete-warning @-4 {{capture of 'x' with non-sendable type 'NonSendableKlass' in 'async let' binding}}
-  // expected-complete-warning @-5 {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
+  let _ = await y
+}
+
+// Make sure that we do emit an error since we are sending the value to two
+// different isolation domains in the async let.
+func asyncLet_Let_ActorIsolated_CallBuriedInOtherExpr5() async {
+  let x = NonSendableKlass()
+
+  async let y = useValue(transferToMainInt(x) + transferToCustomInt(x))
+  // expected-tns-warning @-1 {{sending 'x' risks causing data races}}
+  // expected-tns-note @-2 {{sending 'x' to main actor-isolated global function 'transferToMainInt' risks causing data races between main actor-isolated and local nonisolated uses}}
+  // expected-tns-note @-3:49 {{access can happen concurrently}}
+
+  // expected-complete-warning @-5 {{capture of 'x' with non-sendable type 'NonSendableKlass' in 'async let' binding}}
   // expected-complete-warning @-6 {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
+  // expected-complete-warning @-7 {{passing argument of non-sendable type 'NonSendableKlass' into global actor 'CustomActor'-isolated context may introduce data races}}
 
   let _ = await y
 }

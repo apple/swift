@@ -1025,14 +1025,6 @@ public:
              "Assign PartitionOp should be passed 2 arguments");
       assert(p.isTrackingElement(op.getOpArgs()[1]) &&
              "Assign PartitionOp's source argument should be already tracked");
-      // If we are using a region that was transferred as our assignment source
-      // value... emit an error.
-      if (auto *transferredOperandSet = p.getTransferred(op.getOpArgs()[1])) {
-        for (auto transferredOperand : transferredOperandSet->data()) {
-          handleLocalUseAfterTransferHelper(op, op.getOpArgs()[1],
-                                            transferredOperand);
-        }
-      }
       p.assignElement(op.getOpArgs()[0], op.getOpArgs()[1]);
       return;
     case PartitionOpKind::AssignFresh:
@@ -1121,20 +1113,6 @@ public:
       assert(p.isTrackingElement(op.getOpArgs()[0]) &&
              p.isTrackingElement(op.getOpArgs()[1]) &&
              "Merge PartitionOp's arguments should already be tracked");
-
-      // if attempting to merge a transferred region, handle the failure
-      if (auto *transferredOperandSet = p.getTransferred(op.getOpArgs()[0])) {
-        for (auto transferredOperand : transferredOperandSet->data()) {
-          handleLocalUseAfterTransferHelper(op, op.getOpArgs()[0],
-                                            transferredOperand);
-        }
-      }
-      if (auto *transferredOperandSet = p.getTransferred(op.getOpArgs()[1])) {
-        for (auto transferredOperand : transferredOperandSet->data()) {
-          handleLocalUseAfterTransferHelper(op, op.getOpArgs()[1],
-                                            transferredOperand);
-        }
-      }
 
       p.merge(op.getOpArgs()[0], op.getOpArgs()[1]);
       return;
