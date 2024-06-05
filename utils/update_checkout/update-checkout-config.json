@@ -38,6 +38,8 @@
             "remote": { "id": "apple/swift-system" } },
         "swift-stress-tester": {
             "remote": { "id": "apple/swift-stress-tester" } },
+        "swift-testing": {
+            "remote": { "id": "apple/swift-testing" } },
         "swift-corelibs-xctest": {
             "remote": { "id": "apple/swift-corelibs-xctest" } },
         "swift-corelibs-foundation": {
@@ -136,6 +138,7 @@
                 "swift-syntax": "main",
                 "swift-system": "1.3.0",
                 "swift-stress-tester": "main",
+                "swift-testing": "main",
                 "swift-corelibs-xctest": "main",
                 "swift-corelibs-foundation": "main",
                 "swift-foundation-icu": "main",
