@@ -327,7 +327,7 @@ namespace {
         return Type();
 
       // OpenMP types that don't have Swift equivalents.
-      case clang::BuiltinType::OMPArraySection:
+      case clang::BuiltinType::ArraySection:
       case clang::BuiltinType::OMPArrayShaping:
       case clang::BuiltinType::OMPIterator:
         return Type();
