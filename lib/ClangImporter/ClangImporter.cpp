@@ -3949,11 +3949,12 @@ void ClangModuleUnit::lookupObjCMethods(
   // Collect all of the Objective-C methods with this selector.
   SmallVector<clang::ObjCMethodDecl *, 8> objcMethods;
   auto &clangSema = owner.getClangSema();
-  clangSema.CollectMultipleMethodsInGlobalPool(clangSelector,
+  auto &clangObjc = clangSema.ObjC();
+  clangObjc.CollectMultipleMethodsInGlobalPool(clangSelector,
                                                objcMethods,
                                                /*InstanceFirst=*/true,
                                                /*CheckTheOther=*/false);
-  clangSema.CollectMultipleMethodsInGlobalPool(clangSelector,
+  clangObjc.CollectMultipleMethodsInGlobalPool(clangSelector,
                                                objcMethods,
                                                /*InstanceFirst=*/false,
                                                /*CheckTheOther=*/false);
