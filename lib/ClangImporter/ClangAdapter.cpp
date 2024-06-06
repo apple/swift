@@ -364,6 +364,7 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
     case clang::BuiltinType::Overload:
     case clang::BuiltinType::PseudoObject:
     case clang::BuiltinType::UnknownAny:
+    case clang::BuiltinType::UnresolvedTemplate:
       return OmissionTypeName();
 
     // FIXME: Types that can be mapped, but aren't yet.
