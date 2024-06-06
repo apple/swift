@@ -72,7 +72,7 @@ public:
       return clang::Selector();
 
     unsigned numArgs = unsigned(numArgsPlusOne - 1);
-    SmallVector<clang::IdentifierInfo *, 4> chunks;
+    SmallVector<const clang::IdentifierInfo *, 4> chunks;
     for (unsigned i = 0, e = std::max(numArgs, 1U); i != e; ++i)
       chunks.push_back(asImpl().readIdentifier());
 

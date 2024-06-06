@@ -1351,7 +1351,7 @@ getClangDeclarationName(const clang::NamedDecl *ND, NameTranslatingInfo &Info) {
       return clang::DeclarationName();
 
     ArrayRef<StringRef> Args = llvm::ArrayRef(Info.ArgNames);
-    std::vector<clang::IdentifierInfo *> Pieces;
+    std::vector<const clang::IdentifierInfo *> Pieces;
     for (unsigned i = 0; i < NumPieces; ++i) {
       if (i >= Info.ArgNames.size() || Info.ArgNames[i].empty()) {
         Pieces.push_back(OrigSel.getIdentifierInfoForSlot(i));

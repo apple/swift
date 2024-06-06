@@ -1510,19 +1510,17 @@ ClangImporter::create(ASTContext &ctx,
   importer->Impl.objectAtIndexedSubscript
     = clangContext.Selectors.getUnarySelector(
         &clangContext.Idents.get("objectAtIndexedSubscript"));
-  clang::IdentifierInfo *setObjectAtIndexedSubscriptIdents[2] = {
-    &clangContext.Idents.get("setObject"),
-    &clangContext.Idents.get("atIndexedSubscript")
-  };
+  const clang::IdentifierInfo *setObjectAtIndexedSubscriptIdents[2] = {
+      &clangContext.Idents.get("setObject"),
+      &clangContext.Idents.get("atIndexedSubscript")};
   importer->Impl.setObjectAtIndexedSubscript
     = clangContext.Selectors.getSelector(2, setObjectAtIndexedSubscriptIdents);
   importer->Impl.objectForKeyedSubscript
     = clangContext.Selectors.getUnarySelector(
         &clangContext.Idents.get("objectForKeyedSubscript"));
-  clang::IdentifierInfo *setObjectForKeyedSubscriptIdents[2] = {
-    &clangContext.Idents.get("setObject"),
-    &clangContext.Idents.get("forKeyedSubscript")
-  };
+  const clang::IdentifierInfo *setObjectForKeyedSubscriptIdents[2] = {
+      &clangContext.Idents.get("setObject"),
+      &clangContext.Idents.get("forKeyedSubscript")};
   importer->Impl.setObjectForKeyedSubscript
     = clangContext.Selectors.getSelector(2, setObjectForKeyedSubscriptIdents);
 
@@ -2882,7 +2880,7 @@ ClangImporter::Implementation::exportSelector(DeclName name,
 
   clang::ASTContext &ctx = getClangASTContext();
 
-  SmallVector<clang::IdentifierInfo *, 8> pieces;
+  SmallVector<const clang::IdentifierInfo *, 8> pieces;
   pieces.push_back(exportName(name.getBaseIdentifier()).getAsIdentifierInfo());
 
   auto argNames = name.getArgumentNames();
@@ -2901,7 +2899,7 @@ ClangImporter::Implementation::exportSelector(DeclName name,
 
 clang::Selector
 ClangImporter::Implementation::exportSelector(ObjCSelector selector) {
-  SmallVector<clang::IdentifierInfo *, 4> pieces;
+  SmallVector<const clang::IdentifierInfo *, 4> pieces;
   for (auto piece : selector.getSelectorPieces())
     pieces.push_back(exportName(piece).getAsIdentifierInfo());
   return getClangASTContext().Selectors.getSelector(selector.getNumArgs(),
@@ -2917,7 +2915,7 @@ isPotentiallyConflictingSetter(const clang::ObjCProtocolDecl *proto,
   if (sel.getNumArgs() != 1)
     return false;
 
-  clang::IdentifierInfo *setterID = sel.getIdentifierInfoForSlot(0);
+  const clang::IdentifierInfo *setterID = sel.getIdentifierInfoForSlot(0);
   if (!setterID || !setterID->getName().starts_with("set"))
     return false;
 
