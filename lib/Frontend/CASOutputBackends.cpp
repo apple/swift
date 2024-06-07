@@ -141,6 +141,26 @@ Error SwiftCASOutputBackend::storeCachedDiagnostics(unsigned InputIndex,
                    file_types::ID::TY_CachedDiagnostics);
 }
 
+Error SwiftCASOutputBackend::storeMCCASObjectID(unsigned InputIndex,
+                                                llvm::cas::CASID ID) {
+
+  auto MCRef = Impl.CAS.getReference(ID);
+  if (!MCRef)
+    return createStringError("Invalid CASID: " + ID.toString() +
+                             ". No associated ObjectRef found!");
+
+  Impl.OutputRefs[InputIndex].insert({file_types::TY_Object, *MCRef});
+  return Impl.finalizeCacheKeysFor(InputIndex);
+}
+
+std::optional<unsigned> SwiftCASOutputBackend::getInputIndexForOutputFilename(
+    StringRef OutputFilename) {
+  auto Input = Impl.OutputToInputMap.find(OutputFilename);
+  if (Input == Impl.OutputToInputMap.end())
+    return std::nullopt;
+  return Input->second.first;
+}
+
 void SwiftCASOutputBackend::Implementation::initBackend(
     const FrontendInputsAndOutputs &InputsAndOutputs) {
   // FIXME: The output to input map might not be enough for example all the
