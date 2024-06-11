@@ -638,6 +638,40 @@ struct TestKeyPathWithSomeType : DefineSomeType {
   }
 }
 
+struct N {
+  static let kelvin = 293
+}
+
+class M {
+  static var chanceRain = 10
+  static let isSunny = true
+  private(set) static var isCloudy = false
+  static subscript(day: Int) -> String { "Monday" }
+  subscript(temp: Int) -> N.Type { N.self }
+  static subscript(kelvinTemp: Int) -> N.Type { N.self }
+  var degrees: N.Type? { return N.self }
+}
+
+// CHECK-LABEL: // test_metatype_keypaths()
+// CHECK-LABEL: sil hidden [ossa] @{{.*}} : $@convention(thin) () -> () {
+func test_metatype_keypaths() {
+  // CHECK: keypath $ReferenceWritableKeyPath<M.Type, Int>, (root $M.Type; settable_property $Int, id @$s8keypaths1MC10chanceRainSivgZ : $@convention(method) (@thick M.Type) -> Int, getter @$s8keypaths1MC10chanceRainSivpZACmTK : $@convention(keypath_accessor_getter) (@in_guaranteed @thick M.Type) -> @out Int, setter @$s8keypaths1MC10chanceRainSivpZACmTk : $@convention(keypath_accessor_setter) (@in_guaranteed Int, @in_guaranteed @thick M.Type) -> ()) // user: %1
+  let _: KeyPath<M.Type, Int> = \M.Type.chanceRain
+  // CHECK: keypath $KeyPath<M.Type, Bool>, (root $M.Type; gettable_property $Bool, id @$s8keypaths1MC7isSunnySbvgZ : $@convention(method) (@thick M.Type) -> Bool, getter @$s8keypaths1MC7isSunnySbvpZACmTK : $@convention(keypath_accessor_getter) (@in_guaranteed @thick M.Type) -> @out Bool) // user: %4
+  let _: KeyPath<M.Type, Bool> = \M.Type.isSunny
+  // CHECK: keypath $ReferenceWritableKeyPath<M.Type, Bool>, (root $M.Type; settable_property $Bool, id @$s8keypaths1MC8isCloudySbvgZ : $@convention(method) (@thick M.Type) -> Bool, getter @$s8keypaths1MC8isCloudySbvpZACmTK : $@convention(keypath_accessor_getter) (@in_guaranteed @thick M.Type) -> @out Bool, setter @$s8keypaths1MC8isCloudySbvpZACmTk : $@convention(keypath_accessor_setter) (@in_guaranteed Bool, @in_guaranteed @thick M.Type) -> ()) // user: %6
+  let _: KeyPath<M.Type, Bool> = \M.Type.isCloudy
+  // CHECK: keypath $KeyPath<M.Type, String>, (root $M.Type; gettable_property $String, id @$s8keypaths1MCySSSicigZ : $@convention(method) (Int, @thick M.Type) -> @owned String, getter @$s8keypaths1MCySSSicipZACmTK : $@convention(keypath_accessor_getter) (@in_guaranteed @thick M.Type, @in_guaranteed Int) -> @out String, indices [%$0 : $Int : $Int], indices_equals @$sSiTH : $@convention(keypath_accessor_equals) (@in_guaranteed Int, @in_guaranteed Int) -> Bool, indices_hash @$sSiTh : $@convention(keypath_accessor_hash) (@in_guaranteed Int) -> Int) (%11) // user: %13
+  let _: KeyPath<M.Type, String> = \M.Type.[2]
+  // CHECK: keypath $KeyPath<M, N.Type>, (root $M; gettable_property $N.Type, id #M.subscript!getter : (M) -> (Int) -> N.Type, getter @$s8keypaths1MCyAA1NVmSicipACTK : $@convention(keypath_accessor_getter) (@in_guaranteed M, @in_guaranteed Int) -> @out @thick N.Type, indices [%$0 : $Int : $Int], indices_equals @$sSiTH : $@convention(keypath_accessor_equals) (@in_guaranteed Int, @in_guaranteed Int) -> Bool, indices_hash @$sSiTh : $@convention(keypath_accessor_hash) (@in_guaranteed Int) -> Int) (%17) // user: %19
+  let _: KeyPath<M, N.Type> = \M.[76]
+  // CHECK: keypath $KeyPath<M.Type, N.Type>, (root $M.Type; gettable_property $N.Type, id @$s8keypaths1MCyAA1NVmSicigZ : $@convention(method) (Int, @thick M.Type) -> @thin N.Type, getter @$s8keypaths1MCyAA1NVmSicipZACmTK : $@convention(keypath_accessor_getter) (@in_guaranteed @thick M.Type, @in_guaranteed Int) -> @out @thick N.Type, indices [%$0 : $Int : $Int], indices_equals @$sSiTH : $@convention(keypath_accessor_equals) (@in_guaranteed Int, @in_guaranteed Int) -> Bool, indices_hash @$sSiTh : $@convention(keypath_accessor_hash) (@in_guaranteed Int) -> Int) (%23) // user: %25
+  let _: KeyPath<M.Type, N.Type> = \M.Type.[76]
+  // CHECK: keypath $KeyPath<M, Optional<Int>>, (root $M; gettable_property $Optional<N.Type>, id #M.degrees!getter : (M) -> () -> N.Type?, getter @$s8keypaths1MC7degreesAA1NVmSgvpACTK : $@convention(keypath_accessor_getter) (@in_guaranteed M) -> @out Optional<@thick N.Type>; optional_chain : $N.Type; gettable_property $Int, id @$s8keypaths1NV6kelvinSivgZ : $@convention(method) (@thin N.Type) -> Int, getter @$s8keypaths1NV6kelvinSivpZACmTK : $@convention(keypath_accessor_getter) (@in_guaranteed @thick N.Type) -> @out Int; optional_wrap : $Optional<Int>) // user: %27 
+  let _: KeyPath<M, Int?> = \.degrees?.kelvin
+}
+
+
 // apple/swift#71423
 protocol CodingKey {}
 

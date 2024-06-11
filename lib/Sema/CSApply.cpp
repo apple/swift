@@ -5368,9 +5368,6 @@ namespace {
         auto varDecl = cast<VarDecl>(property);
         // Key paths don't work with mutating-get properties.
         assert(!varDecl->isGetterMutating());
-        // Key paths don't currently support static members.
-        // There is a fix which diagnoses such situation already.
-        assert(!varDecl->isStatic());
 
         // Compute the concrete reference to the member.
         auto ref = resolveConcreteDeclRef(property, locator);

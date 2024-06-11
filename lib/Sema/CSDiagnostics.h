@@ -1749,20 +1749,25 @@ protected:
 };
 
 /// Diagnose an attempt to reference a static member as a key path component
-/// e.g.
+/// without .Type e.g.
 ///
 /// ```swift
 /// struct S {
 ///   static var foo: Int = 42
 /// }
 ///
-/// _ = \S.Type.foo
+/// _ = \S.foo
 /// ```
 class InvalidStaticMemberRefInKeyPath final : public InvalidMemberRefInKeyPath {
+  Type BaseType;
+
 public:
-  InvalidStaticMemberRefInKeyPath(const Solution &solution, ValueDecl *member,
-                                  ConstraintLocator *locator)
-      : InvalidMemberRefInKeyPath(solution, member, locator) {}
+  InvalidStaticMemberRefInKeyPath(const Solution &solution, Type baseType,
+                                  ValueDecl *member, ConstraintLocator *locator)
+      : InvalidMemberRefInKeyPath(solution, member, locator),
+        BaseType(baseType->getRValueType()) {}
+
+  Type getBaseType() const { return BaseType; }
 
   bool diagnoseAsError() override;
 };

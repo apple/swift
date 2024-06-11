@@ -682,7 +682,7 @@ func invalid_refs_through_dynamic_lookup() {
   }
 
   func test(_ lens: A<S>) {
-    _ = lens.foo           // expected-error {{dynamic key path member lookup cannot refer to static member 'foo'}}
+    _ = lens.foo           // expected-error {{static member 'foo' cannot be used on instance of type 'S'}}
     _ = lens.bar()         // expected-error {{dynamic key path member lookup cannot refer to instance method 'bar()'}}
     _ = lens.bar().faz + 1 // expected-error {{dynamic key path member lookup cannot refer to instance method 'bar()'}}
     _ = lens.baz("hello")  // expected-error {{dynamic key path member lookup cannot refer to static method 'baz'}}

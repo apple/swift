@@ -524,16 +524,39 @@ func testInvalidKeyPathComponents() {
   let _ = \.{return 0} // expected-error* {{}}
 }
 
+struct W {
+  static let h = 50
+}
+
 class X {
   class var a: Int { return 1 }
-  static var b = 2
+  static var b = 20
+  let c = true
+  static subscript(d: Int) -> String { "\(d)" }
+  var e: W.Type? { return W.self }
+}
+
+class Y : X {
+  subscript(f: Int) -> W.Type { W.self }
+  static subscript(g: Int) -> W.Type { W.self }
 }
 
 func testStaticKeyPathComponent() {
-  _ = \X.a // expected-error{{cannot refer to static member}}
-  _ = \X.Type.a // expected-error{{cannot refer to static member}}
-  _ = \X.b // expected-error{{cannot refer to static member}}
-  _ = \X.Type.b // expected-error{{cannot refer to static member}}
+  _ = \X.a // expected-error{{static member 'a' cannot be used on instance of type 'X'}}
+  _ = \X.Type.a
+  _ = \X.b // expected-error{{static member 'b' cannot be used on instance of type 'X'}}
+  _ = \X.Type.b
+  _ = \X.c
+  _ = \X.Type.c // expected-error{{instance member 'c' cannot be used on type 'X'}}
+  _ = \X.[42] // expected-error{{static member 'subscript(_:)' cannot be used on instance of type 'X'}}
+  _ = \X.Type.[42]
+
+  let _: KeyPath<X, Int?> = \.e?.h
+  let _: PartialKeyPath<X> = \.e?.h
+  let _: AnyKeyPath = \X.e?.h
+  
+  let _ : KeyPath<Y, W.Type> = \Y.[40]
+  let _ : KeyPath<Y.Type, W.Type> = \Y.Type.[70]
 }
 
 class Bass: Hashable {
@@ -735,13 +758,13 @@ protocol P_With_Static_Members {
 
 func test_keypath_with_static_members(_ p: P_With_Static_Members) {
   let _ = p[keyPath: \.x]
-  // expected-error@-1 {{key path cannot refer to static member 'x'}}
+  // expected-error@-1 {{static member 'x' cannot be used on instance of type 'any P_With_Static_Members'}}
   let _: KeyPath<P_With_Static_Members, Int> = \.x
-  // expected-error@-1 {{key path cannot refer to static member 'x'}}
+  // expected-error@-1 {{static member 'x' cannot be used on instance of type 'any P_With_Static_Members'}}
   let _ = \P_With_Static_Members.arr.count
-  // expected-error@-1 {{key path cannot refer to static member 'arr'}}
+  // expected-error@-1 {{static member 'arr' cannot be used on instance of type 'any P_With_Static_Members'}}
   let _ = p[keyPath: \.arr.count]
-  // expected-error@-1 {{key path cannot refer to static member 'arr'}}
+  // expected-error@-1 {{static member 'arr' cannot be used on instance of type 'any P_With_Static_Members'}}
 
   struct S {
     static var foo: String = "Hello"
@@ -754,17 +777,16 @@ func test_keypath_with_static_members(_ p: P_With_Static_Members) {
 
   func foo(_ s: S) {
     let _ = \S.Type.foo
-    // expected-error@-1 {{key path cannot refer to static member 'foo'}}
     let _ = s[keyPath: \.foo]
-    // expected-error@-1 {{key path cannot refer to static member 'foo'}}
+    // expected-error@-1 {{static member 'foo' cannot be used on instance of type 'S'}}
     let _: KeyPath<S, String> = \.foo
-    // expected-error@-1 {{key path cannot refer to static member 'foo'}}
+    // expected-error@-1 {{static member 'foo' cannot be used on instance of type 'S'}}
     let _ = \S.foo
-    // expected-error@-1 {{key path cannot refer to static member 'foo'}}
+    // expected-error@-1 {{static member 'foo' cannot be used on instance of type 'S'}}
     let _ = \S.bar.baz
-    // expected-error@-1 {{key path cannot refer to static member 'baz'}}
+    // expected-error@-1 {{static member 'baz' cannot be used on instance of type 'Bar'}}
     let _ = s[keyPath: \.bar.baz]
-    // expected-error@-1 {{key path cannot refer to static member 'baz'}}
+    // expected-error@-1 {{static member 'baz' cannot be used on instance of type 'Bar'}}
   }
 }
 

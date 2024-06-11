@@ -10563,7 +10563,7 @@ static ConstraintFix *validateInitializerRef(ConstraintSystem &cs,
       baseType = MetatypeType::get(baseType);
   } else if (auto *keyPathExpr = getAsExpr<KeyPathExpr>(anchor)) {
     // Key path can't refer to initializers e.g. `\Type.init`
-    return AllowInvalidRefInKeyPath::forRef(cs, init, locator);
+    return AllowInvalidRefInKeyPath::forRef(cs, baseType, init, locator);
   }
 
   if (!baseType)
@@ -10634,7 +10634,8 @@ static ConstraintFix *fixMemberRef(
     if (locator->isForKeyPathDynamicMemberLookup() ||
         locator->isForKeyPathComponent() ||
         locator->isKeyPathSubscriptComponent()) {
-      if (auto *fix = AllowInvalidRefInKeyPath::forRef(cs, decl, locator))
+      if (auto *fix =
+              AllowInvalidRefInKeyPath::forRef(cs, baseTy, decl, locator))
         return fix;
     }
   }

@@ -35,3 +35,13 @@
 //                                            -- Your friendly stdlib engineers
 
 // RegexBuilder Symbols
+
+// Add property descriptors for static properties
+Added: _$s12RegexBuilder6AnchorV11startOfLineACvpZMV
+Added: _$s12RegexBuilder6AnchorV12endOfSubjectACvpZMV
+Added: _$s12RegexBuilder6AnchorV12wordBoundaryACvpZMV
+Added: _$s12RegexBuilder6AnchorV14startOfSubjectACvpZMV
+Added: _$s12RegexBuilder6AnchorV19textSegmentBoundaryACvpZMV
+Added: _$s12RegexBuilder6AnchorV25endOfSubjectBeforeNewlineACvpZMV
+Added: _$s12RegexBuilder6AnchorV30firstMatchingPositionInSubjectACvpZMV
+Added: _$s12RegexBuilder6AnchorV9endOfLineACvpZMV

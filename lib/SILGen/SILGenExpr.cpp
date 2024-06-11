@@ -3183,6 +3183,11 @@ emitKeyPathRValueBase(SILGenFunction &subSGF,
   auto paramSubstValue = subSGF.emitOrigToSubstValue(loc, paramOrigValue,
                                              AbstractionPattern::getOpaque(),
                                              baseType);
+
+  // If base is a metatype, it cannot be opened as an existential or upcasted
+  // from a class.
+  if (baseType->is<MetatypeType>())
+    return paramSubstValue;
   
   // Pop open an existential container base.
   if (baseType->isAnyExistentialType()) {
@@ -4022,9 +4027,30 @@ getIdForKeyPathComponentComputedProperty(SILGenModule &SGM,
                                          AbstractStorageDecl *storage,
                                          ResilienceExpansion expansion,
                                          AccessStrategy strategy) {
+  auto getAccessorFunction = [&SGM](AbstractStorageDecl *storage,
+                                    bool isForeign) -> SILFunction * {
+    // Identify the property using its (unthunked) getter. For a
+    // computed property, this should be stable ABI; for a resilient public
+    // property, this should also be stable ABI across modules.
+    auto representativeDecl = getRepresentativeAccessorForKeyPath(storage);
+    // If the property came from an import-as-member function defined in C,
+    // use the original C function as the key.
+    auto ref =
+        SILDeclRef(representativeDecl, SILDeclRef::Kind::Func, isForeign);
+    // TODO: If the getter has shared linkage (say it's synthesized for a
+    // Clang-imported thing), we'll need some other sort of
+    // stable identifier.
+    return SGM.getFunction(ref, NotForDefinition);
+  };
+
   switch (strategy.getKind()) {
   case AccessStrategy::Storage:
-    // Identify reabstracted stored properties by the property itself.
+    if (auto decl = cast<VarDecl>(storage); decl->isStatic()) {
+      // For metatype keypaths, identify property via accessors.
+      return getAccessorFunction(storage, /*isForeign=*/false);
+    }
+    // Otherwise, identify reabstracted stored properties by the property
+    // itself.
     return cast<VarDecl>(storage);
   case AccessStrategy::MaterializeToTemporary:
     // Use the read strategy.  But try to avoid turning e.g. an
@@ -4037,19 +4063,9 @@ getIdForKeyPathComponentComputedProperty(SILGenModule &SGM,
     }
     LLVM_FALLTHROUGH;
   case AccessStrategy::DirectToAccessor: {
-    // Identify the property using its (unthunked) getter. For a
-    // computed property, this should be stable ABI; for a resilient public
-    // property, this should also be stable ABI across modules.
-    auto representativeDecl = getRepresentativeAccessorForKeyPath(storage);
-    // If the property came from an import-as-member function defined in C,
-    // use the original C function as the key.
-    bool isForeign = representativeDecl->isImportAsMember();
-    auto getterRef = SILDeclRef(representativeDecl,
-                                SILDeclRef::Kind::Func, isForeign);
-    // TODO: If the getter has shared linkage (say it's synthesized for a
-    // Clang-imported thing), we'll need some other sort of
-    // stable identifier.
-    return SGM.getFunction(getterRef, NotForDefinition);
+    return getAccessorFunction(
+        storage,
+        getRepresentativeAccessorForKeyPath(storage)->isImportAsMember());
   }
   case AccessStrategy::DispatchToAccessor: {
     // Identify the property by its vtable or wtable slot.

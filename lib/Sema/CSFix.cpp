@@ -1205,11 +1205,6 @@ TreatKeyPathSubscriptIndexAsHashable::create(ConstraintSystem &cs, Type type,
 bool AllowInvalidRefInKeyPath::diagnose(const Solution &solution,
                                         bool asNote) const {
   switch (Kind) {
-  case RefKind::StaticMember: {
-    InvalidStaticMemberRefInKeyPath failure(solution, Member, getLocator());
-    return failure.diagnose(asNote);
-  }
-
   case RefKind::EnumCase: {
     InvalidEnumCaseRefInKeyPath failure(solution, Member, getLocator());
     return failure.diagnose(asNote);
@@ -1254,47 +1249,43 @@ bool AllowInvalidRefInKeyPath::isEqual(const ConstraintFix *other) const {
 }
 
 AllowInvalidRefInKeyPath *
-AllowInvalidRefInKeyPath::forRef(ConstraintSystem &cs, ValueDecl *member,
+AllowInvalidRefInKeyPath::forRef(ConstraintSystem &cs, Type baseType,
+                                 ValueDecl *member,
                                  ConstraintLocator *locator) {
   // Referencing (instance or static) methods in key path is
   // not currently allowed.
   if (isa<FuncDecl>(member))
-    return AllowInvalidRefInKeyPath::create(cs, RefKind::Method, member,
-                                            locator);
+    return AllowInvalidRefInKeyPath::create(cs, baseType, RefKind::Method,
+                                            member, locator);
 
   // Referencing enum cases in key path is not currently allowed.
   if (isa<EnumElementDecl>(member)) {
-    return AllowInvalidRefInKeyPath::create(cs, RefKind::EnumCase, member,
-                                            locator);
+    return AllowInvalidRefInKeyPath::create(cs, baseType, RefKind::EnumCase,
+                                            member, locator);
   }
 
   // Referencing initializers in key path is not currently allowed.
   if (isa<ConstructorDecl>(member))
-    return AllowInvalidRefInKeyPath::create(cs, RefKind::Initializer,
+    return AllowInvalidRefInKeyPath::create(cs, baseType, RefKind::Initializer,
                                             member, locator);
-
-  // Referencing static members in key path is not currently allowed.
-  if (member->isStatic())
-    return AllowInvalidRefInKeyPath::create(cs, RefKind::StaticMember, member,
-                                            locator);
 
   if (auto *storage = dyn_cast<AbstractStorageDecl>(member)) {
     // Referencing members with mutating getters in key path is not
     // currently allowed.
     if (storage->isGetterMutating())
-      return AllowInvalidRefInKeyPath::create(cs, RefKind::MutatingGetter,
-                                              member, locator);
+      return AllowInvalidRefInKeyPath::create(
+          cs, baseType, RefKind::MutatingGetter, member, locator);
   }
 
   return nullptr;
 }
 
 AllowInvalidRefInKeyPath *
-AllowInvalidRefInKeyPath::create(ConstraintSystem &cs, RefKind kind,
-                                 ValueDecl *member,
+AllowInvalidRefInKeyPath::create(ConstraintSystem &cs, Type baseType,
+                                 RefKind kind, ValueDecl *member,
                                  ConstraintLocator *locator) {
   return new (cs.getAllocator())
-      AllowInvalidRefInKeyPath(cs, kind, member, locator);
+      AllowInvalidRefInKeyPath(cs, baseType, kind, member, locator);
 }
 
 bool RemoveAddressOf::diagnose(const Solution &solution, bool asNote) const {

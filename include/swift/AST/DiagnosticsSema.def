@@ -663,8 +663,8 @@ ERROR(expr_keypath_mutating_getter,none,
       "which has a mutating getter",
       (const ValueDecl *, bool))
 ERROR(expr_keypath_static_member,none,
-      "%select{key path|dynamic key path member lookup}1 cannot refer to static member %0",
-      (const ValueDecl *, bool))
+      "static member %0 cannot be used on instance of type %1",
+      (const ValueDecl *, Type))
 ERROR(expr_keypath_enum_case,none,
       "%select{key path|dynamic key path member lookup}1 cannot refer to enum case %0",
       (const ValueDecl *, bool))
