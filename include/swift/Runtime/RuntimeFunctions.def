@@ -236,6 +236,24 @@ FUNCTION(NativeStrongReleaseN, swift_release_n, C_CC, AlwaysAvailable,
          EFFECT(RefCounting, Deallocating),
          UNKNOWN_MEMEFFECTS)
 
+// void swift_retainMultiple(void **ptr, size_t count)
+FUNCTION(NativeStrongRetainMultiple, swift_retainMultiple, C_CC,
+         RetainReleaseMultipleAvailability,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, SizeTy),
+         ATTRS(NoUnwind),
+         EFFECT(RefCounting),
+         UNKNOWN_MEMEFFECTS)
+
+// void swift_releaseMultiple(void **ptr, size_t count)
+FUNCTION(NativeStrongReleaseMultiple, swift_releaseMultiple, C_CC,
+         RetainReleaseMultipleAvailability,
+         RETURNS(VoidTy),
+         ARGS(Int8PtrTy, SizeTy),
+         ATTRS(NoUnwind),
+         EFFECT(RefCounting, Deallocating),
+         UNKNOWN_MEMEFFECTS)
+
 // void swift_setDeallocating(void *ptr);
 FUNCTION(NativeSetDeallocating, swift_setDeallocating,
          C_CC, AlwaysAvailable,

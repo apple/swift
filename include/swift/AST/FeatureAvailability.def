@@ -76,6 +76,7 @@ FEATURE(Differentiation,                                FUTURE)
 FEATURE(InitRawStructMetadata,                          FUTURE)
 FEATURE(ClearSensitive,                                 FUTURE)
 FEATURE(UpdatePureObjCClassMetadata,                    FUTURE)
+FEATURE(RetainReleaseMultiple,                          FUTURE)
 
 #undef FEATURE
 #undef FUTURE

@@ -28,7 +28,7 @@ struct TestObject : HeapObject {
 static SWIFT_CC(swift) void destroyTestObject(SWIFT_CONTEXT HeapObject *_object) {
   auto object = static_cast<TestObject*>(_object);
   assert(object->Addr && "object already deallocated");
-  *object->Addr = object->Value;
+  *object->Addr += object->Value;
   object->Addr = nullptr;
   swift_deallocObject(object, sizeof(TestObject), alignof(TestObject) - 1);
 }
@@ -40,8 +40,8 @@ static const FullMetadata<ClassMetadata> TestClassObjectMetadata = {
 
 static TestObject ImmortalTestObject{&TestClassObjectMetadata};
 
-/// Create an object that, when deallocated, stores the given value to
-/// the given pointer.
+/// Create an object that, when deallocated, adds the given value to
+/// the value at the given pointer.
 static TestObject *allocTestObject(size_t *addr, size_t value) {
   auto result =
     static_cast<TestObject *>(swift_allocObject(&TestClassObjectMetadata,
@@ -271,4 +271,32 @@ TEST(RefcountingTest, immortal_retain_release) {
     swift_nonatomic_unownedRelease_n(&ImmortalTestObject, amount);
     EXPECT_EQ(initialBitsValue, ImmortalTestObject.refCounts.getBitsValue());
   }
+}
+
+///////////////////////////////////////////
+// Multi-object reference counting tests //
+///////////////////////////////////////////
+
+TEST(RefcountingTest, retain_release_multiple) {
+  size_t value = 0;
+  const size_t count = 16;
+  HeapObject *objects[count];
+  for (size_t n = 0; n < count; ++n) {
+    objects[n] = allocTestObject(&value, 1 << n);
+  }
+  EXPECT_EQ(0u, value);
+  swift_retainMultiple(objects, count);
+  EXPECT_EQ(2u, swift_retainCount(objects[7]));
+  EXPECT_EQ(0u, value);
+  swift_retainMultiple(objects, count);
+  EXPECT_EQ(3u, swift_retainCount(objects[13]));
+  EXPECT_EQ(0u, value);
+  swift_releaseMultiple(objects, count);
+  EXPECT_EQ(2u, swift_retainCount(objects[4]));
+  EXPECT_EQ(0u, value);
+  swift_releaseMultiple(objects, count);
+  EXPECT_EQ(1u, swift_retainCount(objects[15]));
+  EXPECT_EQ(0u, value);
+  swift_releaseMultiple(objects, count);
+  EXPECT_EQ(0xffffu, value);
 }
