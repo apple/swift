@@ -118,7 +118,7 @@
 /// Unconditionally unwrapping a `nil` instance with `!` triggers a runtime
 /// error.
 @frozen
-public enum Optional<Wrapped: ~Copyable>: ~Copyable {
+public enum Optional<Wrapped: ~Copyable & ~Escapable>: ~Copyable, ~Escapable {
   // The compiler has special knowledge of Optional<Wrapped>, including the fact
   // that it is an `enum` with cases named `none` and `some`.
 
@@ -132,9 +132,11 @@ public enum Optional<Wrapped: ~Copyable>: ~Copyable {
   case some(Wrapped)
 }
 
-extension Optional: Copyable /* where Wrapped: Copyable */ {}
+extension Optional: Copyable where Wrapped: ~Escapable {}
 
-extension Optional: Sendable where Wrapped: ~Copyable & Sendable { }
+extension Optional: Escapable where Wrapped: ~Copyable {}
+
+extension Optional: Sendable where Wrapped: ~Copyable & ~Escapable & Sendable {}
 
 extension Optional: BitwiseCopyable where Wrapped: BitwiseCopyable { }
 
