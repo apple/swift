@@ -69,6 +69,10 @@ public:
   /// The custom attribute for an attached macro.
   CustomAttr *attachedMacroCustomAttr = nullptr;
 
+  /// MacroDecl name if the generated source is coming from macro expansion,
+  /// otherwise empty string.
+  std::string macroName = "";
+
   /// The name of the source file on disk that was created to hold the
   /// contents of this file for external clients.
   StringRef onDiskBufferCopyFileName = StringRef();
