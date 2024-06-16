@@ -799,6 +799,11 @@ def warnings_as_errors : Flag<["-"], "warnings-as-errors">,
 def no_warnings_as_errors : Flag<["-"], "no-warnings-as-errors">,
   Flags<[FrontendOption]>,
   HelpText<"Don't treat warnings as errors">;
+
+def no_warning_as_error : Separate<["-"], "no-warning-as-error">,
+  Flags<[FrontendOption, HelpHidden]>,
+  MetaVarName<"<diagnostic_id>">,
+  HelpText<"Keep this warning from being upgraded to an error by -warnings-as-errors">;
   
 def suppress_remarks : Flag<["-"], "suppress-remarks">,
   Flags<[FrontendOption]>,

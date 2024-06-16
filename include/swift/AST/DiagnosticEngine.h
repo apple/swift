@@ -854,6 +854,9 @@ namespace swift {
     /// Track which diagnostics should be ignored.
     llvm::BitVector ignoredDiagnostics;
 
+    /// Don't treat these warnings as errors when warningsAsErrors=true
+    llvm::BitVector warningsAsErrorsExceptions;
+
     friend class DiagnosticStateRAII;
 
   public:
@@ -884,6 +887,11 @@ namespace swift {
     /// Whether to treat warnings as errors
     void setWarningsAsErrors(bool val) { warningsAsErrors = val; }
     bool getWarningsAsErrors() const { return warningsAsErrors; }
+
+    /// Set whether a warning shouldn't be upgraded to an error
+    void setWarningAsErrorException(DiagID id, bool excepted) {
+      warningsAsErrorsExceptions[(unsigned)id] = excepted;
+    }
 
     void resetHadAnyError() {
       anyErrorOccurred = false;
@@ -1098,6 +1106,10 @@ namespace swift {
     bool getWarningsAsErrors() const {
       return state.getWarningsAsErrors();
     }
+
+    /// Don't treat these warnings as errors when warningsAsErrors=true
+    void
+    setWarningsAsErrorsExceptions(std::unordered_set<std::string> exceptions);
 
     /// Whether to print diagnostic names after their messages
     void setPrintDiagnosticNames(bool val) {

@@ -693,6 +693,8 @@ void CompilerInstance::setUpDiagnosticOptions() {
   }
   if (Invocation.getDiagnosticOptions().WarningsAsErrors) {
     Diagnostics.setWarningsAsErrors(true);
+    Diagnostics.setWarningsAsErrorsExceptions(
+        Invocation.getDiagnosticOptions().WarningsAsErrorsExceptions);
   }
   if (Invocation.getDiagnosticOptions().PrintDiagnosticNames) {
     Diagnostics.setPrintDiagnosticNames(true);
