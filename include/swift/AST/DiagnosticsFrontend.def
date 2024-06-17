@@ -27,6 +27,9 @@ WARNING(warning_no_such_sdk,none,
 ERROR(error_no_frontend_args, none,
       "no arguments provided to '-frontend'", ())
 
+ERROR(error_dep_scan_empty_string_arg, none,
+      "Dependency scanner argument %select{|following '%0'}1 is an empty string", (StringRef, bool))
+
 ERROR(error_no_such_file_or_directory,none,
       "no such file or directory: '%0'", (StringRef))
 

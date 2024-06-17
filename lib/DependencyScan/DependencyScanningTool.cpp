@@ -374,7 +374,15 @@ DependencyScanningTool::initCompilerInstanceForScan(
   llvm::cl::ResetAllOptionOccurrences();
   // Parse/tokenize arguments.
   std::string CommandString;
-  for (const auto *c : CommandArgs) {
+  for (size_t i = 0; i < CommandArgs.size(); ++i) {
+    auto *c = CommandArgs[i];
+    if (!c) {
+      std::string prevArg = i > 0 ? CommandArgs[i - 1] : "";
+      Instance->getDiags().diagnose(SourceLoc(),
+                                    diag::error_dep_scan_empty_string_arg,
+                                    prevArg, prevArg.empty());
+      return std::make_error_code(std::errc::invalid_argument);
+    }
     CommandString.append(c);
     CommandString.append(" ");
   }
