@@ -15,6 +15,8 @@ from .cmark import CMark
 from .curl import LibCurl
 from .earlyswiftdriver import EarlySwiftDriver
 from .foundation import Foundation
+from .foundationtests import FoundationTests
+from .swiftfoundationtests import SwiftFoundationTests
 from .indexstoredb import IndexStoreDB
 from .libcxx import LibCXX
 from .libdispatch import LibDispatch
@@ -48,6 +50,8 @@ from .zlib import Zlib
 __all__ = [
     'CMark',
     'Foundation',
+    'FoundationTests',
+    'SwiftFoundationTests',
     'LibCXX',
     'LibDispatch',
     'LibICU',

@@ -1630,79 +1630,93 @@ function Build-Dispatch([Platform]$Platform, $Arch, [switch]$Test = $false) {
 }
 
 function Build-Foundation([Platform]$Platform, $Arch, [switch]$Test = $false) {
-  $DispatchBinaryCache = Get-TargetProjectBinaryCache $Arch Dispatch
-  $SwiftSyntaxDir = Get-HostProjectCMakeModules Compilers
-  $FoundationBinaryCache = Get-TargetProjectBinaryCache $Arch Foundation
-  $ShortArch = $Arch.LLVMName
+  if ($Test) {
+    # Foundation tests build via swiftpm rather than CMake
+    $OutDir = Join-Path -Path $HostArch.BinaryCache -ChildPath swift-foundation-tests
 
-  Isolate-EnvVars {
-    if ($Test) {
-      $XCTestBinaryCache = Get-TargetProjectBinaryCache $Arch XCTest
-      $TestingDefines = @{
-        ENABLE_TESTING = "YES";
-        XCTest_DIR = "$XCTestBinaryCache\cmake\modules";
-      }
-      $Targets = @("default", "test")
-      $env:Path = "$XCTestBinaryCache;$FoundationBinaryCache\bin;$DispatchBinaryCache;$(Get-TargetProjectBinaryCache $Arch Runtime)\bin;$env:Path"
-      $InstallPath = ""
-    } else {
+    Isolate-EnvVars {
+      $env:SWIFTCI_USE_LOCAL_DEPS=1
+      Build-SPMProject `
+        -Test `
+        -Src $SourceCache\swift-foundation `
+        -Bin $OutDir `
+        -Arch $HostArch
+    }
+
+    $OutDir = Join-Path -Path $HostArch.BinaryCache -ChildPath foundation-tests
+
+    Isolate-EnvVars {
+      $env:SWIFTCI_USE_LOCAL_DEPS=1
+      Build-SPMProject `
+        -Test `
+        -Src $SourceCache\swift-corelibs-foundation `
+        -Bin $OutDir `
+        -Arch $HostArch
+    }
+  } else {
+    $DispatchBinaryCache = Get-TargetProjectBinaryCache $Arch Dispatch
+    $SwiftSyntaxDir = Get-HostProjectCMakeModules Compilers
+    $FoundationBinaryCache = Get-TargetProjectBinaryCache $Arch Foundation
+    $ShortArch = $Arch.LLVMName
+
+    Isolate-EnvVars {
       $TestingDefines = @{ ENABLE_TESTING = "NO" }
       $Targets = @("default", "install")
       $InstallPath = "$($Arch.SDKInstallRoot)\usr"
-    }
 
-    $env:CTEST_OUTPUT_ON_FAILURE = 1
-    Build-CMakeProject `
-      -Src $SourceCache\swift-corelibs-foundation `
-      -Bin $FoundationBinaryCache `
-      -InstallTo $InstallPath `
-      -Arch $Arch `
-      -Platform $Platform `
-      -UseBuiltCompilers ASM,C,CXX,Swift `
-      -BuildTargets $Targets `
-      -Defines (@{
-        FOUNDATION_BUILD_TOOLS = if ($Platform -eq "Windows") { "YES" } else { "NO" };
-        # Turn off safeseh for lld as it has safeseh enabled by default
-        # and fails with an ICU data object file icudt69l_dat.obj. This
-        # matters to X86 only.
-        CMAKE_Swift_FLAGS = if ($Arch -eq $ArchX86) { @("-Xlinker", "/SAFESEH:NO") } else { "" };
-        CURL_DIR = "$LibraryRoot\curl-8.5.0\usr\lib\$Platform\$ShortArch\cmake\CURL";
-        ICU_DATA_LIBRARY_RELEASE = if ($Platform -eq "Windows") {
-          "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\sicudt69.lib"
-        } else {
-          "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\libicudt69.a"
-        };
-        ICU_I18N_LIBRARY_RELEASE = if ($Platform -eq "Windows") {
-          "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\sicuin69.lib"
-        } else {
-          "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\libicuin69.a"
-        };
-        ICU_ROOT = "$LibraryRoot\icu-69.1\usr";
-        ICU_INCLUDE_DIR = "$LibraryRoot\icu-69.1\usr\include";
-        ICU_UC_LIBRARY_RELEASE = if ($Platform -eq "Windows") {
-          "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\sicuuc69.lib";
-        } else {
-          "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\libicuuc69.a"
-        };
-        LIBXML2_LIBRARY = if ($Platform -eq "Windows") {
-          "$LibraryRoot\libxml2-2.11.5\usr\lib\$Platform\$ShortArch\libxml2s.lib";
-        } else {
-          "$LibraryRoot\libxml2-2.11.5\usr\lib\$Platform\$ShortArch\libxml2.a";
-        };
-        LIBXML2_INCLUDE_DIR = "$LibraryRoot\libxml2-2.11.5\usr\include\libxml2";
-        LIBXML2_DEFINITIONS = "-DLIBXML_STATIC";
-        ZLIB_LIBRARY = if ($Platform -eq "Windows") {
-          "$LibraryRoot\zlib-1.3.1\usr\lib\$Platform\$ShortArch\zlibstatic.lib"
-        } else {
-          "$LibraryRoot\zlib-1.3.1\usr\lib\$Platform\$ShortArch\libz.a"
-        };
-        ZLIB_INCLUDE_DIR = "$LibraryRoot\zlib-1.3.1\usr\include";
-        dispatch_DIR = "$DispatchBinaryCache\cmake\modules";
-        SwiftSyntax_DIR = "$SwiftSyntaxDir";
-        _SwiftFoundation_SourceDIR = "$SourceCache\swift-foundation";
-        _SwiftFoundationICU_SourceDIR = "$SourceCache\swift-foundation-icu";
-        _SwiftCollections_SourceDIR = "$SourceCache\swift-collections"
-      } + $TestingDefines)
+      $env:CTEST_OUTPUT_ON_FAILURE = 1
+      Build-CMakeProject `
+        -Src $SourceCache\swift-corelibs-foundation `
+        -Bin $FoundationBinaryCache `
+        -InstallTo $InstallPath `
+        -Arch $Arch `
+        -Platform $Platform `
+        -UseBuiltCompilers ASM,C,CXX,Swift `
+        -BuildTargets $Targets `
+        -Defines (@{
+          FOUNDATION_BUILD_TOOLS = if ($Platform -eq "Windows") { "YES" } else { "NO" };
+          # Turn off safeseh for lld as it has safeseh enabled by default
+          # and fails with an ICU data object file icudt69l_dat.obj. This
+          # matters to X86 only.
+          CMAKE_Swift_FLAGS = if ($Arch -eq $ArchX86) { @("-Xlinker", "/SAFESEH:NO") } else { "" };
+          CURL_DIR = "$LibraryRoot\curl-8.5.0\usr\lib\$Platform\$ShortArch\cmake\CURL";
+          ICU_DATA_LIBRARY_RELEASE = if ($Platform -eq "Windows") {
+            "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\sicudt69.lib"
+          } else {
+            "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\libicudt69.a"
+          };
+          ICU_I18N_LIBRARY_RELEASE = if ($Platform -eq "Windows") {
+            "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\sicuin69.lib"
+          } else {
+            "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\libicuin69.a"
+          };
+          ICU_ROOT = "$LibraryRoot\icu-69.1\usr";
+          ICU_INCLUDE_DIR = "$LibraryRoot\icu-69.1\usr\include";
+          ICU_UC_LIBRARY_RELEASE = if ($Platform -eq "Windows") {
+            "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\sicuuc69.lib";
+          } else {
+            "$LibraryRoot\icu-69.1\usr\lib\$Platform\$ShortArch\libicuuc69.a"
+          };
+          LIBXML2_LIBRARY = if ($Platform -eq "Windows") {
+            "$LibraryRoot\libxml2-2.11.5\usr\lib\$Platform\$ShortArch\libxml2s.lib";
+          } else {
+            "$LibraryRoot\libxml2-2.11.5\usr\lib\$Platform\$ShortArch\libxml2.a";
+          };
+          LIBXML2_INCLUDE_DIR = "$LibraryRoot\libxml2-2.11.5\usr\include\libxml2";
+          LIBXML2_DEFINITIONS = "-DLIBXML_STATIC";
+          ZLIB_LIBRARY = if ($Platform -eq "Windows") {
+            "$LibraryRoot\zlib-1.3.1\usr\lib\$Platform\$ShortArch\zlibstatic.lib"
+          } else {
+            "$LibraryRoot\zlib-1.3.1\usr\lib\$Platform\$ShortArch\libz.a"
+          };
+          ZLIB_INCLUDE_DIR = "$LibraryRoot\zlib-1.3.1\usr\include";
+          dispatch_DIR = "$DispatchBinaryCache\cmake\modules";
+          SwiftSyntax_DIR = "$SwiftSyntaxDir";
+          _SwiftFoundation_SourceDIR = "$SourceCache\swift-foundation";
+          _SwiftFoundationICU_SourceDIR = "$SourceCache\swift-foundation-icu";
+          _SwiftCollections_SourceDIR = "$SourceCache\swift-collections"
+        } + $TestingDefines)
+    }
   }
 }
 
