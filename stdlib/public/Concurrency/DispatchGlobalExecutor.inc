@@ -140,7 +140,7 @@ static dispatch_queue_t getGlobalQueue(JobPriority priority) {
   if (numericPriority >= globalQueueCacheCount)
     swift_Concurrency_fatalError(0, "invalid job priority %#zx", numericPriority);
 
-#ifdef SWIFT_CONCURRENCY_BACK_DEPLOYMENT
+#if defined(SWIFT_CONCURRENCY_BACK_DEPLOYMENT) || !defined(__APPLE__)
   std::memory_order loadOrder = std::memory_order_acquire;
 #else
   std::memory_order loadOrder = std::memory_order_relaxed;
