@@ -394,6 +394,13 @@ extension SIMD where Scalar: Comparable {
   public func max() -> Scalar {
     return indices.reduce(into: self[0]) { $0 = Swift.max($0, self[$1]) }
   }
+
+  /// The least and the greatest elements in the vector.
+  @_alwaysEmitIntoClient
+  public func minmax() -> (Scalar, Scalar) {
+    return indices.reduce(into: (self[0], self[0])) { $0 = (Swift.min($0.0, self[$1]), Swift.max($0.1, self[$1])) }
+  }
+
 }
 
 //  These operations should never need @_semantics; they should be trivial

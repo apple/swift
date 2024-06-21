@@ -124,6 +124,48 @@ SequenceTypeTests.test("${algorithmKind}/Predicate") {
 
 % end
 
+//===----------------------------------------------------------------------===//
+// minmax()
+//===----------------------------------------------------------------------===//
+
+SequenceTypeTests.test("minmax/WhereElementIsComparable") {
+  for test in minMaxTests {
+    let s = MinimalSequence<MinimalComparableValue>(
+      elements: test.sequence.enumerated().map {
+        MinimalComparableValue($1, identity: $0)
+      })
+    var maybeResult = s.minmax()
+    expectType(Optional<(min: MinimalComparableValue, max: MinimalComparableValue)>.self, &maybeResult)
+    if let result = maybeResult {
+      expectEqual(
+        test.expectedMinValue!, result.min.value,
+        stackTrace: SourceLocStack().with(test.loc))
+      expectEqual(
+        test.expectedMaxValue!, result.max.value,
+        stackTrace: SourceLocStack().with(test.loc))
+      expectEqual(
+        test.expectedMinIndex!, result.min.identity,
+        stackTrace: SourceLocStack().with(test.loc))
+      expectEqual(
+        test.expectedMaxIndex!, result.max.identity,
+        stackTrace: SourceLocStack().with(test.loc))
+    } else {
+      expectNil(
+        test.expectedMinValue,
+        stackTrace: SourceLocStack().with(test.loc))
+      expectNil(
+        test.expectedMaxValue,
+        stackTrace: SourceLocStack().with(test.loc))
+      expectNil(
+        test.expectedMinIndex,
+        stackTrace: SourceLocStack().with(test.loc))
+      expectNil(
+        test.expectedMaxIndex,
+        stackTrace: SourceLocStack().with(test.loc))
+    }
+    expectEqual([], s.map { $0.value }, "sequence should be consumed")
+  }
+}
 
 //===----------------------------------------------------------------------===//
 // IteratorSequence
