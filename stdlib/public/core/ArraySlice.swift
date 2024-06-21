@@ -662,14 +662,14 @@ extension ArraySlice: RangeReplaceableCollection {
   /// `LazyMapCollection<Dictionary<String, Int>, Int>` to a simple
   /// `[String]`.
   ///
-  ///     func cacheImagesWithNames(names: [String]) {
+  ///     func cacheImages(withNames names: [String]) {
   ///         // custom image loading and caching
   ///      }
   ///
   ///     let namedHues: [String: Int] = ["Vermillion": 18, "Magenta": 302,
   ///             "Gold": 50, "Cerise": 320]
   ///     let colorNames = Array(namedHues.keys)
-  ///     cacheImagesWithNames(colorNames)
+  ///     cacheImages(withNames: colorNames)
   ///
   ///     print(colorNames)
   ///     // Prints "["Gold", "Cerise", "Magenta", "Vermillion"]"
@@ -1231,7 +1231,7 @@ extension ArraySlice {
   ///
   /// - Parameter body: A closure with an `UnsafeMutableBufferPointer`
   ///   parameter that points to the contiguous storage for the array.
-  ///    If `body` has a return value, that value is also
+  ///    If no such storage exists, it is created. If `body` has a return value, that value is also
   ///   used as the return value for the `withUnsafeMutableBufferPointer(_:)`
   ///   method. The pointer argument is valid only for the duration of the
   ///   method's execution.
