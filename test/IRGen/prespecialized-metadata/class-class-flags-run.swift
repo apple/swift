@@ -5,12 +5,10 @@
 // RUN: %target-codesign %t/main
 // RUN: %target-run %t/main
 
-// REQUIRES: OS=macosx
 // REQUIRES: executable_test
 // UNSUPPORTED: use_os_stdlib
 // UNSUPPORTED: swift_test_mode_optimize
 // UNSUPPORTED: swift_test_mode_optimize_size
-// UNSUPPORTED: remote_run
 
 func ptr<T>(to ty: T.Type) -> UnsafeMutableRawPointer {
     UnsafeMutableRawPointer(mutating: unsafePointerToMetadata(of: ty))!
