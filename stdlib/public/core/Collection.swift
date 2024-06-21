@@ -870,9 +870,6 @@ extension Collection {
 
   /// Returns the distance between two indices.
   ///
-  /// Unless the collection conforms to the `BidirectionalCollection` protocol,
-  /// `start` must be less than or equal to `end`.
-  ///
   /// - Parameters:
   ///   - start: A valid index of the collection.
   ///   - end: Another valid index of the collection. If `end` is equal to
@@ -886,10 +883,8 @@ extension Collection {
   ///   resulting distance.
   @inlinable
   public func distance(from start: Index, to end: Index) -> Int {
-    _precondition(start <= end,
-      "Only BidirectionalCollections can have end come before start")
-
-    var start = start
+    if start > end { return -distance(from: end, to: start) }
+    var start = start    
     var count = 0
     while start != end {
       count = count + 1
