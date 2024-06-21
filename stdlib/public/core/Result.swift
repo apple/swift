@@ -327,6 +327,17 @@ extension Result where Success: ~Copyable {
       self = .failure(error)
     }
   }
+  /// Creates a new result by evaluating a async throwing closure, capturing the
+  /// returned value as a success, or any thrown error as a failure.
+  ///
+  /// - Parameter body: A async throwing closure to evaluate.
+  public init (catching body: () async throws -> Success) async {
+        do {
+            self = .success(try await body())
+        }catch {
+            self = .failure(error)
+        }
+    }
 }
 
 extension Result {
