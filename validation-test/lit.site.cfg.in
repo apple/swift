@@ -14,6 +14,9 @@ import sys
 import platform
 
 config.cmake = "@CMAKE_COMMAND@"
+config.cmake_make_program = "@CMAKE_MAKE_PROGRAM@"
+config.cmake_generator = "@CMAKE_GENERATOR@"
+config.cmake_minimum_required_version = "@CMAKE_MINIMUM_REQUIRED_VERSION@"
 config.llvm_src_root = "@LLVM_MAIN_SRC_DIR@"
 config.llvm_obj_root = "@LLVM_BINARY_DIR@"
 config.llvm_tools_dir = "@LLVM_TOOLS_DIR@"
