@@ -1584,7 +1584,8 @@ public:
   void
   translateSILMultiAssign(const TargetRange &resultValues,
                           const SourceRange &sourceValues,
-                          SILIsolationInfo resultIsolationInfoOverride = {}) {
+                          SILIsolationInfo resultIsolationInfoOverride = {},
+                          bool requireSrcValues = true) {
     SmallVector<SILValue, 8> assignOperands;
     SmallVector<SILValue, 8> assignResults;
 
@@ -1631,9 +1632,17 @@ public:
       }
     }
 
-    // Require all srcs.
-    for (auto src : assignOperands)
-      builder.addRequire(src);
+    // Require all srcs if we are supposed to. (By default we do).
+    //
+    // DISCUSSION: The reason that this may be useful is for special
+    // instructions like store_borrow. On the one hand, we want store_borrow to
+    // act like a store in the sense that we want to combine the regions of its
+    // src and dest... but at the same time, we do not want to treat the store
+    // itself as a use of its parent value. We want that to be any subsequent
+    // uses of the store_borrow.
+    if (requireSrcValues)
+      for (auto src : assignOperands)
+        builder.addRequire(src);
 
     // Merge all srcs.
     for (unsigned i = 1; i < assignOperands.size(); i++) {
@@ -2082,12 +2091,17 @@ public:
   }
 
   template <typename Collection>
-  void translateSILMerge(SILValue dest, Collection collection) {
+  void translateSILMerge(SILValue dest, Collection collection,
+                         bool requireOperands = true) {
     auto trackableDest = tryToTrackValue(dest);
     if (!trackableDest)
       return;
     for (SILValue elt : collection) {
       if (auto trackableSrc = tryToTrackValue(elt)) {
+        if (requireOperands) {
+          builder.addRequire(trackableSrc->getRepresentative().getValue());
+          builder.addRequire(trackableDest->getRepresentative().getValue());
+        }
         builder.addMerge(trackableDest->getRepresentative().getValue(),
                          trackableSrc->getRepresentative().getValue());
       }
@@ -2095,8 +2109,10 @@ public:
   }
 
   template <>
-  void translateSILMerge<SILValue>(SILValue dest, SILValue src) {
-    return translateSILMerge(dest, TinyPtrVector<SILValue>(src));
+  void translateSILMerge<SILValue>(SILValue dest, SILValue src,
+                                   bool requireOperands) {
+    return translateSILMerge(dest, TinyPtrVector<SILValue>(src),
+                             requireOperands);
   }
 
   void translateSILAssignmentToTransferringParameter(TrackableValue destRoot,
@@ -2571,7 +2587,6 @@ CONSTANT_TRANSLATION(InitExistentialValueInst, LookThrough)
 CONSTANT_TRANSLATION(CopyAddrInst, Store)
 CONSTANT_TRANSLATION(ExplicitCopyAddrInst, Store)
 CONSTANT_TRANSLATION(StoreInst, Store)
-CONSTANT_TRANSLATION(StoreBorrowInst, Store)
 CONSTANT_TRANSLATION(StoreWeakInst, Store)
 CONSTANT_TRANSLATION(MarkUnresolvedMoveAddrInst, Store)
 CONSTANT_TRANSLATION(UncheckedRefCastAddrInst, Store)
@@ -2801,6 +2816,44 @@ LOOKTHROUGH_IF_NONSENDABLE_RESULT_AND_OPERAND(UncheckedTakeEnumDataAddrInst)
 //===---
 // Custom Handling
 //
+
+TranslationSemantics
+PartitionOpTranslator::visitStoreBorrowInst(StoreBorrowInst *sbi) {
+  // A store_borrow is an interesting instruction since we are essentially
+  // temporarily binding an object value to an address... so really any uses of
+  // the address, we want to consider to be uses of the parent object. So we
+  // basically put source/dest into the same region, but do not consider the
+  // store_borrow itself to be a require use. This prevents the store_borrow
+  // from causing incorrect diagnostics.
+  SILValue destValue = sbi->getDest();
+  SILValue srcValue = sbi->getSrc();
+
+  auto nonSendableDest = tryToTrackValue(destValue);
+  if (!nonSendableDest)
+    return TranslationSemantics::Ignored;
+
+  // In the following situations, we can perform an assign:
+  //
+  // 1. A store to unaliased storage.
+  // 2. A store that is to an entire value.
+  //
+  // DISCUSSION: If we have case 2, we need to merge the regions since we
+  // are not overwriting the entire region of the value. This does mean that
+  // we artificially include the previous region that was stored
+  // specifically in this projection... but that is better than
+  // miscompiling. For memory like this, we probably need to track it on a
+  // per field basis to allow for us to assign.
+  if (nonSendableDest.value().isNoAlias() &&
+      !isProjectedFromAggregate(destValue)) {
+    translateSILMultiAssign(sbi->getResults(), sbi->getOperandValues(),
+                            SILIsolationInfo(), false /*require src*/);
+  } else {
+    // Stores to possibly aliased storage must be treated as merges.
+    translateSILMerge(destValue, srcValue, false /*require src*/);
+  }
+
+  return TranslationSemantics::Special;
+}
 
 TranslationSemantics
 PartitionOpTranslator::visitAllocStackInst(AllocStackInst *asi) {
