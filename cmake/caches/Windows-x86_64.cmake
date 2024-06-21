@@ -26,10 +26,18 @@ set(LLVM_DEFAULT_TARGET_TRIPLE x86_64-unknown-windows-msvc CACHE STRING "")
 set(LLVM_APPEND_VC_REV NO CACHE BOOL "")
 set(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR YES CACHE BOOL "")
 set(LLVM_ENABLE_PYTHON YES CACHE BOOL "")
-set(LLVM_RUNTIME_TARGETS
+
+set(DEFAULT_RUNTIME_TARGETS
       x86_64-unknown-windows-msvc
-      aarch64-unknown-windows-msvc
-    CACHE STRING "")
+      aarch64-unknown-windows-msvc)
+# Build the android runtimes if NDK path is provided.
+if(NOT "$ENV{NDKPATH}" STREQUAL "")
+  list(APPEND DEFAULT_RUNTIME_TARGETS
+       aarch64-unknown-linux-android
+       x86_64-unknown-linux-android)
+endif()
+
+set(LLVM_RUNTIME_TARGETS ${DEFAULT_RUNTIME_TARGETS} CACHE STRING "")
 foreach(target ${LLVM_RUNTIME_TARGETS})
   set(RUNTIMES_${target}_LLVM_ENABLE_RUNTIMES
         compiler-rt
@@ -37,6 +45,9 @@ foreach(target ${LLVM_RUNTIME_TARGETS})
   set(RUNTIMES_${target}_CMAKE_MT mt CACHE STRING "")
   if(${target} MATCHES windows-msvc)
     set(RUNTIMES_${target}_CMAKE_SYSTEM_NAME Windows CACHE STRING "")
+  elseif(${target} MATCHES linux-android)
+    set(RUNTIMES_${target}_CMAKE_SYSTEM_NAME Android CACHE STRING "")
+    set(RUNTIMES_${target}_CMAKE_ANDROID_NDK $ENV{NDKPATH} CACHE PATH "")
   endif()
   set(RUNTIMES_${target}_CMAKE_BUILD_TYPE Release CACHE STRING "")
   set(RUNTIMES_${target}_COMPILER_RT_BUILD_BUILTINS YES CACHE BOOL "")

@@ -786,6 +786,7 @@ function Build-CMakeProject {
     [string[]] $UseBuiltCompilers = @(), # ASM,C,CXX,Swift
     [string[]] $UsePinnedCompilers = @(), # ASM,C,CXX,Swift
     [switch] $UseSwiftSwiftDriver = $false,
+    [switch] $AddAndroidCMakeEnv = $false,
     [string] $SwiftSDK = "",
     [hashtable] $Defines = @{}, # Values are either single strings or arrays of flags
     [string[]] $BuildTargets = @()
@@ -835,6 +836,12 @@ function Build-CMakeProject {
       TryAdd-KeyValue $Defines CMAKE_SYSTEM_PROCESSOR $Arch.CMakeName
     }
 
+    if ($AddAndroidCMakeEnv) {
+      # Set generic android options if we need to build an Android runtime component
+      # while building the compiler. Use an environment variable to pass it, to
+      # ensure that it can be accessed from the cmake cache file.
+      $env:NDKPATH = Get-AndroidNDKPath
+    }
     if ($Platform -eq "Android") {
       $vsWherePath = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
       $vsInstallPath = & $vsWherePath -latest -property installationPath
@@ -1316,6 +1323,7 @@ function Build-Compilers() {
       -Bin $CompilersBinaryCache `
       -InstallTo "$($Arch.ToolchainInstallRoot)\usr" `
       -Arch $Arch `
+      -AddAndroidCMakeEnv:$Android `
       -UseMSVCCompilers C,CXX `
       -UsePinnedCompilers Swift `
       -BuildTargets $Targets `
