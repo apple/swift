@@ -2,3 +2,8 @@ module Namespaces {
   header "namespace.h"
   requires cplusplus
 }
+
+module SameName {
+  header "clang-and-swift-module-same-name.h"
+  requires cplusplus
+}
