@@ -32,7 +32,7 @@ class PruneVTables : public SILModuleTransform {
     LLVM_DEBUG(llvm::dbgs() << "PruneVTables inspecting table:\n";
                vtable->print(llvm::dbgs()));
     if (!M->isWholeModule() &&
-        vtable->getClass()->getEffectiveAccess() >= AccessLevel::FilePrivate) {
+        vtable->getClass()->getEffectiveAccess() > AccessLevel::FilePrivate) {
       LLVM_DEBUG(llvm::dbgs() << "Ignoring visible table: ";
                  vtable->print(llvm::dbgs()));
       return;
