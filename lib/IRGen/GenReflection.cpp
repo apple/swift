@@ -45,6 +45,7 @@
 #include "IRGenModule.h"
 #include "LoadableTypeInfo.h"
 #include "MetadataRequest.h"
+#include "ProtocolInfo.h"
 
 using namespace swift;
 using namespace irgen;
@@ -951,7 +952,62 @@ private:
       Kind = FieldDescriptorKind::Protocol;
     B.addInt16(uint16_t(Kind));
     B.addInt16(FieldRecordSize);
-    B.addInt32(0);
+
+    auto &pi = IGM.getProtocolInfo(const_cast<ProtocolDecl *>(PD),
+                                   ProtocolInfoKind::Full);
+
+    // The number of fields are the number of "witneses" this protocol defines.
+    B.addInt32(pi.getNumWitnesses()); // num fields
+
+    for (auto entry : pi.getWitnessEntries()) {
+      // All protocol "fields" don't have any flags.
+      B.addInt32(0);
+
+      // Only emit mangled types names and names for a "function" witness.
+      // Associated types, associated conformances, and base protocols already
+      // have their mangled type name in the protocol descriptor/their names
+      // in an associatedtype name pointer there too. Don't emit redundant
+      // information.
+      if (!entry.isFunction()) {
+        B.addInt32(0); // mangled type name
+        B.addInt32(0); // name
+        continue;
+      }
+
+      auto funcRef = entry.getFunction();
+      auto func = funcRef.getAbstractFunctionDecl();
+
+      auto type = func->getMethodInterfaceType();
+      auto genericSig = func->getGenericSignature();
+      auto name = StringRef();
+
+      if (!func->getName().isSpecial()) {
+        name = func->getBaseIdentifier().str();
+      }
+
+      // Look through accessor because we want to make changes to vars.
+      if (auto accessor = dyn_cast<AccessorDecl>(func)) {
+        // Var decls have a more meaningful name that we can grab. Also, use
+        // their return type as the mangled type name here.
+        if (auto var = dyn_cast<VarDecl>(accessor->getStorage())) {
+          type = var->getValueInterfaceType();
+          name = var->getNameStr();
+        }
+      }
+
+      if (!type) {
+        B.addInt32(0);
+      } else {
+        addTypeRef(type, genericSig, MangledTypeRefRole::Metadata);
+      }
+
+      if (IGM.IRGen.Opts.EnableReflectionNames && !name.empty()) {
+        auto nameAddr = IGM.getAddrOfFieldName(name);
+        B.addRelativeAddress(nameAddr);
+      } else {
+        B.addInt32(0);
+      }
+    }
   }
 
   void layout() override {
