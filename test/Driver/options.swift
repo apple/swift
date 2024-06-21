@@ -25,7 +25,7 @@
 // ASSERTCONFIG_DISABLEREPLACEMENT: -assert-config DisableReplacement
 
 // RUN: not %swiftc_driver -import-objc-header fake.h -import-underlying-module -c %s 2>&1 | %FileCheck -check-prefix=FRAMEWORK_BRIDGING_HEADER %s
-// FRAMEWORK_BRIDGING_HEADER: error: using bridging headers with framework targets is unsupported
+// FRAMEWORK_BRIDGING_HEADER: error: using bridging headers with framework targets is unsupported; use the framework umbrella header instead
 
 // RUN: not %swiftc_driver -import-objc-header fake.h -emit-module-interface %s 2>&1 | %FileCheck -check-prefix=BRIDGING_HEADER_SWIFTINTERFACE %s
 // RUN: not %swiftc_driver -import-objc-header fake.h -emit-module-interface-path fake.swiftinterface %s 2>&1 | %FileCheck -check-prefix=BRIDGING_HEADER_SWIFTINTERFACE %s
