@@ -1489,7 +1489,7 @@ void ToolChain::getResourceDirPath(SmallVectorImpl<char> &resourceDirPath,
   if (const Arg *A = args.getLastArg(options::OPT_resource_dir)) {
     StringRef value = A->getValue();
     resourceDirPath.append(value.begin(), value.end());
-  } else if (!getTriple().isOSDarwin() && args.hasArg(options::OPT_sdk)) {
+  } else if (args.hasArg(options::OPT_sdk)) {
     StringRef value = args.getLastArg(options::OPT_sdk)->getValue();
     resourceDirPath.append(value.begin(), value.end());
     llvm::sys::path::append(resourceDirPath, "usr");
