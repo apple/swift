@@ -4953,7 +4953,7 @@ void PrintAST::printKeyPathComponents(KeyPathExpr *expr, ArrayRef<KeyPathExpr::C
         case ComponentKind::Invalid: {
           break;
         }
-        case ComponentKind::UnresolvedProperty: {
+        case ComponentKind::UnresolvedMember: {
           Printer << component.getUnresolvedDeclName();
           break;
         }

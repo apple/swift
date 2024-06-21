@@ -3779,7 +3779,7 @@ namespace {
               resultLocator,
               TVO_CanBindToLValue | TVO_CanBindToNoEscape | TVO_CanBindToHole);
           break;
-        case KeyPathExpr::Component::Kind::UnresolvedProperty:
+        case KeyPathExpr::Component::Kind::UnresolvedMember:
         // This should only appear in resolved ASTs, but we may need to
         // re-type-check the constraints during failure diagnosis.
         case KeyPathExpr::Component::Kind::Property: {
@@ -3787,10 +3787,13 @@ namespace {
                                                 TVO_CanBindToLValue |
                                                 TVO_CanBindToNoEscape);
           componentTypeVars.push_back(memberTy);
-          auto lookupName = kind == KeyPathExpr::Component::Kind::UnresolvedProperty
-            ? DeclNameRef(component.getUnresolvedDeclName()) // FIXME: type change needed
-            : component.getDeclRef().getDecl()->createNameRef();
-          
+          auto lookupName =
+              kind == KeyPathExpr::Component::Kind::UnresolvedMember
+                  ? DeclNameRef(
+                        component.getUnresolvedDeclName()) // FIXME: type change
+                                                           // needed
+                  : component.getDeclRef().getDecl()->createNameRef();
+
           auto refKind = lookupName.isSimpleName()
             ? FunctionRefKind::Unapplied
             : FunctionRefKind::Compound;

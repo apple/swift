@@ -4474,7 +4474,7 @@ RValue RValueEmitter::visitKeyPathExpr(KeyPathExpr *E, SGFContext C) {
       continue;
         
     case KeyPathExpr::Component::Kind::Invalid:
-    case KeyPathExpr::Component::Kind::UnresolvedProperty:
+    case KeyPathExpr::Component::Kind::UnresolvedMember:
     case KeyPathExpr::Component::Kind::UnresolvedSubscript:
     case KeyPathExpr::Component::Kind::CodeCompletion:
       llvm_unreachable("not resolved");

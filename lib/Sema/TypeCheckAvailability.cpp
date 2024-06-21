@@ -3627,7 +3627,7 @@ private:
         break;
 
       case KeyPathExpr::Component::Kind::Invalid:
-      case KeyPathExpr::Component::Kind::UnresolvedProperty:
+      case KeyPathExpr::Component::Kind::UnresolvedMember:
       case KeyPathExpr::Component::Kind::UnresolvedSubscript:
       case KeyPathExpr::Component::Kind::OptionalChain:
       case KeyPathExpr::Component::Kind::OptionalWrap:

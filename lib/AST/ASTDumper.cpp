@@ -3127,7 +3127,7 @@ public:
             printDeclRefField(component.getDeclRef(), "decl");
             break;
 
-          case KeyPathExpr::Component::Kind::UnresolvedProperty:
+          case KeyPathExpr::Component::Kind::UnresolvedMember:
             printHead("unresolved_property", ASTNodeColor);
             printFieldQuoted(component.getUnresolvedDeclName(), "decl_name",
                              IdentifierColor);

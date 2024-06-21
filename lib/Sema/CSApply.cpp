@@ -334,7 +334,7 @@ static bool buildObjCKeyPathString(KeyPathExpr *E,
       // a mapping subscript operation to Array/Set or NSArray/NSSet.
       return false;
     case KeyPathExpr::Component::Kind::Invalid:
-    case KeyPathExpr::Component::Kind::UnresolvedProperty:
+    case KeyPathExpr::Component::Kind::UnresolvedMember:
     case KeyPathExpr::Component::Kind::UnresolvedSubscript:
     case KeyPathExpr::Component::Kind::CodeCompletion:
       // Don't bother building the key path string if the key path didn't even
@@ -2478,7 +2478,7 @@ namespace {
         assert(kpElt && "no keypath component node");
         auto &comp = KPE->getComponents()[kpElt->getIndex()];
 
-        if (comp.getKind() == Component::Kind::UnresolvedProperty) {
+        if (comp.getKind() == Component::Kind::UnresolvedMember) {
           buildKeyPathPropertyComponent(overload, comp.getLoc(), componentLoc,
                                         components);
         } else if (comp.getKind() == Component::Kind::UnresolvedSubscript) {
@@ -5116,7 +5116,7 @@ namespace {
 
         bool isDynamicMember = false;
         // If this is an unresolved link, make sure we resolved it.
-        if (kind == KeyPathExpr::Component::Kind::UnresolvedProperty ||
+        if (kind == KeyPathExpr::Component::Kind::UnresolvedMember ||
             kind == KeyPathExpr::Component::Kind::UnresolvedSubscript) {
           auto foundDecl = solution.getOverloadChoiceIfAvailable(calleeLoc);
           if (!foundDecl) {
@@ -5136,7 +5136,7 @@ namespace {
         }
 
         switch (kind) {
-        case KeyPathExpr::Component::Kind::UnresolvedProperty: {
+        case KeyPathExpr::Component::Kind::UnresolvedMember: {
           buildKeyPathPropertyComponent(solution.getOverloadChoice(calleeLoc),
                                         origComponent.getLoc(), calleeLoc,
                                         resolvedComponents);

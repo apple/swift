@@ -641,7 +641,7 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
       // For a subscript the callee is given by 'component -> subscript member'.
       return getConstraintLocator(
                                   anchor, {*componentElt, ConstraintLocator::SubscriptMember});
-    case ComponentKind::UnresolvedProperty:
+    case ComponentKind::UnresolvedMember:
     case ComponentKind::Property:
       // For a property, the choice is just given by the component.
       return getConstraintLocator(anchor, *componentElt);
@@ -7843,7 +7843,7 @@ ConstraintSystem::inferKeyPathLiteralCapability(KeyPathExpr *keyPath) {
       LLVM_FALLTHROUGH;
     }
     case KeyPathExpr::Component::Kind::Property:
-    case KeyPathExpr::Component::Kind::UnresolvedProperty: {
+    case KeyPathExpr::Component::Kind::UnresolvedMember: {
       auto *componentLoc =
           getConstraintLocator(keyPath, LocatorPathElt::KeyPathComponent(i));
       auto *calleeLoc = getCalleeLocator(componentLoc);
