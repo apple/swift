@@ -171,6 +171,16 @@ public protocol Comparable: Equatable {
   ///   - lhs: A value to compare.
   ///   - rhs: Another value to compare.
   static func > (lhs: Self, rhs: Self) -> Bool
+
+  /// Returns a Boolean value indicating whether two values are equal.
+  ///
+  /// Equality is the inverse of inequality. For any values `a` and `b`,
+  /// `a == b` implies that `a != b` is `false`.
+  ///
+  /// - Parameters:
+  ///   - lhs: A value to compare.
+  ///   - rhs: Another value to compare.
+  static func == (lhs: Self, rhs: Self) -> Bool
 }
 
 extension Comparable {
@@ -216,5 +226,20 @@ extension Comparable {
   @inlinable
   public static func >= (lhs: Self, rhs: Self) -> Bool {
     return !(lhs < rhs)
+  }
+
+  /// Returns a Boolean value indicating whether two values are equal.
+  ///
+  /// Equality is the inverse of inequality. For any values `a` and `b`,
+  /// `a == b` implies that `a != b` is `false`.
+  ///
+  /// This is the default implementation of the equal-to operator (`!=`) for
+  /// any type that conforms to `Comparable`.
+  ///
+  /// - Parameters:
+  ///   - lhs: A value to compare.
+  ///   - rhs: Another value to compare.
+  public static func == (lhs: Self, rhs: Self) -> Bool {
+    return !(lhs < rhs || lhs > rhs)
   }
 }
