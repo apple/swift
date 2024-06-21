@@ -546,6 +546,9 @@ static void diagnoseGeneralOverrideFailure(ValueDecl *decl,
                                            ArrayRef<OverrideMatch> matches,
                                            OverrideCheckingAttempt attempt) {
   auto &diags = decl->getASTContext().Diags;
+  if (cases where you have a property trying to override a no-args function on base class and vice-versa) {
+      fixitOverride(decl,diags)
+  }
 
   switch (attempt) {
   case OverrideCheckingAttempt::PerfectMatch:
