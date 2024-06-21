@@ -322,6 +322,8 @@ You will need to slightly tweak the paths for other build configurations.
     output and link it, while highlighting the most important part of the
     build log in the post.
   - Include the output of `utils/update-checkout --dump-hashes`.
+ - If `util/build-script` raises an exception `AttributeError: 'NoneType' object has no attribute 'rfind'`,
+   you may need to accept the Xcode license agreement: `sudo xcodebuild -license accept` 
 
 [Swift Issues]: https://github.com/apple/swift/issues
 [Swift Forums]: https://forums.swift.org
