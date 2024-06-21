@@ -1202,21 +1202,33 @@ static void addValueWitness(IRGenModule &IGM, ConstantStructBuilder &B,
   }
 
   case ValueWitness::GetEnumTagSinglePayload: {
-    if (boundGenericCharacteristics)
+    if (boundGenericCharacteristics) {
       if (auto *enumDecl = boundGenericCharacteristics->concreteType
                                .getEnumOrBoundGenericEnum())
         if (IGM.getMetadataLayout(enumDecl).hasPayloadSizeOffset())
           return B.add(llvm::ConstantExpr::getBitCast(
               IGM.getGetMultiPayloadEnumTagSinglePayloadFn(), IGM.Int8PtrTy));
+    } else {
+      if (auto *enumDecl = concreteType.getEnumOrBoundGenericEnum())
+        if (IGM.getMetadataLayout(enumDecl).hasPayloadSizeOffset()) {
+          return B.addNullPointer(IGM.Int8PtrTy);
+        }
+    }
     goto standard;
   }
   case ValueWitness::StoreEnumTagSinglePayload: {
-    if (boundGenericCharacteristics)
+    if (boundGenericCharacteristics) {
       if (auto *enumDecl = boundGenericCharacteristics->concreteType
                                .getEnumOrBoundGenericEnum())
         if (IGM.getMetadataLayout(enumDecl).hasPayloadSizeOffset())
           return B.add(llvm::ConstantExpr::getBitCast(
               IGM.getStoreMultiPayloadEnumTagSinglePayloadFn(), IGM.Int8PtrTy));
+    } else {
+      if (auto *enumDecl = concreteType.getEnumOrBoundGenericEnum())
+        if (IGM.getMetadataLayout(enumDecl).hasPayloadSizeOffset()) {
+          return B.addNullPointer(IGM.Int8PtrTy);
+        }
+    }
     goto standard;
   }
 
