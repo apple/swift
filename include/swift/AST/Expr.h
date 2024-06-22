@@ -5716,7 +5716,7 @@ public:
       Invalid,
       UnresolvedMember,
       UnresolvedApply,
-      Property,
+      Member,
       Subscript,
       OptionalForce,
       OptionalChain,
@@ -5750,11 +5750,11 @@ public:
                        ArrayRef<ProtocolConformanceRef> indexHashables,
                        Kind kind, Type type, SourceLoc loc);
 
-    // Private constructor for unresolved member, property or #keyPath
+    // Private constructor for unresolved member, member or #keyPath
     // dictionary key.
     explicit Component(DeclNameOrRef decl, Kind kind, Type type, SourceLoc loc)
         : Component(kind, type, loc) {
-      assert(kind == Kind::Property || kind == Kind::UnresolvedMember ||
+      assert(kind == Kind::Member || kind == Kind::UnresolvedMember ||
              kind == Kind::DictionaryKey);
       Decl = decl;
     }
@@ -5793,12 +5793,11 @@ public:
     static Component forUnresolvedOptionalChain(SourceLoc QuestionLoc) {
       return Component(Kind::OptionalChain, Type(), QuestionLoc);
     }
-    
-    /// Create a component for a property.
-    static Component forProperty(ConcreteDeclRef property,
-                                 Type propertyType,
-                                 SourceLoc loc) {
-      return Component(property, Kind::Property, propertyType, loc);
+
+    /// Create a component for a member.
+    static Component forMember(ConcreteDeclRef member, Type memberType,
+                               SourceLoc loc) {
+      return Component(member, Kind::Member, memberType, loc);
     }
 
     /// Create a component for a dictionary key (#keyPath only).
@@ -5874,7 +5873,7 @@ public:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::DictionaryKey:
@@ -5900,7 +5899,7 @@ public:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
       case Kind::UnresolvedMember:
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::DictionaryKey:
@@ -5929,7 +5928,7 @@ public:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
       case Kind::UnresolvedMember:
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::DictionaryKey:
@@ -5951,7 +5950,7 @@ public:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::CodeCompletion:
@@ -5962,7 +5961,7 @@ public:
 
     bool hasDeclRef() const {
       switch (getKind()) {
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Subscript:
         return true;
 
@@ -5983,7 +5982,7 @@ public:
 
     ConcreteDeclRef getDeclRef() const {
       switch (getKind()) {
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Subscript:
         return Decl.ResolvedDecl;
 
@@ -6014,7 +6013,7 @@ public:
         case Kind::OptionalWrap:
         case Kind::OptionalForce:
         case Kind::Identity:
-        case Kind::Property:
+        case Kind::Member:
         case Kind::Subscript:
         case Kind::DictionaryKey:
         case Kind::CodeCompletion:

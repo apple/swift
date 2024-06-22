@@ -642,8 +642,8 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
       return getConstraintLocator(
                                   anchor, {*componentElt, ConstraintLocator::SubscriptMember});
     case ComponentKind::UnresolvedMember:
-    case ComponentKind::Property:
-      // For a property, the choice is just given by the component.
+    case ComponentKind::Member:
+      // For a member, the choice is just given by the component.
       return getConstraintLocator(anchor, *componentElt);
     case ComponentKind::TupleElement:
       llvm_unreachable("Not implemented by CSGen");
@@ -7842,7 +7842,7 @@ ConstraintSystem::inferKeyPathLiteralCapability(KeyPathExpr *keyPath) {
       }
       LLVM_FALLTHROUGH;
     }
-    case KeyPathExpr::Component::Kind::Property:
+    case KeyPathExpr::Component::Kind::Member:
     case KeyPathExpr::Component::Kind::UnresolvedMember: {
       auto *componentLoc =
           getConstraintLocator(keyPath, LocatorPathElt::KeyPathComponent(i));
