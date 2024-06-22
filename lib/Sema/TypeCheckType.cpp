@@ -5665,11 +5665,26 @@ TypeResolver::resolveExistentialType(ExistentialTypeRepr *repr,
 
   //TO-DO: generalize this and emit the same erorr for some P?
   if (!constraintType->isConstraintType()) {
+    auto wrapped = constraintType->getOptionalObjectType();
+
+    auto isWrappedExistential = (wrapped && (wrapped->is<ExistentialType>() || wrapped->is<ExistentialMetatypeType>())) ;
+    auto isExistentialInsideTuple = options.is(TypeResolverContext::TupleElement);
+    auto isImplicitlyUnwrapped =  isa<ImplicitlyUnwrappedOptionalTypeRepr>(repr->getConstraint()) ;
+    // Handles cases like `let _: any P!` by suggesting `let _: (any P)!
+    // while making sure that it's not an existential wrapped in a tuple like `let _: (Int, any P!)`
+    // so we won't suggest `let _: (Int, (any P)!)` as it's illegal.
+    if (isImplicitlyUnwrapped && !isExistentialInsideTuple && isWrappedExistential)  {
+      diagnose(repr->getLoc(),
+               diag::incorrect_force_unwrapped_any,
+               wrapped->getMetatypeInstanceType().getString())
+          .fixItReplace(repr->getSourceRange(), "(" + wrapped.getString() + ")!");
+      return constraintType;
+    }
+
     // Emit a tailored diagnostic for the incorrect optional
     // syntax 'any P?' with a fix-it to add parenthesis.
-    auto wrapped = constraintType->getOptionalObjectType();
-    if (wrapped && (wrapped->is<ExistentialType>() ||
-                    wrapped->is<ExistentialMetatypeType>())) {
+
+    if (isWrappedExistential) {
       std::string fix;
       llvm::raw_string_ostream OS(fix);
       constraintType->print(OS, PrintOptions::forDiagnosticArguments());
