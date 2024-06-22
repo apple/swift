@@ -1,0 +1,66 @@
+// RUN: %target-swift-frontend -primary-file %s -O -emit-sil | %FileCheck %s
+
+import Builtin
+import Swift
+import SwiftShims
+
+// Make sure that we are able to optimize out of order blocks
+
+// CHECK-LABEL: sil @test
+// CHECK: function_ref @${{.*}}_findStringSwitchCase5case{{.*}}
+sil @test_ss : $@convention(thin) (@guaranteed String) -> Bool {
+bb0(%0 : $String):
+  %2 = metatype $@thin String.Type
+  %3 = integer_literal $Builtin.Word, 1
+  %4 = integer_literal $Builtin.Int1, -1
+  br bb2
+bb1(%5 : $Builtin.RawPointer, %6 : $Builtin.RawPointer):
+  // function_ref String.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)
+  %7 = function_ref @$sSS21_builtinStringLiteral17utf8CodeUnitCount7isASCIISSBp_BwBi1_tcfC : $@convention(method) (Builtin.RawPointer, Builtin.Word, Builtin.Int1, @thin String.Type) -> @owned String
+  %8 = apply %7(%5, %3, %4, %2) : $@convention(method) (Builtin.RawPointer, Builtin.Word, Builtin.Int1, @thin String.Type) -> @owned String
+  %9 = apply %7(%6, %3, %4, %2) : $@convention(method) (Builtin.RawPointer, Builtin.Word, Builtin.Int1, @thin String.Type) -> @owned String
+  // function_ref static String.== infix(_:_:)
+  %10 = function_ref @$sSS2eeoiySbSS_SStFZ : $@convention(method) (@guaranteed String, @guaranteed String, @thin String.Type) -> Bool
+  %11 = apply %10(%0, %8, %2) : $@convention(method) (@guaranteed String, @guaranteed String, @thin String.Type) -> Bool
+  %12 = apply %10(%0, %9, %2) : $@convention(method) (@guaranteed String, @guaranteed String, @thin String.Type) -> Bool
+  br bb3(%11 : $Bool, %12 : $Bool)
+bb2:
+  %13 = string_literal utf8 "a"
+  %14 = string_literal utf8 "b"
+  br bb1(%13 : $Builtin.RawPointer, %14 : $Builtin.RawPointer)
+bb3(%15 : $Bool, %16 : $Bool):
+  %17 = struct_extract %15 : $Bool, #Bool._value
+  cond_br %17, bb4, bb5
+bb4:
+  br bb6(%16 : $Bool)
+bb5:
+  %18 = integer_literal $Builtin.Int1, 0
+  %19 = struct $Bool (%18 : $Builtin.Int1)
+  br bb6(%19 : $Bool)
+bb6(%20 : $Bool):
+  return %20 : $Bool
+}
+
+// static String.== infix(_:_:)
+sil [serialized] [always_inline] [readonly] [_semantics "string.equals"] @$sSS2eeoiySbSS_SStFZ : $@convention(method) (@guaranteed String, @guaranteed String, @thin String.Type) -> Bool
+
+// _allocateUninitializedArray<A>(_:)
+sil [serialized] [always_inline] [_semantics "array.uninitialized_intrinsic"] @$ss27_allocateUninitializedArrayySayxG_BptBwlF : $@convention(thin) <τ_0_0> (Builtin.Word) -> (@owned Array<τ_0_0>, Builtin.RawPointer)
+
+// StaticString.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)
+sil [transparent] [serialized] [readonly] @$ss12StaticStringV08_builtinB7Literal17utf8CodeUnitCount7isASCIIABBp_BwBi1_tcfC : $@convention(method) (Builtin.RawPointer, Builtin.Word, Builtin.Int1, @thin StaticString.Type) -> StaticString
+
+// Array.init(arrayLiteral:)
+sil [serialized] @$sSa12arrayLiteralSayxGxd_tcfC : $@convention(method) <τ_0_0> (@owned Array<τ_0_0>, @thin Array<τ_0_0>.Type) -> @owned Array<τ_0_0>
+
+// _findStringSwitchCase(cases:string:)
+sil [_semantics "findStringSwitchCase"] @$ss21_findStringSwitchCase5cases6stringSiSays06StaticB0VG_SStF : $@convention(thin) (@guaranteed Array<StaticString>, @guaranteed String) -> Int
+
+// Int.init(_builtinIntegerLiteral:)
+sil [transparent] [serialized] @$sSi22_builtinIntegerLiteralSiBI_tcfC : $@convention(method) (Builtin.IntLiteral, @thin Int.Type) -> Int
+
+// ~= infix<A>(_:_:)
+sil [transparent] [serialized] @$ss2teoiySbx_xtSQRzlF : $@convention(thin) <τ_0_0 where τ_0_0 : Equatable> (@in_guaranteed τ_0_0, @in_guaranteed τ_0_0) -> Bool
+
+// String.init(_builtinStringLiteral:utf8CodeUnitCount:isASCII:)
+sil [serialized] [always_inline] [readonly] [_semantics "string.makeUTF8"] @$sSS21_builtinStringLiteral17utf8CodeUnitCount7isASCIISSBp_BwBi1_tcfC : $@convention(method) (Builtin.RawPointer, Builtin.Word, Builtin.Int1, @thin String.Type) -> @owned String

@@ -370,6 +370,7 @@ void addSimplifyCFGSILCombinePasses(SILPassPipelinePlan &P) {
   P.addSILCombine();
   // Which can expose opportunity for simplifycfg.
   P.addSimplifyCFG();
+  P.addStringSwitchPass();
 }
 
 /// Perform semantic annotation/loop base optimizations.

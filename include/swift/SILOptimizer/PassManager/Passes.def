@@ -445,6 +445,8 @@ SWIFT_FUNCTION_PASS(StackPromotion, "stack-promotion",
      "Stack Promotion of Class Objects")
 PASS(StripDebugInfo, "strip-debug-info",
      "Strip Debug Information")
+PASS(StringSwitchPass, "string-switch",
+     "Optimize one or many comparisons of one string to one of many string literals")
 PASS(StringOptimization, "string-optimization",
      "Optimization for String operations")
 PASS(SwiftArrayPropertyOpt, "array-property-opt",
