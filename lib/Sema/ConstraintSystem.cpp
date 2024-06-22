@@ -637,6 +637,7 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
     using ComponentKind = KeyPathExpr::Component::Kind;
     switch (component.getKind()) {
     case ComponentKind::UnresolvedApply:
+    case ComponentKind::Apply:
     case ComponentKind::Subscript:
       // For a subscript the callee is given by 'component -> subscript member'.
       return getConstraintLocator(
@@ -7814,6 +7815,7 @@ ConstraintSystem::inferKeyPathLiteralCapability(KeyPathExpr *keyPath) {
     }
 
     case KeyPathExpr::Component::Kind::UnresolvedApply:
+    case KeyPathExpr::Component::Kind::Apply:
     case KeyPathExpr::Component::Kind::Subscript: {
       if (Context.LangOpts.hasFeature(Feature::InferSendableFromCaptures)) {
         // Key path is sendable only when all of its captures are sendable.

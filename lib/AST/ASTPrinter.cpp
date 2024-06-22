@@ -4966,6 +4966,11 @@ void PrintAST::printKeyPathComponents(KeyPathExpr *expr, ArrayRef<KeyPathExpr::C
           Printer << component.getUnresolvedDeclName();
           break;
         }
+        case ComponentKind::Apply: {
+          auto args = component.getArgs();
+          printArgumentList(args);
+          break;
+        }
         case ComponentKind::Subscript: {
           auto args = component.getArgs();
           printArgumentList(args);

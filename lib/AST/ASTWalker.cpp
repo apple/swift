@@ -1289,6 +1289,7 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       auto component = origComponent;
       switch (auto kind = component.getKind()) {
       case KeyPathExpr::Component::Kind::Subscript:
+      case KeyPathExpr::Component::Kind::Apply:
       case KeyPathExpr::Component::Kind::UnresolvedApply: {
         if (auto *newArgs = doIt(component.getArgs())) {
           component.setArgs(newArgs);

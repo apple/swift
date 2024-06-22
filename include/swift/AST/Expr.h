@@ -5717,6 +5717,7 @@ public:
       UnresolvedMember,
       UnresolvedApply,
       Member,
+      Apply,
       Subscript,
       OptionalForce,
       OptionalChain,
@@ -5806,7 +5807,14 @@ public:
                                       SourceLoc loc) {
       return Component(UnresolvedName, Kind::DictionaryKey, valueType, loc);
     }
-    
+
+    /// Create a component for resolved application.
+    static Component forApply(ArgumentList *argList,
+                              ArrayRef<ProtocolConformanceRef> indexHashables) {
+      return Component({}, argList, indexHashables, Kind::Apply, Type(),
+                       argList->getLParenLoc());
+    }
+
     /// Create a component for a subscript.
     static Component
     forSubscript(ASTContext &ctx, ConcreteDeclRef subscript,
@@ -5870,6 +5878,7 @@ public:
 
       switch (getKind()) {
       case Kind::Subscript:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -5891,6 +5900,7 @@ public:
     ArgumentList *getArgs() const {
       switch (getKind()) {
       case Kind::Subscript:
+      case Kind::Apply:
       case Kind::UnresolvedApply:
         return ArgList;
 
@@ -5918,6 +5928,7 @@ public:
     getSubscriptIndexHashableConformances() const {
       switch (getKind()) {
       case Kind::Subscript:
+      case Kind::Apply:
         if (!ArgHashableConformancesData)
           return {};
         return {ArgHashableConformancesData, ArgList->size()};
@@ -5947,6 +5958,7 @@ public:
       case Kind::Invalid:
       case Kind::Subscript:
       case Kind::UnresolvedApply:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -5968,6 +5980,7 @@ public:
       case Kind::Invalid:
       case Kind::UnresolvedMember:
       case Kind::UnresolvedApply:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -5989,6 +6002,7 @@ public:
       case Kind::Invalid:
       case Kind::UnresolvedMember:
       case Kind::UnresolvedApply:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -6009,6 +6023,7 @@ public:
         case Kind::Invalid:
         case Kind::UnresolvedMember:
         case Kind::UnresolvedApply:
+        case Kind::Apply:
         case Kind::OptionalChain:
         case Kind::OptionalWrap:
         case Kind::OptionalForce:

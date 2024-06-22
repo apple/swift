@@ -328,6 +328,7 @@ static bool buildObjCKeyPathString(KeyPathExpr *E,
     }
     case KeyPathExpr::Component::Kind::TupleElement:
     case KeyPathExpr::Component::Kind::Subscript:
+    case KeyPathExpr::Component::Kind::Apply:
       // Subscripts and tuples aren't generally represented in KVC.
       // TODO: There are some subscript forms we could map to KVC, such as
       // when indexing a Dictionary or NSDictionary by string, or when applying
@@ -5193,6 +5194,7 @@ namespace {
         }
         case KeyPathExpr::Component::Kind::Member:
         case KeyPathExpr::Component::Kind::Subscript:
+        case KeyPathExpr::Component::Kind::Apply:
         case KeyPathExpr::Component::Kind::OptionalWrap:
         case KeyPathExpr::Component::Kind::TupleElement:
           llvm_unreachable("already resolved");

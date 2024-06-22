@@ -221,6 +221,7 @@ std::optional<Type> TypeChecker::checkObjCKeyPathExpr(DeclContext *dc,
     case KeyPathExpr::Component::Kind::OptionalWrap:
     case KeyPathExpr::Component::Kind::Member:
     case KeyPathExpr::Component::Kind::Subscript:
+    case KeyPathExpr::Component::Kind::Apply:
     case KeyPathExpr::Component::Kind::DictionaryKey:
       llvm_unreachable("already resolved!");
     }
