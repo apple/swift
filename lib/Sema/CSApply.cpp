@@ -335,7 +335,7 @@ static bool buildObjCKeyPathString(KeyPathExpr *E,
       return false;
     case KeyPathExpr::Component::Kind::Invalid:
     case KeyPathExpr::Component::Kind::UnresolvedMember:
-    case KeyPathExpr::Component::Kind::UnresolvedSubscript:
+    case KeyPathExpr::Component::Kind::UnresolvedApply:
     case KeyPathExpr::Component::Kind::CodeCompletion:
       // Don't bother building the key path string if the key path didn't even
       // resolve.
@@ -2481,9 +2481,9 @@ namespace {
         if (comp.getKind() == Component::Kind::UnresolvedMember) {
           buildKeyPathPropertyComponent(overload, comp.getLoc(), componentLoc,
                                         components);
-        } else if (comp.getKind() == Component::Kind::UnresolvedSubscript) {
+        } else if (comp.getKind() == Component::Kind::UnresolvedApply) {
           buildKeyPathSubscriptComponent(overload, comp.getLoc(),
-                                         comp.getSubscriptArgs(), componentLoc,
+                                         comp.getArgs(), componentLoc,
                                          components);
         } else {
           return nullptr;
@@ -5117,7 +5117,7 @@ namespace {
         bool isDynamicMember = false;
         // If this is an unresolved link, make sure we resolved it.
         if (kind == KeyPathExpr::Component::Kind::UnresolvedMember ||
-            kind == KeyPathExpr::Component::Kind::UnresolvedSubscript) {
+            kind == KeyPathExpr::Component::Kind::UnresolvedApply) {
           auto foundDecl = solution.getOverloadChoiceIfAvailable(calleeLoc);
           if (!foundDecl) {
             // If we couldn't resolve the component, leave it alone.
@@ -5131,7 +5131,7 @@ namespace {
           // If this was a @dynamicMemberLookup property, then we actually
           // form a subscript reference, so switch the kind.
           if (isDynamicMember) {
-            kind = KeyPathExpr::Component::Kind::UnresolvedSubscript;
+            kind = KeyPathExpr::Component::Kind::UnresolvedApply;
           }
         }
 
@@ -5142,11 +5142,10 @@ namespace {
                                         resolvedComponents);
           break;
         }
-        case KeyPathExpr::Component::Kind::UnresolvedSubscript: {
-          buildKeyPathSubscriptComponent(solution.getOverloadChoice(calleeLoc),
-                                         origComponent.getLoc(),
-                                         origComponent.getSubscriptArgs(),
-                                         componentLocator, resolvedComponents);
+        case KeyPathExpr::Component::Kind::UnresolvedApply: {
+          buildKeyPathSubscriptComponent(
+              solution.getOverloadChoice(calleeLoc), origComponent.getLoc(),
+              origComponent.getArgs(), componentLocator, resolvedComponents);
           break;
         }
         case KeyPathExpr::Component::Kind::OptionalChain: {
@@ -8651,7 +8650,7 @@ bool swift::exprNeedsParensOutsideFollowingOperator(
   // If this is a key-path, no parens needed if it's an arg of one of the
   // components.
   if (auto *KP = dyn_cast<KeyPathExpr>(parent)) {
-    if (KP->findComponentWithSubscriptArg(expr))
+    if (KP->findComponentWithArg(expr))
       return false;
   }
 

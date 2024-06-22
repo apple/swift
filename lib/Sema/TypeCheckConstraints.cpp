@@ -177,8 +177,7 @@ bool TypeVariableType::Implementation::isSubscriptResultType() const {
 
   auto &component = KP->getComponents()[componentLoc->getIndex()];
   return component.getKind() == KeyPathExpr::Component::Kind::Subscript ||
-         component.getKind() ==
-             KeyPathExpr::Component::Kind::UnresolvedSubscript;
+         component.getKind() == KeyPathExpr::Component::Kind::UnresolvedApply;
 }
 
 bool TypeVariableType::Implementation::isParameterPack() const {

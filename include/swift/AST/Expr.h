@@ -5715,7 +5715,7 @@ public:
     enum class Kind : unsigned {
       Invalid,
       UnresolvedMember,
-      UnresolvedSubscript,
+      UnresolvedApply,
       Property,
       Subscript,
       OptionalForce,
@@ -5737,15 +5737,15 @@ public:
       DeclNameOrRef(ConcreteDeclRef rd) : ResolvedDecl(rd) {}
     } Decl;
 
-    ArgumentList *SubscriptArgList;
-    const ProtocolConformanceRef *SubscriptHashableConformancesData;
+    ArgumentList *ArgList;
+    const ProtocolConformanceRef *ArgHashableConformancesData;
 
     unsigned TupleIndex;
     Kind KindValue;
     Type ComponentType;
     SourceLoc Loc;
 
-    // Private constructor for subscript component.
+    // Private constructor for subscript/unresolved application components.
     explicit Component(DeclNameOrRef decl, ArgumentList *argList,
                        ArrayRef<ProtocolConformanceRef> indexHashables,
                        Kind kind, Type type, SourceLoc loc);
@@ -5778,9 +5778,11 @@ public:
       return Component(UnresolvedName, Kind::UnresolvedMember, Type(), Loc);
     }
 
-    /// Create an unresolved component for a subscript.
-    static Component forUnresolvedSubscript(ASTContext &ctx,
-                                            ArgumentList *argList);
+    /// Create an unresolved component for application.
+    static Component forUnresolvedApply(ArgumentList *argList) {
+      return Component({}, argList, {}, Kind::UnresolvedApply, Type(),
+                       argList->getLParenLoc());
+    }
 
     /// Create an unresolved optional force `!` component.
     static Component forUnresolvedOptionalForce(SourceLoc BangLoc) {
@@ -5849,7 +5851,7 @@ public:
     }
     
     SourceRange getSourceRange() const {
-      if (auto *args = getSubscriptArgs()) {
+      if (auto *args = getArgs()) {
         return args->getSourceRange();
       }
       return Loc;
@@ -5878,7 +5880,7 @@ public:
       case Kind::DictionaryKey:
         return true;
 
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
       case Kind::UnresolvedMember:
       case Kind::Invalid:
       case Kind::CodeCompletion:
@@ -5887,11 +5889,11 @@ public:
       llvm_unreachable("unhandled kind");
     }
 
-    ArgumentList *getSubscriptArgs() const {
+    ArgumentList *getArgs() const {
       switch (getKind()) {
       case Kind::Subscript:
-      case Kind::UnresolvedSubscript:
-        return SubscriptArgList;
+      case Kind::UnresolvedApply:
+        return ArgList;
 
       case Kind::Invalid:
       case Kind::OptionalChain:
@@ -5908,20 +5910,20 @@ public:
       llvm_unreachable("unhandled kind");
     }
 
-    void setSubscriptArgs(ArgumentList *newArgs) {
-      assert(getSubscriptArgs() && "Should be replacing existing args");
-      SubscriptArgList = newArgs;
+    void setArgs(ArgumentList *newArgs) {
+      assert(getArgs() && "Should be replacing existing args");
+      ArgList = newArgs;
     }
 
     ArrayRef<ProtocolConformanceRef>
     getSubscriptIndexHashableConformances() const {
       switch (getKind()) {
       case Kind::Subscript:
-        if (!SubscriptHashableConformancesData)
+        if (!ArgHashableConformancesData)
           return {};
-        return {SubscriptHashableConformancesData, SubscriptArgList->size()};
+        return {ArgHashableConformancesData, ArgList->size()};
 
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
       case Kind::Invalid:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
@@ -5945,7 +5947,7 @@ public:
 
       case Kind::Invalid:
       case Kind::Subscript:
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -5966,7 +5968,7 @@ public:
 
       case Kind::Invalid:
       case Kind::UnresolvedMember:
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -5987,7 +5989,7 @@ public:
 
       case Kind::Invalid:
       case Kind::UnresolvedMember:
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -6007,7 +6009,7 @@ public:
                 
         case Kind::Invalid:
         case Kind::UnresolvedMember:
-        case Kind::UnresolvedSubscript:
+        case Kind::UnresolvedApply:
         case Kind::OptionalChain:
         case Kind::OptionalWrap:
         case Kind::OptionalForce:
@@ -6098,7 +6100,7 @@ public:
   /// If the provided expression appears as an argument to a subscript component
   /// of the key path, returns the index of that component. Otherwise, returns
   /// \c None.
-  std::optional<unsigned> findComponentWithSubscriptArg(Expr *arg);
+  std::optional<unsigned> findComponentWithArg(Expr *arg);
 
   /// Retrieve the string literal expression, which will be \c NULL prior to
   /// type checking and a string literal after type checking for an

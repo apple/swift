@@ -4418,9 +4418,8 @@ RValue RValueEmitter::visitKeyPathExpr(KeyPathExpr *E, SGFContext C) {
 
       auto subscript = cast<SubscriptDecl>(decl);
       auto loweredArgs = SGF.emitKeyPathSubscriptOperands(
-          E, subscript,
-          component.getDeclRef().getSubstitutions(),
-          component.getSubscriptArgs());
+          E, subscript, component.getDeclRef().getSubstitutions(),
+          component.getArgs());
 
       for (auto &arg : loweredArgs) {
         operands.push_back(arg.forward(SGF));
@@ -4475,7 +4474,7 @@ RValue RValueEmitter::visitKeyPathExpr(KeyPathExpr *E, SGFContext C) {
         
     case KeyPathExpr::Component::Kind::Invalid:
     case KeyPathExpr::Component::Kind::UnresolvedMember:
-    case KeyPathExpr::Component::Kind::UnresolvedSubscript:
+    case KeyPathExpr::Component::Kind::UnresolvedApply:
     case KeyPathExpr::Component::Kind::CodeCompletion:
       llvm_unreachable("not resolved");
       break;

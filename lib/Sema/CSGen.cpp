@@ -3806,12 +3806,12 @@ namespace {
           base = memberTy;
           break;
         }
-          
-        case KeyPathExpr::Component::Kind::UnresolvedSubscript:
+
+        case KeyPathExpr::Component::Kind::UnresolvedApply:
         // Subscript should only appear in resolved ASTs, but we may need to
         // re-type-check the constraints during failure diagnosis.
         case KeyPathExpr::Component::Kind::Subscript: {
-          auto *args = component.getSubscriptArgs();
+          auto *args = component.getArgs();
           base = addSubscriptConstraints(E, base, /*decl*/ nullptr, args,
                                          memberLocator, &componentTypeVars);
 

@@ -601,7 +601,7 @@ bool ConstraintLocator::isKeyPathSubscriptComponent() const {
     auto index = keyPathElt->getIndex();
     auto &component = KPE->getComponents()[index];
     return component.getKind() == ComponentKind::Subscript ||
-           component.getKind() == ComponentKind::UnresolvedSubscript;
+           component.getKind() == ComponentKind::UnresolvedApply;
   });
 }
 

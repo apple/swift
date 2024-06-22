@@ -3133,8 +3133,8 @@ public:
                              IdentifierColor);
             break;
 
-          case KeyPathExpr::Component::Kind::UnresolvedSubscript:
-            printHead("unresolved_subscript", ASTNodeColor);
+          case KeyPathExpr::Component::Kind::UnresolvedApply:
+            printHead("unresolved_apply", ASTNodeColor);
             break;
           case KeyPathExpr::Component::Kind::Identity:
             printHead("identity", ASTNodeColor);
@@ -3154,7 +3154,7 @@ public:
             break;
           }
           printFieldQuoted(GetTypeOfKeyPathComponent(E, i), "type");
-          if (auto *args = component.getSubscriptArgs()) {
+          if (auto *args = component.getArgs()) {
             printRec(args);
           }
           printFoot();
