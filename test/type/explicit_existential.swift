@@ -478,6 +478,13 @@ func testAnyFixIt() {
   let _: (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type?
   let _: any (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type // OK
 
+  // Misplaced '!'.
+  // expected-error@+1 {{force unwrapped 'any' type must be written (any HasAssoc)!}}{{10-23=(any HasAssoc)!}}
+  let _: any HasAssoc!
+
+  // expected-error@+1 {{optional 'any' type must be written '(any HasAssoc)?'}}{{16-29=(any HasAssoc)?}}
+  let _: (Int, any HasAssoc!)
+
   // Misplaced '?'.
 
   // expected-error@+1 {{optional 'any' type must be written '(any HasAssoc)?'}}{{10-23=(any HasAssoc)?}}
