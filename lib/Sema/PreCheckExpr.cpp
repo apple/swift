@@ -2293,6 +2293,9 @@ void PreCheckExpression::resolveKeyPathExpr(KeyPathExpr *KPE) {
         // .[0] or just plain [0]
         components.push_back(
             KeyPathExpr::Component::forUnresolvedApply(SE->getArgs()));
+        components.push_back(
+            KeyPathExpr::Component::forUnresolvedMember({}, SE->getLoc()));
+        
 
         expr = SE->getBase();
       } else if (auto BOE = dyn_cast<BindOptionalExpr>(expr)) {
