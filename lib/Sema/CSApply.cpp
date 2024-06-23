@@ -5147,6 +5147,9 @@ namespace {
           buildKeyPathSubscriptComponent(
               solution.getOverloadChoice(calleeLoc), origComponent.getLoc(),
               origComponent.getArgs(), componentLocator, resolvedComponents);
+          //          buildKeyPathApplyComponent(solution.getOverloadChoice(calleeLoc),
+          //          origComponent.getArgs(), componentLocator,
+          //          resolvedComponents);
           break;
         }
         case KeyPathExpr::Component::Kind::OptionalChain: {
@@ -5364,17 +5367,13 @@ namespace {
         ConstraintLocator *locator,
         SmallVectorImpl<KeyPathExpr::Component> &components) {
       auto resolvedTy = simplifyType(overload.adjustedOpenedType);
-      if (auto *property = overload.choice.getDeclOrNull()) {
-        // Key paths can only refer to properties currently.
-        auto varDecl = cast<VarDecl>(property);
+      if (auto *member = overload.choice.getDeclOrNull()) {
         // Key paths don't work with mutating-get properties.
+        auto varDecl = cast<VarDecl>(member);
         assert(!varDecl->isGetterMutating());
-        // Key paths don't currently support static members.
-        // There is a fix which diagnoses such situation already.
-        assert(!varDecl->isStatic());
 
         // Compute the concrete reference to the member.
-        auto ref = resolveConcreteDeclRef(property, locator);
+        auto ref = resolveConcreteDeclRef(member, locator);
         components.push_back(
             KeyPathExpr::Component::forMember(ref, resolvedTy, componentLoc));
       } else {
@@ -5385,6 +5384,60 @@ namespace {
 
       auto unwrapCount =
           getIUOForceUnwrapCount(locator, IUOReferenceKind::Value);
+      for (unsigned i = 0; i < unwrapCount; ++i)
+        buildKeyPathOptionalForceComponent(components);
+    }
+
+    void buildKeyPathApplyComponent(
+        const SelectedOverload &overload, ArgumentList *args,
+        ConstraintLocator *locator,
+        SmallVectorImpl<KeyPathExpr::Component> &components) {
+      auto &ctx = cs.getASTContext();
+      //      auto memberLoc = components.back().getLoc();
+      auto memberRef = components.back().getDeclRef();
+      auto memberLoc = cs.getCalleeLocator(locator);
+
+      // Compute substitutions to refer to the member.
+      //      auto ref = resolveConcreteDeclRef(member, memberLoc);
+
+      auto memberType =
+          simplifyType(overload.adjustedOpenedType)->castTo<AnyFunctionType>();
+
+      // Coerce the indices to the type the subscript expects.
+      args = coerceCallArguments(
+          args, memberType, memberRef, /*applyExpr*/ nullptr,
+          cs.getConstraintLocator(locator, ConstraintLocator::ApplyArgument),
+          /*appliedPropertyWrappers*/ {});
+
+      // We need to be able to hash the captured index values in order for
+      // KeyPath itself to be hashable, so check that all of the subscript
+      // index components are hashable and collect their conformances here.
+      SmallVector<ProtocolConformanceRef, 4> conformances;
+
+      auto hashable = ctx.getProtocol(KnownProtocolKind::Hashable);
+
+      auto fnType = overload.adjustedOpenedType->castTo<FunctionType>();
+      SmallVector<Identifier, 4> newLabels;
+      for (auto &param : fnType->getParams()) {
+        newLabels.push_back(param.getLabel());
+
+        auto indexType = simplifyType(param.getParameterType());
+        // Index type conformance to Hashable protocol has been
+        // verified by the solver, we just need to get it again
+        // with all of the generic parameters resolved.
+        auto hashableConformance =
+            dc->getParentModule()->checkConformance(indexType, hashable);
+        assert(hashableConformance);
+
+        conformances.push_back(hashableConformance);
+      }
+
+      auto comp = KeyPathExpr::Component::forApply(
+          args, ctx.AllocateCopy(conformances));
+      components.push_back(comp);
+
+      auto unwrapCount =
+          getIUOForceUnwrapCount(memberLoc, IUOReferenceKind::ReturnValue);
       for (unsigned i = 0; i < unwrapCount; ++i)
         buildKeyPathOptionalForceComponent(components);
     }
