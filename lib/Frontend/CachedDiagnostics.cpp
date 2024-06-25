@@ -626,6 +626,11 @@ llvm::Error DiagnosticSerializer::deserializeDiagnosticInfo(
 
 llvm::Error
 DiagnosticSerializer::serializeEmittedDiagnostics(llvm::raw_ostream &os) {
+  // If no diagnostics is produced, do not write anything so output is smaller
+  // without referencing any files.
+  if (DiagInfos.empty())
+    return llvm::Error::success();
+
   // Convert all file backed source file into CASIDs.
   for (auto &File : Files) {
     if (!File.Content.empty() || !File.ContentCASID.empty())
@@ -819,12 +824,14 @@ CachingDiagnosticsProcessor::CachingDiagnosticsProcessor(
 
     // compress the YAML file.
     llvm::SmallVector<uint8_t, 512> Compression;
-    if (llvm::compression::zstd::isAvailable())
-      llvm::compression::zstd::compress(arrayRefFromStringRef(Output),
-                                        Compression);
-    else if (llvm::compression::zlib::isAvailable())
-      llvm::compression::zlib::compress(arrayRefFromStringRef(Output),
-                                        Compression);
+    if (!Output.empty()) {
+      if (llvm::compression::zstd::isAvailable())
+        llvm::compression::zstd::compress(arrayRefFromStringRef(Output),
+                                          Compression);
+      else if (llvm::compression::zlib::isAvailable())
+        llvm::compression::zlib::compress(arrayRefFromStringRef(Output),
+                                          Compression);
+    }
 
     // Write the uncompressed size in the end.
     if (!Compression.empty()) {
@@ -869,6 +876,10 @@ llvm::Error CachingDiagnosticsProcessor::serializeEmittedDiagnostics(
 
 llvm::Error
 CachingDiagnosticsProcessor::replayCachedDiagnostics(llvm::StringRef Buffer) {
+  // If empty buffer, no diagnostics to replay.
+  if (Buffer.empty())
+    return llvm::Error::success();
+
   SmallVector<uint8_t, 512> Uncompressed;
   if (llvm::compression::zstd::isAvailable() ||
       llvm::compression::zlib::isAvailable()) {
