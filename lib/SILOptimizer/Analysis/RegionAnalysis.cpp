@@ -1121,10 +1121,10 @@ struct PartitionOpBuilder {
     currentInstPartitionOps.clear();
   }
 
-  Element lookupValueID(SILValue value);
-  bool valueHasID(SILValue value, bool dumpIfHasNoID = false);
-
-  Element getActorIntroducingRepresentative(SILIsolationInfo actorIsolation);
+  void createAssignFreshForUndef(Element elt) {
+    currentInstPartitionOps.emplace_back(
+        PartitionOp::AssignFresh(elt, currentInst));
+  }
 
   void addAssignFresh(SILValue value) {
     currentInstPartitionOps.emplace_back(
@@ -1134,7 +1134,6 @@ struct PartitionOpBuilder {
   void addAssign(SILValue tgt, SILValue src) {
     assert(valueHasID(src, /*dumpIfHasNoID=*/true) &&
            "source value of assignment should already have been encountered");
-
     Element srcID = lookupValueID(src);
     if (lookupValueID(tgt) == srcID) {
       LLVM_DEBUG(llvm::dbgs() << "    Skipping assign since tgt and src have "
@@ -1150,7 +1149,6 @@ struct PartitionOpBuilder {
   void addTransfer(SILValue representative, Operand *op) {
     assert(valueHasID(representative) &&
            "transferred value should already have been encountered");
-
     currentInstPartitionOps.emplace_back(
         PartitionOp::Transfer(lookupValueID(representative), op));
   }
@@ -1209,6 +1207,12 @@ struct PartitionOpBuilder {
   SWIFT_DEBUG_DUMP { print(llvm::dbgs()); }
 
   void print(llvm::raw_ostream &os) const;
+
+private:
+  Element lookupValueID(SILValue value);
+  bool valueHasID(SILValue value, bool dumpIfHasNoID = false);
+
+  Element getActorIntroducingRepresentative(SILIsolationInfo actorIsolation);
 };
 
 } // namespace
@@ -2383,7 +2387,10 @@ public:
 } // namespace swift
 
 Element PartitionOpBuilder::lookupValueID(SILValue value) {
-  return translator->lookupValueID(value);
+  auto elt = translator->lookupValueID(value);
+  if (isa<SILUndef>(value))
+    createAssignFreshForUndef(elt);
+  return elt;
 }
 
 Element PartitionOpBuilder::getActorIntroducingRepresentative(
