@@ -22,7 +22,8 @@ function(set_if_arch_bitness var_name)
      "${SIA_ARCH}" STREQUAL "m68k" OR
      "${SIA_ARCH}" STREQUAL "riscv32" OR
      "${SIA_ARCH}" STREQUAL "wasm32" OR
-     "${SIA_ARCH}" STREQUAL "powerpc")
+     "${SIA_ARCH}" STREQUAL "powerpc" OR
+     "${SIA_ARCH}" STREQUAL "avr") # this is incorrect, should be 16-bit pointer but will do for now...
     set("${var_name}" "${SIA_CASE_32_BIT}" PARENT_SCOPE)
   elseif("${SIA_ARCH}" STREQUAL "x86_64" OR
          "${SIA_ARCH}" STREQUAL "amd64" OR

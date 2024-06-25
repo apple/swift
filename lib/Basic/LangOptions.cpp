@@ -87,6 +87,7 @@ static const SupportedConditionalValue SupportedConditionalCompilationOSs[] = {
   "Haiku",
   "WASI",
   "none",
+  "Embedded"
 };
 
 static const SupportedConditionalValue SupportedConditionalCompilationArches[] = {
@@ -101,6 +102,7 @@ static const SupportedConditionalValue SupportedConditionalCompilationArches[] =
   "s390x",
   "wasm32",
   "riscv64",
+  "avr"
 };
 
 static const SupportedConditionalValue SupportedConditionalCompilationEndianness[] = {
@@ -540,6 +542,8 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
     break;
   case llvm::Triple::ArchType::riscv64:
     addPlatformConditionValue(PlatformConditionKind::Arch, "riscv64");
+  case llvm::Triple::ArchType::avr:
+    addPlatformConditionValue(PlatformConditionKind::Arch, "avr");
     break;
   default:
     UnsupportedArch = true;
@@ -564,10 +568,14 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   }
 
   // Set the "_pointerBitWidth" platform condition.
-  if (Target.isArch32Bit()) {
-    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_32");
-  } else if (Target.isArch64Bit()) {
-    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");
+  if (Target.getArch()==llvm::Triple::ArchType::avr) {
+    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_16");
+  } else {
+    if (Target.isArch32Bit()) {
+      addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_32");
+    } else if (Target.isArch64Bit()) {
+      addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");
+    }
   }
 
   // Set the "runtime" platform condition.
