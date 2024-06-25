@@ -61,6 +61,9 @@ final class FinalMainActorIsolatedKlass {
 func useInOut<T>(_ x: inout T) {}
 func useValue<T>(_ x: T) {}
 func useValueAsync<T>(_ x: T) async {}
+@MainActor func mainActorUseValue<T>(_ x: T) {}
+@MainActor func mainActorUseValueAsync<T>(_ x: T) async {}
+
 
 @MainActor func transferToMain<T>(_ t: T) async {}
 
@@ -1766,4 +1769,17 @@ extension MyActor {
       }
     }
   }
+}
+
+@MainActor
+func withCheckedContinuation_4() async {
+  // x is main actor isolated since withCheckedContinuation is #isolated.
+  let x = await withCheckedContinuation { continuation in // expected-note {{captured value declared here}}
+    // expected-error @-1 {{closure captures 'x' before it is declared}}
+    continuation.resume(returning: NonSendableKlass())
+    mainActorUseValue(x) // expected-note {{captured here}}
+  }
+  await useValueAsync(x)
+  // expected-warning @-1 {{sending 'x' risks causing data races}}
+  // expected-note @-2 {{sending main actor-isolated 'x' to nonisolated global function 'useValueAsync' risks causing data races between nonisolated and main actor-isolated uses}}
 }
