@@ -13,9 +13,6 @@
 // RUN: %target-run-simple-swift(-D BRIDGING_HEADER -import-objc-header %t2/std-set-bridging-header.h -cxx-interoperability-mode=upcoming-swift)
 
 // REQUIRES: executable_test
-//
-// Enable this everywhere once we have a solution for modularizing other C++ stdlibs: rdar://87654514
-// REQUIRES: OS=macosx || OS=linux-gnu
 
 import StdlibUnittest
 #if !BRIDGING_HEADER
