@@ -129,6 +129,8 @@ def setup_mock_remote(base_dir, base_config):
             with open(filename_path, 'w') as f:
                 f.write(contents)
             call_quietly(['git', 'add', filename], cwd=local_repo_path)
+            call_quietly(['git', 'config', '--local', 'user.email', 'swift-test@example.com'], cwd=local_repo_path)
+            call_quietly(['git', 'config', '--local', 'user.name', 'Swift Test'], cwd=local_repo_path)
             call_quietly(['git', 'commit', '-m', 'Commit %d' % i],
                          cwd=local_repo_path)
             call_quietly(['git', 'push', 'origin', 'main'],
