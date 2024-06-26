@@ -338,19 +338,17 @@ extension _StringGuts {
       if let repl = newElements as? String {
         if repl._guts.isFastUTF8 {
           return repl._guts.withFastUTF8 {
-            uniqueNativeReplaceSubrange(
-              bounds, with: $0, isASCII: repl._guts.isASCII)
+            uniqueNativeReplaceSubrange(bounds, with: $0)
           }
         }
       } else if let repl = newElements as? Substring {
         if repl._wholeGuts.isFastUTF8 {
           return repl._wholeGuts.withFastUTF8(range: repl._offsetRange) {
-            uniqueNativeReplaceSubrange(
-              bounds, with: $0, isASCII: repl._wholeGuts.isASCII)
+            uniqueNativeReplaceSubrange(bounds, with: $0)
           }
         }
       }
-      return uniqueNativeReplaceSubrange(
+      return genericUniqueNativeReplaceSubrange(
         bounds, with: newElements.lazy.flatMap { $0.utf8 })
     }
 
@@ -381,30 +379,24 @@ extension _StringGuts {
       if let repl = newElements as? String.UnicodeScalarView {
         if repl._guts.isFastUTF8 {
           return repl._guts.withFastUTF8 {
-            uniqueNativeReplaceSubrange(
-              bounds, with: $0, isASCII: repl._guts.isASCII)
+            uniqueNativeReplaceSubrange(bounds, with: $0)
           }
         }
       } else if let repl = newElements as? Substring.UnicodeScalarView {
         if repl._wholeGuts.isFastUTF8 {
           return repl._wholeGuts.withFastUTF8(range: repl._offsetRange) {
-            uniqueNativeReplaceSubrange(
-              bounds, with: $0, isASCII: repl._wholeGuts.isASCII)
+            uniqueNativeReplaceSubrange(bounds, with: $0)
           }
         }
       }
-      if #available(SwiftStdlib 5.1, *) {
-        return uniqueNativeReplaceSubrange(
-          bounds, with: newElements.lazy.flatMap { $0.utf8 })
-      } else {
-        // FIXME: The stdlib should not have a deployment target this ancient.
-        let c = newElements.reduce(0) { $0 + UTF8.width($1) }
-        var utf8: [UInt8] = []
-        utf8.reserveCapacity(c)
-        utf8 = newElements.reduce(into: utf8) { utf8, next in
-          next.withUTF8CodeUnits { utf8.append(contentsOf: $0) }
-        }
-        return uniqueNativeReplaceSubrange(bounds, with: utf8)
+      let c = newElements.reduce(0) { $0 + UTF8.width($1) }
+      var utf8: [UInt8] = []
+      utf8.reserveCapacity(c)
+      utf8 = newElements.reduce(into: utf8) { utf8, next in
+        next.withUTF8CodeUnits { utf8.append(contentsOf: $0) }
+      }
+      return utf8.withUnsafeBufferPointer {
+        uniqueNativeReplaceSubrange(bounds, with: $0)
       }
     }
 
@@ -427,8 +419,7 @@ extension _StringGuts {
   // - Returns: The encoded offset range of the replaced contents in the result.
   internal mutating func uniqueNativeReplaceSubrange(
     _ bounds: Range<Index>,
-    with codeUnits: UnsafeBufferPointer<UInt8>,
-    isASCII: Bool
+    with codeUnits: UnsafeBufferPointer<UInt8>
   ) -> Range<Int> {
     let neededCapacity =
       bounds.lowerBound._encodedOffset
@@ -447,7 +438,7 @@ extension _StringGuts {
   }
 
   // - Returns: The encoded offset range of the replaced contents in the result.
-  internal mutating func uniqueNativeReplaceSubrange<C: Collection>(
+  internal mutating func genericUniqueNativeReplaceSubrange<C: Collection>(
     _ bounds: Range<Index>,
     with codeUnits: C
   ) -> Range<Int>

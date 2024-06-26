@@ -650,14 +650,12 @@ extension __StringStorage {
       src: mutableStart + upper, dst: lowerPtr + replCount)
 
     // Copy in the contents.
-    var isASCII = self.isASCII
-    var srcCount = 0
-    for cu in replacement {
-      if cu >= 0x80 { isASCII = false }
-      lowerPtr[srcCount] = cu
-      srcCount += 1
-    }
-    _internalInvariant(srcCount == replCount)
+    let target = UnsafeMutableBufferPointer(start: lowerPtr, count: replCount)
+    var (it, c) = replacement._copyContents(initializing: target)
+    _internalInvariant(c == replCount)
+    _internalInvariant(it.next() == nil)
+
+    let isASCII = self.isASCII && _allASCII(UnsafeBufferPointer(target))
 
     _updateCountAndFlags(
       newCount: lower + replCount + tailCount, newIsASCII: isASCII)
