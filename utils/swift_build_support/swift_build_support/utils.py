@@ -48,6 +48,10 @@ def clear_log_time():
 
 
 def log_time(event, command, duration=0):
+    # NOTE: When running a dry run, the log file isn't created
+    if not os.path.exists(log_time_path()):
+        return
+
     f = open(log_time_path(), "a")
 
     log_event = {
