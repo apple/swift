@@ -426,15 +426,31 @@ extension String {
   // This force type-casts element to UInt8, since we cannot currently
   // communicate to the type checker that we proved this with our dynamic
   // check in String(decoding:as:).
+  // **Important:** The 'repairsMade' part of the result is not reliable.
   @_alwaysEmitIntoClient
   @inline(never) // slow-path
   private static func _fromNonContiguousUnsafeBitcastUTF8Repairing<
     C: Collection
   >(_ input: C) -> (result: String, repairsMade: Bool) {
     _internalInvariant(C.Element.self == UInt8.self)
-    return Array(input).withUnsafeBufferPointer {
-      let raw = UnsafeRawBufferPointer($0)
-      return String._fromUTF8Repairing(raw.bindMemory(to: UInt8.self))
+    if #available(macOS 10.16, iOS 14.0, watchOS 7.0, tvOS 14.0, *) {
+      let count = input.count
+      let string = String(unsafeUninitializedCapacity: count) { buffer in
+        var iterAndCount = unsafeBitCast(
+          buffer, to: UnsafeMutableBufferPointer<C.Element>.self
+        ).initialize(from: input)
+        _precondition(
+          iterAndCount.0.next() == nil,
+          "Collection contains more than 'count' elements"
+        )
+        return iterAndCount.1
+      }
+      return (result: string, repairsMade: false)
+    } else {
+      return Array(input).withUnsafeBufferPointer {
+        let raw = UnsafeRawBufferPointer($0)
+        return String._fromUTF8Repairing(raw.bindMemory(to: UInt8.self))
+      }
     }
   }
 
