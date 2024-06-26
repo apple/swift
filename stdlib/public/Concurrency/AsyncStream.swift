@@ -471,6 +471,9 @@ extension AsyncStream {
 
 @available(SwiftStdlib 5.1, *)
 extension AsyncStream: @unchecked Sendable where Element: Sendable { }
+
+@available(*, unavailable)
+extension AsyncStream.Iterator: Sendable { }
 #else
 @available(SwiftStdlib 5.1, *)
 @available(*, unavailable, message: "Unavailable in task-to-thread concurrency model")

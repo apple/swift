@@ -169,8 +169,5 @@ extension AsyncCompactMapSequence: @unchecked Sendable
         Base.Element: Sendable, 
         ElementOfResult: Sendable { }
 
-@available(SwiftStdlib 5.1, *)
-extension AsyncCompactMapSequence.Iterator: @unchecked Sendable 
-  where Base.AsyncIterator: Sendable, 
-        Base.Element: Sendable, 
-        ElementOfResult: Sendable { }
+@available(*, unavailable)
+extension AsyncCompactMapSequence.Iterator: Sendable { }

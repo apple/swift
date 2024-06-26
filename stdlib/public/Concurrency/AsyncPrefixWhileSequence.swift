@@ -156,7 +156,5 @@ extension AsyncPrefixWhileSequence: @unchecked Sendable
   where Base: Sendable, 
         Base.Element: Sendable { }
 
-@available(SwiftStdlib 5.1, *)
-extension AsyncPrefixWhileSequence.Iterator: @unchecked Sendable 
-  where Base.AsyncIterator: Sendable, 
-        Base.Element: Sendable { }
+@available(*, unavailable)
+extension AsyncPrefixWhileSequence.Iterator: Sendable { }
