@@ -213,6 +213,18 @@ extension Task {
   }
 }
 
+@available(SwiftStdlib 5.9, *)
+extension Task {
+  /// Checks if currently running task is this task.
+  public var isCurrent: Bool {
+    withUnsafeCurrentTask { (unsafeTask: UnsafeCurrentTask?) -> Bool in
+      guard let unsafeTask: UnsafeCurrentTask else { return false }
+      return UnsafeRawPointer(Builtin.bridgeToRawPointer(self._task)) ==
+        UnsafeRawPointer(Builtin.bridgeToRawPointer(unsafeTask._task))
+    }
+  }
+}
+
 @available(SwiftStdlib 5.1, *)
 extension Task where Failure == Never {
   /// The result from a nonthrowing task, after it completes.
