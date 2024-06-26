@@ -40,9 +40,7 @@
 
 ## Welcome to Swift
 
-Swift is a high-performance system programming language.  It has a clean
-and modern syntax, offers seamless access to existing C and Objective-C code
-and frameworks, and is memory-safe by default.
+Swift is a high-performance system programming language with a clean and modern syntax. It provides seamless access to existing C and Objective-C code and frameworks, and it prioritizes memory safety by default.
 
 Although inspired by Objective-C and many other languages, Swift is not itself a
 C-derived language. As a complete and independent language, Swift packages core
