@@ -7,3 +7,5 @@
 
 @end
 
+void printNullableRef(CFTypeRef _Nullable ref);
+void printNonnullRef(CFTypeRef _Nonnull ref);

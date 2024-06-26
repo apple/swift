@@ -207,9 +207,9 @@ func useInnerPointer(_ p: UnsafeMutableRawPointer) {}
 // => SEMANTIC ARC TODO: The apply below /should/ be on ARG_COPY. It is safe how
 // it is today though since we are using a reference type.
 // CHECK:         [[PTR:%.*]] = apply [[METHOD]]([[ARG]])
-// CHECK:         autorelease_value [[ARG_COPY]]
+// CHECK:         [[DP:%.*]] = mark_dependence [[PTR]] {{.*}} on [[ARG_COPY]]
 // CHECK:         [[USE:%.*]] = function_ref @$s26objc_ownership_conventions15useInnerPointer{{[_0-9a-zA-Z]*}}F
-// CHECK:         apply [[USE]]([[PTR]])
+// CHECK:         apply [[USE]]([[DP]])
 // CHECK-NOT:         destroy_value [[ARG]]
 func innerPointerMethod(_ g: Gizmo) {
   useInnerPointer(g.getBytes())
@@ -221,9 +221,9 @@ func innerPointerMethod(_ g: Gizmo) {
 // CHECK:         [[ARG_COPY:%.*]] = copy_value [[ARG]]
 // => SEMANTIC ARC TODO: The apply below should be on ARG_COPY. It is benign since objc objects are reference types.
 // CHECK:         [[PTR:%.*]] = apply [[METHOD]]([[ARG]])
-// CHECK:         autorelease_value [[ARG_COPY]]
+// CHECK:         [[DP:%.*]] = mark_dependence [[PTR]] {{.*}} on [[ARG_COPY]]
 // CHECK:         [[USE:%.*]] = function_ref @$s26objc_ownership_conventions15useInnerPointer{{[_0-9a-zA-Z]*}}F
-// CHECK:         apply [[USE]]([[PTR]])
+// CHECK:         apply [[USE]]([[DP]])
 // CHECK-NOT:         destroy_value [[ARG]]
 // CHECK: } // end sil function '$s26objc_ownership_conventions20innerPointerPropertyyySo5GizmoCF'
 func innerPointerProperty(_ g: Gizmo) {

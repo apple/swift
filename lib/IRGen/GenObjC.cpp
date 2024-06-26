@@ -914,27 +914,6 @@ static llvm::Function *emitObjCPartialApplicationForwarder(IRGenModule &IGM,
   if (IGM.DebugInfo)
     IGM.DebugInfo->emitArtificialFunction(subIGF, fwd);
   
-  // Do we need to lifetime-extend self?
-  bool lifetimeExtendsSelf;
-  auto results = origMethodType->getResults();
-  if (results.size() == 1) {
-    switch (results[0].getConvention()) {
-    case ResultConvention::UnownedInnerPointer:
-      lifetimeExtendsSelf = true;
-      break;
-
-    case ResultConvention::Indirect:
-    case ResultConvention::Unowned:
-    case ResultConvention::Owned:
-    case ResultConvention::Autoreleased:
-    case ResultConvention::Pack:
-      lifetimeExtendsSelf = false;
-      break;
-    }
-  } else {
-    lifetimeExtendsSelf = false;
-  }
-  
   // Do we need to retain self before calling, and/or release it after?
   bool retainsSelf;
   switch (origMethodType->getParameters().back().getConvention()) {
@@ -1046,11 +1025,6 @@ static llvm::Function *emitObjCPartialApplicationForwarder(IRGenModule &IGM,
 
   // Cleanup that always has to occur after the function call.
   auto cleanup = [&]{
-    // Lifetime-extend 'self' by sending it to the autorelease pool if need be.
-    if (lifetimeExtendsSelf) {
-      subIGF.emitObjCRetainCall(self);
-      subIGF.emitObjCAutoreleaseCall(self);
-    }
     // Release the context.
     if (!resultType->isCalleeGuaranteed())
       subIGF.emitNativeStrongRelease(context, subIGF.getDefaultAtomicity());
