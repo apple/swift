@@ -336,7 +336,7 @@ ERROR(cannot_convert_initializer_value_nil,none,
       "'nil' cannot initialize specified type %0", (Type))
 
 ERROR(cannot_convert_to_return_type,none,
-      "cannot convert return expression of type %0 to return type %1",
+      "return expressions for types %0 and %1 are not interconvertible",
       (Type,Type))
 ERROR(cannot_convert_to_return_type_protocol,none,
       "return expression of type %0 does not conform to %1", (Type,Type))

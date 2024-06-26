@@ -6753,6 +6753,15 @@ bool ConstraintSystem::repairFailures(
     // diagnostics.
     if (flags.contains(TMF_MatchingGenericArguments))
       break;
+    
+    if (!path.empty()) {
+      if (path.back().is<LocatorPathElt::ApplyArgToParam>())
+        conversionsOrFixes.push_back(AllowArgumentMismatch::create(
+            *this, lhs, rhs, getConstraintLocator(anchor, path)));
+      else if (path.back().is<LocatorPathElt::ContextualType>())
+        conversionsOrFixes.push_back(IgnoreContextualType::create(
+            *this, lhs, rhs, getConstraintLocator(anchor, path)));
+    }
 
     Type fromType;
     Type toType;
