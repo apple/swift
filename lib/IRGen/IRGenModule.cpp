@@ -1554,6 +1554,14 @@ llvm::SmallString<32> getTargetDependentLibraryOption(const llvm::Triple &T,
   return buffer;
 }
 
+static llvm::Optional<StringRef>
+getTargetDependentFrameworkOption(const llvm::Triple &T) {
+  if (T.isOSDarwin())
+    return StringRef("-framework");
+
+  return std::nullopt;
+}
+
 void IRGenModule::addLinkLibrary(const LinkLibrary &linkLib) {
   // The debugger gets the autolink information directly from
   // the LinkLibraries of the module, so there's no reason to
@@ -1708,27 +1716,7 @@ void AutolinkKind::collectEntriesFromLibraries(
   llvm::LLVMContext &ctx = IGM.getLLVMContext();
 
   switch (Value) {
-  case AutolinkKind::LLVMLinkerOptions: {
-    // On platforms that support autolinking, continue to use the metadata.
-    for (LinkLibrary linkLib : AutolinkEntries) {
-      switch (linkLib.getKind()) {
-      case LibraryKind::Library: {
-        llvm::SmallString<32> opt =
-            getTargetDependentLibraryOption(IGM.Triple, linkLib.getName());
-        Entries.insert(llvm::MDNode::get(ctx, llvm::MDString::get(ctx, opt)));
-        continue;
-      }
-      case LibraryKind::Framework: {
-        llvm::Metadata *args[] = {llvm::MDString::get(ctx, "-framework"),
-                                  llvm::MDString::get(ctx, linkLib.getName())};
-        Entries.insert(llvm::MDNode::get(ctx, args));
-        continue;
-      }
-      }
-      llvm_unreachable("Unhandled LibraryKind in switch.");
-    }
-    return;
-  }
+  case AutolinkKind::LLVMLinkerOptions:
   case AutolinkKind::SwiftAutoLinkExtract: {
     // On platforms that support autolinking, continue to use the metadata.
     for (LinkLibrary linkLib : AutolinkEntries) {
@@ -1739,9 +1727,18 @@ void AutolinkKind::collectEntriesFromLibraries(
         Entries.insert(llvm::MDNode::get(ctx, llvm::MDString::get(ctx, opt)));
         continue;
       }
-      case LibraryKind::Framework:
-        // Frameworks are not supported with Swift Autolink Extract.
+      case LibraryKind::Framework: {
+        // Skip the framework if the platform's linker doesn't support linking
+        // frameworks.
+        llvm::Optional<StringRef> opt =
+            getTargetDependentFrameworkOption(IGM.Triple);
+        if (!opt)
+          continue;
+        llvm::Metadata *args[] = {llvm::MDString::get(ctx, *opt),
+                                  llvm::MDString::get(ctx, linkLib.getName())};
+        Entries.insert(llvm::MDNode::get(ctx, args));
         continue;
+      }
       }
       llvm_unreachable("Unhandled LibraryKind in switch.");
     }
