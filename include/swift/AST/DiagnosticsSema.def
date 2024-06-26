@@ -2175,16 +2175,16 @@ NOTE(requires_stored_property_inits_here,none,
 ERROR(class_without_init,none,
       "%select{class|actor}0 %1 has no initializers", (bool, Type))
 NOTE(note_no_in_class_init_1,none,
-     "stored property %0 without initial value prevents synthesized "
+     "stored property %0 without initial value prevents default "
      "initializers",
      (Identifier))
 NOTE(note_no_in_class_init_2,none,
-     "stored properties %0 and %1 without initial values prevent synthesized "
+     "stored properties %0 and %1 without initial values prevent default "
      "initializers",
      (Identifier, Identifier))
 NOTE(note_no_in_class_init_3plus,none,
      "stored properties %0, %1, %select{and %2|%2, and others}3 "
-     "without initial values prevent synthesized initializers",
+     "without initial values prevent default initializers",
      (Identifier, Identifier, Identifier, bool))
 ERROR(missing_unimplemented_init_runtime,none,
       "standard library error: missing _unimplementedInitializer", ())
