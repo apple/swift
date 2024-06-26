@@ -58,10 +58,6 @@ internal typealias _CocoaString = AnyObject
                options: UInt,
                range: _SwiftNSRange,
                locale: AnyObject?) -> Int
-
-  @objc(newTaggedNSStringWithASCIIBytes_:length_:)
-  func createTaggedString(bytes: UnsafePointer<UInt8>,
-                          count: Int) -> AnyObject?
 }
 
 /*
@@ -316,24 +312,26 @@ internal enum _KnownCocoaString {
 #if _pointerBitWidth(_64)
   case tagged
 #endif
-#if arch(arm64)
-  case constantTagged
-#endif
+//Constant tagged strings are disabled for now
+//#if arch(arm64)
+//  case constantTagged
+//#endif
 
   @inline(__always)
   init(_ str: _CocoaString) {
 
 #if _pointerBitWidth(_64)
     if _isObjCTaggedPointer(str) {
-#if arch(arm64)
-      if let _ = getConstantTaggedCocoaContents(str) {
-        self = .constantTagged
-      } else {
-        self = .tagged
-      }
-#else
+//Constant tagged strings are disabled for now
+//#if arch(arm64)
+//      if let _ = getConstantTaggedCocoaContents(str) {
+//        self = .constantTagged
+//      } else {
+//        self = .tagged
+//      }
+//#else
       self = .tagged
-#endif
+//#endif
       return
     }
 #endif
@@ -503,21 +501,22 @@ private var expectedConstantTagValue:UInt {
 private func formConstantTaggedCocoaString(
   untaggedCocoa: _CocoaString
 ) -> AnyObject? {
-#if !arch(arm64)
+//constant tagged strings are currently disabled
+//#if !arch(arm64)
   return nil
-#else
-
-  let constantPtr:UnsafeRawPointer = Builtin.reinterpretCast(untaggedCocoa)
-
-  // Check if what we're pointing to is actually a valid tagged constant
-  guard _swift_stdlib_dyld_is_objc_constant_string(constantPtr) == 1 else {
-    return nil
-  }
-
-  let retaggedPointer = UInt(bitPattern: constantPtr) | expectedConstantTagValue
-
-  return unsafeBitCast(retaggedPointer, to: AnyObject.self)
-#endif
+//#else
+//
+//  let constantPtr:UnsafeRawPointer = Builtin.reinterpretCast(untaggedCocoa)
+//
+//  // Check if what we're pointing to is actually a valid tagged constant
+//  guard _swift_stdlib_dyld_is_objc_constant_string(constantPtr) == 1 else {
+//    return nil
+//  }
+//
+//  let retaggedPointer = UInt(bitPattern: constantPtr) | expectedConstantTagValue
+//
+//  return unsafeBitCast(retaggedPointer, to: AnyObject.self)
+//#endif
 }
 
 @inline(__always)
@@ -525,45 +524,46 @@ private func getConstantTaggedCocoaContents(_ cocoaString: _CocoaString) ->
     (utf16Length: Int,
      asciiContentsPointer: UnsafePointer<UInt8>,
      untaggedCocoa: _CocoaString)? {
-#if !arch(arm64)
+//constant tagged strings are currently disabled
+//#if !arch(arm64)
   return nil
-#else
+//#else
 
-  guard _isObjCTaggedPointer(cocoaString) else {
-    return nil
-  }
-
-  let taggedValue = unsafeBitCast(cocoaString, to: UInt.self)
-  
-
-
-  guard taggedValue & constantTagMask == expectedConstantTagValue else {
-    return nil
-  }
-
-  let payloadMask = ~constantTagMask
-  let payload = taggedValue & payloadMask
-  let ivarPointer = UnsafePointer<_swift_shims_builtin_CFString>(
-    bitPattern: payload
-  )!
-
-  guard _swift_stdlib_dyld_is_objc_constant_string(
-    UnsafeRawPointer(ivarPointer)
-  ) == 1 else {
-    return nil
-  }
-
-  let length = ivarPointer.pointee.length
-  let isUTF16Mask:UInt = 0x0000_0000_0000_0004 //CFStringFlags bit 4: isUnicode
-  let isASCII = ivarPointer.pointee.flags & isUTF16Mask == 0
-  _precondition(isASCII) // we don't currently support non-ASCII here
-  let contentsPtr = ivarPointer.pointee.str
-  return (
-    utf16Length: Int(length),
-    asciiContentsPointer: contentsPtr,
-    untaggedCocoa: Builtin.reinterpretCast(ivarPointer)
-  )
-#endif
+//  guard _isObjCTaggedPointer(cocoaString) else {
+//    return nil
+//  }
+//
+//  let taggedValue = unsafeBitCast(cocoaString, to: UInt.self)
+//
+//
+//
+//  guard taggedValue & constantTagMask == expectedConstantTagValue else {
+//    return nil
+//  }
+//
+//  let payloadMask = ~constantTagMask
+//  let payload = taggedValue & payloadMask
+//  let ivarPointer = UnsafePointer<_swift_shims_builtin_CFString>(
+//    bitPattern: payload
+//  )!
+//
+//  guard _swift_stdlib_dyld_is_objc_constant_string(
+//    UnsafeRawPointer(ivarPointer)
+//  ) == 1 else {
+//    return nil
+//  }
+//
+//  let length = ivarPointer.pointee.length
+//  let isUTF16Mask:UInt = 0x0000_0000_0000_0004 //CFStringFlags bit 4: isUnicode
+//  let isASCII = ivarPointer.pointee.flags & isUTF16Mask == 0
+//  _precondition(isASCII) // we don't currently support non-ASCII here
+//  let contentsPtr = ivarPointer.pointee.str
+//  return (
+//    utf16Length: Int(length),
+//    asciiContentsPointer: contentsPtr,
+//    untaggedCocoa: Builtin.reinterpretCast(ivarPointer)
+//  )
+//#endif
 }
 
 #if !$Embedded
@@ -579,21 +579,18 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
       cocoaString, to: __SharedStringStorage.self).asString._guts
 #if _pointerBitWidth(_64)
   case .tagged:
-    // Foundation should be taking care of tagged pointer strings before they
-    // reach here, so the only ones reaching this point should be back deployed,
-    // which will never have tagged pointer strings that aren't small, hence
-    // the force unwrap here.
     return _StringGuts(_SmallString(taggedCocoa: cocoaString)!)
-#if arch(arm64)
-  case .constantTagged:
-    let taggedContents = getConstantTaggedCocoaContents(cocoaString)!
-    return _StringGuts(
-      cocoa: taggedContents.untaggedCocoa,
-      providesFastUTF8: false, //TODO: if contentsPtr is UTF8 compatible, use it
-      isASCII: true,
-      length: taggedContents.utf16Length
-    )
-#endif
+//Constant tagged strings are disabled for now
+//#if arch(arm64)
+//  case .constantTagged:
+//    let taggedContents = getConstantTaggedCocoaContents(cocoaString)!
+//    return _StringGuts(
+//      cocoa: taggedContents.untaggedCocoa,
+//      providesFastUTF8: false, //TODO: if contentsPtr is UTF8 compatible, use it
+//      isASCII: true,
+//      length: taggedContents.utf16Length
+//    )
+//#endif
 #endif
   case .cocoa:
     // "Copy" it into a value to be sure nobody will modify behind
@@ -643,27 +640,14 @@ extension String {
 #endif
 
 @_effects(releasenone)
-private func _createNSString(
-  _ receiver: _StringSelectorHolder,
+private func _createTaggedNSString(
   _ ptr: UnsafePointer<UInt8>,
-  _ count: Int,
-  _ encoding: UInt32
+  _ count: Int
 ) -> AnyObject? {
-  return receiver.createTaggedString(bytes: ptr, count: count)
-}
-
-@_effects(releasenone)
-private func _createCFString(
-  _ ptr: UnsafePointer<UInt8>,
-  _ count: Int,
-  _ encoding: UInt32
-) -> AnyObject? {
-  return _createNSString(
-    unsafeBitCast(__StringStorage.self as AnyClass, to: _StringSelectorHolder.self),
-    ptr,
-    count,
-    encoding
-  )
+  if let str = _swift_stdlib_createTaggedPointerString(ptr, count) {
+    return Unmanaged.fromOpaque(str).takeRetainedValue()
+  }
+  return nil
 }
 
 #if !$Embedded
@@ -677,10 +661,9 @@ extension String {
     // Smol ASCII a) may bridge to tagged pointers, b) can't contain a BOM
     if _guts.isSmallASCII {
       let maybeTagged = _guts.asSmall.withUTF8 { bufPtr in
-        return _createCFString(
+        return _createTaggedNSString(
           bufPtr.baseAddress._unsafelyUnwrappedUnchecked,
-          bufPtr.count,
-          kCFStringEncodingUTF8
+          bufPtr.count
         )
       }
       if let tagged = maybeTagged { return tagged }
