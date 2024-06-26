@@ -316,8 +316,11 @@ extension String {
         String._uncheckedFromUTF8($0)
       }
     }
-    return Array(str.utf8).withUnsafeBufferPointer {
-      String._uncheckedFromUTF8($0)
+    let count = str.uft8.count
+    return String(unsafeUninitializedCapacity: count) { buffer in
+      var (_, end) = str.utf8._copyContents(initializing: buffer)
+      _internalInvariant(end == buffer.endIndex, "Buffer too large for new string")
+      return count
     }
   }
 
