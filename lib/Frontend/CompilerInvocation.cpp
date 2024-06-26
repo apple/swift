@@ -1296,6 +1296,10 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
   
   Opts.setCxxInteropFromArgs(Args, Diags);
 
+  if (Opts.EnableCXXInterop && !Opts.isSwiftVersionAtLeast(5)) {
+    Diags.diagnose(SourceLoc(), diag::swift_lang_must_be_five);
+  }
+
   Opts.EnableObjCInterop =
       Args.hasFlag(OPT_enable_objc_interop, OPT_disable_objc_interop,
                    Target.isOSDarwin() && !Opts.hasFeature(Feature::Embedded));
