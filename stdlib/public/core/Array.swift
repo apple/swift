@@ -255,21 +255,32 @@
 /// Foundation type.
 ///
 /// The following example shows how you can bridge an `Array` instance to
-/// `NSArray` to use the `write(to:atomically:)` method. In this example, the
+/// `NSArray` to use the `write(to:)` method. In this example, the
 /// `colors` array can be bridged to `NSArray` because the `colors` array's
-/// `String` elements bridge to `NSString`. The compiler prevents bridging the
-/// `moreColors` array, on the other hand, because its `Element` type is
-/// `Optional<String>`, which does *not* bridge to a Foundation type.
+/// `String` elements bridge to `NSString`. Despite `Optional<String>` does not
+///  bridge to Foundation type, the array which elemets are of `Optional<String>`
+///  type does bridge. `.some(String)` values are bridges as `NSString` and `nil`
+///  values are bridged as `NSNull`. Therefore `moreColors` could be bridged
+///  to `NSArray` as well. Because `write(to:)` method throws exception if it
+///  encounters `NSNull` values, `do catch` should be used to check if write
+///  succeeded.
 ///
 ///     let colors = ["periwinkle", "rose", "moss"]
-///     let moreColors: [String?] = ["ochre", "pine"]
+///     let moreColors: [String?] = ["ochre", "pine", nil, "aquamarine"]
 ///
 ///     let url = URL(fileURLWithPath: "names.plist")
-///     (colors as NSArray).write(to: url, atomically: true)
-///     // true
+///     do {
+///         try (colors as NSArray).write(to: url)
+///     } catch {
+///         print("Writing failed with error", error)
+///     }
 ///
-///     (moreColors as NSArray).write(to: url, atomically: true)
-///     // error: cannot convert value of type '[String?]' to type 'NSArray'
+///     do {
+///         try (moreColors as NSArray).write(to: url)
+///     } catch {
+///         print("Writing failed with error", error)
+///     }
+///     // prints "Writing failed with error nilError"
 ///
 /// Bridging from `Array` to `NSArray` takes O(1) time and O(1) space if the
 /// array's elements are already instances of a class or an `@objc` protocol;
