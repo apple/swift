@@ -301,6 +301,49 @@ static EnumDecl *validateCodingKeysType(const DerivedConformance &derived,
   return codingKeysDecl;
 }
 
+/// WARNING: Copied from CSSimplify.cpp
+///
+/// Produce a score (smaller is better) comparing a parameter name and
+/// potentially-typo'd argument name.
+///
+/// \param paramName The name of the parameter.
+/// \param argName The name of the argument.
+/// \param maxScore The maximum score permitted by this comparison, or
+/// 0 if there is no limit.
+///
+/// \returns the score, if it is good enough to even consider this a match.
+/// Otherwise, an empty optional.
+///
+static Optional<unsigned> scoreParamAndArgNameTypo(StringRef paramName,
+                                                   StringRef argName,
+                                                   unsigned maxScore) {
+  using namespace camel_case;
+
+  // Compute the edit distance.
+  unsigned dist = argName.edit_distance(paramName, /*AllowReplacements=*/true,
+                                        /*MaxEditDistance=*/maxScore);
+
+  // If the edit distance would be too long, we're done.
+  if (maxScore != 0 && dist > maxScore)
+    return None;
+
+  // The distance can be zero due to the "with" transformation above.
+  if (dist == 0)
+    return 1;
+
+  // If this is just a single character label on both sides,
+  // simply return distance.
+  if (paramName.size() == 1 && argName.size() == 1)
+    return dist;
+
+  // Only allow about one typo for every two properly-typed characters, which
+  // prevents completely-wacky suggestions in many cases.
+  if (dist > (argName.size() + 1) / 3)
+    return None;
+
+  return dist;
+}
+
 /// Validates the given CodingKeys enum decl by ensuring its cases are a 1-to-1
 /// match with the given VarDecls.
 ///
@@ -322,15 +365,11 @@ static bool validateCodingKeysEnum(const DerivedConformance &derived,
   // If there are any vars left in the type which don't have a default value
   // (for Decodable), then this decl doesn't match.
   bool varDeclsAreValid = true;
+  auto extraKeys = llvm::SmallVector<EnumElementDecl *, 4>();
   for (auto elt : codingKeysDecl->getAllElements()) {
     auto it = varDecls.find(elt->getBaseIdentifier());
     if (it == varDecls.end()) {
-      delayedNotes.push_back([=] {
-        elt->diagnose(diag::codable_extraneous_codingkey_case_here,
-                      elt->getBaseIdentifier());
-      });
-      // TODO: Investigate typo-correction here; perhaps the case name was
-      //       misspelled and we can provide a fix-it.
+      extraKeys.push_back(elt);
       varDeclsAreValid = false;
       continue;
     }
@@ -358,8 +397,32 @@ static bool validateCodingKeysEnum(const DerivedConformance &derived,
     }
   }
 
-  if (!varDeclsAreValid)
+  if (!varDeclsAreValid) {
+    for (auto&& elt : extraKeys) {
+      Optional<Identifier> fixit = None;
+      unsigned bestScore = 0;
+      for (auto&& varDecl : varDecls) {
+        auto score = scoreParamAndArgNameTypo(elt->getBaseIdentifier().str(), varDecl.first.str(), bestScore);
+        if (score.hasValue() && (!fixit.hasValue() || score.getValue() < bestScore)) {
+          fixit = varDecl.first;
+          bestScore = score.getValue();
+        }
+      }
+      if (fixit.hasValue()) {
+        auto suggestion = fixit.getValue();
+        delayedNotes.push_back([=] {
+          elt->diagnose(diag::codable_extraneous_codingkey_case_here,
+                        elt->getBaseIdentifier()).fixItReplace(elt->getSourceRange(), suggestion.str());
+        });
+      } else {
+        delayedNotes.push_back([=] {
+          elt->diagnose(diag::codable_extraneous_codingkey_case_here,
+                        elt->getBaseIdentifier());
+        });
+      }
+    }
     return false;
+  }
 
   // If there are any remaining var decls which the CodingKeys did not cover,
   // we can skip them on encode. On decode, though, we can only skip them if
