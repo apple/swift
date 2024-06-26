@@ -89,15 +89,6 @@ static bool canonicalizeInputFunction(Function &F, ARCEntryPointBuilder &B,
       Instruction &Inst = *I++;
 
       switch (classifyInstruction(Inst)) {
-      // These instructions should not reach here based on the pass ordering.
-      // i.e. LLVMARCOpt -> LLVMContractOpt.
-      case RT_RetainN:
-      case RT_UnknownObjectRetainN:
-      case RT_BridgeRetainN:
-      case RT_ReleaseN:
-      case RT_UnknownObjectReleaseN:
-      case RT_BridgeReleaseN:
-        llvm_unreachable("These are only created by LLVMARCContract !");
       case RT_Unknown:
       case RT_BridgeRelease:
       case RT_AllocObject:
@@ -124,6 +115,7 @@ static bool canonicalizeInputFunction(Function &F, ARCEntryPointBuilder &B,
           Changed = true;
         }
         // Rewrite unknown retains into swift_retains.
+        // FIXME: Also rewrite unknownObjectRetainN calls.
         NativeRefs.insert(ArgVal);
         for (auto &X : UnknownObjectRetains[ArgVal]) {
           B.setInsertPoint(X);
@@ -212,6 +204,9 @@ static bool canonicalizeInputFunction(Function &F, ARCEntryPointBuilder &B,
         }
         break;
       }
+      case RT_ReleaseN:
+      case RT_UnknownObjectReleaseN:
+      case RT_BridgeReleaseN:
       case RT_ObjCRelease: {
         CallInst &CI = cast<CallInst>(Inst);
         Value *ArgVal = RC.getSwiftRCIdentityRoot(CI.getArgOperand(0));
@@ -222,6 +217,29 @@ static bool canonicalizeInputFunction(Function &F, ARCEntryPointBuilder &B,
           ++NumNoopDeleted;
           continue;
         }
+        break;
+      }
+
+      case RT_RetainN:
+      case RT_UnknownObjectRetainN:
+      case RT_BridgeRetainN: {
+        CallInst &CI = cast<CallInst>(Inst);
+        Value *ArgVal = RC.getSwiftRCIdentityRoot(CI.getArgOperand(0));
+        // retain(null) is a no-op.
+        if (isa<ConstantPointerNull>(ArgVal)) {
+          CI.eraseFromParent();
+          Changed = true;
+          ++NumNoopDeleted;
+          continue;
+        }
+        // Canonicalize the retain so that nothing uses its result.
+        if (!CI.use_empty()) {
+          // Do not get RC identical value here, could end up with a
+          // crash in replaceAllUsesWith as the type maybe different.
+          CI.replaceAllUsesWith(CI.getArgOperand(0));
+          Changed = true;
+        }
+        // FIXME: Support canonicalizing UnknownObjectRetainN to RetainN.
         break;
       }
 
@@ -286,15 +304,6 @@ static bool performLocalReleaseMotion(CallInst &Release, BasicBlock &BB,
     }
 
     switch (classifyInstruction(*BBI)) {
-    // These instructions should not reach here based on the pass ordering.
-    // i.e. LLVMARCOpt -> LLVMContractOpt.
-    case RT_UnknownObjectRetainN:
-    case RT_BridgeRetainN:
-    case RT_RetainN:
-    case RT_UnknownObjectReleaseN:
-    case RT_BridgeReleaseN:
-    case RT_ReleaseN:
-        llvm_unreachable("These are only created by LLVMARCContract !");
     case RT_NoMemoryAccessed:
       // Skip over random instructions that don't touch memory.  They don't need
       // protection by retain/release.
@@ -308,9 +317,6 @@ static bool performLocalReleaseMotion(CallInst &Release, BasicBlock &BB,
       // However, if we get to a release of obviously the same object, we stop
       // scanning here because it should have already be moved as early as
       // possible, so there is no reason to move its friend to the same place.
-      //
-      // NOTE: If this occurs frequently, maybe we can have a release(Obj, N)
-      // API to drop multiple retain counts at once.
       CallInst &ThisRelease = cast<CallInst>(*BBI);
       Value *ThisReleasedObject = ThisRelease.getArgOperand(0);
       ThisReleasedObject = RC.getSwiftRCIdentityRoot(ThisReleasedObject);
@@ -321,6 +327,14 @@ static bool performLocalReleaseMotion(CallInst &Release, BasicBlock &BB,
       }
       continue;
     }
+
+    case RT_ReleaseN:
+    case RT_UnknownObjectReleaseN:
+    case RT_BridgeReleaseN:
+      // These are sometimes explicitly called by user code. These aren't
+      // getting moved around, but it is safe to allow the current release to
+      // jump over them, even if they have the same target.
+      continue;
 
     case RT_UnknownObjectRetain:
     case RT_BridgeRetain:
@@ -354,6 +368,15 @@ static bool performLocalReleaseMotion(CallInst &Release, BasicBlock &BB,
      ++BBI;
       goto OutOfLoop;
     }
+
+    case RT_RetainN:
+    case RT_UnknownObjectRetainN:
+    case RT_BridgeRetainN:
+      // These are sometimes explicitly called by user code. Whether or not we
+      // can prove that they have the same object, we cannot move the release
+      // past them.
+      ++BBI;
+      goto OutOfLoop;
 
     case RT_AllocObject: {   // %obj = swift_alloc(...)
       CallInst &Allocation = cast<CallInst>(*BBI);
@@ -436,15 +459,6 @@ static bool performLocalRetainMotion(CallInst &Retain, BasicBlock &BB,
     // can be skipped and is interesting, and a "continue" when it is a retain
     // of the same pointer.
     switch (classifyInstruction(CurInst)) {
-    // These instructions should not reach here based on the pass ordering.
-    // i.e. LLVMARCOpt -> LLVMContractOpt.
-    case RT_RetainN:
-    case RT_UnknownObjectRetainN:
-    case RT_BridgeRetainN:
-    case RT_ReleaseN:
-    case RT_UnknownObjectReleaseN:
-    case RT_BridgeReleaseN:
-        llvm_unreachable("These are only created by LLVMARCContract !");
     case RT_NoMemoryAccessed:
     case RT_AllocObject:
     case RT_CheckUnowned:
@@ -470,6 +484,12 @@ static bool performLocalRetainMotion(CallInst &Retain, BasicBlock &BB,
       continue;
     }
 
+    case RT_RetainN:
+    case RT_UnknownObjectRetainN:
+    case RT_BridgeRetainN:
+      // These are sometimes explicitly called by user code. Allow retains
+      // to push through them.
+      break;
 
     case RT_UnknownObjectRelease:
     case RT_BridgeRelease:
@@ -496,6 +516,13 @@ static bool performLocalRetainMotion(CallInst &Retain, BasicBlock &BB,
       // Retain.dump(); ThisRelease.dump(); BB.getParent()->dump();
       goto OutOfLoop;
     }
+
+    case RT_ReleaseN:
+    case RT_UnknownObjectReleaseN:
+    case RT_BridgeReleaseN:
+      // These are sometimes explicitly called by user code. Do not push retains
+      // over them.
+      goto OutOfLoop;
 
     case RT_Unknown:
       // Loads cannot affect the retain.
@@ -590,15 +617,6 @@ static DtorKind analyzeDestructor(Value *P) {
     for (Instruction &I : BB) {
       // Note that the destructor may not be in any particular canonical form.
       switch (classifyInstruction(I)) {
-      // These instructions should not reach here based on the pass ordering.
-      // i.e. LLVMARCOpt -> LLVMContractOpt.
-      case RT_RetainN:
-      case RT_UnknownObjectRetainN:
-      case RT_BridgeRetainN:
-      case RT_ReleaseN:
-      case RT_UnknownObjectReleaseN:
-      case RT_BridgeReleaseN:
-        llvm_unreachable("These are only created by LLVMARCContract !");
       case RT_NoMemoryAccessed:
       case RT_AllocObject:
       case RT_FixLifetime:
@@ -609,7 +627,8 @@ static DtorKind analyzeDestructor(Value *P) {
 
       case RT_RetainUnowned:
       case RT_BridgeRetain:          // x = swift_bridgeRetain(y)
-      case RT_Retain: {      // swift_retain(obj)
+      case RT_Retain:       // swift_retain(obj)
+      case RT_RetainN: {
 
         // Ignore retains of the "self" object, no resurrection is possible.
         Value *ThisRetainedObject = cast<CallInst>(I).getArgOperand(0);
@@ -620,7 +639,8 @@ static DtorKind analyzeDestructor(Value *P) {
         break;
       }
 
-      case RT_Release: {
+      case RT_Release:
+      case RT_ReleaseN: {
         // If we get to a release that is provably to this object, then we can
         // ignore it.
         Value *ThisReleasedObject = cast<CallInst>(I).getArgOperand(0);
@@ -636,7 +656,11 @@ static DtorKind analyzeDestructor(Value *P) {
       case RT_ObjCRetain:
       case RT_UnknownObjectRetain:
       case RT_UnknownObjectRelease:
+      case RT_UnknownObjectRetainN:
+      case RT_UnknownObjectReleaseN:
       case RT_BridgeRelease:
+      case RT_BridgeRetainN:
+      case RT_BridgeReleaseN:
         // Objective-C retain and release can have arbitrary side effects.
         break;
 
@@ -706,15 +730,6 @@ static bool performStoreOnlyObjectElimination(CallInst &Allocation,
 
     // Okay, this is the first time we've seen this instruction, proceed.
     switch (classifyInstruction(*I)) {
-    // These instructions should not reach here based on the pass ordering.
-    // i.e. LLVMARCOpt -> LLVMContractOpt.
-    case RT_RetainN:
-    case RT_UnknownObjectRetainN:
-    case RT_BridgeRetainN:
-    case RT_ReleaseN:
-    case RT_UnknownObjectReleaseN:
-    case RT_BridgeReleaseN:
-      llvm_unreachable("These are only created by LLVMARCContract !");
     case RT_AllocObject:
       // If this is a different swift_allocObject than we started with, then
       // there is some computation feeding into a size or alignment computation
@@ -734,6 +749,8 @@ static bool performStoreOnlyObjectElimination(CallInst &Allocation,
 
     case RT_Release:
     case RT_Retain:
+    case RT_RetainN:
+    case RT_ReleaseN:
     case RT_FixLifetime:
     case RT_EndBorrow:
     case RT_CheckUnowned:
@@ -748,8 +765,12 @@ static bool performStoreOnlyObjectElimination(CallInst &Allocation,
     case RT_ObjCRetain:
     case RT_UnknownObjectRetain:
     case RT_UnknownObjectRelease:
+    case RT_UnknownObjectRetainN:
+    case RT_UnknownObjectReleaseN:
     case RT_BridgeRetain:
     case RT_BridgeRelease:
+    case RT_BridgeRetainN:
+    case RT_BridgeReleaseN:
     case RT_RetainUnowned:
 
       // Otherwise, this really is some unhandled instruction.  Bail out.
