@@ -930,6 +930,13 @@ function(add_swift_host_tool executable)
   endif()
 
   add_executable(${executable} ${ASHT_UNPARSED_ARGUMENTS})
+  if(NOT ${ASHT_SWIFT_COMPONENT} STREQUAL "no_component")
+    swift_is_installing_component("${ASHT_SWIFT_COMPONENT}" is_installing)
+    if(NOT ${is_installing})
+      set_property(TARGET ${executable}
+        PROPERTY EXCLUDE_FROM_ALL TRUE)
+    endif()
+  endif()
   _add_host_variant_c_compile_flags(${executable})
   _add_host_variant_link_flags(${executable})
   _add_host_variant_c_compile_link_flags(${executable})
