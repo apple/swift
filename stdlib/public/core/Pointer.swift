@@ -509,6 +509,15 @@ public // COMPILER_INTRINSIC
 func _convertConstStringToUTF8PointerArgument<
   ToPointer: _Pointer
 >(_ str: String) -> (AnyObject?, ToPointer) {
+  let stringObject = str._guts._object
+  if stringObject.isImmortal && stringObject.isLarge {
+    //large constant strings should already be terminated
+    _debugPrecondition(stringObject.fastUTF8.last! == 0)
+    return (
+      stringObject.owner,
+      ToPointer(OpaquePointer(UnsafeRawPointer(stringObject.fastUTF8.baseAddress.unsafelyUnwrapped)))
+    )
+  }
   let utf8 = Array(str.utf8CString)
   return _convertConstArrayToPointerArgument(utf8)
 }
