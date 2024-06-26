@@ -1,0 +1,22 @@
+# This file specifies filename patterns that are used by the pull request
+# testing infrastructure to determine if it is safe to skip building and
+# testing against a given change in this repository.
+#
+# A change is considered safe only if it is exclusive to files that match
+# a pattern in this file. However, changes to this file are not considered
+# safe.
+#
+# Lines starting with '#' are comments. Otherwise, each line is a single
+# case-sensitive filename pattern. The '*' and '?' Unix shell-style
+# wildcards are supported. Note that either wildcard will match a period.
+
+*.md
+.Brewfile
+.clang-format
+.dir-locals.el
+.gitattributes
+.github
+.mailmap
+CODE_OWNERS.TXT
+LICENSE.txt
+docs
