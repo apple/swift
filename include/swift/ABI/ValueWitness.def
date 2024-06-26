@@ -122,14 +122,14 @@ FUNCTION_VALUE_WITNESS(destroy,
                        VOID_TYPE,
                        (MUTABLE_VALUE_TYPE, TYPE_TYPE))
 
-///   T *(*initializeWithCopy)(T *dest, T *src, M *self);
+///   T *(*initializeWithCopy)(T *dest, const T *src, M *self);
 ///
 /// Given an invalid object of this type, initialize it as a copy of
 /// the source object.  Returns the dest object.
 FUNCTION_VALUE_WITNESS(initializeWithCopy,
                        InitializeWithCopy,
                        MUTABLE_VALUE_TYPE,
-                       (MUTABLE_VALUE_TYPE, MUTABLE_VALUE_TYPE, TYPE_TYPE))
+                       (MUTABLE_VALUE_TYPE, IMMUTABLE_VALUE_TYPE, TYPE_TYPE))
 
 ///   T *(*assignWithCopy)(T *dest, T *src, M *self);
 ///

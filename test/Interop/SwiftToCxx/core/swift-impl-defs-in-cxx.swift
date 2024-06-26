@@ -31,7 +31,7 @@
 // CHECK-EMPTY:
 // CHECK-NEXT: using ValueWitnessInitializeBufferWithCopyOfBufferTy = void * _Nonnull(* __ptrauth_swift_value_witness_function_pointer(55882))(void * _Nonnull, void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
 // CHECK-NEXT: using ValueWitnessDestroyTy = void(* __ptrauth_swift_value_witness_function_pointer(1272))(void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
-// CHECK-NEXT: using ValueWitnessInitializeWithCopyTy = void * _Nonnull(* __ptrauth_swift_value_witness_function_pointer(58298))(void * _Nonnull, void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
+// CHECK-NEXT: using ValueWitnessInitializeWithCopyTy = void * _Nonnull(* __ptrauth_swift_value_witness_function_pointer(58298))(void * _Nonnull, const void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
 // CHECK-NEXT: using ValueWitnessAssignWithCopyTy = void * _Nonnull(* __ptrauth_swift_value_witness_function_pointer(34641))(void * _Nonnull, void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
 // CHECK-NEXT: using ValueWitnessInitializeWithTakeTy = void * _Nonnull(* __ptrauth_swift_value_witness_function_pointer(18648))(void * _Nonnull, void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
 // CHECK-NEXT: using ValueWitnessAssignWithTakeTy = void * _Nonnull(* __ptrauth_swift_value_witness_function_pointer(61402))(void * _Nonnull, void * _Nonnull, void * _Nonnull) SWIFT_NOEXCEPT_FUNCTION_PTR;
