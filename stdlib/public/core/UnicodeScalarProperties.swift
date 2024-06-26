@@ -19,10 +19,12 @@ extension Unicode.Scalar {
 
   /// A value that provides access to properties of a Unicode scalar that are
   /// defined by the Unicode standard.
+  @frozen
   public struct Properties: Sendable {
     @usableFromInline
     internal var _scalar: Unicode.Scalar
 
+    @inlinable
     internal init(_ scalar: Unicode.Scalar) {
       self._scalar = scalar
     }
@@ -39,6 +41,7 @@ extension Unicode.Scalar {
   ///         $0.properties.isMath
   ///     })
   ///     // hasMathSymbols == true
+  @inlinable
   public var properties: Properties {
     return Properties(self)
   }
