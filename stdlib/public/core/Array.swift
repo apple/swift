@@ -2040,3 +2040,35 @@ internal struct _ArrayAnyHashableBox<Element: Hashable>
 }
 
 extension Array: @unchecked Sendable where Element: Sendable { }
+
+extension Array where Element = Int8 {
+  @_alwaysEmitIntoClient
+  public func _customIndexOfEquatableElement(_ element: Int8) -> Index?? {
+    return withUnsafeBufferPointer { buffer in
+      return buffer._customIndexOfEquatableElement(element)
+    }
+  }
+
+  @_alwaysEmitIntoClient
+  public func _customLastIndexOfEquatableElement(_ element: Int8) -> Index?? {
+    return withUnsafeBufferPointer { buffer in
+      return buffer._customLastIndexOfEquatableElement(element)
+    }
+  }
+}
+
+extension Array where Element = UInt8 {
+  @_alwaysEmitIntoClient
+  public func _customIndexOfEquatableElement(_ element: UInt8) -> Index?? {
+    return withUnsafeBufferPointer { buffer in
+      return buffer._customIndexOfEquatableElement(element)
+    }
+  }
+
+  @_alwaysEmitIntoClient
+  public func _customLastIndexOfEquatableElement(_ element: UInt8) -> Index?? {
+    return withUnsafeBufferPointer { buffer in
+      return buffer._customLastIndexOfEquatableElement(element)
+    }
+  }
+}
