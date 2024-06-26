@@ -768,6 +768,8 @@ def create_argument_parser():
            help='verify that sourcekit-lsp Source code is formatted correctly')
     option('--install-swiftsyntax', toggle_true('install_swiftsyntax'),
            help='install SwiftSyntax')
+    option('--install-swift-compatibility-libs', toggle_true('install_swift_compatibility_libs'),
+           help='install swift-compatibility-libs')
     option('--swiftsyntax-verify-generated-files',
            toggle_true('swiftsyntax_verify_generated_files'),
            help='set to verify that the generated files in the source tree ' +
@@ -802,6 +804,9 @@ def create_argument_parser():
            toggle_true('build_swift_inspect'),
            help='build SwiftInspect using swiftpm against the just built '
                 'toolchain')
+    option(['--swift-compatibility-libs'],
+           toggle_true('build_swift_compatibility_libraries'),
+           help='build swift-compatibility-libs')
     option(['--build-minimal-stdlib'], toggle_true('build_minimalstdlib'),
            help='build the \'minimal\' freestanding stdlib variant into a '
                 'separate build directory ')

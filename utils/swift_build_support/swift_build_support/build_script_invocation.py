@@ -691,6 +691,8 @@ class BuildScriptInvocation(object):
                             is_enabled=self.args.build_sourcekitlsp)
         builder.add_product(products.Benchmarks,
                             is_enabled=self.args.build_toolchainbenchmarks)
+        builder.add_product(products.SwiftCompatibilityLibs,
+                            is_enabled=self.args.build_swift_compatibility_libraries)
         builder.add_product(products.SwiftInspect,
                             is_enabled=self.args.build_swift_inspect)
         builder.add_product(products.TSanLibDispatch,
