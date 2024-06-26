@@ -9288,6 +9288,32 @@ Parser::parseDeclEnumCase(ParseDeclOptions Flags,
         diagnose(CaseLoc, diag::expected_identifier_in_decl, "enum 'case'");
       }
     }
+    
+    // See if there are generic params.
+    auto genericResults = maybeParseGenericParams()
+      .getPtrOrNull();
+    auto enumDecl = dyn_cast<EnumDecl>(CurDeclContext);
+    if (genericResults && !genericResults->getParams().empty() && enumDecl) {
+      auto genericParamDecl = genericResults->getParams().front();
+      
+      std::string fixStr;
+      llvm::raw_string_ostream OS(fixStr);
+      genericResults->print(OS);
+      
+      // Check if enum is already generic.
+      auto enumGenericParams = enumDecl->getGenericParams();
+      if (enumGenericParams && !enumGenericParams->getParams().empty()) {
+        diagnose(genericParamDecl->getStartLoc(), diag::generic_param_cant_be_used_in_enum_case_decl)
+          .fixItRemove(genericResults->getSourceRange())
+          .fixItReplace(enumGenericParams->getSourceRange(), fixStr);
+      } else {
+        SourceLoc insertLoc = enumDecl->getNameLoc()
+          .getAdvancedLoc(enumDecl->getName().getLength());
+        diagnose(genericParamDecl->getStartLoc(), diag::generic_param_cant_be_used_in_enum_case_decl)
+          .fixItRemove(genericResults->getSourceRange())
+          .fixItInsert(insertLoc, fixStr);
+      }
+    }
 
     // See if there's a following argument type.
     ParserResult<ParameterList> ArgParams;

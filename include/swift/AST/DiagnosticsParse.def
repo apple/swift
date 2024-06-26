@@ -219,6 +219,8 @@ ERROR(number_cant_start_decl_name,none,
       (StringRef))
 ERROR(expected_identifier_after_case_comma, PointsToFirstBadToken,
       "expected identifier after comma in enum 'case' declaration", ())
+ERROR(generic_param_cant_be_used_in_enum_case_decl, PointsToFirstBadToken,
+      "generic signature cannot be declared in enum 'case'. did you mean to attach it to enum declaration?", ())
 ERROR(let_cannot_be_computed_property,none,
       "'let' declarations cannot be computed properties", ())
 ERROR(let_cannot_be_observing_property,none,
