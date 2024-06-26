@@ -768,6 +768,73 @@ extension Optional where Wrapped: ~Copyable {
   }
 }
 
+internal protocol _OptionalAnyHashableProtocol: _AnyHashableBox {
+  var _isNil: Bool { get }
+}
+
+internal struct _OptionalAnyHashableBox<Wrapped: Hashable>
+  : _OptionalAnyHashableProtocol {
+  internal let _value: Wrapped?
+
+  internal init(_ value: Wrapped?) {
+    self._value = value
+  }
+
+  internal var _isNil: Bool { return _value == nil }
+
+  internal var _canonicalBox: _AnyHashableBox {
+    if let value = _value {
+      return (value as AnyHashable)._box
+    }
+    return self
+  }
+
+  internal func _isEqual(to box: _AnyHashableBox) -> Bool? {
+    _sanityCheck(_value == nil, "self isn't canonical")
+    if let box = box as? _OptionalAnyHashableProtocol, box._isNil {
+      // nil values of should all be equal under AnyHashable, no matter the
+      // wrapped type
+      return true
+    }
+    return nil
+  }
+
+  internal var _hashValue: Int {
+    _sanityCheck(_value == nil, "self isn't canonical")
+    return Optional<AnyHashable>.none.hashValue
+  }
+
+  internal func _hash(into hasher: inout Hasher) {
+    _sanityCheck(_value == nil, "self isn't canonical")
+  }
+
+  internal func _rawHashValue(_seed: Int) -> Int {
+    _sanityCheck(_value == nil, "self isn't canonical")
+    return Hasher._hash(seed: _seed, bytes: 0, count: 0)
+  }
+
+  internal var _base: Any { return _value as Any }
+
+  internal func _unbox<T: Hashable>() -> T? {
+    return _value as? T
+  }
+
+  internal func _downCastConditional<T>(
+    into result: UnsafeMutablePointer<T>
+  ) -> Bool {
+    guard let value = _value as? T else { return false }
+    result.initialize(to: value)
+    return true
+  }
+}
+
+extension Optional: _HasCustomAnyHashableRepresentation
+where Wrapped: Hashable {
+  public __consuming func _toCustomAnyHashable() -> AnyHashable? {
+    return AnyHashable(_box: _OptionalAnyHashableBox(self))
+  }
+}
+
 /// Performs a nil-coalescing operation, returning the wrapped value of an
 /// `Optional` instance or a default value.
 ///
