@@ -51,7 +51,7 @@ def main():
     if not os.path.isdir(bin_dir):
         os.makedirs(bin_dir)
 
-    swiftbuild_path = os.path.join(args.toolchain, "usr", "bin", "swift-build")
+    swiftbuild_path = os.path.join(args.toolchain, "bin", "swift-build")
     perform_build(args, swiftbuild_path, "debug", "Benchmark_Onone", "-Onone")
     perform_build(args, swiftbuild_path, "release", "Benchmark_Osize", "-Osize")
     perform_build(args, swiftbuild_path, "release", "Benchmark_O", "-O")

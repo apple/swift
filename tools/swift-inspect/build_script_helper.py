@@ -17,11 +17,11 @@ def perform_build(args, swiftbuild_path):
         "-Xswiftc",
         "-I",
         "-Xswiftc",
-        os.path.join(args.toolchain, 'usr', 'include', 'swift'),
+        os.path.join(args.toolchain, 'include', 'swift'),
         "-Xswiftc",
         "-L",
         "-Xswiftc",
-        os.path.join(args.toolchain, 'usr', 'lib', 'swift', 'macosx'),
+        os.path.join(args.toolchain, 'lib', 'swift', 'macosx'),
         "-Xswiftc",
         "-lswiftRemoteMirror"
     ]
@@ -47,7 +47,7 @@ def main():
     if not os.path.isdir(bin_dir):
         os.makedirs(bin_dir)
 
-    swiftbuild_path = os.path.join(args.toolchain, "usr", "bin", "swift-build")
+    swiftbuild_path = os.path.join(args.toolchain, "bin", "swift-build")
     perform_build(args, swiftbuild_path)
 
 
