@@ -223,35 +223,31 @@ int autolink_extract_main(ArrayRef<const char *> Args, const char *Argv0,
   // in most object files
 
   std::vector<std::string> SwiftRuntimeLibsOrdered = {
-      // Common Swift runtime libs
+      "-lFoundationXML",
+      "-lFoundationNetworking",
+      "-lFoundation",
+      "-lswiftDispatch",
+      "-lswiftRegexBuilder",
+      "-lswift_Backtracing",
+      "-lswift_StringProcessing",
+      "-lswift_RegexParser",
+      "-lswift_Concurrency",
+      "-lswiftGlibc",
       "-lswiftSwiftOnoneSupport",
       "-lswiftCore",
-      "-lswift_Concurrency",
-      "-lswift_StringProcessing",
-      "-lswift_RegexBuilder",
-      "-lswift_RegexParser",
-      "-lswift_Backtracing",
-      "-lswiftGlibc",
-      "-lBlocksRuntime",
-      // Dispatch-specific Swift runtime libs
-      "-ldispatch",
-      "-lDispatchStubs",
-      "-lswiftDispatch",
-      // CoreFoundation and Foundation Swift runtime libs
       "-lCoreFoundation",
-      "-lFoundation",
-      "-lFoundationNetworking",
-      "-lFoundationXML",
-      // Foundation support libs
+      "-licui18nswift",
+      "-licuucswift",
+      "-licudataswift",
+      "-ldispatch",
+      "-lBlocksRuntime",
+      "-lDispatchStubs",
       "-lcurl",
       "-lxml2",
       "-luuid",
       // XCTest runtime libs (must be first due to http://github.com/apple/swift-corelibs-xctest/issues/432)
       "-lXCTest",
       // ICU Swift runtime libs
-      "-licui18nswift",
-      "-licuucswift",
-      "-licudataswift",
       // Common-use ordering-agnostic Linux system libs
       "-lm",
       "-lpthread",
