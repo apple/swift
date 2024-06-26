@@ -120,6 +120,15 @@ struct S {
 
 let _ = S().$café // Okay
 
+protocol P {
+  var foo: Int { get set }
+  var $foo: String { get }
+}
+
+struct S2: P {
+  @Wrapper var foo = 1337
+}
+
 // https://github.com/apple/swift/issues/55538
 infix operator $ // expected-error{{'$' is considered an identifier and must not appear within an operator name}}
 infix operator `$` // expected-error{{'$' is considered an identifier and must not appear within an operator name}}
