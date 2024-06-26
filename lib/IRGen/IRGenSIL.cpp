@@ -8122,8 +8122,8 @@ void IRGenSILFunction::visitSuperMethodInst(swift::SuperMethodInst *i) {
   // Non-resilient case.
 
   auto fn =
-      emitVirtualMethodValue(*this, baseValue, baseType, method, methodType,
-                             CurSILFn->getGenericSignature(),
+      emitVirtualMethodValue(*this, baseValue, baseType, method, i->getMember(),
+                             methodType, CurSILFn->getGenericSignature(),
                              /*useSuperVTable*/ true);
 
   setLoweredFunctionPointer(i, fn);
@@ -8187,8 +8187,8 @@ void IRGenSILFunction::visitClassMethodInst(swift::ClassMethodInst *i) {
   // For Swift classes, get the method implementation from the vtable.
   // FIXME: better explosion kind, map as static.
   FunctionPointer fn = emitVirtualMethodValue(
-      *this, baseValue, i->getOperand()->getType(), method, methodType,
-      CurSILFn->getGenericSignature(),
+      *this, baseValue, i->getOperand()->getType(), method, i->getMember(),
+      methodType, CurSILFn->getGenericSignature(),
       /*useSuperVTable*/ false);
 
   setLoweredFunctionPointer(i, fn);

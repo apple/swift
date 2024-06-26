@@ -376,7 +376,12 @@ void IRGenModule::addVTableTypeMetadata(
   for (auto ventry : vtableEntries) {
     auto method = ventry.second;
     auto offset = ventry.first.getValue();
-    var->addTypeMetadata(offset, typeIdForMethod(*this, method));
+    SILDeclRef nextOverride = method;
+    SILDeclRef currentOverride = method;
+    do {
+      var->addTypeMetadata(offset, typeIdForMethod(*this, nextOverride));
+      currentOverride = nextOverride;
+    } while ((nextOverride = currentOverride.getNextOverriddenVTableEntry()));
     minOffset = std::min(minOffset, offset);
     maxOffset = std::max(maxOffset, offset);
   }
@@ -2126,7 +2131,7 @@ namespace {
             // 2nd field of MethodOverrideDescriptorStructTy
             Size(IGM.DataLayout.getTypeAllocSize(IGM.RelativeAddressTy));
         VTableEntriesForVFE.push_back(
-            std::pair<Size, SILDeclRef>(offset, baseRef));
+            std::pair<Size, SILDeclRef>(offset, declRef));
       }
 
       auto descriptor = B.beginStruct(IGM.MethodOverrideDescriptorStructTy);
@@ -4392,7 +4397,13 @@ namespace {
              && "cannot generate metadata with placeholders in it");
     }
 
-    void addMethodOverride(SILDeclRef baseRef, SILDeclRef declRef) {}
+    void addMethodOverride(SILDeclRef baseRef, SILDeclRef declRef) {
+      for (auto &entry : VTableEntriesForVFE) {
+        if (entry.second == baseRef) {
+          entry.second = declRef;
+        }
+      }
+    }
 
     void createMetadataAccessFunction() {
       assert(!Target->isGenericContext());

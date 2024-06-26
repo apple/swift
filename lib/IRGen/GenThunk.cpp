@@ -271,7 +271,7 @@ Callee IRGenThunk::lookupMethod() {
   }
 
   // Find the method we're interested in.
-  auto method = emitVirtualMethodValue(IGF, metadata, declRef, origTy);
+  auto method = emitVirtualMethodValue(IGF, metadata, declRef, declRef, origTy);
 
   return Callee(std::move(info), method, selfValue);
 }
