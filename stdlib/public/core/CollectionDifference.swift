@@ -133,7 +133,7 @@ public struct CollectionDifference<ChangeElement> {
     } else {
       var range = 0...sortedChanges.count
       while range.lowerBound != range.upperBound {
-        let i = (range.lowerBound + range.upperBound) / 2
+        let i = range.lowerBound + (range.upperBound &- range.lowerBound) / 2
         switch sortedChanges[i] {
         case .insert(_, _, _):
           range = range.lowerBound...i
