@@ -4798,9 +4798,6 @@ WARNING(bitcasting_to_change_function_rep, none,
         "'unsafeBitCast' from function type %0 to %1 changes @convention and "
         "is undefined; use an implicit conversion to change conventions",
         (Type, Type))
-WARNING(bitcasting_to_downcast, none,
-        "'unsafeBitCast' from %0 to %1 can be replaced with 'unsafeDowncast'",
-        (Type, Type))
 WARNING(bitcasting_is_no_op, none,
         "'unsafeBitCast' from %0 to %1 is unnecessary and can be removed",
         (Type, Type))

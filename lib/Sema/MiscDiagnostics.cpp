@@ -952,15 +952,6 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
           return;
         }
       }
-      
-      // Unchecked casting to a subclass is better done by unsafeDowncast.
-      if (fromTy->isBindableToSuperclassOf(toTy)) {
-        Ctx.Diags.diagnose(DRE->getLoc(), diag::bitcasting_to_downcast,
-                           fromTy, toTy)
-          .fixItReplace(DRE->getNameLoc().getBaseNameLoc(),
-                        "unsafeDowncast");
-        return;
-      }
 
       // Casting among pointer types should use the Unsafe*Pointer APIs for
       // rebinding typed memory or accessing raw memory instead.
