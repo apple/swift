@@ -658,7 +658,7 @@ also work as a generic type constraint.
 Indicates that a protocol is a marker protocol. Marker protocols represent some
 meaningful property at compile-time but have no runtime representation.
 
-For more details, see [](https://github.com/apple/swift-evolution/blob/main/proposals/0302-concurrent-value-and-concurrent-closures.md#marker-protocols), which introduces marker protocols.
+For more details, see [marker protocols](https://github.com/apple/swift-evolution/blob/main/proposals/0302-concurrent-value-and-concurrent-closures.md#marker-protocols), which introduces marker protocols.
 At the moment, the language only has one marker protocol: `Sendable`.
 
 Fun fact: Rust has a very similar concept called
