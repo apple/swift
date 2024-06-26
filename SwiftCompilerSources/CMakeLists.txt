@@ -131,7 +131,7 @@ function(add_swift_compiler_modules_library name)
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     list(APPEND swift_compile_options "-g")
   else()
-    list(APPEND swift_compile_options "-O" "-cross-module-optimization")
+    list(APPEND swift_compile_options "-O" "-cross-module-optimization" "-Xfrontend" "-sil-verify-all" "-Xllvm" "-sil-combine-canonicalize=false" "-Xllvm" "-sil-disable-pass=SemanticARCOpts" "-Xllvm" "-sil-disable-pass=CopyPropagation")
   endif()
 
   if(LLVM_ENABLE_ASSERTIONS)
