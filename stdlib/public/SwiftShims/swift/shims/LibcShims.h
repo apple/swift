@@ -58,6 +58,13 @@ static inline __swift_size_t _swift_stdlib_strlen_unsigned(const unsigned char *
 }
 
 SWIFT_READONLY
+static inline void * _Nullable _swift_stdlib_memchr(const void *s, int c,
+                                                    __swift_size_t n) {
+  extern void * _Nullable memchr(const void * _Nonnull, int, __swift_size_t);
+  return memchr(s, c, n);
+}
+
+SWIFT_READONLY
 static inline int _swift_stdlib_memcmp(const void *s1, const void *s2,
                                        __swift_size_t n) {
 // FIXME: Is there a way to identify Glibc specifically?

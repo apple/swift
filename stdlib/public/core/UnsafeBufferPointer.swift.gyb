@@ -1416,6 +1416,34 @@ where Element: ~Copyable {
       + "(start: \(_position.map(String.init(describing:)) ?? "nil"), count: \(count))"
   }
 }
+
+extension Unsafe${Mutable}BufferPointer where Element == UInt8 {
+  @_alwaysEmitIntoClient
+  public func _customIndexOfEquatableElement(_ element: UInt8) -> Index?? {
+    return UnsafeRawBufferPointer(start: baseAddress, count: count)
+      ._customIndexOfEquatableElement(element)
+  }
+
+  @_alwaysEmitIntoClient
+  public func _customLastIndexOfEquatableElement(_ element: UInt8) -> Index?? {
+    return UnsafeRawBufferPointer(start: baseAddress, count: count)
+      ._customLastIndexOfEquatableElement(element)
+  }
+}
+
+extension Unsafe${Mutable}BufferPointer where Element == Int8 {
+  @_alwaysEmitIntoClient
+  public func _customIndexOfEquatableElement(_ element: Int8) -> Index?? {
+    return UnsafeRawBufferPointer(start: baseAddress, count: count)
+      ._customIndexOfEquatableElement(UInt8(bitPattern: element))
+  }
+
+  @_alwaysEmitIntoClient
+  public func _customLastIndexOfEquatableElement(_ element: Int8) -> Index?? {
+    return UnsafeRawBufferPointer(start: baseAddress, count: count)
+      ._customLastIndexOfEquatableElement(UInt8(bitPattern: element))
+  }
+}
 %end
 
 // ${'Local Variables'}:

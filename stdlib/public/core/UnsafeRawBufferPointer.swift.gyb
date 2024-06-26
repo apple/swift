@@ -12,6 +12,8 @@
 
 %import gyb
 
+import SwiftShims
+
 % for mutable in (True, False):
 %  Self = 'UnsafeMutableRawBufferPointer' if mutable else 'UnsafeRawBufferPointer'
 %  Mutable = 'Mutable' if mutable else ''
@@ -320,6 +322,58 @@ extension Unsafe${Mutable}RawBufferPointer: ${Mutable}Collection {
       return _assumeNonNegative(_end._unsafelyUnwrappedUnchecked - pos)
     }
     return 0
+  }
+}
+
+extension Unsafe${Mutable}RawBufferPointer {
+  @_alwaysEmitIntoClient
+  public func _customIndexOfEquatableElement(_ element: UInt8) -> Index?? {
+    guard let ptr = baseAddress, let found = _swift_stdlib_memchr(ptr, Int32(element), count) else {
+      return Optional(nil)
+    }
+    return Optional(Index(UnsafeRawPointer(found) - UnsafeRawPointer(ptr)))
+  }
+
+  @_alwaysEmitIntoClient
+  public func _customLastIndexOfEquatableElement(_ element: UInt8) -> Index?? {
+    guard let ptr = baseAddress else { return Optional(nil) }
+
+    var i = endIndex - 1
+
+    if count > 32 {
+      let address = Int(bitPattern: ptr)
+
+      let stride = MemoryLayout<UInt64>.stride
+
+      while (address &+ i + 1) % stride != 0 && i >= startIndex {
+        guard self[i] != element else { return Optional(i) }
+        i &-= 1
+      }
+
+      var mask = UInt64(0)
+      withUnsafeMutableBytes(of: &mask) {
+        _ = $0.initializeMemory(as: UInt8.self, repeating: element)
+      }
+
+      let word7f = UInt64(0x7f7f_7f7f_7f7f_7f7f)
+
+      while true {
+        let index = i &- stride &+ 1
+        guard index >= startIndex else { break }
+        let word = ptr.load(fromByteOffset: index, as: UInt64.self)
+        let input = word ^ mask
+        let tmp = (input & word7f) &+ word7f
+        guard ~(tmp | input | word7f) == 0 else { break }
+        i &-= stride
+      }
+    }
+
+    while i >= startIndex {
+      guard self[i] != element else { return Optional(i) }
+      i &-= 1
+    }
+
+    return Optional(nil)
   }
 }
 
