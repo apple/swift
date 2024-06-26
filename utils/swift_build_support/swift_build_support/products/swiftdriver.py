@@ -56,7 +56,8 @@ class SwiftDriver(product.Product):
                 libdispatch.LibDispatch,
                 foundation.Foundation,
                 xctest.XCTest,
-                llbuild.LLBuild]
+                llbuild.LLBuild,
+                swiftpm.SwiftPM]
 
     def should_clean(self, host_target):
         return self.args.clean_swift_driver
