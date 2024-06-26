@@ -45,6 +45,19 @@ set(CMAKE_C_VISIBILITY_PRESET hidden)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
+macro(dont_target_arm64e_for_products_configured_in_this_folder)
+  # arm64e is not ABI stable and not supported in opensource
+  # This is meant to be used inside the CMakeLists.txt for each backdeployed product
+  # so that the effect are local to those files only
+  # https://cmake.org/cmake/help/latest/manual/cmake-language.7.html#variables
+  # This is defined as a macro on purpose so that the effect applies to the caller,
+  # and not inside the scope of a function
+  list_intersect("${SWIFT_DARWIN_PLATFORMS}" "${SWIFT_SDKS}" building_darwin_sdks)
+  foreach(sdk ${building_darwin_sdks})
+    list(REMOVE_ITEM SWIFT_SDK_${sdk}_ARCHITECTURES "arm64e")
+  endforeach()
+endmacro()
+
 if(SWIFT_STDLIB_SUPPORT_BACK_DEPLOYMENT)
   add_subdirectory(legacy_layouts)
   add_subdirectory(Compatibility50)

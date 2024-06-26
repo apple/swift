@@ -1,6 +1,8 @@
 # This is the counterpart to lib/Threading/CMakeLists.txt.  Any updates
 # need to be reflected in both places.
 
+dont_target_arm64e_for_products_configured_in_this_folder()
+
 add_swift_target_library(swiftCompatibilityThreading OBJECT_LIBRARY
   "${SWIFT_SOURCE_DIR}/lib/Threading/C11.cpp"
   "${SWIFT_SOURCE_DIR}/lib/Threading/Linux.cpp"

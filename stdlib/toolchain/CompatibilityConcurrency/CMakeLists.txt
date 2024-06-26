@@ -1,3 +1,5 @@
+dont_target_arm64e_for_products_configured_in_this_folder()
+
 set(library_name "swiftCompatibilityConcurrency")
 
 add_swift_target_library("${library_name}" STATIC

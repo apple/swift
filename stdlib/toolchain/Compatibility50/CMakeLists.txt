@@ -2,6 +2,8 @@
 # there is no back-deployment to them.
 list(REMOVE_ITEM SWIFT_SDK_WATCHOS_ARCHITECTURES "arm64" "arm64e")
 
+dont_target_arm64e_for_products_configured_in_this_folder()
+
 set(library_name "swiftCompatibility50")
 
 add_swift_target_library("${library_name}" STATIC
