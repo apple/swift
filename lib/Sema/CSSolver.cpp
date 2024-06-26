@@ -1545,16 +1545,21 @@ ConstraintSystem::solve(SyntacticElementTarget &target,
       return std::nullopt;
     }
 
-    case SolutionResult::Ambiguous:
-      // If salvaging produced an ambiguous result, it has already been
-      // diagnosed.
+    case SolutionResult::Ambiguous: {
       // If we have found an ambiguous solution in the first stage, salvaging
       // won't produce more solutions, so we can inform the solution callback
       // about the current ambiguous solutions straight away.
-      if (stage == 1 || Context.SolutionCallback) {
+      if (Context.SolutionCallback) {
         reportSolutionsToSolutionCallback(solution);
         solution.markAsDiagnosed();
         return std::nullopt;
+      }
+
+      // If salvaging produced an ambiguous result, it has already been
+      // diagnosed.
+      if (stage == 1) {
+        solution.markAsDiagnosed();
+        return None;
       }
 
       if (Options.contains(
@@ -1567,7 +1572,25 @@ ConstraintSystem::solve(SyntacticElementTarget &target,
         return std::move(result);
       }
 
+      auto solutionsRef = std::move(solution).takeAmbiguousSolutions();
+      SmallVector<Solution, 4> ambiguity(
+          std::make_move_iterator(solutionsRef.begin()),
+          std::make_move_iterator(solutionsRef.end()));
+
+      {
+        SolverState state(*this, FreeTypeVariableBinding::Disallow);
+
+        // Constraint generator is allowed to introduce fixes to the
+        // contraint system.
+        if (diagnoseAmbiguityWithFixes(ambiguity) ||
+            diagnoseAmbiguity(ambiguity)) {
+          solution.markAsDiagnosed();
+          return None;
+        }
+      }
+
       LLVM_FALLTHROUGH;
+    }
 
     case SolutionResult::UndiagnosedError:
       if (stage == 1) {
@@ -1652,7 +1675,7 @@ bool ConstraintSystem::solve(SmallVectorImpl<Solution> &solutions,
   // Filter deduced solutions, try to figure out if there is
   // a single best solution to use, if not explicitly disabled
   // by constraint system options.
-  filterSolutions(solutions);
+  filterSolutions(solutions, /*minimize=*/true);
 
   // We fail if there is no solution or the expression was too complex.
   return solutions.empty() || isTooComplex(solutions);

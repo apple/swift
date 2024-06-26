@@ -5925,28 +5925,37 @@ bool ConstraintSystem::diagnoseAmbiguity(ArrayRef<Solution> solutions) {
     // FIXME: We would prefer to emit the name as written, but that information
     // is not sufficiently centralized in the AST.
     DeclNameRef name(getOverloadChoiceName(overload.choices));
+
+    // A location to attach ambiguity diagnostic to.
+    SourceLoc diagLoc;
+
+    // Some of the locations do not simplify all the way to anchor,
+    // for example - key path components and dynamic member references
+    // are not represented via ASTNode,
     auto anchor = simplifyLocatorToAnchor(overload.locator);
-    if (!anchor) {
-      // It's not clear that this is actually valid. Just use the overload's
-      // anchor for release builds, but assert so we can properly diagnose
-      // this case if it happens to be hit. Note that the overload will
-      // *always* be anchored, otherwise everything would be broken, ie. this
-      // assertion would be the least of our worries.
-      anchor = overload.locator->getAnchor();
-      assert(false && "locator could not be simplified to anchor");
+    if (anchor) {
+      diagLoc = getLoc(anchor);
+    } else if (auto keyPathComponent = overload.locator->getFirstElementAs<
+                                       LocatorPathElt::KeyPathComponent>()) {
+      auto *KPE = castToExpr<KeyPathExpr>(overload.locator->getAnchor());
+      diagLoc = KPE->getComponents()[keyPathComponent->getIndex()].getLoc();
+    } else {
+      diagLoc = getLoc(overload.locator->getAnchor());
     }
 
     // Emit the ambiguity diagnostic.
     auto &DE = getASTContext().Diags;
-    DE.diagnose(getLoc(anchor),
+    DE.diagnose(diagLoc,
                 name.isOperator() ? diag::ambiguous_operator_ref
                                   : diag::ambiguous_decl_ref,
                 name);
 
-    TrailingClosureAmbiguityFailure failure(solutions, anchor,
-                                            overload.choices);
-    if (failure.diagnoseAsNote())
-      return true;
+    if (anchor) {
+      TrailingClosureAmbiguityFailure failure(solutions, anchor,
+                                              overload.choices);
+      if (failure.diagnoseAsNote())
+        return true;
+    }
 
     // Emit candidates.  Use a SmallPtrSet to make sure only emit a particular
     // candidate once.  FIXME: Why is one candidate getting into the overload
