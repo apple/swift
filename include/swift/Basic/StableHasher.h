@@ -31,6 +31,7 @@
 #include <vector>
 #include <tuple>
 #include <utility>
+#include <iterator>
 
 namespace swift {
 
