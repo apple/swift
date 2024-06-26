@@ -139,6 +139,7 @@ struct MultipleArgsSetter {
 struct __attribute__((swift_attr("import_unsafe"))) NonTrivial {
   int value = 42;
   ~NonTrivial() {}
+  NonTrivial(const NonTrivial &other) : value(other.value) {}
 };
 
 struct PtrGetterSetter {

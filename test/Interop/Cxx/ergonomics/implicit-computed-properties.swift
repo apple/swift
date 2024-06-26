@@ -1,9 +1,6 @@
 // RUN: %target-run-simple-swift(-I %S/Inputs -Xfrontend -enable-experimental-cxx-interop -Xfrontend -cxx-interop-getters-setters-as-properties)
 //
 // REQUIRES: executable_test
-//
-// Crash when running on windows: rdar://88391102
-// XFAIL: OS=windows-msvc
 
 import StdlibUnittest
 import ImplicitComputedProperties
