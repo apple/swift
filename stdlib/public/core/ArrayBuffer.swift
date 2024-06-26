@@ -272,7 +272,10 @@ extension _ArrayBuffer {
           "Fatal error",
           """
           NSArray element failed to match the Swift Array Element type
-          Expected \(Element.self) but found \(type(of: element))
+          Expected \(Element.self) but found \(type(of: element)).
+          If these appear to be the same type, you likely have a duplicate ObjC
+          class. Debug by setting OBJC_DEBUG_DUPLICATE_CLASSES and checking for
+          log messages in STDERR.
           """,
           flags: _fatalErrorFlags()
         )
