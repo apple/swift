@@ -17,11 +17,13 @@
 #include "SwiftToClangInteropContext.h"
 
 #include "swift/AST/ASTContext.h"
+#include "swift/AST/FileUnit.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/Basic/Assertions.h"
 #include "swift/Basic/Version.h"
 #include "swift/ClangImporter/ClangImporter.h"
+#include "swift/ClangImporter/ClangModule.h"
 #include "swift/Frontend/FrontendOptions.h"
 
 #include "clang/Basic/FileManager.h"
@@ -453,6 +455,7 @@ writeImports(raw_ostream &out, llvm::SmallPtrSetImpl<ImportModuleTy> &imports,
   // Track printed names to handle overlay modules.
   llvm::SmallPtrSet<Identifier, 8> seenImports;
   bool includeUnderlying = false;
+  ModuleDecl *underlyingMD = nullptr;
   StringRef importDirective =
       useCxxImport ? "#pragma clang module import" : "@import";
   StringRef importDirectiveLineEnd = useCxxImport ? "\n" : ";\n";
@@ -464,11 +467,20 @@ writeImports(raw_ostream &out, llvm::SmallPtrSetImpl<ImportModuleTy> &imports,
         auto it = exposedModuleHeaderNames.find(swiftModule->getName().str());
         if (it != exposedModuleHeaderNames.end())
           textualIncludes.push_back(it->getValue());
+
+        // Import the underlying clang module in the C++ section if necessary.
+        if (isUnderlyingModule(swiftModule)) {
+          includeUnderlying = true;
+          underlyingMD = swiftModule;
+          continue;
+        }
         continue;
       }
       auto Name = swiftModule->getName();
+      swiftModule->dump();
       if (isUnderlyingModule(swiftModule)) {
         includeUnderlying = true;
+        underlyingMD = swiftModule;
         continue;
       }
       if (seenImports.insert(Name).second) {
@@ -516,10 +528,26 @@ writeImports(raw_ostream &out, llvm::SmallPtrSetImpl<ImportModuleTy> &imports,
   }
 
   if (includeUnderlying) {
-    if (bridgingHeader.empty())
+    if (bridgingHeader.empty()) {
+      if (auto *underlyingClangMod =
+              underlyingMD->findUnderlyingClangModule()) {
+        if (!underlyingClangMod->getTopLevelModule()->IsFramework) {
+          // When including an underlying non-framework module,
+          // import its headers directly in the generated header.
+          requiredTextualIncludes.clear();
+          visitedModules.clear();
+          collectClangModuleHeaderIncludes(
+              underlyingClangMod, fileManager, requiredTextualIncludes,
+              visitedModules, includeDirs, cwd.get());
+          for (auto header : requiredTextualIncludes) {
+            out << "#import <" << header << ">\n";
+          }
+          return;
+        }
+      }
       out << "#import <" << M.getName().str() << '/' << M.getName().str()
           << ".h>\n\n";
-    else
+    } else
       out << "#import \"" << bridgingHeader << "\"\n\n";
   }
 }
