@@ -2489,6 +2489,25 @@ static void addWTableTypeMetadata(IRGenModule &IGM,
   if (minOffset == UINT64_MAX)
     return;
 
+  // Under -enable-llvm-wme cross module calls to witness methods are made via
+  // dispatch thunk in order to co-locate witness table loads with the witness
+  // table they load from in the same LTO unit. However, these dispatch thunks
+  // are emitted in the module defining the protocol, not the module defining
+  // the witness table. If the conforming type and any protocol it conforms to
+  // are in different modules, a dispatch thunk may be emitted into a different
+  // module than the witness table. This defeats the purpose of the thunk at
+  // least partially. Unless the protocol and conforming type are in the same
+  // LTO unit, it is unsafe to perform WME and we should bail.
+  if (conf->getProtocol()->getModuleContext() != IGM.getSwiftModule())
+    return;
+
+  ArrayRef<ProtocolDecl *> transitiveConformances =
+      conf->getProtocol()->getInheritedProtocols();
+  for (const ProtocolDecl *protocol : transitiveConformances) {
+    if (protocol->getModuleContext() != IGM.getSwiftModule())
+      return;
+  }
+
   using VCallVisibility = llvm::GlobalObject::VCallVisibility;
   VCallVisibility vis = VCallVisibility::VCallVisibilityPublic;
   auto linkage = stripExternalFromLinkage(wt->getLinkage());
