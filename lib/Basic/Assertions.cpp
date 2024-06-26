@@ -33,7 +33,7 @@ int CONDITIONAL_ASSERT_Global_enable_flag =
 #ifdef NDEBUG
   0; // Default to `off` in release builds
 #else
-  0; // TODO: Default to `on` in debug builds
+  1; // Default to `on` in debug builds
 #endif
 
 void ASSERT_failure(const char *expr, const char *filename, int line, const char *func) {
@@ -43,8 +43,16 @@ void ASSERT_failure(const char *expr, const char *filename, int line, const char
     llvm::errs() << "Assertion help:  -Xllvm -assert-help\n";
   }
 
+  // Find the last component of `filename`
+  // Needed on Windows MSVC, which lacks __FILE_NAME__
+  // so we have to use __FILE__ instead:
+  for (const char *p = filename; *p != '\0'; p++) {
+    if ((p[0] == '/' || p[0] == '\\')
+       && p[1] != '/' && p[1] != '\\' && p[1] != '\0') {
+      filename = p + 1;
+    }
+  }
 
-  // Format here matches that used by `assert` on macOS:
   llvm::errs()
     << "Assertion failed: "
     << "(" << expr << "), "
