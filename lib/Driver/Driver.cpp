@@ -1368,8 +1368,6 @@ void Driver::buildOutputInfo(const ToolChain &TC, const DerivedArgList &Args,
   {
     if (const Arg *A = Args.getLastArg(options::OPT_sdk)) {
       OI.SDKPath = A->getValue();
-    } else if (const char *SDKROOT = getenv("SDKROOT")) {
-      OI.SDKPath = SDKROOT;
     } else if (OI.CompilerMode == OutputInfo::Mode::Immediate ||
                OI.CompilerMode == OutputInfo::Mode::REPL) {
       if (TC.getTriple().isMacOSX()) {
@@ -1403,6 +1401,8 @@ void Driver::buildOutputInfo(const ToolChain &TC, const DerivedArgList &Args,
           });
         }
       }
+    } else if (const char *SDKROOT = getenv("SDKROOT")) {
+      OI.SDKPath = SDKROOT;
     }
 
     if (!OI.SDKPath.empty()) {
