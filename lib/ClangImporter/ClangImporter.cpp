@@ -3422,53 +3422,22 @@ ClangNode ClangImporter::getEffectiveClangNode(const Decl *decl) const {
 void ClangImporter::lookupTypeDecl(
     StringRef rawName, ClangTypeKind kind,
     llvm::function_ref<void(TypeDecl *)> receiver) {
-  clang::DeclarationName clangName(
-      &Impl.Instance->getASTContext().Idents.get(rawName));
-
-  SmallVector<clang::Sema::LookupNameKind, 1> lookupKinds;
-  switch (kind) {
-  case ClangTypeKind::Typedef:
-    lookupKinds.push_back(clang::Sema::LookupOrdinaryName);
-    break;
-  case ClangTypeKind::Tag:
-    lookupKinds.push_back(clang::Sema::LookupTagName);
-    lookupKinds.push_back(clang::Sema::LookupNamespaceName);
-    break;
-  case ClangTypeKind::ObjCProtocol:
-    lookupKinds.push_back(clang::Sema::LookupObjCProtocolName);
-    break;
-  }
-
-  // Perform name lookup into the global scope.
-  auto &sema = Impl.Instance->getSema();
+  auto &ctx = Impl.SwiftContext;
+  auto name = DeclName(ctx.getIdentifier(rawName));
   bool foundViaClang = false;
-
-  for (auto lookupKind : lookupKinds) {
-    clang::LookupResult lookupResult(sema, clangName, clang::SourceLocation(),
-                                     lookupKind);
-    if (!Impl.DisableSourceImport &&
-        sema.LookupName(lookupResult, /*Scope=*/ sema.TUScope)) {
-      for (auto clangDecl : lookupResult) {
-        if (!isa<clang::TypeDecl>(clangDecl) &&
-            !isa<clang::NamespaceDecl>(clangDecl) &&
-            !isa<clang::ObjCContainerDecl>(clangDecl) &&
-            !isa<clang::ObjCCompatibleAliasDecl>(clangDecl)) {
-          continue;
-        }
-        Decl *imported = Impl.importDecl(clangDecl, Impl.CurrentVersion);
-
-        // Namespaces are imported as extensions for enums.
-        if (auto ext = dyn_cast_or_null<ExtensionDecl>(imported)) {
-          imported = ext->getExtendedNominal();
-        }
-        if (auto *importedType = dyn_cast_or_null<TypeDecl>(imported)) {
-          foundViaClang = true;
-          receiver(importedType);
-        }
-      }
+  auto consumer = makeDeclConsumer(
+      [&foundViaClang, receiver](Decl *found, DeclVisibilityKind) {
+    // Namespaces are imported as extensions for enums.
+    if (auto ext = dyn_cast_or_null<ExtensionDecl>(found)) {
+      found = ext->getExtendedNominal();
     }
-  }
-
+    if (auto *importedType = dyn_cast_or_null<TypeDecl>(found)) {
+      foundViaClang = true;
+      receiver(importedType);
+    }
+  });
+  
+  ctx.getClangModuleLoader()->lookupValue(name, consumer);
   // If Clang couldn't find the type, query the DWARFImporterDelegate.
   if (!foundViaClang)
     Impl.lookupTypeDeclDWARF(rawName, kind, receiver);
