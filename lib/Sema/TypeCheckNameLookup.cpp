@@ -198,14 +198,25 @@ namespace {
         return;
       }
 
-      // FIXME: the "isa<ProtocolDecl>()" check will be wrong for
-      // default implementations in protocols.
-      //
       // If we have an imported conformance or the witness could
       // not be deserialized, getWitnessDecl() will just return
       // the requirement, so just drop the lookup result here.
-      if (witness && !isa<ProtocolDecl>(witness->getDeclContext()))
-        addResult(witness);
+      if (witness) {
+        bool defaultWitness = false;
+        
+        // Check if this decl is a default witness to a protocol's requirement.
+        if (auto ext = dyn_cast<ExtensionDecl>(witness->getDeclContext())) {
+          if (isa<ProtocolDecl>(ext->getExtendedNominal()))
+            defaultWitness = true;
+          // FIXME: unconditionally skipping such decls is probably too naive.
+          // what if we have multiple protocols with similarly named
+          // requirements that are satisfied by default witnesses?
+          // We'd shadow all of them, I think.
+        }
+        
+        if (!defaultWitness && !isa<ProtocolDecl>(witness->getDeclContext()))
+          addResult(witness);
+      }
     }
   };
 } // end anonymous namespace
