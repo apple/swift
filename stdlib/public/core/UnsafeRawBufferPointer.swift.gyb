@@ -1117,6 +1117,12 @@ extension Unsafe${Mutable}RawBufferPointer {
   ///   That is, `Int(bitPattern: self.baseAddress) % MemoryLayout<T>.alignment`
   ///   must equal zero.
   ///
+  /// - Note: The returned buffer references `self.count / MemoryLayout<T>.stride`
+  ///   instances of `T`. If using this function to obtain a typed pointer to a
+  ///   tuple's elements, be aware that the tuple may not include padding for its
+  ///   final element, hence the returned buffer may include fewer elements
+  ///   than expected.
+  ///
   /// - Parameter to: The type `T` that the memory has already been bound to.
   /// - Returns: A typed pointer to the same memory as this raw pointer.
   @_alwaysEmitIntoClient
