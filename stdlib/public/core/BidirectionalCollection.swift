@@ -263,9 +263,7 @@ extension BidirectionalCollection {
     }
     var i = i
     for _ in stride(from: 0, to: distance, by: -1) {
-      if i == limit {
-        return nil
-      }
+      guard i > limit else { return nil }
       formIndex(before: &i)
     }
     return i
@@ -282,13 +280,13 @@ extension BidirectionalCollection {
     var count = 0
 
     if start < end {
-      while start != end {
+      while start < end {
         count += 1
         formIndex(after: &start)
       }
     }
     else if start > end {
-      while start != end {
+      while start > end {
         count -= 1
         formIndex(before: &start)
       }
