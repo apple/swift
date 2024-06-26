@@ -128,6 +128,8 @@ ERROR(sdk_node_unrecognized_decl_kind,none,
       "unrecognized declaration kind '%0' in SDK node", (StringRef))
 ERROR(sdk_node_unrecognized_accessor_kind,none,
       "unrecognized accessor kind '%0' in SDK node", (StringRef))
+NOTE(missing_any,none, "any/some will be required here", ())
+NOTE(used_any,none, "any in use", ())
 
 // Emitted from ModuleDecl::computeFileIDMap()
 WARNING(source_location_creates_file_id_conflicts,none,

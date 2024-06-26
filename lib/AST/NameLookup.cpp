@@ -3584,6 +3584,74 @@ CollectedOpaqueReprs swift::collectOpaqueTypeReprs(TypeRepr *r, ASTContext &ctx,
       if (!Ctx.LangOpts.hasFeature(Feature::ImplicitSome))
         return Action::Continue();
       
+      if (getenv("ImplicitMix")) {
+        if (const char *ep = (const char *)
+            repr->getEndLoc().getOpaquePointerValue()) {
+            const char *save = ep;
+            // skip to end of identifier
+            while (isalnum(*ep) || *ep == '.')
+                ep++;
+            // exlucde system protocols used in conformances
+            if (strncmp(save, "Codeable", ep-save) == 0 ||
+                strncmp(save, "Encoder", ep-save) == 0 ||
+                strncmp(save, "Decoder", ep-save) == 0 ||
+                strncmp(save, "Encodable", ep-save) == 0 ||
+                strncmp(save, "Decodable", ep-save) == 0 ||
+                strncmp(save, "Disposable", ep-save) == 0 ||
+                strncmp(save, "Swift.Error", ep-save) == 0 ||
+                strncmp(save, "Error", ep-save) == 0 ||
+                // exclude meta-types
+                strncmp(ep-9, ".Protocol", 9) == 0 ||
+                strncmp(ep-5, ".Type", 5) == 0)
+                return Action::Continue();
+
+//            fprintf(stderr, "[[%.100s\n", ep-10);
+            if (save[-2] == '&' || // combined with &
+//                save[-2] == ',' || // closures
+//                save[-1] == '(' || // closures
+                *ep == '\n' || // unitialised properties
+                *ep == '>' || // protocols in containers
+                *ep == ']' || // protocols in containers
+                *ep == '?' || // protocols in containers
+                *ep == '<' || // "" w/ associated types
+                *ep++ == ' ' && // exclude initialised
+                (*ep++ == '=' && *ep++ == ' ' || *ep--) &&
+                // with numbers, closures, or combined with &
+                (isdigit(*ep) || *ep == '{' || *ep == '&' || *ep == '/'))
+                return Action::Continue();
+
+            // exclude return types
+            if (strncmp(save-3, "-> ", 3) == 0)
+                return Action::SkipChildren();
+
+            // exlcude methods marked @objc
+            const char *line = save;
+            for (int i=0; i<100; i++, line--)
+                if (*line == '\n')
+                    break;
+            if (strncmp(line-5, "@objc", 5) == 0)
+                return Action::Continue();
+            if (const char *objc = strstr(line, "@objc"))
+                if (objc-line < 10)
+                    return Action::Continue();
+
+//            if (const char *over = strstr(line, "override"))
+//                if (over-line < 10)
+//                    return Action::SkipChildren();
+//            if (const char *over = strstr(line, "init("))
+//                if (over-line < 10)
+//                    return Action::SkipChildren();
+        }
+
+        // exclude all containers
+        if (isa<DictionaryTypeRepr>(repr) ||
+            isa<ArrayTypeRepr>(repr) ||
+            isa<FunctionTypeRepr>(repr) ||
+            isa<OptionalTypeRepr>(repr) ||
+            isa<TupleTypeRepr>(repr))
+          return Action::SkipChildren();
+      }
+
       if (auto existential = dyn_cast<ExistentialTypeRepr>(repr)) {
         return Action::SkipNode();
       } else if (auto composition = dyn_cast<CompositionTypeRepr>(repr)) {

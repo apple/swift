@@ -1270,6 +1270,26 @@ void SILGenModule::postEmitFunction(SILDeclRef constant,
   F->verifyIncompleteOSSA();
 
   emitDifferentiabilityWitnessesForFunction(constant, F);
+    if (!constant.hasDecl()) return;
+    if (auto AF = dyn_cast<AbstractFunctionDecl>(constant.getDecl()))
+      for (auto p : *AF->getParameters()) {
+        if (!p->getStartLoc().isValid()) continue;
+          char const *ty = nullptr;
+          if (auto r = p->getTypeRepr())
+              ty = (char const  *)r->getStartLoc().getOpaquePointerValue();
+        auto bufferID = getASTContext().SourceMgr.findBufferContainingLoc(p->getStartLoc());
+          if (strncmp(F->getASTContext().SourceMgr.getLLVMSourceMgr()
+              .getMemoryBuffer(bufferID)->getBufferIdentifier().str().c_str(), "/Volumes/Data2/some", 19))
+              return;
+          static std::map<const void *,int> anys, nanys;
+          if (ty && p->getType()->getCanonicalType()->isExistentialType() &&
+              !(strncmp(ty, "some ", 5) == 0 || (strncmp(ty, "__owned ", 8) == 0 && (ty += 8) || true) && strncmp(ty, "any ", 4) == 0 && strncmp(ty, "Any", 3) != 0) && !nanys[p->getTypeRepr()->getStartLoc().getOpaquePointerValue()]++)
+              F->getASTContext().Diags.diagnose(p->getTypeRepr()->getStartLoc(), diag::missing_any);
+          if (ty && p->getType()->getCanonicalType()->isExistentialType() &&
+              ((strncmp(ty, "__owned ", 8) == 0 && (ty += 8) || true) && strncmp(ty, "any ", 4) == 0 && strncmp(ty, "Any", 3) != 0) && !anys[p->getTypeRepr()->getStartLoc().getOpaquePointerValue()]++)
+              F->getASTContext().Diags.diagnose(p->getTypeRepr()->getStartLoc(), diag::used_any);
+          fflush(stdout);
+      }
 }
 
 void SILGenModule::emitDifferentiabilityWitnessesForFunction(
