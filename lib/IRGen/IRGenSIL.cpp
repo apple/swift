@@ -2464,9 +2464,12 @@ static void emitDynamicSelfMetadata(IRGenSILFunction &IGF) {
 
   // Specify the exact Self type if we know it, either because the class
   // is final, or because the function we're emitting is a method with the
-  // [exact_self_class] attribute set on it during the SIL pipeline.
-  bool isExact = selfTy->getClassOrBoundGenericClass()->isFinal()
-    || IGF.CurSILFn->isExactSelfClass();
+  // [exact_self_class] attribute set on it during the SIL pipeline. Dynamic
+  // self metadata of a type exposed to ObjC might be changed through
+  // runtime; therefore, it can't be exact.
+  bool isExact = (selfTy->getClassOrBoundGenericClass()->isFinal() &&
+                  !selfTy->getClassOrBoundGenericClass()->isObjC()) ||
+                 IGF.CurSILFn->isExactSelfClass();
 
   IGF.setDynamicSelfMetadata(selfTy, isExact, value, selfKind);
 }
