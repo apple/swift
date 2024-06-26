@@ -4,8 +4,6 @@
 
 // rdar://71319547
 
-// REQUIRES: rdar76127287
-
 import _Differentiation
 
 // Assertion failed: (mainPullbackStruct->getType() == pbStructLoweredType), function run, file swift/lib/SILOptimizer/Differentiation/PullbackCloner.cpp, line 1899.
