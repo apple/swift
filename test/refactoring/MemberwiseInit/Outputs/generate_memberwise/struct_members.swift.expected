@@ -6,8 +6,8 @@ class Person {
   var avgHeight = 175
   let line = #line, file = #file, handle = #dsohandle
   lazy var idea: Idea = { fatalError() }()
-  var location: () -> Place = { fatalError() }
-  var secondLocation: (() -> Place)!
+  var location: () throws -> Place<Int> = { fatalError() }
+  var secondLocation: (() -> Place<Int>)!
   @MyWrapper var wrapped: String = ""
   var computed: String { "hi" }
   var getSet: String {
@@ -19,8 +19,9 @@ class Person {
   }
 }
 
-struct Place {
-internal init(person: Person, street: String, apartment: Optional<String> = nil, city: String, state: String, postalCode: Int, plusFour: Int? = nil, callback: @escaping Place.Callback, wrapped: String, `protocol`: String) {
+struct Place<T: FixedWidthInteger> {
+internal init(number: T, person: Person, street: String, apartment: Optional<String> = nil, city: String, state: String, postalCode: Int, plusFour: Int? = nil, callback: @escaping Place.Callback, wrapped: String, `protocol`: String) {
+self.number = number
 self.person = person
 self.street = street
 self.apartment = apartment
@@ -34,6 +35,7 @@ self.`protocol` = `protocol`
 }
 
   typealias Callback = () -> ()
+  let number: T
   let person: Person
   let street: String
   let apartment: Optional<String>
