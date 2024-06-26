@@ -1,5 +1,6 @@
 // RUN: %target-swift-frontend -module-name objc_retainAutoreleasedReturnValue -import-objc-header %S/Inputs/StaticInline.h %s -emit-ir | %FileCheck %s
-// RUN: %target-swift-frontend -module-name objc_retainAutoreleasedReturnValue -O -import-objc-header %S/Inputs/StaticInline.h %s -emit-ir | %FileCheck %s --check-prefix=OPT
+// RUN: %target-swift-frontend -module-name objc_retainAutoreleasedReturnValue -O -import-objc-header %S/Inputs/StaticInline.h %s -emit-ir -disable-llvm-optzns | %FileCheck %s --check-prefix=OPT
+// RUN: %target-swift-frontend -module-name objc_retainAutoreleasedReturnValue -O -import-objc-header %S/Inputs/StaticInline.h %s -S -disable-llvm-optzns
 
 // REQUIRES: objc_interop
 // REQUIRES: CPU=x86_64
@@ -13,6 +14,13 @@ public func useClosure(_ dict: NSDictionary, _ action : (NSDictionary) -> ()) {
 
 @inline(never)
 public func test(_ dict: NSDictionary) {
+  useClosure(dict, { $0.objectEnumerator()} )
+}
+
+// Test should not crash in isel for optnone mode
+@_optimize(none)
+@inline(never)
+public func testOptNone(_ dict: NSDictionary) {
   useClosure(dict, { $0.objectEnumerator()} )
 }
 
@@ -32,6 +40,6 @@ public func test(_ dict: NSDictionary) {
 
 // OPT-LABEL: define {{.*}}swiftcc void @"$s34objc_retainAutoreleasedReturnValue10useClosureyySo12NSDictionaryC_yADXEtF09$s34objc_bcd16Value4testyySo12H10CFyADXEfU_Tf1nc_n"(ptr %0)
 // OPT: entry:
-// OPT:   call {{.*}}@objc_msgSend
-// OPT:   notail call ptr @llvm.objc.retainAutoreleasedReturnValue
+// OPT:   [[R:%.*]] = call ptr @objc_msgSend({{.*}}) [ "clang.arc.attachedcall"(ptr @llvm.objc.retainAutoreleasedReturnValue) 
+// OPT:   call void (...) @llvm.objc.clang.arc.noop.use(ptr [[R]])
 // OPT:   ret void
