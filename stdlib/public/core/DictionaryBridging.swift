@@ -40,6 +40,12 @@ extension _NativeDictionary { // Bridging
       nsDictionary = __RawDictionaryStorage.empty
     } else if _isBridgedVerbatimToObjectiveC(Key.self),
       _isBridgedVerbatimToObjectiveC(Value.self) {
+      // Set proper metadata for _storage. We need it for the zero-cost
+      // bridge back case.
+      if #available(SwiftStdlib 5.7, *) {
+        _swift_setClassMetadata(_DictionaryStorage<Key, Value>.self,
+                                onObject: _storage)
+      }
       nsDictionary = unsafeDowncast(
         _storage,
         to: _DictionaryStorage<Key, Value>.self)

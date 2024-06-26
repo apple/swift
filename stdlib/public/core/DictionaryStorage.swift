@@ -463,6 +463,17 @@ extension _DictionaryStorage {
   }
 #endif
 
+  @inline(never)
+  static internal func getDictionaryStorageType(
+  ) -> _DictionaryStorage<Key, Value>.Type {
+    if Value.self is AnyObject.Type {
+      return _uncheckedUnsafeBitCast(
+        _DictionaryStorage<Key, AnyObject>.self,
+        to: _DictionaryStorage<Key, Value>.Type.self)
+    }
+    return _DictionaryStorage<Key, Value>.self
+  }
+
   static internal func allocate(
     scale: Int8,
     age: Int32?,
@@ -475,7 +486,7 @@ extension _DictionaryStorage {
     let bucketCount = (1 as Int) &<< scale
     let wordCount = _UnsafeBitset.wordCount(forCapacity: bucketCount)
     let storage = Builtin.allocWithTailElems_3(
-      _DictionaryStorage<Key, Value>.self,
+      getDictionaryStorageType(),
       wordCount._builtinWordValue, _HashTable.Word.self,
       bucketCount._builtinWordValue, Key.self,
       bucketCount._builtinWordValue, Value.self)
