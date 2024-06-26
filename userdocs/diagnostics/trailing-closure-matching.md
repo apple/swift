@@ -16,7 +16,7 @@ animate(withDuration: 0.3) /* `animations:` is unwritten. */ {
 }
 ```
 
-Sometimes, an unlabeled trailing closure argument can be matched to more than one function parameter. Before Swift 5.3, the compiler would use a __backward scanning rule__ to match the unlabeled trailing closure, scanning backwards from the end of the parameter list until finding a parameter that can accept a closure argument (a function type, unconstrained generic type, `Any`, etc.):
+Sometimes, an unlabeled trailing closure argument can be matched to more than one function parameter. Before Swift 5.3, the compiler would use a __backward scanning rule__ to match the unlabeled trailing closure, scanning backward from the end of the parameter list until finding a parameter that can accept a closure argument (a function type, unconstrained generic type, `Any`, etc.):
 
 ```swift
 animate(withDuration: 0.3) {
