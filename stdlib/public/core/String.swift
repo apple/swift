@@ -906,17 +906,17 @@ extension Sequence where Element: StringProtocol {
     result.reserveCapacity(underestimatedCap)
     if separator.isEmpty {
       for x in self {
-        result.append(x._ephemeralString)
+        result.append(contentsOf: x)
       }
       return result
     }
 
     var iter = makeIterator()
     if let first = iter.next() {
-      result.append(first._ephemeralString)
+      result.append(contentsOf: first)
       while let next = iter.next() {
         result.append(separator)
-        result.append(next._ephemeralString)
+        result.append(contentsOf: next)
       }
     }
     return result
@@ -1079,7 +1079,7 @@ extension String: CustomStringConvertible {
   ///
   /// Using this property directly is discouraged. Instead, use simple
   /// assignment to create a new constant or variable equal to this string.
-  @inlinable
+  @inlinable @inline(__always)
   public var description: String { return self }
 }
 

@@ -125,21 +125,20 @@ extension StringProtocol {
   // TODO(String performance): Provide a closure-based call with stack-allocated
   // _SharedString for non-smol Substrings
   //
+  @inlinable
   public // @SPI(NSStringAPI.swift)
   var _ephemeralString: String {
-    @_specialize(where Self == String)
-    @_specialize(where Self == Substring)
-    get { return String(self) }
+    @inline(__always) get { return String(self) }
   }
 
   internal var _gutsSlice: _StringGutsSlice {
     @_specialize(where Self == String)
     @_specialize(where Self == Substring)
     @inline(__always) get {
-      if let str = self as? String {
+      if let str = _specialize(self, for: String.self) {
         return _StringGutsSlice(str._guts)
       }
-      if let subStr = self as? Substring {
+      if let subStr = _specialize(self, for: Substring.self) {
         return _StringGutsSlice(subStr._wholeGuts, subStr._offsetRange)
       }
       return _StringGutsSlice(String(self)._guts)
@@ -162,10 +161,10 @@ extension StringProtocol {
     @_specialize(where Self == String)
     @_specialize(where Self == Substring)
     @inline(__always) get {
-      if let str = self as? String {
+      if let str = _specialize(self, for: String.self) {
         return str._guts
       }
-      if let subStr = self as? Substring {
+      if let subStr = _specialize(self, for: Substring.self) {
         return subStr._wholeGuts
       }
       return String(self)._guts

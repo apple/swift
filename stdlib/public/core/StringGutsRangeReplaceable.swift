@@ -335,14 +335,14 @@ extension _StringGuts {
   ) -> Range<Int>
   where C: Collection, C.Iterator.Element == Character {
     if isUniqueNative {
-      if let repl = newElements as? String {
+      if let repl = _specialize(newElements, for: String.self) {
         if repl._guts.isFastUTF8 {
           return repl._guts.withFastUTF8 {
             uniqueNativeReplaceSubrange(
               bounds, with: $0, isASCII: repl._guts.isASCII)
           }
         }
-      } else if let repl = newElements as? Substring {
+      } else if let repl = _specialize(newElements, for: Substring.self) {
         if repl._wholeGuts.isFastUTF8 {
           return repl._wholeGuts.withFastUTF8(range: repl._offsetRange) {
             uniqueNativeReplaceSubrange(
@@ -378,14 +378,19 @@ extension _StringGuts {
   ) -> Range<Int>
   where C: Collection, C.Iterator.Element == UnicodeScalar {
     if isUniqueNative {
-      if let repl = newElements as? String.UnicodeScalarView {
+      if let repl = _specialize(
+        newElements, for: String.UnicodeScalarView.self
+      ) {
         if repl._guts.isFastUTF8 {
           return repl._guts.withFastUTF8 {
             uniqueNativeReplaceSubrange(
               bounds, with: $0, isASCII: repl._guts.isASCII)
           }
         }
-      } else if let repl = newElements as? Substring.UnicodeScalarView {
+      }
+      else if let repl = _specialize(
+        newElements, for: Substring.UnicodeScalarView.self
+      ) {
         if repl._wholeGuts.isFastUTF8 {
           return repl._wholeGuts.withFastUTF8(range: repl._offsetRange) {
             uniqueNativeReplaceSubrange(

@@ -6232,14 +6232,16 @@ extension Dictionary: Encodable where Key: Encodable, Value: Encodable {
       // Since the keys are already Strings, we can use them as keys directly.
       var container = encoder.container(keyedBy: _DictionaryCodingKey.self)
       for (key, value) in self {
-        let codingKey = _DictionaryCodingKey(stringValue: key as! String)
+        let codingKey = _DictionaryCodingKey(
+          stringValue: _identityCast(key, to: String.self))
         try container.encode(value, forKey: codingKey)
       }
     } else if Key.self == Int.self {
       // Since the keys are already Ints, we can use them as keys directly.
       var container = encoder.container(keyedBy: _DictionaryCodingKey.self)
       for (key, value) in self {
-        let codingKey = _DictionaryCodingKey(intValue: key as! Int)
+        let codingKey = _DictionaryCodingKey(
+          intValue: _identityCast(key, to: Int.self))
         try container.encode(value, forKey: codingKey)
       }
     } else if #available(SwiftStdlib 5.6, *),

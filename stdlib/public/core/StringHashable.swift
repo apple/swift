@@ -30,6 +30,8 @@ extension String: Hashable {
   }
 }
 
+// FIXME: Add an explicit definition for `Substring.hash(into:)`.
+
 extension StringProtocol {
   /// Hashes the essential components of this value by feeding them into the
   /// given hasher.

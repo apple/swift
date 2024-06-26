@@ -316,6 +316,8 @@ extension String {
         String._uncheckedFromUTF8($0)
       }
     }
+    // TODO(String performance): Skip intermediary array, transcode directly
+    // into StringStorage.
     return Array(str.utf8).withUnsafeBufferPointer {
       String._uncheckedFromUTF8($0)
     }

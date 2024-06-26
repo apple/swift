@@ -799,12 +799,10 @@ extension StringProtocol {
 
   public // SPI(Foundation)
   func _toUTF16Offsets(_ indices: Range<Index>) -> Range<Int> {
-    if Self.self == String.self {
-      let s = unsafeBitCast(self, to: String.self)
+    if let s = _specialize(self, for: String.self) {
       return s.utf16._offsetRange(for: indices, from: s.startIndex)
     }
-    if Self.self == Substring.self {
-      let s = unsafeBitCast(self, to: Substring.self)
+    if let s = _specialize(self, for: Substring.self) {
       return s._slice._base.utf16._offsetRange(for: indices, from: s.startIndex)
     }
     let startOffset = _toUTF16Offset(indices.lowerBound)
@@ -814,12 +812,10 @@ extension StringProtocol {
 
   public // SPI(Foundation)
   func _toUTF16Indices(_ range: Range<Int>) -> Range<Index> {
-    if Self.self == String.self {
-      let s = unsafeBitCast(self, to: String.self)
+    if let s = _specialize(self, for: String.self) {
       return s.utf16._indexRange(for: range, from: s.startIndex)
     }
-    if Self.self == Substring.self {
-      let s = unsafeBitCast(self, to: Substring.self)
+    if let s = _specialize(self, for: Substring.self) {
       return s._slice._base.utf16._indexRange(for: range, from: s.startIndex)
     }
     let lowerbound = _toUTF16Index(range.lowerBound)
