@@ -27,7 +27,7 @@ public struct S {
 // expected-error@+8{{expected 'func' keyword in operator function declaration}}
 // expected-error@+7{{operator '/' declared in type 'S' must be 'static'}}
 // expected-error@+6{{expected '(' in argument list of function declaration}}
-// expected-error@+5{{operators must have one or two arguments}}
+// expected-error@+5{{operators must have one or two non-default arguments}}
 // expected-error@+4{{member operator '/()' must have at least one argument of type 'S'}}
 // expected-error@+3{{expected '{' in body of function declaration}}
 // expected-error@+2 {{consecutive declarations on a line must be separated by ';}}

@@ -58,15 +58,32 @@ static bool matchesDeclRefKind(ValueDecl *value, DeclRefKind refKind) {
 
   // A binary-operator reference only honors FuncDecls with a certain type.
   case DeclRefKind::BinaryOperator:
-    return (getNumArgs(value) == 2);
+    if (auto *func = dyn_cast<FuncDecl>(value)) {
+      unsigned nonDefaultParamCount = llvm::count_if(func->getParameters()->getArray(), [](ParamDecl* param) {
+        return !param->isDefaultArgument();
+      });
+      return nonDefaultParamCount == 2;
+    }
+    return ~0U;
 
   case DeclRefKind::PrefixOperator:
-    return (!value->getAttrs().hasAttribute<PostfixAttr>() &&
-            getNumArgs(value) == 1);
+    if (auto *func = dyn_cast<FuncDecl>(value)) {
+      unsigned nonDefaultParamCount = llvm::count_if(func->getParameters()->getArray(), [](ParamDecl* param) {
+        return !param->isDefaultArgument();
+      });
+      return (nonDefaultParamCount == 1 && value->getAttrs().hasAttribute<PrefixAttr>());
+    }
+    return ~0U;
+
 
   case DeclRefKind::PostfixOperator:
-    return (value->getAttrs().hasAttribute<PostfixAttr>() &&
-            getNumArgs(value) == 1);
+    if (auto *func = dyn_cast<FuncDecl>(value)) {
+      unsigned nonDefaultParamCount = llvm::count_if(func->getParameters()->getArray(), [](ParamDecl* param) {
+        return !param->isDefaultArgument();
+      });
+      return (nonDefaultParamCount == 1 && value->getAttrs().hasAttribute<PostfixAttr>());
+    }
+    return ~0U;
   }
   llvm_unreachable("bad declaration reference kind");
 }

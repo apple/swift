@@ -2587,7 +2587,7 @@ bool DisjunctionChoice::isUnaryOperator() const {
     return false;
 
   auto func = cast<FuncDecl>(decl);
-  return func->getParameters()->size() == 1;
+  return func->isUnaryOperator();
 }
 
 void DisjunctionChoice::propagateConversionInfo(ConstraintSystem &cs) const {

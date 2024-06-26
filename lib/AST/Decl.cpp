@@ -10685,18 +10685,41 @@ bool FuncDecl::isUnaryOperator() const {
   if (!isOperator())
     return false;
   
-  auto *params = getParameters();
-  return params->size() == 1 && !params->get(0)->isVariadic();
+  ArrayRef<ParamDecl*> params = getParameters()->getArray();
+
+  // Count the number of non-default parameters
+  unsigned nonDefaultParamCount = llvm::count_if(params, [](ParamDecl* param) {
+    return !param->isDefaultArgument();
+  });
+
+  if (nonDefaultParamCount != 1) return false;
+
+  // Find the non-default parameter
+  auto nonDefaultParam = llvm::find_if(params, [](ParamDecl* param) {
+    return !param->isDefaultArgument();
+  });
+
+  // Check if the non-default parameter is not variadic
+  return !(*nonDefaultParam)->isVariadic();
 }
 
 bool FuncDecl::isBinaryOperator() const {
   if (!isOperator())
     return false;
-  
-  auto *params = getParameters();
-  return params->size() == 2 &&
-    !params->get(0)->isVariadic() &&
-    !params->get(1)->isVariadic();
+
+    ArrayRef<ParamDecl*> params = getParameters()->getArray();
+
+    // Filter out default parameters into a new container
+    std::vector<ParamDecl*> nonDefaultParams;
+    llvm::copy_if(params, std::back_inserter(nonDefaultParams), [](ParamDecl* param) {
+        return !param->isDefaultArgument();
+    });
+
+    // Check if there are exactly 2 non-default parameters and neither is variadic
+    return nonDefaultParams.size() == 2 && 
+           llvm::all_of(nonDefaultParams, [](ParamDecl* param) {
+               return !param->isVariadic();
+           });
 }
 
 SelfAccessKind FuncDecl::getSelfAccessKind() const {

@@ -1245,7 +1245,7 @@ ERROR(unary_op_missing_prepos_attribute,none,
 NOTE(unary_operator_declaration_here,none,
    "%select{prefix|postfix}0 operator found here", (bool))
 ERROR(invalid_arg_count_for_operator,none,
-      "operators must have one or two arguments", ())
+      "operators must have one or two non-default arguments", ())
 ERROR(operator_in_local_scope,none,
       "operator functions can only be declared at global or in type scope", ())
 ERROR(nonstatic_operator_in_nominal,none,
