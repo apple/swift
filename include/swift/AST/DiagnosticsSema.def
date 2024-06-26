@@ -3392,8 +3392,14 @@ ERROR(override_of_non_open,none,
 
 ERROR(method_does_not_override,none,
       "method does not override any method from its %select{parent protocol|superclass}0", (bool))
+NOTE(override_method_in_lieu_of_property,none,
+      "did you mean to override the property %0?", (Identifier))
+
 ERROR(property_does_not_override,none,
       "property does not override any property from its %select{parent protocol|superclass}0", (bool))
+NOTE(override_property_in_lieu_of_method,none,
+      "did you mean to override the method %0?", (Identifier))
+
 ERROR(subscript_does_not_override,none,
       "subscript does not override any subscript from its %select{parent protocol|superclass}0", (bool))
 ERROR(initializer_does_not_override,none,

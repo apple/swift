@@ -2606,6 +2606,27 @@ public:
           } else {
             VD->diagnose(diag::property_does_not_override, isClassContext)
                 .highlight(OA->getLocation());
+            //If the override is a property-decl, check if there exists
+            //a no-args func-decl in the base class, if yes, provide a fix-it.
+            auto declName = VD->getBaseName();
+            auto declType = VD->getResultTypeRepr();
+            auto inherited = DC->getSelfClassDecl()->getInherited();
+            //If there is an inherited context, perform member lookup.
+            if (!inherited.empty()) {
+              auto superClass = inherited.front().getType();
+              auto lookupResult = superClass->getAnyNominal()->lookupDirect(declName);
+              
+              for (auto& candidate : lookupResult) {
+                //If the parameter list is empty, compare the return types
+                //of the candidates with the declaration type.
+                if (getParameterList(candidate)->size() == 0) {
+                  auto candidateReturnType = candidate->getResultTypeRepr();
+                  if (candidateReturnType->getKind() == declType->getKind())
+                    VD->diagnose(diag::override_property_in_lieu_of_method, declName.getIdentifier())
+                        .fixItReplace(VD->Decl::getSourceRangeIncludingAttrs(), "override func " + declName.getIdentifier().str().str() + "() -> " + VD->getInterfaceType()->getRValueType().getString() + " { <#code#> }");
+                }
+              }
+            }
           }
           OA->setInvalid();
         }
@@ -3638,6 +3659,27 @@ public:
           } else {
             FD->diagnose(diag::method_does_not_override, isClassContext)
                 .highlight(OA->getLocation());
+            //If the override is a no-args fun-decl, check if there exists
+            //a no-args var-decl in the base class, if yes, provide a fix-it.
+            if (FD->getParameters()->size() == 0) {
+              auto declName = FD->getBaseName();
+              auto declReturnType = FD->getResultInterfaceType()->getRValueType();
+              auto inherited = DC->getSelfClassDecl()->getInherited();
+              //If there is an inherited context, perform member lookup.
+              if (!inherited.empty()) {
+                auto superClass = inherited.front().getType();
+                auto lookupResult = superClass->getAnyNominal()->lookupDirect(declName);
+                //Compare the equality of return types for each candidate.
+                for (auto& candidate : lookupResult) {
+                  auto candidateType = candidate->getInterfaceType()->getRValueType();
+                  if (candidateType->isEqual(declReturnType))
+                    FD->diagnose(diag::override_method_in_lieu_of_property, declName.getIdentifier())
+                        .fixItRemove(FD->getBodySourceRange())
+                        .fixItReplace(FD->getSourceRangeIncludingAttrs(),
+                                      "override var " + declName.getIdentifier().str().str() + ": " + declReturnType.getString() + " { <#code#> }");
+                }
+              }
+            }
           }
           OA->setInvalid();
         }
