@@ -113,10 +113,11 @@ internal func validateUTF8(_ buf: UnsafeBufferPointer<UInt8>) -> UTF8ValidationR
   }
 
   do {
-    var isASCII = true
     while let cu = iter.next() {
-      if UTF8.isASCII(cu) { lastValidIndex &+= 1; continue }
-      isASCII = false
+      if UTF8.isASCII(cu) { 
+        lastValidIndex &+= 1
+        continue 
+      }
       if _slowPath(!_isUTF8MultiByteLeading(cu)) {
         func fail() throws(UTF8ValidationError) { throw UTF8ValidationError() }
         try fail()
@@ -160,7 +161,7 @@ internal func validateUTF8(_ buf: UnsafeBufferPointer<UInt8>) -> UTF8ValidationR
         Builtin.unreachable()
       }
     }
-    return .success(UTF8ExtraInfo(isASCII: isASCII))
+    return .success(UTF8ExtraInfo(isASCII: false))
   } catch {
     return .error(toBeReplaced: findInvalidRange(buf[lastValidIndex...]))
   }
