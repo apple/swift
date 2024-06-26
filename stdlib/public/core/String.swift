@@ -890,20 +890,21 @@ extension Sequence where Element: StringProtocol {
   /// - Parameter separator: A string to insert between each of the elements
   ///   in this sequence. The default separator is an empty string.
   /// - Returns: A single, concatenated string.
-  @_specialize(where Self == Array<Substring>)
-  @_specialize(where Self == Array<String>)
   public func joined(separator: String = "") -> String {
     return _joined(separator: separator)
   }
 
   @inline(__always) // Pick up @_specialize and devirtualize from two callers
   internal func _joined(separator: String) -> String {
-    // A likely-under-estimate, but lets us skip some of the growth curve
-    // for large Sequences.
-    let underestimatedCap =
-      (1 &+ separator._guts.count) &* self.underestimatedCount
+    return self._joined(
+      separator: separator, 
+      initialCapacity: (1 &+ separator.utf8.count) &* self.underestimatedCount)
+  }
+  
+  @inline(__always) // Pick up @_specialize and devirtualize from two callers
+  internal func _joined(separator: String = "", initialCapacity: Int) -> String {
     var result = ""
-    result.reserveCapacity(underestimatedCap)
+    result.reserveCapacity(initialCapacity)
     if separator.isEmpty {
       for x in self {
         result.append(x._ephemeralString)
@@ -920,6 +921,21 @@ extension Sequence where Element: StringProtocol {
       }
     }
     return result
+  }  
+}
+
+extension Collection where Element: StringProtocol {
+  @_specialize(where Self == Array<Substring>)
+  @_specialize(where Self == Array<String>)
+  public func joined(separator: String = "") -> String {
+    return _joined(separator: separator)
+  }
+  
+  @inline(__always) // Pick up @_specialize and devirtualize from two callers
+  internal func _joined(separator: String = "") -> String {
+    let separatorCount = separator.utf8.count
+    let joinedCount = self.lazy.map {$0.utf8.count + separatorCount}.reduce(-separatorCount, &+)
+    return self._joined(separator: separator, initialCapacity: joinedCount)
   }
 }
 
