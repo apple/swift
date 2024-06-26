@@ -1091,7 +1091,14 @@ llvm::Value *irgen::emitFastClassCastIfPossible(
   }
 
   // Get the metadata pointer of the destination class type.
-  llvm::Value *destMetadata = IGF.IGM.getAddrOfTypeMetadata(targetFormalType);
+  llvm::Value *destMetadata;
+  // Windows will force the lazy initialization of class metadata.  In such a
+  // scenario, we need to access the metadata through the metadata accessor to
+  // ensure that the singleton metadata is properly initialized by the runtime.
+  // Failure to do so would result in the subsequent accesses going to the
+  // metadata cache to find that the entry, which it expects to be initialized,
+  // is not actually initialized (it was observed that the `PrivateTrackingInfo`
+  // field for the metadata cache entry was uninitialized).
   if (IGF.IGM.IRGen.Opts.LazyInitializeClassMetadata) {
     llvm::Function *accessor =
         IGF.IGM.getAddrOfTypeMetadataAccessFunction(targetFormalType,
@@ -1102,6 +1109,8 @@ llvm::Value *irgen::emitFastClassCastIfPossible(
     auto response =
         IGF.emitGenericTypeMetadataAccessFunctionCall(accessor, {}, request);
     destMetadata = response.getMetadata();
+  } else {
+    destMetadata = IGF.IGM.getAddrOfTypeMetadata(targetFormalType);
   }
   llvm::Value *lhs = IGF.Builder.CreateBitCast(destMetadata, IGF.IGM.Int8PtrTy);
     
