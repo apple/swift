@@ -365,6 +365,24 @@ void IRGenModule::setVCallVisibility(llvm::GlobalVariable *var,
                    *llvm::MDNode::get(getLLVMContext(), {}));
 }
 
+// Under -internalize-at-link, the liveness of virtual functions
+// is reasoned about based on the liveness of dispatch thunks as
+// specified by an exported symbol list. This model starts to falter
+// if the type hiearchy is split between modules, so we avoid this case.
+//
+// See virtual-function-elimination-hierarchy-across-modules.swift as an
+// exmple of how this will go wrong otherwise.
+static bool inheritanceChainCrossesModuleBoundary(const ClassDecl *decl) {
+  const ModuleDecl *baseModule = decl->getModuleContext();
+  const ClassDecl *currentDecl = decl;
+  while (const ClassDecl *superClass = currentDecl->getSuperclassDecl()) {
+    if (superClass->getModuleContext() != baseModule)
+      return true;
+    currentDecl = superClass;
+  }
+  return false;
+}
+
 void IRGenModule::addVTableTypeMetadata(
     ClassDecl *decl, llvm::GlobalVariable *var,
     SmallVector<std::pair<Size, SILDeclRef>, 8> vtableEntries) {
@@ -396,7 +414,8 @@ void IRGenModule::addVTableTypeMetadata(
     vis = VCallVisibility::VCallVisibilityTranslationUnit;
   } else if (AS.isPrivate() || AS.isInternal()) {
     vis = VCallVisibility::VCallVisibilityLinkageUnit;
-  } else if (getOptions().InternalizeAtLink) {
+  } else if (!inheritanceChainCrossesModuleBoundary(decl) &&
+             getOptions().InternalizeAtLink) {
     vis = VCallVisibility::VCallVisibilityLinkageUnit;
   }
 
