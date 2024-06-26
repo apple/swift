@@ -26,9 +26,9 @@ func castAToB(a: A) -> B {
   // expected-warning@+1{{'unsafeBitCast' from 'A' to 'B' can be replaced with 'unsafeDowncast'}} {{16-29=unsafeDowncast}}
   return Swift.unsafeBitCast(_:to:)(a, B.self)
 }
+
 func castCToD<T>(c: C<T>) -> D {
-  // expected-warning@+1{{'unsafeBitCast' from 'C<T>' to 'D' can be replaced with 'unsafeDowncast'}} {{10-23=unsafeDowncast}}
-  return unsafeBitCast(c, to: D.self)
+  return unsafeBitCast(c, to: D.self) // expected-no-warning
 }
 
 func castNToD<T>(n: N<T>) -> D {
@@ -254,4 +254,16 @@ func castBetweenIntAndPointer(p: UnsafePointer<Int>,
   _ = unsafeBitCast(iii, to: UnsafeRawPointer.self)
   // expected-warning@+1{{'unsafeBitCast' from 'UInt64' to 'UnsafeRawPointer' can be replaced with 'bitPattern:' initializer}}{{7-21=UnsafeRawPointer(bitPattern: UInt(}}{{24-52=))}}
   _ = unsafeBitCast(uuu, to: UnsafeRawPointer.self)
+}
+
+class GenericBase<T> {}
+
+func bitcastingGenericType<A, B>(_: A, x: GenericBase<B>) {
+  _ = unsafeBitCast(x, to: GenericBase<A>.self) // expected-no-warning
+}
+
+class Base {}
+
+func bitcastingBaseType<A: Base, B: Base>(_: A, x: B) {
+  _ = unsafeBitCast(x, to: A.self) // expected-no-warning
 }

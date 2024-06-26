@@ -954,7 +954,8 @@ static void diagSyntacticUseRestrictions(const Expr *E, const DeclContext *DC,
       }
       
       // Unchecked casting to a subclass is better done by unsafeDowncast.
-      if (fromTy->isBindableToSuperclassOf(toTy)) {
+      if (TypeChecker::isSubtypeOf(toTy, fromTy,
+                                   const_cast<DeclContext *>(DC))) {
         Ctx.Diags.diagnose(DRE->getLoc(), diag::bitcasting_to_downcast,
                            fromTy, toTy)
           .fixItReplace(DRE->getNameLoc().getBaseNameLoc(),
