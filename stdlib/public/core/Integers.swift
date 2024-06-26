@@ -2037,7 +2037,7 @@ where Magnitude: FixedWidthInteger & UnsignedInteger,
   ///
   /// The resulting quotient must be representable within the bounds of the
   /// type. If the quotient is too large to represent in the type, a runtime
-  /// error may occur.
+  /// error will occur.
   ///
   /// The following example divides a value that is too large to be represented
   /// using a single `Int` instance by another `Int` value. Because the quotient
