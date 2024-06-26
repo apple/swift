@@ -1060,7 +1060,7 @@ private:
       D = cast<VarDecl>(D)->getCanonicalVarDecl();
     }
 
-    if (D->isImplicit() && !isa<ConstructorDecl>(D))
+    if (!IsRef && (D->isImplicit() && !isa<ConstructorDecl>(D)))
       return false;
 
     // Do not handle non-public imported decls.
