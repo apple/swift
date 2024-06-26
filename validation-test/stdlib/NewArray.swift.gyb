@@ -140,7 +140,7 @@ T.Index == Int {
       }
     }
 
-    if reallocations > 3 {
+    if reallocations > 5 {
       print(
         "Unexpectedly found \(reallocations) reallocations "
         + "of \(label) when growing via \(growthDescription)")

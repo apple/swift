@@ -177,7 +177,11 @@ internal func _expectEnd<C: Collection>(of s: C, is i: C.Index) {
 
 @inlinable
 internal func _growArrayCapacity(_ capacity: Int) -> Int {
-  return capacity * 2
+  /* We calculate this in an unusual way because we want to minimize the number
+   of overflow checks, approximately match Cocoa's 1.6x growth factor, and round
+   up to the nearest integer rather than down.
+   */
+  return (capacity * 2) &- (capacity >> 1)
 }
 
 @_alwaysEmitIntoClient
