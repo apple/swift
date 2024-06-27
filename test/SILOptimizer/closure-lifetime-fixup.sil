@@ -267,22 +267,16 @@ bb3:
 
 // CHECK-LABEL: sil [ossa] @test_alloc_stack_arg_with_frontier_outside_try_apply_successors : $@convention(thin) <Self> (@in_guaranteed Self) -> @error any Error {
 // CHECK:       {{bb[0-9]+}}([[INSTANCE:%[^,]+]] :
-// CHECK:         [[STACK:%[^,]+]] = alloc_stack $Self
 // CHECK:         try_apply undef() {{.*}}, normal [[SUCCESS_1:bb[0-9]+]], error [[FAILURE_1:bb[0-9]+]]
 // CHECK:       [[SUCCESS_1]]
-// CHECK:         copy_addr [[INSTANCE]] to [init] [[STACK]] : $*Self, {{.*}} scope [[STACK_SCOPE:[0-9]+]]
-// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [on_stack] undef<Self>([[STACK]])
-// CHECK:         [[DEPENDENCY:%[^,]+]] = mark_dependence [nonescaping] [[CLOSURE]] {{.*}} on [[STACK]]
+// CHECK:         [[CLOSURE:%[^,]+]] = partial_apply [callee_guaranteed] [on_stack] undef<Self>([[INSTANCE]])
+// CHECK:         [[DEPENDENCY:%[^,]+]] = mark_dependence [nonescaping] [[CLOSURE]] {{.*}} on [[INSTANCE]]
 // CHECK:         try_apply undef([[DEPENDENCY]]) {{.*}}, normal [[SUCCESS_2:bb[0-9]+]], error [[FAILURE_2:bb[0-9]+]]
 // CHECK:       [[SUCCESS_2]]
 // CHECK:         destroy_value [[DEPENDENCY]]
-// CHECK:         destroy_addr [[STACK]]
-// CHECK:         dealloc_stack [[STACK]] : $*Self, {{.*}} scope [[STACK_SCOPE]]
 // CHECK:       [[FAILURE_1]]
-// CHECK:         dealloc_stack [[STACK]] : $*Self, {{.*}} scope [[STACK_SCOPE]]
 // CHECK:         throw
 // CHECK:       [[FAILURE_2]]
-// CHECK-NOT:     dealloc_stack
 // CHECK:         unreachable
 // CHECK-LABEL: } // end sil function 'test_alloc_stack_arg_with_frontier_outside_try_apply_successors'
 sil [ossa] @test_alloc_stack_arg_with_frontier_outside_try_apply_successors : $@convention(thin) <Self> (@in_guaranteed Self) -> (@error any Error) {

@@ -760,14 +760,7 @@ static SILValue tryRewriteToPartialApplyStack(
       LLVM_DEBUG(llvm::dbgs() << "-- not an alloc_stack\n");
       continue;
     }
-    
-    // This would be a nice optimization to attempt for all types, but for now,
-    // limit the effect to move-only types.
-    if (!copy->getType().isMoveOnly()) {
-      LLVM_DEBUG(llvm::dbgs() << "-- not move-only\n");
-      continue;
-    }
-    
+
     // Is the capture a borrow?
 
     auto paramIndex = i + appliedArgStartIdx;

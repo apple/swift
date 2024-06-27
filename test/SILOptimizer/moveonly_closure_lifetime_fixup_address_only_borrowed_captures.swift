@@ -21,9 +21,7 @@ func borrow<T>(_: borrowing E<T>) {}
 func borrow<T>(_: borrowing C<T>) {}
 
 func testMultiCapture<T>(_ e: borrowing E<T>, _ c: C<T>) {
-    // CHECK: [[C_STK:%.*]] = alloc_stack $C<T>
-    // CHECK: copy_addr %1 to [init] [[C_STK]] : $*C<T>
-    // CHECK: partial_apply {{.*}}[on_stack] {{.*}}([[C_STK]], %0) :
+    // CHECK: partial_apply {{.*}}[on_stack] {{.*}}(%1, %0) :
     nonescaping {
         borrow(c)
         borrow(e)
