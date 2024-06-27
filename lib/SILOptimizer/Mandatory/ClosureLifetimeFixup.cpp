@@ -41,6 +41,12 @@ llvm::cl::opt<bool> DisableConvertEscapeToNoEscapeSwitchEnumPeephole(
         "Disable the convert_escape_to_noescape switch enum peephole. "),
     llvm::cl::Hidden);
 
+llvm::cl::opt<bool> DisableCopyEliminationOfCopyableCapture(
+    "sil-disable-copy-elimination-of-copyable-closure-capture",
+    llvm::cl::init(false),
+    llvm::cl::desc("Don't eliminate copy_addr of Copyable closure captures "
+                   "inserted by SILGen"));
+
 using namespace swift;
 
 /// Given an optional diamond, return the bottom of the diamond.
@@ -759,6 +765,13 @@ static SILValue tryRewriteToPartialApplyStack(
     if (!stack) {
       LLVM_DEBUG(llvm::dbgs() << "-- not an alloc_stack\n");
       continue;
+    }
+
+    if (DisableCopyEliminationOfCopyableCapture) {
+      if (!copy->getType().isMoveOnly()) {
+        LLVM_DEBUG(llvm::dbgs() << "-- not move-only\n");
+        continue;
+      }
     }
 
     // Is the capture a borrow?
