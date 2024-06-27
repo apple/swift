@@ -27,7 +27,7 @@ extension CommandLine {
   /// The backing static variable for argument count may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
   @usableFromInline
-  internal static var _argc: Int32 = Int32()
+  internal static nonisolated(unsafe) var _argc: Int32 = Int32()
 
   /// The backing static variable for arguments may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
@@ -35,7 +35,7 @@ extension CommandLine {
   /// Care must be taken to ensure that `_swift_stdlib_getUnsafeArgvArgc` is
   /// not invoked more times than is necessary (at most once).
   @usableFromInline
-  internal static var _unsafeArgv:
+  internal static nonisolated(unsafe) var _unsafeArgv:
     UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>
       =  _swift_stdlib_getUnsafeArgvArgc(&_argc)
 

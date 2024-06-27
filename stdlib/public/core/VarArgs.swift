@@ -720,7 +720,12 @@ final internal class __VaListBuilder {
   internal var retainer = [CVarArg]()
 #endif
 
-  internal static var alignedStorageForEmptyVaLists: Double = 0
+  /// Note: This is nonisolated unsafe because we will _never_ write to this
+  /// value. It is marked as a var because we need to take the address of it,
+  /// and that pointer may be passed to user code under the guise of a
+  /// CVaListPointer. We cannot enforce any synchronization guarantees if the
+  /// somehow writes to the underlying pointer value in that type.
+  internal static nonisolated(unsafe) var alignedStorageForEmptyVaLists: Double = 0
 }
 
 #endif

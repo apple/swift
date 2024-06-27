@@ -204,13 +204,17 @@ public struct _EachFieldOptions: OptionSet {
   ///
   /// If this is not set, the top-level type is required to be a struct or
   /// tuple.
-  public static var classType = _EachFieldOptions(rawValue: 1 << 0)
+  public static var classType: _EachFieldOptions {
+    _EachFieldOptions(rawValue: 1 << 0)
+  }
 
   /// Ignore fields that can't be introspected.
   ///
   /// If not set, the presence of things that can't be introspected causes
   /// the function to immediately return `false`.
-  public static var ignoreUnknown = _EachFieldOptions(rawValue: 1 << 1)
+  public static var ignoreUnknown: _EachFieldOptions {
+    _EachFieldOptions(rawValue: 1 << 1)
+  }
 }
 
 @available(SwiftStdlib 5.2, *)

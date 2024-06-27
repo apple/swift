@@ -30,6 +30,8 @@ namespace swift {
 extern "C" {
 #endif
 
+#define SWIFT_NONISOLATED_UNSAFE __attribute__((__swift_attr__("nonisolated(unsafe)")))
+
 struct _SwiftArrayBodyStorage {
   __swift_intptr_t count;
   __swift_uintptr_t _capacityAndFlags;
@@ -40,7 +42,7 @@ struct _SwiftEmptyArrayStorage {
   struct _SwiftArrayBodyStorage body;
 };
 
-SWIFT_RUNTIME_STDLIB_API
+SWIFT_RUNTIME_STDLIB_API SWIFT_NONISOLATED_UNSAFE
 struct _SwiftEmptyArrayStorage _swiftEmptyArrayStorage;
 
 struct _SwiftDictionaryBodyStorage {
@@ -78,10 +80,10 @@ struct _SwiftEmptySetSingleton {
   __swift_uintptr_t metadata;
 };
 
-SWIFT_RUNTIME_STDLIB_API
+SWIFT_RUNTIME_STDLIB_API SWIFT_NONISOLATED_UNSAFE
 struct _SwiftEmptyDictionarySingleton _swiftEmptyDictionarySingleton;
 
-SWIFT_RUNTIME_STDLIB_API
+SWIFT_RUNTIME_STDLIB_API SWIFT_NONISOLATED_UNSAFE
 struct _SwiftEmptySetSingleton _swiftEmptySetSingleton;
 
 struct _SwiftHashingParameters {
@@ -91,7 +93,7 @@ struct _SwiftHashingParameters {
 };
   
 SWIFT_RUNTIME_STDLIB_API
-struct _SwiftHashingParameters _swift_stdlib_Hashing_parameters;
+const struct _SwiftHashingParameters _swift_stdlib_Hashing_parameters;
 
 #ifdef __cplusplus
 
