@@ -46,6 +46,10 @@ TreeOnly("tree-only",
            llvm::cl::desc("Tree-only mode (do not show the demangled string)"));
 
 static llvm::cl::opt<bool>
+DemangleType("type",
+           llvm::cl::desc("Demangle a runtime type string"));
+
+static llvm::cl::opt<bool>
 StripSpecialization("strip-specialization",
            llvm::cl::desc("Remangle the origin of a specialized function"));
 
@@ -141,7 +145,17 @@ static void demangle(llvm::raw_ostream &os, llvm::StringRef name,
     hadLeadingUnderscore = true;
     name = name.substr(1);
   }
-  swift::Demangle::NodePointer pointer = DCtx.demangleSymbolAsNode(name);
+  swift::Demangle::NodePointer pointer;
+  if (DemangleType) {
+    pointer = DCtx.demangleTypeAsNode(name);
+    if (!pointer) {
+      os << "<<invalid type>>";
+      return;
+    }
+  } else {
+    pointer = DCtx.demangleSymbolAsNode(name);
+  }
+
   if (ExpandMode || TreeOnly) {
     os << "Demangling for " << name << '\n';
     os << getNodeTreeAsString(pointer);
@@ -399,6 +413,10 @@ int main(int argc, char **argv) {
 
   if (InputNames.empty()) {
     CompactMode = true;
+    if (DemangleType) {
+      llvm::errs() << "The option -type cannot be used to demangle stdin.\n";
+      return EXIT_FAILURE;
+    }
     return demangleSTDIN(options);
   } else {
     swift::Demangle::Context DCtx;
@@ -415,7 +433,7 @@ int main(int argc, char **argv) {
                         "is quoted or escaped.\n";
         continue;
       }
-      if (name.starts_with("S") || name.starts_with("s") ) {
+      if (!DemangleType && (name.starts_with("S") || name.starts_with("s"))) {
         std::string correctedName = std::string("$") + name.str();
         demangle(llvm::outs(), correctedName, DCtx, options);
       } else {
