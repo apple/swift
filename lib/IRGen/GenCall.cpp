@@ -4670,6 +4670,24 @@ emitRetconCoroutineEntry(IRGenFunction &IGF, CanSILFunctionType fnType,
   auto prototype =
     IGF.IGM.getOpaquePtr(IGF.IGM.getAddrOfContinuationPrototype(fnType));
 
+  // Signing the prototype tells the LLVM coroutine infrastructure to sign
+  // the resumption functions.
+  auto schemaAndEntity = getCoroutineResumeFunctionPointerAuth(IGF.IGM, fnType);
+  if (schemaAndEntity.first) {
+    llvm::Constant *address = nullptr;
+    if (schemaAndEntity.first.isAddressDiscriminated()) {
+      // Use a special address value to tell coroutine lowering to blend
+      // the buffer address into the discriminator.
+      address = IGF.IGM.getSize(
+        Size(llvm::GlobalPtrAuthInfo::AddrDiscriminator_UseCoroStorage));
+    }
+
+    prototype = IGF.IGM.getConstantSignedPointer(prototype,
+                                                 schemaAndEntity.first,
+                                                 schemaAndEntity.second,
+                                                 address);
+  }
+
   // Use malloc and free as our allocator.
   auto allocFn = IGF.IGM.getOpaquePtr(IGF.IGM.getMallocFn());
   auto deallocFn = IGF.IGM.getOpaquePtr(IGF.IGM.getFreeFn());
