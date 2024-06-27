@@ -638,6 +638,8 @@ public:
               auto substitutedDemangleTree = Builder.demangleTypeRef(
                   substitutedTypeRef,
                   /* useOpaqueTypeSymbolicReferences */ true);
+              if (!substitutedDemangleTree)
+                continue;
 
               // If the substituted type is an opaque type, also gather info
               // about which protocols it is required to conform to and the
