@@ -264,7 +264,7 @@ As we alluded at the beginning of this chapter, the behavior of member type reso
 \item Member types of the concrete superclass type, if any.
 \item If the type parameter is fixed to a concrete type via a same-type requirement, the members of this concrete type.
 \end{enumerate}
-We get the list of types that qualified lookup must look inside by collecting the results of the \Index{getRequiredProtocols()@\texttt{getRequiredProtocols()}}$\Query{getRequiredProtocols}{}$, \Index{getSuperclassBound()@\texttt{getSuperclassBound()}}$\Query{getSuperclassBound}{}$, and \Index{getConcreteType()@\texttt{getConcreteType()}}$\Query{getConcreteType}{}$ \index{generic signature query}generic signature queries (\SecRef{genericsigqueries}).
+We get the list of types that qualified lookup must look inside by collecting the results of the \IndexQuery{getRequiredProtocols}$\Query{getRequiredProtocols}{}$, \IndexQuery{getSuperclassBound}$\Query{getSuperclassBound}{}$, and \IndexQuery{getConcreteType}$\Query{getConcreteType}{}$ \index{generic signature query}generic signature queries (\SecRef{genericsigqueries}).
 
 The first case, where qualified lookup finds an associated type declaration, is extremely important; this is how we form type parameters recursively in type resolution. If some type parameter \texttt{T} conforms to a protocol, say \texttt{Provider}, and this protocol declares an associated type \texttt{Entity}, then type resolution of ``\texttt{T.Entity}'' will find the associated type declaration \texttt{Entity} by performing a qualified lookup into \texttt{Provider}.
 \begin{Verbatim}
@@ -324,7 +324,7 @@ Requirement minimization rewrites the second requirement into one that contains 
 At this point, \texttt{f()} has a generic signature, so type representations appearing inside the function can be resolved in the interface resolution stage. The rewriting of requirements that use unbound dependent member types into requirements that use bound dependent member type swill be completely justified in \SecRef{minimal requirements}.
 
 We discussed bound and unbound dependent member types in \SecRef{type params}. An unbound dependent member type from the structural resolution stage can be converted into a bound dependent member type by first checking the 
-\Index{isValidTypeParameter()@\texttt{isValidTypeParameter()}}$\Query{isValidTypeParameter}{}$ generic signature query, followed by \Index{getReducedType()@\texttt{getReducedType()}}$\Query{getReducedType}{}$. The first check is needed since an unbound dependent member type, being a syntactic construct, might not name a valid member type at all. However, the usual situation is that the entire type representation is resolved again in the interface resolution stage, at which point an invalid type parameter is resolved to an error type and a \index{diagnostic!invalid type parameter}diagnostic is emitted. In particular, type representations in the trailing \texttt{where} clause of each declaration are re-visited by the \Request{type-check source file request}, which walks all top-level declarations in source order and emits further diagnostics.
+\IndexQuery{isValidTypeParameter}$\Query{isValidTypeParameter}{}$ generic signature query, followed by \IndexQuery{getReducedType}$\Query{getReducedType}{}$. The first check is needed since an unbound dependent member type, being a syntactic construct, might not name a valid member type at all. However, the usual situation is that the entire type representation is resolved again in the interface resolution stage, at which point an invalid type parameter is resolved to an error type and a \index{diagnostic!invalid type parameter}diagnostic is emitted. In particular, type representations in the trailing \texttt{where} clause of each declaration are re-visited by the \Request{type-check source file request}, which walks all top-level declarations in source order and emits further diagnostics.
 
 Suppose now we change \texttt{f()}, to add the invalid requirement $\ConfReq{T.Foo}{Equatable}$:
 \begin{Verbatim}
@@ -645,7 +645,7 @@ The third requirement is a same-type requirement, so we apply $\Sigma$ to both s
 \texttt{\ttgp{0}{0}.Element}\otimes\Sigma=\AssocType{[Sequence]Element}\otimes\ConfReq{$\archetype{C}$}{Sequence}\\
 \texttt{\ttgp{0}{1}.Element}\otimes\Sigma=\AssocType{[Sequence]Element}\otimes\ConfReq{$\archetype{C.SubSequence}$}{Sequence}
 \end{gather*}
-The two type witness projections construct the \index{dependent member type}dependent member types \texttt{\ttgp{0}{0}.Element} and \texttt{\ttgp{0}{0}.SubSequence.Element}, and map them into the generic environment of~$H$. Since $H\vDash\SameReq{\ttgp{0}{0}.Element}{\ttgp{0}{0}.SubSequence.Element}$, both map to the same \index{reduced type}reduced type in $H$, so they also define the same archetype:
+The two type witness projections construct the \index{dependent member type}dependent member types \texttt{\ttgp{0}{0}.Element} and \texttt{\ttgp{0}{0}.SubSequence.Element}, and map them into the generic environment of~$H$. Since $H\vdash\SameReq{\ttgp{0}{0}.Element}{\ttgp{0}{0}.SubSequence.Element}$, both map to the same \index{reduced type}reduced type in $H$, so they also define the same archetype:
 \begin{gather*}
 \AssocType{[Sequence]Element}\otimes\ConfReq{$\archetype{C}$}{Sequence}=\archetype{C.Element}\\
 \AssocType{[Sequence]Element}\otimes\ConfReq{$\archetype{C.SubSequence}$}{Sequence}=\archetype{C.Element}
@@ -671,7 +671,7 @@ Takes a substituted requirement $R\in\ReqObj{\EquivClass{H}}$ as input, where th
 \end{enumerate}
 \item For a \index{layout requirement}\textbf{layout requirement} $\ConfReq{T}{AnyObject}$, we check if \texttt{T} is a class type, an archetype satisfying the \Index{AnyObject@\texttt{AnyObject}}\texttt{AnyObject} \index{layout constraint}layout constraint, or an \index{Objective-C existential}\texttt{@objc} existential, and if so, we return true. Otherwise, we return false. (We'll discuss representation of existentials in \ChapRef{existentialtypes}.)
 \index{canonical type equality}
-\item For a \index{same-type requirement}\textbf{same-type requirement} $\ConfReq{T}{U}$, we check if \texttt{T} and \texttt{U} are canonically equal.
+\item For a \index{same-type requirement}\textbf{same-type requirement} $\SameReq{T}{U}$, we check if \texttt{T} and \texttt{U} are canonically equal.
 \end{itemize}
 \end{algorithm}
 \paragraph{Contextually-generic declarations.}

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/Module.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
@@ -32,7 +33,7 @@ static bool shouldHaveSkippedFunction(const SILFunction &F) {
   // First, we only care about functions that haven't been marked serialized.
   // If they've been marked serialized, they will end up in the final module
   // and we needed to SILGen them.
-  if (F.isSerialized())
+  if (F.isAnySerialized())
     return false;
 
   // Next, we're looking for functions that shouldn't have a body, but do. If

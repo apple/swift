@@ -16,6 +16,7 @@
 #include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/Requirement.h"
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 #include "RequirementMachine.h"
 #include "RewriteSystem.h"
 
@@ -202,7 +203,7 @@ bool swift::rewriting::diagnoseRequirementErrors(
       if (requirement.hasError())
         break;
 
-      assert(requirement.getKind() == RequirementKind::SameType ||
+      ASSERT(requirement.getKind() == RequirementKind::SameType ||
              requirement.getKind() == RequirementKind::Superclass);
 
       ctx.Diags.diagnose(loc,
@@ -272,7 +273,7 @@ void RewriteSystem::computeConflictingRequirementDiagnostics(
     const auto &firstRule = getRule(pair.first);
     const auto &secondRule = getRule(pair.second);
 
-    assert(firstRule.isPropertyRule() && secondRule.isPropertyRule());
+    ASSERT(firstRule.isPropertyRule() && secondRule.isPropertyRule());
 
     if (firstRule.isSubstitutionSimplified() ||
         secondRule.isSubstitutionSimplified())
@@ -308,7 +309,7 @@ void RewriteSystem::computeRecursiveRequirementDiagnostics(
   for (unsigned ruleID : RecursiveRules) {
     const auto &rule = getRule(ruleID);
 
-    assert(isInMinimizationDomain(rule.getRHS()[0].getRootProtocol()));
+    ASSERT(isInMinimizationDomain(rule.getRHS()[0].getRootProtocol()));
 
     Type subjectType = propertyMap.getTypeForTerm(rule.getRHS(), genericParams);
     errors.push_back(RequirementError::forRecursiveRequirement(

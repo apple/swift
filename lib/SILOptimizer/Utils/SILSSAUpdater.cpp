@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/SILOptimizer/Utils/SILSSAUpdater.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Malloc.h"
 #include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/SILArgument.h"

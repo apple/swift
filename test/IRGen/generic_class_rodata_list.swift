@@ -30,7 +30,7 @@
 // CHECK:         .quad   0
 // CHECK:         .quad   __CLASS_METHODS__TtC25generic_class_rodata_list9Somethin
 
-// CHECK:        .section        __DATA,__swift_rodatas
+// CHECK:        .section        __DATA,__objc_clsrolist
 // CHECK:        .p2align        3
 // CHECK:_generic_ro_datas:
 // CHECK:        .quad   ___unnamed_1+40

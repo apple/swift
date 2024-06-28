@@ -1,0 +1,224 @@
+// RUN: %target-sil-opt \
+// RUN:     %s \
+// RUN:     -enable-sil-verify-all=0 \
+// RUN:     -enable-ossa-verify-complete \
+// RUN:     -verify-continue-on-failure \
+// RUN:     -sil-ownership-verifier-enable-testing \
+// RUN:     -ownership-verifier-textual-error-dumper \
+// RUN:     -o /dev/null \
+// RUN: 2>&1 | %FileCheck %s
+// REQUIRES: asserts
+
+sil_stage canonical
+
+import Builtin
+
+class C {}
+
+// CHECK-LABEL: Begin Error in function invalid__single__usefree_consume__before
+// CHECK:       SIL verification failed: extend_lifetime in non-dead-end
+// CHECK:       Verifying instruction:
+// CHECK:          [[C:%[^,]+]] = argument of bb0
+// CHECK:       ->   extend_lifetime [[C]]
+// CHECK-LABEL: End Error in function invalid__single__usefree_consume__before
+// CHECK-LABEL: Begin Error in function invalid__single__usefree_consume__before
+// CHECK:       SIL verification failed: extend_lifetime use within unextended linear liveness boundary
+// CHECK:       Verifying instruction:
+// CHECK:          [[C]]
+// CHECK:       ->   extend_lifetime [[C]]
+// CHECK-LABEL: End Error in function invalid__single__usefree_consume__before
+// CHECK-LABEL: Begin Error in function invalid__single__usefree_consume__before
+// CHECK-LABEL: SIL verification failed: extend_lifetime after last user block
+// CHECK:       Verifying instruction:
+// CHECK:          [[C]]
+// CHECK:       ->   extend_lifetime [[C]]
+// CHECK-LABEL: End Error in function invalid__single__usefree_consume__before
+sil [ossa] @invalid__single__usefree_consume__before : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  extend_lifetime %c : $C
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: Begin Error in function invalid__single__usefree_consume__after
+// CHECK:       SIL verification failed: extend_lifetime in non-dead-end
+// CHECK:       Verifying instruction:
+// CHECK:          [[C:%[^,]+]] = argument of bb0
+// CHECK:       ->   extend_lifetime [[C]]
+// CHECK-LABEL: End Error in function invalid__single__usefree_consume__after
+// CHECK-LABEL: Begin Error in function invalid__single__usefree_consume__after
+// CHECK:       SIL verification failed: extend_lifetime after last user block
+// CHECK:       Verifying instruction:
+// CHECK:          [[C]] = argument of bb0
+// CHECK:       ->   extend_lifetime [[C]]
+// CHECK-LABEL: End Error in function invalid__single__usefree_consume__after
+sil [ossa] @invalid__single__usefree_consume__after : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  destroy_value %c : $C
+  extend_lifetime %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: Begin Error in function invalid__single__usefree_consumefree
+// CHECK:       SIL verification failed: extend_lifetime in non-dead-end
+// CHECK:       Verifying instruction:
+// CHECK:          [[C:%[^,]+]] = argument of bb0
+// CHECK:       ->   extend_lifetime [[C]]
+// CHECK-LABEL: End Error in function invalid__single__usefree_consumefree
+sil [ossa] @invalid__single__usefree_consumefree : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  extend_lifetime %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-NOT: valid__loop_conditional__header_uses__after
+sil [ossa] @valid__loop_conditional__header_uses__after : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  cond_br undef, exit, header
+
+header:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  extend_lifetime %c : $C
+  br loop
+
+loop:
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: Error#: 0. Begin Error in Function: 'invalid__loop_conditional__header_uses__before'
+// CHECK:       Found outside of lifetime use!
+// CHECK:       Value: [[C:%[^,]+]] = argument of bb0
+// CHECK:       User:  [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK-LABEL: Error#: 0. End Error in Function: 'invalid__loop_conditional__header_uses__before'
+// CHECK-LABEL: Error#: 1. Begin Error in Function: 'invalid__loop_conditional__header_uses__before'
+// CHECK:       Found outside of lifetime use!
+// CHECK:       Value: [[C]]
+// CHECK:       User:  end_borrow [[B]]
+// CHECK-LABEL: Error#: 1. End Error in Function: 'invalid__loop_conditional__header_uses__before'
+// CHECK-NOT: invalid__loop_conditional__header_uses__before
+sil [ossa] @invalid__loop_conditional__header_uses__before : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  cond_br undef, exit, header
+
+header:
+  extend_lifetime %c : $C
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  br loop
+
+loop:
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+sil [ossa] @invalid__loop_conditional__header_uses__between : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  cond_br undef, exit, header
+
+header:
+  %b = begin_borrow %c : $C
+  extend_lifetime %c : $C
+  end_borrow %b : $C
+  br loop
+
+loop:
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-NOT: valid__loop_conditional__loop_uses__after
+sil [ossa] @valid__loop_conditional__loop_uses__after : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  cond_br undef, exit, header
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  extend_lifetime %c : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// TODO: Maybe this should be allowed.
+// CHECK-LABEL: Error#: 0. Begin Error in Function: 'invalid__loop_conditional__loop_uses__before'
+// CHECK:       Found outside of lifetime use!
+// CHECK:       Value: [[C:%[^,]+]] = argument of bb0
+// CHECK:       User:  [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK-LABEL: Error#: 0. End Error in Function: 'invalid__loop_conditional__loop_uses__before'
+// CHECK-LABEL: Error#: 1. Begin Error in Function: 'invalid__loop_conditional__loop_uses__before'
+// CHECK:       Found outside of lifetime use!
+// CHECK:       Value: [[C]] = argument of bb0
+// CHECK:       User:  end_borrow [[B]]
+// CHECK-LABEL: Error#: 1. End Error in Function: 'invalid__loop_conditional__loop_uses__before'
+sil [ossa] @invalid__loop_conditional__loop_uses__before : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  cond_br undef, exit, header
+
+header:
+  br loop
+
+loop:
+  extend_lifetime %c : $C
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// TODO: Maybe this should be allowed.
+// CHECK-LABEL: Error#: 0. Begin Error in Function: 'invalid__loop_conditional__loop_uses__between'
+// CHECK:       Found outside of lifetime use!
+// CHECK:       Value: [[C:%[^,]+]] = argument of bb0
+// CHECK:       User:  [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK-LABEL: Error#: 0. End Error in Function: 'invalid__loop_conditional__loop_uses__between'
+// CHECK-LABEL: Error#: 1. Begin Error in Function: 'invalid__loop_conditional__loop_uses__between'
+// CHECK:       Found outside of lifetime use!
+// CHECK:       Value: [[C]] = argument of bb0
+// CHECK:       User:  end_borrow [[B]]
+// CHECK-LABEL: Error#: 1. End Error in Function: 'invalid__loop_conditional__loop_uses__between'
+sil [ossa] @invalid__loop_conditional__loop_uses__between : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  cond_br undef, exit, header
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  extend_lifetime %c : $C
+  end_borrow %b : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}

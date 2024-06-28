@@ -29,6 +29,7 @@
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/ClangImporter/ClangModule.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/SIL/FormalLinkage.h"
@@ -3534,16 +3535,6 @@ namespace {
 
         if (HasDependentMetadata)
           asImpl().emitInitializeMetadata(IGF, metadata, false, collector);
-
-        if (layoutStringsEnabled(IGM)) {
-          if (auto *layoutString = getLayoutString()) {
-            auto layoutStringCast = IGF.Builder.CreateBitCast(layoutString,
-                                                              IGM.Int8PtrTy);
-            IGF.Builder.CreateCall(
-              IGM.getGenericInstantiateLayoutStringFunctionPointer(),
-              {layoutStringCast, metadata});
-          }
-        }
       });
     }
 
@@ -5719,11 +5710,24 @@ namespace {
         descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
       }
 
-      return IGF.Builder.CreateCall(
-          getLayoutString() ?
-          IGM.getAllocateGenericValueMetadataWithLayoutStringFunctionPointer() :
-          IGM.getAllocateGenericValueMetadataFunctionPointer(),
-          {descriptor, arguments, templatePointer, extraSizeV});
+      if (layoutStringsEnabled(IGM)) {
+        auto *call = IGF.Builder.CreateCall(
+            IGM.getAllocateGenericValueMetadataWithLayoutStringFunctionPointer(),
+            {descriptor, arguments, templatePointer, extraSizeV});
+
+        if (auto *layoutString = getLayoutString()) {
+          auto layoutStringCast =
+              IGF.Builder.CreateBitCast(layoutString, IGM.Int8PtrTy);
+          IGF.Builder.CreateCall(
+              IGM.getGenericInstantiateLayoutStringFunctionPointer(),
+              {layoutStringCast, call});
+        }
+        return call;
+      } else {
+        return IGF.Builder.CreateCall(
+            IGM.getAllocateGenericValueMetadataFunctionPointer(),
+            {descriptor, arguments, templatePointer, extraSizeV});
+      }
     }
 
     void flagUnfilledFieldOffset() {
@@ -6191,11 +6195,24 @@ namespace {
         descriptor = emitPointerAuthSign(IGF, descriptor, authInfo);
       }
 
-      return IGF.Builder.CreateCall(
-          getLayoutString() ?
-            IGM.getAllocateGenericValueMetadataWithLayoutStringFunctionPointer() :
+      if (layoutStringsEnabled(IGM)) {
+        auto *call = IGF.Builder.CreateCall(
+            IGM.getAllocateGenericValueMetadataWithLayoutStringFunctionPointer(),
+            {descriptor, arguments, templatePointer, extraSizeV});
+
+        if (auto *layoutString = getLayoutString()) {
+          auto layoutStringCast =
+              IGF.Builder.CreateBitCast(layoutString, IGM.Int8PtrTy);
+          IGF.Builder.CreateCall(
+              IGM.getGenericInstantiateLayoutStringFunctionPointer(),
+              {layoutStringCast, call});
+        }
+        return call;
+      } else {
+        return IGF.Builder.CreateCall(
             IGM.getAllocateGenericValueMetadataFunctionPointer(),
-          {descriptor, arguments, templatePointer, extraSizeV});
+            {descriptor, arguments, templatePointer, extraSizeV});
+      }
     }
 
     bool hasTrailingFlags() {

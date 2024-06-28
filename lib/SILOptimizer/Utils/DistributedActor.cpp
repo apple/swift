@@ -13,6 +13,7 @@
 #include "swift/SILOptimizer/Utils/DistributedActor.h"
 
 #include "swift/AST/Decl.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILLocation.h"
 

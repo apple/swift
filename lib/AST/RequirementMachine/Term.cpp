@@ -12,6 +12,7 @@
 
 #include "swift/AST/Decl.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -81,7 +82,7 @@ void Term::dump(llvm::raw_ostream &out) const {
 
 Term Term::get(const MutableTerm &mutableTerm, RewriteContext &ctx) {
   unsigned size = mutableTerm.size();
-  assert(size > 0 && "Term must have at least one symbol");
+  DEBUG_ASSERT(size > 0 && "Term must have at least one symbol");
 
   llvm::FoldingSetNodeID id;
   id.AddInteger(size);
@@ -168,11 +169,11 @@ static std::optional<int> shortlexCompare(const Symbol *lhsBegin,
 
     std::optional<int> result = lhs.compare(rhs, ctx);
     if (!result.has_value() || *result != 0) {
-      assert(lhs != rhs);
+      DEBUG_ASSERT(lhs != rhs);
       return result;
     }
 
-    assert(lhs == rhs);
+    DEBUG_ASSERT(lhs == rhs);
   }
 
   return 0;
@@ -201,7 +202,7 @@ void MutableTerm::rewriteSubTerm(Symbol *from, Symbol *to, Term rhs) {
     auto newTo = std::copy(rhs.begin(), rhs.end(), from);
 
     // The RHS has the same length as the LHS, so we're done.
-    assert(newTo == to);
+    DEBUG_ASSERT(newTo == to);
     (void) newTo;
   } else if (lhsLength > rhs.size()) {
     // Copy the RHS to the LHS.
@@ -210,17 +211,17 @@ void MutableTerm::rewriteSubTerm(Symbol *from, Symbol *to, Term rhs) {
     // Shorten the term.
     Symbols.erase(newTo, to);
   } else {
-    assert(lhsLength < rhs.size());
+    DEBUG_ASSERT(lhsLength < rhs.size());
 
     // Copy the LHS-sized prefix of RHS to the LHS.
     auto newTo = std::copy_n(rhs.begin(), lhsLength, from);
-    assert(newTo == to);
+    DEBUG_ASSERT(newTo == to);
 
     // Insert the remainder of the RHS term.
     Symbols.insert(to, rhs.begin() + lhsLength, rhs.end());
   }
 
-  assert(size() == oldSize - lhsLength + rhs.size());
+  DEBUG_ASSERT(size() == oldSize - lhsLength + rhs.size());
 }
 
 void MutableTerm::dump(llvm::raw_ostream &out) const {

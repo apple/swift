@@ -18,6 +18,7 @@
 
 // CanonicalizeInstruction defines a default DEBUG_TYPE: "sil-canonicalize"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeInstruction.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"

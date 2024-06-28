@@ -20,17 +20,17 @@ func checkArrayBuiltins(_ dest: Builtin.RawPointer, src: Builtin.RawPointer, cou
   Builtin.destroyArray(NC.self, dest, count)
 
 #if ILLEGAL
-  Builtin.copyArray(NC.self, dest, src, count) // expected-illegal-error {{noncopyable type 'NC' cannot be substituted for copyable generic parameter 'T' in 'copyArray'}}
-  Builtin.assignCopyArrayNoAlias(NC.self, dest, src, count) // expected-illegal-error {{noncopyable type 'NC' cannot be substituted for copyable generic parameter 'T' in 'assignCopyArrayNoAlias'}}
-  Builtin.assignCopyArrayFrontToBack(NC.self, dest, src, count) // expected-illegal-error {{noncopyable type 'NC' cannot be substituted for copyable generic parameter 'T' in 'assignCopyArrayFrontToBack'}}
-  Builtin.assignCopyArrayBackToFront(NC.self, dest, src, count) // expected-illegal-error {{noncopyable type 'NC' cannot be substituted for copyable generic parameter 'T' in 'assignCopyArrayBackToFront'}}
+  Builtin.copyArray(NC.self, dest, src, count) // expected-illegal-error {{global function 'copyArray' requires that 'NC' conform to 'Copyable'}}
+  Builtin.assignCopyArrayNoAlias(NC.self, dest, src, count) // expected-illegal-error {{global function 'assignCopyArrayNoAlias' requires that 'NC' conform to 'Copyable'}}
+  Builtin.assignCopyArrayFrontToBack(NC.self, dest, src, count) // expected-illegal-error {{global function 'assignCopyArrayFrontToBack' requires that 'NC' conform to 'Copyable'}}
+  Builtin.assignCopyArrayBackToFront(NC.self, dest, src, count) // expected-illegal-error {{global function 'assignCopyArrayBackToFront' requires that 'NC' conform to 'Copyable'}}
 #endif
 }
 
 public func checkIllegal() {
 #if ILLEGAL
   _ = Builtin.unsafeCastToNativeObject(NC())
-  _ = Builtin.castToNativeObject(NC()) // expected-illegal-error {{noncopyable type 'NC' cannot be substituted for copyable generic parameter 'T' in 'castToNativeObject'}}
+  _ = Builtin.castToNativeObject(NC()) // expected-illegal-error {{global function 'castToNativeObject' requires that 'NC' conform to 'Copyable'}}
   let _: NC = Builtin.zeroInitializer()
 #endif
 }

@@ -255,12 +255,12 @@ public:
   bool isSerialized() const {
     return SerializedKind_t(SerializedKind) == IsSerialized;
   }
-  bool isSerializedForPackage() const {
-    return SerializedKind_t(SerializedKind) == IsSerializedForPackage;
+
+  bool isAnySerialized() const {
+    return SerializedKind_t(SerializedKind) == IsSerialized ||
+           SerializedKind_t(SerializedKind) == IsSerializedForPackage;
   }
-  bool isNotSerialized() const {
-    return SerializedKind_t(SerializedKind) == IsNotSerialized;
-  }
+
   SerializedKind_t getSerializedKind() const {
     return SerializedKind_t(SerializedKind);
   }

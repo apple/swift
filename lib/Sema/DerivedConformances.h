@@ -55,11 +55,12 @@ public:
 
 public:
   ASTContext &Context;
+  const NormalProtocolConformance *Conformance;
   Decl *ConformanceDecl;
   NominalTypeDecl *Nominal;
   ProtocolDecl *Protocol;
 
-  DerivedConformance(ASTContext &ctx, Decl *conformanceDecl,
+  DerivedConformance(const NormalProtocolConformance *conformance,
                      NominalTypeDecl *nominal, ProtocolDecl *protocol);
 
   /// Retrieve the context in which the conformance is declared (either the

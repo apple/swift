@@ -11,7 +11,10 @@ CxxMethodTestSuite.test("() -> Void") {
   var instance = HasMethods()
 
   instance.nonConstMethod()
+  instance.nonConstMethod(5)
+  HasMethods.nonConstMethod(4.2) // Testing name collision
   instance.constMethod()
+  HasMethods.constMethod(4.2) // Testing name collision
 }
 
 CxxMethodTestSuite.test("(Int) -> Int") {

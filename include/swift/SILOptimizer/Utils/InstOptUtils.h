@@ -198,6 +198,20 @@ castValueToABICompatibleType(SILBuilder *builder, SILPassManager *pm,
                              SILLocation Loc,
                              SILValue value, SILType srcTy, SILType destTy,
                              ArrayRef<SILInstruction *> usePoints);
+
+/// Returns true if the layout of a generic nominal type is dependent on its generic parameters.
+/// This is usually the case. Some examples, where they layout is _not_ dependent:
+/// ```
+///    struct S<T> {
+///      var x: Int // no members which depend on T
+///    }
+///
+///    struct S<T> {
+///      var c: SomeClass<T> // a class reference does not depend on the layout of the class
+///    }
+/// ```
+bool layoutIsTypeDependent(NominalTypeDecl *decl);
+
 /// Peek through trivial Enum initialization, typically for pointless
 /// Optionals.
 ///

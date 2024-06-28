@@ -27,6 +27,10 @@ case none
 case some(Wrapped)
 }
 
+typealias AnyObject = Builtin.AnyObject
+
+protocol P : AnyObject {}
+
 // CHECK-LABEL: begin running test 1 of 1 on eagerConsumneOwnedArg: ossa_lifetime_completion with: @argument
 // CHECK-LABEL: OSSA lifetime completion on liveness boundary: %0 = argument of bb0 : $C
 // CHECK: sil [ossa] @eagerConsumneOwnedArg : $@convention(thin) (@owned C) -> () {
@@ -442,8 +446,8 @@ indirect enum IndirectEnumNontrivialPayload {
 // CHECK:       [[ONE_CASE]]([[BOX:%[^,]+]] :
 // CHECK:         [[C_ADDR:%[^,]+]] = project_box [[BOX]]
 // CHECK:         [[C:%[^,]+]] = load_borrow [[C_ADDR]]
-// CHECK:         cond_br undef, {{bb[0-9]+}}, [[BASIC_BLOCK4:bb[0-9]+]]
-// CHECK:       [[BASIC_BLOCK4]]:
+// CHECK:         cond_br undef, {{bb[0-9]+}}, [[RIGHT:bb[0-9]+]]
+// CHECK:       [[RIGHT]]:
 // CHECK:         end_borrow [[C]]
 // CHECK:         dealloc_box [[BOX]]
 // CHECK:         unreachable
@@ -536,4 +540,187 @@ left:
 
 right:
   unreachable
+}
+
+// CHECK-LABEL: begin running test {{.*}} on loopy: liveness_partial_boundary_outside_users with: %o
+// CHECK:       end_borrow
+// CHECK-LABEL: end running test {{.*}} on loopy: liveness_partial_boundary_outside_users with: %o
+// CHECK-LABEL: begin running test {{.*}} on loopy: ossa_lifetime_completion
+// CHECK-LABEL: sil [ossa] @loopy : {{.*}} {
+// CHECK:         [[O:%[^,]+]] = apply undef
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[O]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         extend_lifetime [[O]]
+// CHECK:         br bb1
+// CHECK:       bb1:
+// CHECK:         br bb1
+// CHECK-LABEL: } // end sil function 'loopy'
+// CHECK-LABEL: end running test {{.*}} on loopy: ossa_lifetime_completion
+// CHECK-LABEL: begin running test {{.*}} on loopy: liveness_partial_boundary_outside_users with: %o
+// CHECK-NEXT:  end running test {{.*}} on loopy: liveness_partial_boundary_outside_users with: %o
+sil [ossa] @loopy : $@convention(thin) () -> () {
+  %o = apply undef() : $@convention(thin) () -> (@owned C)
+  specify_test "liveness_partial_boundary_outside_users %o"
+  specify_test "ossa_lifetime_completion %o availability"
+  specify_test "liveness_partial_boundary_outside_users %o"
+  %b = begin_borrow %o : $C
+  end_borrow %b : $C
+  br loop
+
+loop:
+  br loop
+}
+
+sil [ossa] @loopyComplete : $@convention(thin) () -> () {
+  %o = apply undef() : $@convention(thin) () -> (@owned C)
+  specify_test "ossa_lifetime_completion %o availability"
+  specify_test "liveness_partial_boundary_outside_users %o"
+  %b = begin_borrow %o : $C
+  end_borrow %b : $C
+  extend_lifetime %o : $C
+  br loop
+
+loop:
+  br loop
+}
+
+// When there are no users in the loop, do not extend the lifetime into it.
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes: ossa_lifetime_completion with: %c, availability
+// CHECK-LABEL: sil [ossa] @loopy_sometimes : {{.*}} {
+// CHECK-NOT:     extend_lifetime
+// CHECK-LABEL: } // end sil function 'loopy_sometimes'
+// CHECK-LABEL: end running test {{.*}} on loopy_sometimes: ossa_lifetime_completion with: %c, availability
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes: liveness_partial_boundary_outside_users with: %c
+// CHECK-NEXT:  end running test {{.*}} on loopy_sometimes: liveness_partial_boundary_outside_users with: %c
+sil [ossa] @loopy_sometimes : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "ossa_lifetime_completion %c availability"
+  specify_test "liveness_partial_boundary_outside_users %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// When there are no users in the loop, do not extend the lifetime into it.
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes_guaranteed: ossa_lifetime_completion with: %b, availability
+// CHECK-LABEL: sil [ossa] @loopy_sometimes_guaranteed : {{.*}} {
+// CHECK-NOT:     extend_lifetime
+// CHECK-LABEL: } // end sil function 'loopy_sometimes_guaranteed'
+// CHECK-LABEL: end running test {{.*}} on loopy_sometimes_guaranteed: ossa_lifetime_completion with: %b, availability
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes_guaranteed: liveness_partial_boundary_outside_users with: %b
+// CHECK-LABEL: end running test {{.*}} on loopy_sometimes_guaranteed: liveness_partial_boundary_outside_users with: %b
+sil [ossa] @loopy_sometimes_guaranteed : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  %b = begin_borrow %c : $C
+  specify_test "ossa_lifetime_completion %b availability"
+  specify_test "liveness_partial_boundary_outside_users %b"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  br loop
+
+exit:
+  end_borrow %b : $C
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes_2: ossa_lifetime_completion with: %c, availability
+// CHECK-LABEL: sil [ossa] @loopy_sometimes_2 : {{.*}} {
+// CHECK:       bb0([[O:%[^,]+]] :
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[O]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         extend_lifetime [[O]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[O]]
+// CHECK-LABEL: } // end sil function 'loopy_sometimes_2'
+// CHECK-LABEL: end running test {{.*}} on loopy_sometimes_2: ossa_lifetime_completion with: %c, availability
+sil [ossa] @loopy_sometimes_2 : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "ossa_lifetime_completion %c availability"
+  specify_test "liveness_partial_boundary_outside_users %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes_2_guaranteed: ossa_lifetime_completion with: %c, availability
+// CHECK-LABEL: sil [ossa] @loopy_sometimes_2_guaranteed : {{.*}} {
+// CHECK:       bb0([[C:%[^,]+]] :
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[I:%[^,]+]] = begin_borrow [[B]]
+// CHECK:         end_borrow [[I]]
+// CHECK:         extend_lifetime [[B]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         end_borrow [[B]]
+// CHECK:         destroy_value [[C]]
+// CHECK-LABEL: } // end sil function 'loopy_sometimes_2_guaranteed'
+// CHECK-LABEL: end running test {{.*}} on loopy_sometimes_2_guaranteed: ossa_lifetime_completion with: %c, availability
+// CHECK-LABEL: begin running test {{.*}} on loopy_sometimes_2_guaranteed: liveness_partial_boundary_outside_users with: %c
+// CHECK-NEXT:  end running test {{.*}} on loopy_sometimes_2_guaranteed: liveness_partial_boundary_outside_users with: %c
+sil [ossa] @loopy_sometimes_2_guaranteed : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  %b = begin_borrow %c : $C
+  specify_test "ossa_lifetime_completion %c availability"
+  specify_test "liveness_partial_boundary_outside_users %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %i = begin_borrow %b : $C
+  end_borrow %i : $C
+  br loop
+
+exit:
+  end_borrow %b : $C
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on type_dependent_operand: liveness_partial_boundary_outside_users
+// There should be no out-of-boundary users.
+// CHECK-NEXT:  end running test {{.*}} on type_dependent_operand: liveness_partial_boundary_outside_users
+sil [ossa] @type_dependent_operand : $@convention(thin) (@owned any P) -> @owned AnyObject {
+bb0(%existential : @owned $any P):
+  %opened = open_existential_ref %existential : $any P to $@opened("00000000-0000-0000-0000-000000000000", any P) Self
+  specify_test "liveness_partial_boundary_outside_users %opened"
+  %ref_existential = init_existential_ref %opened : $@opened("00000000-0000-0000-0000-000000000000", any P) Self : $@opened("00000000-0000-0000-0000-000000000000", any P) Self, $AnyObject
+  return %ref_existential : $AnyObject
 }

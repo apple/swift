@@ -21,7 +21,7 @@ public enum Result<Success: ~Copyable, Failure: Error> {
   case failure(Failure)
 }
 
-extension Result: Copyable /* where Success: Copyable */ {}
+extension Result: Copyable where Success: Copyable {}
 
 extension Result: Sendable where Success: Sendable & ~Copyable {}
 
@@ -99,7 +99,7 @@ extension Result where Success: ~Copyable {
     _ transform: (borrowing Success) -> NewSuccess
   ) -> Result<NewSuccess, Failure> {
     switch self {
-    case .success(borrowing success):
+    case .success(let success):
       return .success(transform(success))
     case let .failure(failure):
       return .failure(failure)
@@ -241,7 +241,7 @@ extension Result where Success: ~Copyable {
     _ transform: (borrowing Success) -> Result<NewSuccess, Failure>
   ) -> Result<NewSuccess, Failure> {
     switch self {
-    case .success(borrowing success):
+    case .success(let success):
       return transform(success)
     case let .failure(failure):
       return .failure(failure)

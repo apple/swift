@@ -77,6 +77,7 @@
 /// TODO: Handle partial_apply, try_apply, and begin_apply.
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/OwnershipUtils.h"
@@ -766,7 +767,7 @@ bool FilterCandidates::rewritableArgumentIndicesForApply(
       if (apply.isArgumentOperand(operand)) {
         auto convention = apply.getArgumentConvention(operand);
         if (isSimpleExtendedIntroducerDef(operand.get()) &&
-            convention.isOwnedConvention()) {
+            convention.isOwnedConventionInCaller()) {
           indices.push_back(apply.getCalleeArgIndex(operand));
         } else {
           // This argument is a use of %lifetime but not an owned use that we

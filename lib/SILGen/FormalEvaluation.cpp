@@ -13,6 +13,7 @@
 #include "FormalEvaluation.h"
 #include "LValue.h"
 #include "SILGenFunction.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace Lowering;

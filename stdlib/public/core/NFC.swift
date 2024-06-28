@@ -12,38 +12,393 @@
 
 import SwiftShims
 
-extension Unicode {
-  internal struct _InternalNFC<S: StringProtocol> {
-    let base: S
+extension Sequence where Element == Unicode.Scalar {
+  internal var _internalNFC: Unicode._InternalNFC<Self> {
+    Unicode._InternalNFC(self)
   }
 }
 
-extension Unicode._InternalNFC {
-  internal struct Iterator {
-    var buffer = Unicode._NormDataBuffer()
+extension Unicode {
 
+  /// The contents of the source sequence, in Normalization Form C.
+  ///
+  /// Normalization to NFC preserves canonical equivalence.
+  ///
+  internal struct _InternalNFC<Source> where Source: Sequence<Unicode.Scalar> {
+
+    internal let source: Source
+
+    internal init(_ source: Source) {
+      self.source = source
+    }
+  }
+}
+
+extension Unicode._InternalNFC: Sequence {
+
+  internal consuming func makeIterator() -> Iterator {
+    Iterator(source: source.makeIterator())
+  }
+
+  internal struct Iterator: IteratorProtocol {
+
+    internal var source: Source.Iterator
+    internal var normalizer: Unicode._NFCNormalizer
+
+    internal init(source: Source.Iterator) {
+      self.source = source
+      if let strIter = source as? String.UnicodeScalarView.Iterator {
+        self.normalizer = Unicode._NFCNormalizer(sourceString: strIter._guts)
+      } else if let substrIter = source as? Substring.UnicodeScalarView.Iterator {
+        self.normalizer = Unicode._NFCNormalizer(sourceString: substrIter._elements._wholeGuts)
+      } else {
+        self.normalizer = Unicode._NFCNormalizer()
+      }
+    }
+
+    internal mutating func next() -> Unicode.Scalar? {
+      normalizer.resume { source.next() } ?? normalizer.flush()
+    }
+  }
+}
+
+extension Unicode._InternalNFC: Sendable where Source: Sendable {}
+extension Unicode._InternalNFC.Iterator: Sendable where Source.Iterator: Sendable {}
+
+extension Unicode {
+
+  /// A stateful normalizer, producing a single logical stream
+  /// of normalized text from chunked inputs.
+  ///
+  /// To use the normalizer, first create an instance.
+  /// Next, feed it a chunk of a text stream using the `resume(consuming:)`
+  /// function. The normalizer will consume from the stream and buffer
+  /// it as needed, so continue feeding the same source until
+  /// it returns `nil`, indicating that the source was exhausted.
+  ///
+  /// ```swift
+  /// var normalizer = Unicode.NFCNormalizer()
+  ///
+  /// var input: some IteratorProtocol<Unicode.Scalar> = ...
+  /// while let scalar = normalizer.resume(consuming: &input) {
+  ///   print(scalar)
+  /// }
+  ///
+  /// // assert(input.next() == nil)
+  /// ```
+  ///
+  /// You may continue consuming sources until you reach the end
+  /// of the logical text stream. Once you reach the end,
+  /// call `flush()` to drain any remaining content
+  /// from the normalizer's buffers.
+  ///
+  /// ```swift
+  /// while let scalar = normalizer.flush() {
+  ///   print(scalar)
+  /// }
+  /// ```
+  ///
+  /// The chunks of input text do not need to be aligned on any normalization
+  /// boundary. The normalizer state has value semantics, so it is possible
+  /// to copy and store and is inherently thread-safe.
+  ///
+  internal struct _NFCNormalizer: Sendable {
+
+    internal enum State {
+      case emittingSegment
+      case consuming
+    }
+
+    internal var state = State.consuming
+    internal var isTerminated = false
+    internal var sourceIsAlreadyNFC = false
+
+    internal var nfd = Unicode._NFDNormalizer()
+    internal var buffer = Unicode._NormDataBuffer()
     // This is our starter that is currently being composed with other scalars
     // into new scalars. For example, "e\u{301}", here our first scalar is 'e',
     // which is a starter, thus we assign composee to this 'e' and move to the
     // next scalar. We attempt to compose our composee, 'e', with '\u{301}' and
     // find that there is a composition. Thus our new composee is now 'é' and
     // we continue to try and compose following scalars with this composee.
-    var composee: Unicode.Scalar? = nil
+    internal var composee = Optional<Unicode.Scalar>.none
 
-    var iterator: Unicode._InternalNFD<S>.Iterator
+    internal init(sourceString: borrowing _StringGuts) {
+      sourceIsAlreadyNFC = sourceString.isNFC
+    }
+
+    /// Creates a new normalizer.
+    ///
+    internal init() { }
+
+    /// Resume normalizing the text stream.
+    ///
+    /// Each call to `resume` returns the next scalar in the normalized output,
+    /// consuming elements from the given source as necessary.
+    ///
+    /// If the normalizer returns `nil`, the source was exhausted.
+    /// One a source is exhausted, you may:
+    ///
+    /// - Call `resume` again some time later with a different source
+    ///   to continue processing the same logical text stream, or
+    ///
+    /// - Call `flush` in order to mark the end of the stream
+    ///   and consume data remaining in the normalizer's internal buffers.
+    ///
+    /// Typical usage looks like the following:
+    ///
+    /// ```swift
+    /// var normalizer = Unicode.NFCNormalizer()
+    ///
+    /// var input: some IteratorProtocol<Unicode.Scalar> = ...
+    /// while let scalar = normalizer.resume(consuming: &input) {
+    ///   print(scalar)
+    /// }
+    ///
+    /// // We could resume again, consuming from another input here.
+    /// // Finally, when we are done consuming inputs:
+    ///
+    /// while let scalar = normalizer.flush() {
+    ///   print(scalar)
+    /// }
+    /// ```
+    ///
+    /// The normalizer consumes data from the source as needed,
+    /// meaning even if a call to `resume` returns a value,
+    /// that value may have come from the normalizer's internal buffers
+    /// without consuming the input source at all.
+    ///
+    /// Be careful to ensure each input source has been fully consumed
+    /// before moving on to the next source (marked by `resume` returning `nil`).
+    ///
+    internal mutating func resume(
+      consuming source: inout some IteratorProtocol<Unicode.Scalar>
+    ) -> Unicode.Scalar? {
+      resume(consuming: { source.next() })
+    }
+
+    // Intended ABI barrier for resume(consuming: inout some IteratorProtocol<Unicode.Scalar>).
+    // when it becomes public.
+    internal mutating func resume(
+      consuming nextFromSource: () -> Unicode.Scalar?
+    ) -> Unicode.Scalar? {
+
+      guard !isTerminated else {
+        return nil
+      }
+      guard !sourceIsAlreadyNFC else {
+        return nextFromSource()
+      }
+      return _resume(consumingNFD: { $0.nfd._resume(consuming: nextFromSource) })
+    }
+
+    /// Marks the end of the text stream and
+    /// returns the next scalar from the normalizer's internal buffer.
+    ///
+    /// Once you have finished feeding input data to the normalizer,
+    /// call `flush` until it returns `nil`.
+    ///
+    /// ```swift
+    /// while let scalar = normalizer.flush() {
+    ///   print(scalar)
+    /// }
+    /// ```
+    ///
+    /// After calling `flush`, all future calls to `resume`
+    /// will immediately return `nil` without consuming from its source.
+    /// This allows optional chaining to be used to
+    /// fully normalize a stream:
+    ///
+    /// ```swift
+    /// // Normalize the concatenation of inputA and inputB
+    ///
+    /// while let scalar =
+    ///   normalizer.resume(consuming: &inputA) ??
+    ///   normalizer.resume(consuming: &inputB) ??
+    ///   normalizer.flush()
+    /// {
+    ///   print(scalar)
+    /// }
+    /// ```
+    ///
+    internal mutating func flush() -> Unicode.Scalar? {
+
+      isTerminated = true
+
+      guard !sourceIsAlreadyNFC else {
+        return nil
+      }
+
+      // Process anything remaining from the NFD normalizer.
+      if let next = _resume(consumingNFD: { $0.nfd._flush() }) {
+        return next
+      }
+
+      // If we have a leftover composee, make sure to return it.
+      // We may still have things in the buffer which are not complete segments.
+      return composee.take() ?? buffer.next()?.scalar
+    }
   }
 }
 
-extension Unicode._InternalNFC.Iterator: IteratorProtocol {
-  internal func compose(
-    _ x: Unicode.Scalar,
-    and y: Unicode.Scalar
+extension Unicode._NFCNormalizer {
+
+  @inline(never)
+  internal mutating func _resume(
+    consumingNFD nextNFD: (inout Self) -> ScalarAndNormData?
   ) -> Unicode.Scalar? {
-    // Fast path: ASCII and some latiny scalars never compose when they're on
-    // the rhs.
-    if _fastPath(y.value < 0x300) {
+
+    switch state {
+    case .emittingSegment:
+
+      if let buffered = buffer.next() {
+        return buffered.scalar
+      }
+      state = .consuming
+      fallthrough
+
+    case .consuming:
+
+      while let current = nextNFD(&self) {
+
+        // The first starter in the sequence is our initial 'composee'.
+        // Any scalars preceding the first starter have nothing to compose with
+        // and are just emitted directly.
+
+        guard let currentComposee = composee else {
+          guard current.normData.canonicalCombiningClass == .notReordered else {
+            return current.scalar
+          }
+          composee = current.scalar
+          continue
+        }
+
+        guard let lastBufferedNormData = buffer.last?.normData else {
+
+          // The buffer is empty so we have a simple Non-Blocked Pair,
+          // <composee, current>. Look for an equivalent Primary Composite.
+          // If 'current' is NFC_QC, we already know there won't be a composite.
+
+          guard
+            !current.normData.isNFCQC,
+            let composed = compose(currentComposee, andNonNFCQC: current.scalar)
+          else {
+
+            // No Primary Composite found.
+            // If 'current' is a starter, yield 'composee',
+            // and begin a new segment with 'current' as the new 'composee'.
+            // Otherwise, 'current' is a non-composing mark
+            // that we need to buffer until we are finished composing.
+
+            if current.normData.canonicalCombiningClass == .notReordered {
+              composee = current.scalar
+              return currentComposee
+            }
+            buffer.append(current)
+            continue
+          }
+
+          // Primary Composite found. 
+          // It becomes our new 'composee' and 'current' is discarded.
+
+          composee = composed
+          continue
+        }
+
+        // We have the sequence <composee, [...buffer contents...], current>.
+        // Check whether 'current' may compose with 'composee',
+        // or whether it is blocked by the buffer contents.
+        //
+        // Blocking refers to the presence of a scalar X in the buffer
+        // where CCC(X) == 0 or CCC(X) >= CCC(current).
+        //
+        // Example:
+        //
+        // - "a\u{0305}\u{0300}b" (a̅̀b) => NFC "a\u{0305}\u{0300}b" (a̅̀b)
+        // - "a\u{0300}\u{0305}b" (à̅b) => NFC "\u{00E0}\u{0305}b"  (à̅b)
+        //         ^^^     ^^^
+        //
+        // These strings contain two combining marks with the same combining
+        // class: U+0305 COMBINING OVERLINE and U+0300 COMBINING GRAVE ACCENT.
+        // Because these marks have the same class, they cannot be reordered
+        // (their existing order is important). In one ordering, the accent
+        // appears above the overline, and in the other the order is reversed.
+        //
+        // It turns out, there is no composite for <"a", overline>,
+        // but there is one for <"a", grave accent>: the
+        // U+00E0 LATIN SMALL LETTER A WITH GRAVE we see in the second example.
+        //
+        // Despite the overline not composing, it would be wrong
+        // if the grave accent could squeeze ahead of it
+        // via composition with the "a".
+        // So the presence of the overline must block the composition.
+
+        _internalInvariant(
+          lastBufferedNormData.canonicalCombiningClass != .notReordered,
+          "We never buffer starters"
+        )
+
+        // Since we consume an NFD stream
+        // the buffer contents are already in canonical order,
+        // and 'lastBufferedNormData' has the highest CCC in the buffer.
+
+        _internalInvariant(
+          lastBufferedNormData.canonicalCombiningClass <= current.normData.canonicalCombiningClass
+          || current.normData.canonicalCombiningClass == .notReordered,
+          "NFD stream not in canonical order"
+        )
+
+        guard lastBufferedNormData.canonicalCombiningClass < current.normData.canonicalCombiningClass else {
+
+          // 'current' is blocked from composing with 'composee'.
+          //
+          // If 'current' is a starter, yield 'composee', 
+          // emit the segment that we have in the buffer,
+          // and begin a new segment with 'current' as the new 'composee'.
+          // Otherwise, 'current' is a non-composing mark
+          // that we need to buffer until we are finished composing.
+
+          if current.normData.canonicalCombiningClass == .notReordered {
+            composee = current.scalar
+            state = .emittingSegment
+            return currentComposee
+          }
+          buffer.append(current)
+          continue
+        }
+
+        _internalInvariant(current.normData.canonicalCombiningClass != .notReordered)
+
+        // Look for a Primary Composite equivalent to <composee, current>.
+        // If 'current' is NFC_QC, we already know there won't be any composite.
+
+        guard
+          !current.normData.isNFCQC,
+          let composed = compose(currentComposee, andNonNFCQC: current.scalar)
+        else {
+
+          // No Primary Composite found.
+          // We know 'current' is not a starter, so it is a non-composing mark
+          // that we need to buffer until we are finished composing.
+          buffer.append(current)
+          continue
+        }
+
+        // Primary Composite found.
+        // It becomes our new 'composee', and 'current' is discarded.
+
+        composee = composed
+      }
+
+      // NFD source is exhausted.
       return nil
     }
+  }
+
+  private func compose(
+    _ x: Unicode.Scalar,
+    andNonNFCQC y: Unicode.Scalar
+  ) -> Unicode.Scalar? {
 
     if let hangul = composeHangul(x, and: y) {
       return hangul
@@ -60,7 +415,7 @@ extension Unicode._InternalNFC.Iterator: IteratorProtocol {
   }
 
   @inline(never)
-  internal func composeHangul(
+  private func composeHangul(
     _ x: Unicode.Scalar,
     and y: Unicode.Scalar
   ) -> Unicode.Scalar? {
@@ -96,128 +451,5 @@ extension Unicode._InternalNFC.Iterator: IteratorProtocol {
     default:
       return nil
     }
-  }
-
-  internal mutating func next() -> Unicode.Scalar? {
-    // Empty out our buffer before attempting to compose anything with our new
-    // composee.
-    if let nextBuffered = buffer.next() {
-      return nextBuffered.scalar
-    }
-
-    while let current = iterator.next() {
-      guard let currentComposee = composee else {
-        // If we don't have a composee at this point, we're most likely looking
-        // at the start of a string. If our class is 0, then attempt to compose
-        // the following scalars with this one. Otherwise, it's a one off scalar
-        // that needs to be emitted.
-        if current.normData.ccc == 0 {
-          composee = current.scalar
-          continue
-        } else {
-          return current.scalar
-        }
-      }
-
-      // If we have any scalars in the buffer, it means those scalars couldn't
-      // compose with our composee to form a new scalar. However, scalars
-      // following them may still compose with our composee, so take the last
-      // scalar in the buffer and get its normalization data so that we can
-      // perform the check underneath this one about whether this current scalar
-      // is "blocked". We get the last scalar because the scalars we receive are
-      // already NFD, so the last scalar in the buffer will have the highest
-      // CCC value in this normalization segment.
-      guard let lastBufferedNormData = buffer.last?.normData else {
-        // If we do not have any scalars in our buffer yet, then this step is
-        // trivial. Attempt to compose our current scalar with whatever composee
-        // we're currently building up.
-
-        // If our right hand side scalar IS NFC_QC, then that means it can
-        // never compose with any scalars previous to it. So, if our current
-        // scalar is NFC_QC, then we have no composition.
-        guard !current.normData.isNFCQC,
-            let composed = compose(currentComposee, and: current.scalar) else {
-          // We did not find a composition between the two. If our current class
-          // is 0, then set that as the new composee and return whatever built
-          // up scalar we have. Otherwise, add our current scalar to the buffer
-          // for eventual removal!
-
-          if current.normData.ccc == 0 {
-            composee = current.scalar
-            return currentComposee
-          }
-
-          buffer.append(current)
-          continue
-        }
-
-        // We found a composition! Record it as our new composee and repeat the
-        // process.
-        composee = composed
-        continue
-      }
-
-      // Check if our current scalar is not blocked from our current composee.
-      // In this case blocked means there is some scalar whose class
-      // (lastBufferedNormData.ccc) is either == 0 or >= current.normData.ccc.
-      //
-      // Example:
-      //
-      //     "z\u{0335}\u{0327}\u{0324}\u{0301}"
-      //
-      // In this example, there are several combining marks following a 'z', but
-      // none of them actually compose with the composee 'z'. However, the last
-      // scalar U+0301 does actually compose. So this check makes sure that the
-      // last scalar doesn't have any scalar in between it and the composee that
-      // would otherwise "block" it from composing.
-      guard lastBufferedNormData.ccc < current.normData.ccc else {
-        // We had a scalar block it. That means our current scalar is either a
-        // starter or has a same class (preserve ordering).
-
-        // Starters are the "start" of a new normalization segment. Set it as
-        // the new composee and return our current composee. This will trigger
-        // any other scalars in the buffer to be emitted before we handle
-        // normalizing this new segment.
-        if current.normData.ccc == 0 {
-          composee = current.scalar
-          return currentComposee
-        }
-
-        _internalInvariant(current.normData.ccc == lastBufferedNormData.ccc)
-        buffer.append(current)
-        continue
-      }
-
-      // There were no blockers! Attempt to compose the two! (Again, if our rhs
-      // scalar IS NFC_QC, then it can never compose with anything previous to
-      // it).
-      guard !current.normData.isNFCQC,
-            let composed = compose(currentComposee, and: current.scalar) else {
-        // No composition found. Stick it at the end of the buffer with the rest
-        // of non-composed scalars.
-
-        buffer.append(current)
-        continue
-      }
-
-      // They composed! Assign the composition as our new composee and iterate
-      // to the next scalar.
-      composee = composed
-    }
-
-    // If we have a leftover composee, make sure to return it.
-    return composee._take()
-  }
-}
-
-extension Unicode._InternalNFC: Sequence {
-  internal func makeIterator() -> Iterator {
-    Iterator(iterator: base._internalNFD.makeIterator())
-  }
-}
-
-extension StringProtocol {
-  internal var _internalNFC: Unicode._InternalNFC<Self> {
-    Unicode._InternalNFC(base: self)
   }
 }

@@ -55,10 +55,16 @@ public:
   ActorInstance(SILValue value, Kind kind)
       : value(value, std::underlying_type<Kind>::type(kind)) {}
 
+  /// We want to look through certain instructions like end_init_ref that have
+  /// the appropriate actor type but could disguise the actual underlying value
+  /// that we want to represent our actor.
+  static SILValue lookThroughInsts(SILValue value);
+
 public:
   ActorInstance() : ActorInstance(SILValue(), Kind::Value) {}
 
   static ActorInstance getForValue(SILValue value) {
+    value = lookThroughInsts(value);
     return ActorInstance(value, Kind::Value);
   }
 
@@ -410,6 +416,10 @@ public:
 
   void printForDiagnostics(llvm::raw_ostream &os) const {
     innerInfo.printForDiagnostics(os);
+  }
+
+  SWIFT_DEBUG_DUMPER(dumpForDiagnostics()) {
+    innerInfo.dumpForDiagnostics();
   }
 };
 

@@ -19,6 +19,7 @@
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Sema/ConstraintSystem.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Compiler.h"
@@ -1036,18 +1037,9 @@ SolutionCompareResult ConstraintSystem::compareSolutions(
     if (cs.isForCodeCompletion()) {
       // Don't rank based on overload choices of function calls that contain the
       // code completion token.
-      ASTNode anchor = simplifyLocatorToAnchor(overload.locator);
-      if (auto expr = getAsExpr(anchor)) {
-        // If the anchor is a called function, also don't rank overload choices
-        // if any of the arguments contain the code completion token.
-        if (auto apply = dyn_cast_or_null<ApplyExpr>(cs.getParentExpr(expr))) {
-          if (apply->getFn() == expr) {
-            anchor = apply;
-          }
-        }
-      }
-      if (anchor && cs.containsIDEInspectionTarget(anchor)) {
-        continue;
+      if (auto anchor = simplifyLocatorToAnchor(overload.locator)) {
+        if (cs.containsIDEInspectionTarget(cs.includingParentApply(anchor)))
+          continue;
       }
     }
 

@@ -1,6 +1,4 @@
-// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -verify-additional-prefix minimal-targeted- -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -verify-additional-prefix targeted-complete-tns- -verify-additional-prefix targeted-complete- -verify-additional-prefix minimal-targeted- -strict-concurrency=targeted -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -verify-additional-prefix targeted-complete-tns- -verify-additional-prefix targeted-complete- -verify-additional-prefix complete-tns- -verify-additional-prefix complete- -strict-concurrency=complete -disable-region-based-isolation-with-strict-concurrency
+// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -verify-additional-prefix minimal-
 // RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -verify-additional-prefix targeted-complete-tns- -verify-additional-prefix complete-tns- -strict-concurrency=complete
 
 // REQUIRES: concurrency
@@ -101,7 +99,7 @@ extension TestActor {
 
 // external class method call
 @available(SwiftStdlib 5.1, *)
-class NonAsyncClass { // expected-targeted-complete-note {{class 'NonAsyncClass' does not conform to the 'Sendable' protocol}}
+class NonAsyncClass {
   // expected-targeted-complete-tns-note @-1 {{class 'NonAsyncClass' does not conform to the 'Sendable' protocol}}
   // expected-tns-note @-2 {{class 'NonAsyncClass' does not conform to the 'Sendable' protocol}}
   func modifyOtherAsync(_ other : inout Int) async {
@@ -124,7 +122,6 @@ extension TestActor {
     // expected-targeted-complete-tns-warning @-1 {{non-sendable type 'NonAsyncClass' exiting actor-isolated context in call to non-isolated instance method 'modifyOtherAsync' cannot cross actor boundary}}
     await other.modifyOtherAsync(&value2)
     // expected-error @-1 {{actor-isolated property 'value2' cannot be passed 'inout' to 'async' function call}}
-    // expected-targeted-complete-warning @-2 {{passing argument of non-sendable type 'NonAsyncClass' outside of actor-isolated context may introduce data races}}
 
     await otherCurry(&value1)
     // expected-error @-1 {{actor-isolated property 'value1' cannot be passed 'inout' to 'async' function call}}
@@ -134,13 +131,11 @@ extension TestActor {
   }
 
   func callMutatingFunctionOnStruct() async {
-    // expected-targeted-complete-warning @+4 {{passing argument of non-sendable type 'inout Point' outside of actor-isolated context may introduce data races}}
     // expected-error@+3:20{{cannot call mutating async function 'setComponents(x:y:)' on actor-isolated property 'position'}}
     // expected-error@+2:38{{actor-isolated property 'nextPosition' cannot be passed 'inout' to 'async' function call}}
     // expected-error@+1:58{{actor-isolated property 'nextPosition' cannot be passed 'inout' to 'async' function call}}
     await position.setComponents(x: &nextPosition.x, y: &nextPosition.y)
 
-    // expected-targeted-complete-warning @+4 {{passing argument of non-sendable type 'inout Point' outside of actor-isolated context may introduce data races}}
     // expected-error@+3:20{{cannot call mutating async function 'setComponents(x:y:)' on actor-isolated property 'position'}}
     // expected-error@+2:38{{actor-isolated property 'value1' cannot be passed 'inout' to 'async' function call}}
     // expected-error@+1:50{{actor-isolated property 'value2' cannot be passed 'inout' to 'async' function call}}
@@ -224,7 +219,7 @@ struct MyGlobalActor {
 if #available(SwiftStdlib 5.1, *) {
   let _ = Task.detached { await { (_ foo: inout Int) async in foo += 1 }(&number) }
   // expected-error @-1 {{actor-isolated var 'number' cannot be passed 'inout' to 'async' function call}}
-  // expected-minimal-targeted-error @-2 {{global actor 'MyGlobalActor'-isolated var 'number' can not be used 'inout' from a non-isolated context}}
+  // expected-minimal-error @-2 {{global actor 'MyGlobalActor'-isolated var 'number' can not be used 'inout' from a non-isolated context}}
   // expected-complete-tns-error @-3 {{main actor-isolated var 'number' can not be used 'inout' from a non-isolated context}}
 }
 
@@ -319,6 +314,5 @@ actor ProtectDictionary {
   func invalid() async {
     await dict[0].mutate()
     // expected-warning@-1 {{cannot call mutating async function 'mutate()' on actor-isolated property 'dict'; this is an error in the Swift 6 language mode}}
-    // expected-targeted-complete-warning@-2 {{passing argument of non-sendable type 'inout Optional<Int>' outside of actor-isolated context may introduce data races}}
   }
 }

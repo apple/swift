@@ -41,3 +41,25 @@ public func anotherPackFunction<each T>(_ ts: repeat each T) {
     }
   }
 }
+
+public func varCaptures<each T, each U>(ts: repeat each T, us: repeat each U) {
+  for t in repeat each ts {
+    for u in repeat each us {
+      var both = (t, u)
+      both = (t, u)
+      let capture_both = { both = (t, u) }
+      capture_both()
+
+      var just_u = u
+      just_u = u
+      let capture_u = { _ = t; just_u = u }
+      capture_u()
+
+      var just_t = t
+      just_t = t
+      let capture_t = { just_t = t; _ = u }
+      capture_t()
+    }
+  }
+}
+

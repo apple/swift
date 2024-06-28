@@ -1,4 +1,4 @@
 // swift-interface-format-version: 1.0
-// swift-module-flags: -module-name E
+// swift-module-flags: -module-name E -autolink-force-load -module-link-name swiftyLibE
 import Swift
 public func funcE() { }

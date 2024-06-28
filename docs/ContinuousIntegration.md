@@ -262,7 +262,7 @@ https://github.com/apple/swift/pull/4574
 ```
 Please test with following PR:
 https://github.com/apple/swift-lldb/pull/48
-https://github.com/apple/swift-package-manager/pull/632
+https://github.com/swiftlang/swift-package-manager/pull/632
 
 @swift-ci Please test macOS platform
 ```

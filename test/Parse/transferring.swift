@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -disable-availability-checking -enable-experimental-feature TransferringArgsAndResults -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation
+// RUN: %target-typecheck-verify-swift -disable-availability-checking -strict-concurrency=complete
 
 // REQUIRES: asserts
 
@@ -27,3 +27,7 @@ func testVarDeclTuple2(_ x: (transferring String)) {}
   // expected-warning @-1 {{'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly}}
 func testVarDeclTuple2(_ x: (transferring String, String)) {} // expected-error {{'transferring' cannot be applied to tuple elements}}
   // expected-warning @-1 {{'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly}}
+
+func testBorrowSending(_ x: transferring borrowing String) {}
+// expected-warning @-1 {{'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly}}
+// expected-error @-2 {{'transferring' cannot be used together with 'borrowing'}}

@@ -1,23 +1,23 @@
 // First parse this and then emit a *.sib. Then read in the *.sib, then recreate
 
 // RUN: %empty-directory(%t)
-// RUN: %target-sil-opt -enable-upcoming-feature TransferringArgsAndResults -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete %s -emit-sib -o %t/tmp.sib -module-name basic2
-// RUN: %target-sil-opt -enable-upcoming-feature TransferringArgsAndResults -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete %t/tmp.sib -o %t/tmp.2.sib -module-name basic2
-// RUN: %target-sil-opt -enable-upcoming-feature TransferringArgsAndResults -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete %t/tmp.2.sib -module-name basic2 -emit-sorted-sil | %FileCheck %s
+// RUN: %target-sil-opt -strict-concurrency=complete %s -emit-sib -o %t/tmp.sib -module-name basic2
+// RUN: %target-sil-opt -strict-concurrency=complete %t/tmp.sib -o %t/tmp.2.sib -module-name basic2
+// RUN: %target-sil-opt -strict-concurrency=complete %t/tmp.2.sib -module-name basic2 -emit-sorted-sil | %FileCheck %s
 
 sil_stage raw
 
 // CHECK-LABEL: func transferValueDefault<T>(_ t: sending T)
 func transferValueDefault<T>(_ t: transferring T)
-// CHECK-LABEL: func transferValueBorrowing<T>(_ t: borrowing sending T)
-func transferValueBorrowing<T>(_ t: transferring borrowing T)
+// CHECK-LABEL: func transferValue__shared<T>(_ t: __shared sending T)
+func transferValue__shared<T>(_ t: transferring __shared T)
 // CHECK-LABEL: func transferValueConsuming<T>(_ t: consuming sending T)
 func transferValueConsuming<T>(_ t: transferring consuming T)
 
 // CHECK-LABEL: func sendingValueDefault<T>(_ t: sending T)
 func sendingValueDefault<T>(_ t: sending T)
-// CHECK-LABEL: func sendingValueBorrowing<T>(_ t: borrowing sending T)
-func sendingValueBorrowing<T>(_ t: borrowing sending T)
+// CHECK-LABEL: func sendingValue__shared<T>(_ t: __shared sending T)
+func sendingValue__shared<T>(_ t: __shared sending T)
 // CHECK-LABEL: func sendingValueConsuming<T>(_ t: consuming sending T)
 func sendingValueConsuming<T>(_ t: consuming sending T)
 

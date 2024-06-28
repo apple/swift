@@ -18,6 +18,7 @@
 #include "swift/AST/Availability.h"
 #include "swift/AST/DistributedDecl.h"
 #include "swift/AST/ProtocolConformance.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Range.h"
 
 using namespace swift;

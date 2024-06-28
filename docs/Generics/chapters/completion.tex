@@ -302,7 +302,7 @@ In the first case, it is immediate that both rules were imported from the same p
 &\assocsym{P}{A}.\assocsym{Q}{B}\\
 &\assocsym{P}{A}
 \end{align*}
-In the second case, \texttt{P} and \texttt{Q} are either in the same protocol component, or \texttt{Q} is a protocol dependency of \texttt{P}, because we have $G_\texttt{P}\vDash\ConfReq{Self.A}{Q}$:
+In the second case, \texttt{P} and \texttt{Q} are either in the same protocol component, or \texttt{Q} is a protocol dependency of \texttt{P}, because we have $\GP\vDash\ConfReq{Self.A}{Q}$:
 \begin{align*}
 \assocsym{P}{A}.&\assocsym{Q}{B}\\
 &\assocsym{Q}{B}.\assocsym{R}{C}
@@ -380,7 +380,7 @@ Takes a rewrite system as input, and outputs a list of critical pairs. Also quer
 
 We can now describe the main loop of the Knuth-Bendix completion procedure, which repeatedly finds and resolves critical pairs until no more non-trivial critical pairs remain. This process might not terminate, and we might find ourselves discovering new critical pairs and adding new rules to resolve them, forever. To prevent an infinite loop in the case of failure, we implement a termination check; if we think we've done too much work already, we give up on constructing a covergent rewrite system. We already mentioned the \textbf{left-simplified}, \textbf{right-simplified}, and \textbf{substitution-simplified} flags a few times; they are set by the rule simplification passes, with the first two described in \SecRef{rule reduction} and the third one in \SecRef{subst simplification}. These passes are invoked at appropriate times in the main loop below.
 
-\begin{algorithm}[Knuth-Bendix completion procedure]\label{knuthbendix} Takes a rewrite system as input, and outputs success or failure. On success, the rewrite system is now convergent, with all resolved critical pairs described by recorded rewrite loops. Failure occurs if we encounter a non-orientable relation, or if we trigger the termination check.
+\begin{algorithm}[Knuth-Bendix completion procedure]\label{knuthbendix} Takes a rewrite system as input, and outputs success or failure. On success, the rewrite system is now convergent, with all resolved critical pairs described by recorded rewrite loops. Failure occurs if we encounter a non-orientable rewrite rule, or if we trigger the termination check.
 \begin{enumerate}
 \item (Initialize) Clear the flag.
 \item (Overlaps) Use \AlgRef{find overlapping rule algo} to build a list of critical pairs.
@@ -414,7 +414,7 @@ protocol Z14 {
 
 If completion fails when building a rewrite system for \index{requirement minimization}minimization, we have a source location associated with some protocol or generic declaration. An error is diagnosed at this source location, and we proceed with minimization producing an empty list of requirements. If completion fails on a rewrite system built from an existing generic signature or \index{protocol component}protocol component, there is no source location we can use for diagnostics; the compiler dumps the entire rewrite system and aborts with a fatal error. The latter scenario is unusual; if we successfully constructed a generic signature from user-written requirements, we should be able to build a rewrite system for it again.
 
-\paragraph{Debugging flags}
+\paragraph{Debugging flags.}
 A pair of debugging options can help us understand the operation of the completion procedure; both can be set together\footnote{With a single \texttt{-debug-requirement-machine=} flag, separating the subflags with commas.}, but be warned that they produce a large volume of output:
 \begin{itemize}
 \item \IndexTwoFlag{debug-requirement-machine}{completion} \texttt{-debug-requirement-machine=completion} will dump all overlapping rules and critical pairs.
@@ -538,7 +538,7 @@ What we call reduced rewrite systems are sometimes ``normalized'', ``canonical''
 A conformance rule $t.\protosym{P}\Rightarrow t$ always overlaps with an associated type introduction rule $\protosym{P}.\texttt{A}\Rightarrow\assocsym{P}{A}$, and resolving this critical pair defines a rule $t.\texttt{A}\Rightarrow t.\assocsym{P}{A}$ (unless something further reduces the right-hand side). These rewrite rules reduce those terms representing \index{unbound type parameter}unbound type parameters to \index{bound type parameter}bound type parameters. Thus, we will see how the bound and unbound type parameters from \SecRef{type params} manifest in our rewrite system.
 
 \begin{example}\label{assoc type completion example}
-We're going to look at this pair of protocol declarations, and the \index{protocol generic signature}protocol generic signature $G_\texttt{P}$:
+We're going to look at this pair of protocol declarations, and the \index{protocol generic signature}protocol generic signature $\GP$:
 \begin{Verbatim}
 protocol Q {
   associatedtype B
@@ -549,7 +549,7 @@ protocol P {
 }
 \end{Verbatim}
 
-Protocol \texttt{P} has an \index{associated conformance requirement}associated conformance requirement $\ConfReq{Self.[P]A}{Q}_\texttt{P}$, and $G_\texttt{P}$ has a conformance requirement $\ConfReq{\ttgp{0}{0}}{P}$, so the \index{protocol dependency graph}protocol dependency graph has the two edges $G_\texttt{P}\prec\texttt{P}$ and $\texttt{P}\prec\texttt{Q}$. We first build a rewrite system for \texttt{Q}. The rewrite system for $G_\texttt{P}$ imports rules from \texttt{P} and \texttt{Q}:
+Protocol \texttt{P} has an \index{associated conformance requirement}associated conformance requirement $\ConfReq{Self.[P]A}{Q}_\texttt{P}$, and $\GP$ has a conformance requirement $\ConfReq{\ttgp{0}{0}}{P}$, so the \index{protocol dependency graph}protocol dependency graph has the two edges $\GP\prec\texttt{P}$ and $\texttt{P}\prec\texttt{Q}$. We first build a rewrite system for \texttt{Q}. The rewrite system for $\GP$ imports rules from \texttt{P} and \texttt{Q}:
 \begin{flalign*}
 \toprule
 &\AssocIntro{Q}{B}\tag{1}&\\
@@ -601,7 +601,7 @@ We also record a rewrite loop that defines rule (*4) via rules (3) and (1):
 \]
 Once again, we check for overlaps in the left-hand sides of our local rules---now (2), (3) and (4). We see that no more critical pairs remain, and we have a convergent rewrite system for \texttt{P}.
 
-Finally, we build the rewrite system for $G_\texttt{P}$. We import all rules from \texttt{Q} and \texttt{P}, and add one new local rule corresponding to the conformance requirement $\ConfReq{\ttgp{0}{0}}{P}$:
+Finally, we build the rewrite system for $\GP$. We import all rules from \texttt{Q} and \texttt{P}, and add one new local rule corresponding to the conformance requirement $\ConfReq{\ttgp{0}{0}}{P}$:
 \[
 \ProtoConf{\ttgp{0}{0}}{P}\tag{5}
 \]
@@ -623,9 +623,9 @@ We also record a rewrite loop that defines rule (*6) via rules (5) and (2):
 \ttgp{0}{0}.\assocsym{P}{A}\arrow[ul, Rightarrow, "\ttgp{0}{0}.(\AssocIntroInv{P}{A})"', bend right]
 \end{tikzcd}
 \]
-At this point, there might be overlaps involving one of rule (5) or (*6); a quick check shows none remain, so we have a convergent rewrite system for $G_\texttt{P}$.
+At this point, there might be overlaps involving one of rule (5) or (*6); a quick check shows none remain, so we have a convergent rewrite system for $\GP$.
 
-Now, we get to the interesting part. Consider these two type parameters of $G_\texttt{P}$, and their corresponding \index{type-like term}type-like terms:
+Now, we get to the interesting part. Consider these two type parameters of $\GP$, and their corresponding \index{type-like term}type-like terms:
 \begin{enumerate}
 \item The unbound type parameter \texttt{\ttgp{0}{0}.A.B}, and term $\ttgp{0}{0}.\texttt{A}.\texttt{B}$.
 \item The bound type parameter \texttt{\ttgp{0}{0}.[P]A.[Q]B}, and term $\ttgp{0}{0}.\assocsym{P}{A}.\assocsym{Q}{B}$.
@@ -645,7 +645,7 @@ Here is a diagram for $p$:
 There is a ``telescoping'' effect, as term reduction processes the name symbols from left to right, replacing them with associated type symbols. As an aside, if we have an \emph{invalid} type parameter, such as \texttt{\ttgp{0}{0}.A.A}, the term reduces to $\ttgp{0}{0}.\assocsym{P}{A}.\texttt{A}$ but no further; the final name symbol \texttt{A} cannot be ``resolved'' because the type parameter \texttt{\ttgp{0}{0}.A} does not \emph{have} a member type named \texttt{A}.
 
 The type-like term $\ttgp{0}{0}.\texttt{A}.\texttt{B}$ reduces to $\ttgp{0}{0}.\assocsym{P}{A}.\assocsym{Q}{B}$ because the unbound type parameter \texttt{\ttgp{0}{0}.A.B} is equivalent to the bound type parameter \texttt{\ttgp{0}{0}.[P]A.[Q]B}, and the latter is the reduced type of the former. The equivalence follows because we can derive a same-type requirement, and the left-hand side of this same-type requirement is the reduced type because no smaller type parameter can be shown to be equivalent:
-\[G_\texttt{P}\vDash\SameReq{\ttgp{0}{0}.[P]A.[Q]B}{\ttgp{0}{0}.A.B}\]
+\[\GP\vDash\SameReq{\ttgp{0}{0}.[P]A.[Q]B}{\ttgp{0}{0}.A.B}\]
 Here is one possible derivation for this same-type requirement:
 \begin{gather*}
 \vdash\ConfReq{\ttgp{0}{0}}{P}\tag{1}\\
@@ -1319,20 +1319,20 @@ fn f<T: S>(val: <T::C as S>::B) {
 
 \section{Tietze Transformations}\label{tietze transformations}
 
-Both the \index{Knuth-Bendix algorithm}Knuth-Bendix completion and the \index{left simplification}rule simplification algorithms preserve the equivalence relation on terms. When completion adds a new rewrite rule, it is because the corresponding pair of terms are already joined by a \index{rewrite path}rewrite path. There is an analogous guarantee when \index{right simplification}rule simplification deletes a rewrite rule: the two terms are known to be joined by at least one other rewrite path that does not involve this rule. These transformations knead the \index{reduction relation}reduction relation into a better form, while the equivalence relation on terms remains completely determined by the relations of our initial \index{monoid presentation}monoid presentation.
+Both the \index{Knuth-Bendix algorithm}Knuth-Bendix completion and the \index{left simplification}rule simplification algorithms preserve the equivalence relation on terms. When completion adds a new rewrite rule, it is because the corresponding pair of terms are already joined by a \index{rewrite path}rewrite path. There is an analogous guarantee when \index{right simplification}rule simplification deletes a rewrite rule: the two terms are known to be joined by at least one other rewrite path that does not involve this rule. These transformations knead the \index{reduction relation}reduction relation into a better form, while the equivalence relation on terms remains completely determined by the rewrite rules of our initial \index{monoid presentation}monoid presentation.
 
 Mathematically speaking, both algorithms are defined as a transformation on monoid presentations. This transformation decomposes into a composition of sequential steps, where at each step the monoid presentation is changed in such a way that \index{monoid isomorphism}monoid isomorphism is preserved. So far, we've seen two of the four isomorphism-preserving transformations below, so named after \index{Heinrich Tietze}Heinrich Tietze, who introduced them in 1908:
 \begin{definition}
 Let $\AR$ be a finitely-presented monoid. An \IndexDefinition{Tietze transformation}\emph{elementary Tietze transformation}, or just Tietze transformation, is one of the following:
 \begin{enumerate}
-\item (Adding a relation) If a pair of terms $u$, $v\in A^*$ are already joined by a rewrite path from $u$ to $v$---that is, if $u\sim v$ as elements of $\AR$---we can add $(u,\,v)$:
-\[\langle A;\,R\cup\{(u,v)\}\rangle\]
-\item (Removing a relation) If $(u,\,v)\in R$ and we have a rewrite path from $u$ to $v$ that does not contain the rewrite step $x(u\Rightarrow v)y$ or $x(v\Rightarrow u)y$ for any $x$, $y\in A^*$, we can remove $(u,v)$:
-\[\langle A;\,R\setminus\{(u,v)\}\rangle\]
-\item (Adding a symbol) If $a$ is some symbol distinct from all other symbols of $A$, and $t\in A^*$ is any term, we can simultaneously add $a$ and make it equivalent to $t$:
-\[\langle A\cup\{a\};\,R\cup\{(t,a)\}\rangle\]
-\item (Removing a symbol) If $a\in A$, $(t,a)\in R$ for some term $t$ not involving $a$, and no other $(u,v)\in R$ has a term $u$ or $v$ involving $a$, we can simultaneously remove $a$ and $(t,a)$:
-\[\langle A\setminus\{a\};\,R\setminus\{(t,a)\}\rangle\]
+\item (Adding a rewrite rule) If a pair of terms $u$, $v\in A^*$ are already joined by a rewrite path from $u$ to $v$---that is, if $u\sim v$ as elements of $\AR$---we can add $(u,v)$:
+\[\Pres{A}{R\cup\{(u,v)\}}\]
+\item (Removing a rewrite rule) If $(u,v)\in R$ and we have a rewrite path from $u$ to $v$ that does not contain the rewrite step $x(u\Rightarrow v)y$ or $x(v\Rightarrow u)y$ for any $x$, $y\in A^*$, we can remove $(u,v)$:
+\[\Pres{A}{R\setminus\{(u,v)\}}\]
+\item (Adding a generator) If $a$ is some symbol distinct from all other symbols of $A$, and $t\in A^*$ is any term, we can simultaneously add $a$ and make it equivalent to $t$:
+\[\Pres{A\cup\{a\}}{R\cup\{(t,a)\}}\]
+\item (Removing a generator) If $a\in A$, $(t,a)\in R$ for some term $t$ not involving $a$, and no other $(u,v)\in R$ has a term $u$ or $v$ involving $a$, we can simultaneously remove $a$ and $(t,a)$:
+\[\Pres{A\setminus\{a\}}{R\setminus\{(t,a)\}}\]
 \end{enumerate}
 The following is the key result here: two finitely-presented monoids are isomorphic if and only if they are \emph{Tietze-equivalent}, meaning we can obtain one from the other by a finite sequence of elementary Tietze transformations.
 \end{definition}
@@ -1340,19 +1340,19 @@ Some finer points:
 \begin{itemize}
 \item For every Tietze transformation, there is a complementary transformation which undoes the change; in this way (1) and (2) are inverses, and similarly (3) and (4).
 
-\item We already know that changing the order of the terms in a relation---replacing $(u,v)\in R$ with $(v,u)$---does not change the set of rewrite steps generated, and thus presents the same monoid. Now we see this operation is actually a composition of two elementary Tietze transformations; we first add $(v,u)$, and remove $(u,v)$.
+\item We already know that changing the order of the terms in a rewrit erule---replacing $(u,v)\in R$ with $(v,u)$---does not change the set of rewrite steps generated, and thus presents the same monoid. Now we see this operation is actually a composition of two elementary Tietze transformations; we first add $(v,u)$, and remove $(u,v)$.
 
-\item Some definitions of (4) drop the condition that the removed symbol $a$ not appear in any relation $(u,v)\in R$ other than the $(t,a)$ being simultaneously removed. Our restriction does not cost us any generality, because if $a$ occurs in any other relations, we can always first perform a series of Tietze transformations: for each such $(u,v)$, we replace occurrences of $a$ with $t$ in $u$ and $v$, add the new relation, and finally remove $(u,v)$. However, note that we must still require that $a$ must not occur in $t$.
+\item Some definitions of (4) drop the condition that the removed symbol $a$ not appear in any other rewrite rule $(u,v)\in R$. Our restriction does not cost us any generality, because if $a$ occurs in any other rewrite rule, we can always first perform a series of Tietze transformations to eliminate such occurrences: for each such $(u,v)$, we replace occurrences of $a$ with $t$ in $u$ and $v$, add the new rewrite rule, and finally remove the old rule $(u,v)$. However, we must still require that $a$ not occur in $t$; otherwise, replacing $a$~with~$t$ does not eliminate all occurrences of~$a$.
 \end{itemize}
 
-\paragraph{Associated type symbols} Tietze transformations give us a new way to understand associated type symbols. The ultimate equivalence between rewrite systems built from user-written requirements and \index{requirement minimization}minimal requirements, shown in \SecRef{critical pairs}, means we could have defined Algorithms \ref{build term generic}~and~\ref{build term protocol} to only ever build terms from \index{protocol symbol}protocol and \index{name symbol}name symbols. After completion, we end up with the same rewrite system, it just takes a little bit more work to get there. In this setup, among the initial rewrite rules, the only occurrences of \index{associated type symbol}associated type symbols are on the right-hand sides of \index{associated type introduction rule}associated type introduction rules:
+\paragraph{Associated type symbols.} Tietze transformations give us a new way to understand associated type symbols. The ultimate equivalence between rewrite systems built from user-written requirements and \index{requirement minimization}minimal requirements, shown in \SecRef{critical pairs}, means we could have defined Algorithms \ref{build term generic}~and~\ref{build term protocol} to only ever build terms from \index{protocol symbol}protocol and \index{name symbol}name symbols. After completion, we end up with the same rewrite system, it just takes a little bit more work to get there. In this setup, among the initial rewrite rules, the only occurrences of \index{associated type symbol}associated type symbols are on the right-hand sides of \index{associated type introduction rule}associated type introduction rules:
 \[\protosym{P}.\texttt{A}\Rightarrow\assocsym{P}{A}\]
 Thus, we can understand the associated type introduction rules as having been added by a sequence of Tietze transformations of the third kind, applied to some monoid presentation. This ``primordial'' monoid presentation involves only protocol and name symbols, and it encodes the same monoid that ours does, up to isomorphism. So why do we bother with associated type symbols at all? In the next section, we will see the answer has to do with the interaction between recursive conformance requirements and completion.
 
-\paragraph{Further discussion}
-The elementary Tietze transformations are akin to rewrite steps, in that they define an edge relation on a ``rewrite graph'' whose vertices are monoid presentations. A ``rewrite path'' in this graph then witnesses the fact that the source and destination present the same monoid. The corresponding notion of word problem over this rewrite graph is the \index{monoid isomorphism problem}\emph{monoid isomorphism problem}. As expected, just as the \index{word problem}word problem is \index{undecidable problem}undecidable in general, so is the monoid isomorphism problem.
+\paragraph{Further discussion.}
+The elementary Tietze transformations are ``higher dimensional'' rewrite steps, in that they define an edge relation on a graph whose vertices are \emph{monoid presentations}. A path in this graph witnesses the fact that the source and destination define an isomorphic pair of monoids. The problem of deciding if two presentations are joined by a path is the \index{monoid isomorphism problem}\emph{monoid isomorphism problem}. Like the \index{word problem}word problem, this is of course \index{undecidable problem}undecidable in general.
 
-Tietze transformations are fundamental to the study of \emph{combinatorial group theory}, and are described in any book on the subject, such as \cite{combinatorialgroup}. Note that in a group presentation, a relation $(u, v)$ can always be written as $(uv^{-1},\varepsilon)$, with the identity element on the right hand side. The term $uv^{-1}$ is called a \emph{relator}; a set of relators takes the place of relations in a group presentation. Tietze transformations of monoid presentations are described in \cite{book2012string} and \cite{henry2021tietze}.
+Tietze transformations are fundamental to the study of \emph{combinatorial group theory}, and are described in any book on the subject, such as \cite{combinatorialgroup}. Recall that in a group presentation, a rewrite rule $(u, v)$ can always be written as $(uv^{-1},\varepsilon)$, with the identity element on the right hand side. The term $uv^{-1}$ is called a \emph{relator}; a set of relators takes the place of rewrite rules in a group presentation. Tietze transformations of monoid presentations are described in \cite{book2012string} and \cite{henry2021tietze}.
 
 \section{Recursive Conformances}\label{recursive conformances redux}
 
@@ -1548,17 +1548,17 @@ Adding the symbol $\assocsym{N}{A}$ together with the rule $\AssocIntro{N}{A}$ i
 \end{gather*}
 
 Let's summarize this example using \index{monoid presentation}monoid presentations and \index{Tietze transformation}Tietze transformations. We write $n$, $a$, $b$ instead of $\protosym{N}$, \texttt{A}, $\assocsym{N}{A}$. Together with the identity conformance rule, the user-written requirement $\ConfReq{Self.A}{N}_\texttt{N}$, with an unbound type parameter as the subject type, defines this presentation over the alphabet $a$, $n$:
-\[M_1 := \langle a,\,n;\,nn\sim n,\,nan\sim na\rangle\]
-We saw that completion does not terminate on $M_1$; abstractly, we can understand it as producing an \IndexDefinition{infinite convergent presentation}\emph{infinite} convergent presentation $M_1^\prime$, containing a family of rewrite rules parameterized by $i\in\mathbb{N}$:
-\[M_1^\prime := \langle a,\,n;\,na^in\sim na^i\rangle\]
-To fix completion, we added the symbol $b$ with defining relation $na\sim b$ to $M_1$; a Tietze transformation which gave us the presentation $M_2$ over $a$, $b$, $n$:
-\[M_2 := \langle a,\,b,\,n;\,nn\sim n,\,nan\sim na,\,na\sim b\rangle\]
-Performing completion on $M_2$ with the reduction order $n<b<a$ succeeds after adding the two relations $bn\sim b$ and $ba\sim bb$, giving us the finite convergent presentation $M_2^\prime$:
-\[M_2^\prime := \langle a,\,b,\,n;\,nn\sim n,\,nan\sim na,\,na\sim b,\,bn\sim b,\,ba\sim bb\rangle\]
-Rule simplification removes the relation $nan\sim na$, giving us a reduced presentation:
-\[M_2^{\prime\prime} := \langle a,\,b,\,n;\,nn\sim n,\,na\sim b,\,bn\sim b,\,ba\sim bb\rangle\]
-We haven't seen \index{requirement minimization}rewrite system minimization yet, but to minimize $M_2^{\prime\prime}$, we eliminate all relations added by completion except for $bn\sim b$, which we need because the original relation $nan\sim na$ was deleted. This leaves us with $M_3$:
-\[M_3:=\langle a,\,b,\,n;\,nn\sim n,\,na\sim b,\,bn\sim b\rangle\]
+\[M_1 := \Pres{a,n}{nn\sim n,\,nan\sim na}\]
+We saw that completion does not terminate on $M_1$; abstractly, we can understand it as producing an \index{infinite monoid presentation}\emph{infinite} convergent presentation $M_1^\prime$, containing a family of rewrite rules parameterized by $i\in\mathbb{N}$:
+\[M_1^\prime := \Pres{a,n}{na^in\sim na^i}\]
+To ensure convergence, we added the symbol $b$ and its defining rewrite rule $na\sim b$ to $M_1$; a Tietze transformation which gave us the presentation $M_2$ over $a$, $b$, $n$:
+\[M_2 := \Pres{a,b,n}{nn\sim n,\,nan\sim na,\,na\sim b}\]
+Performing completion on $M_2$ with the reduction order $n<b<a$ succeeds after adding the two rewrite rules $bn\sim b$ and $ba\sim bb$, giving us the finite convergent presentation $M_2^\prime$:
+\[M_2^\prime := \Pres{a,b,n}{nn\sim n,\,nan\sim na,\,na\sim b,\,bn\sim b,\,ba\sim bb}\]
+Rule simplification removes the rewrite rule $nan\sim na$, giving us a reduced presentation:
+\[M_2^{\prime\prime} := \Pres{a,b,n}{nn\sim n,\,na\sim b,\,bn\sim b,\,ba\sim bb}\]
+We haven't seen \index{requirement minimization}rewrite system minimization yet, but to minimize $M_2^{\prime\prime}$, we eliminate all rewrite rules added by completion except for $bn\sim b$, which we need because the original rewrite rule $nan\sim na$ was deleted. This leaves us with $M_3$:
+\[M_3:=\Pres{a,b,n}{nn\sim n,\,na\sim b,\,bn\sim b}\]
 The rule $bn\sim b$ is the minimal conformance requirement $\ConfReq{Self.[N]A}{N}_\texttt{N}$ with a bound type parameter as the subject type. All of the above presentations define the \emph{same} monoid, up to isomorphism. Furthermore, if we perform completion on $M_3$, we get $M_2^{\prime\prime}$.
 \end{example}
 
@@ -1672,19 +1672,19 @@ Recall that the \index{protocol reduction order}reduction order on protocols was
 \smallskip
 
 To summarize the theory, let's write $a$, $b$, $c$, $p$, $q$ instead of \texttt{A}, $\assocsym{N}{A}$, $\assocsym{Q}{A}$, $\protosym{P}$, $\protosym{Q}$. The identity conformance rules and user-written requirements of \texttt{N} and \texttt{Q} define the following presentation:
-\[M_1 := \langle a,n,q;\,nn\sim n,\, nq\sim n,\, qq\sim q,\,nan\sim na,\,qaq\sim qa\rangle\]
-Completion doesn't terminate with the above; abstractly, we get an \index{infinite convergent presentation}infinite convergent presentation over the same generators:
-\[M_1^\prime := \langle a,n,q;\,na^in\sim na^i,\, qa^in\sim qa^i,\,qa^iq\sim qa^i\rangle\]
-The first Tietze transformation adds $b$ with defining relation $na\sim b$, as in the previous example:
-\[M_2 := \langle a,b,n,q;\,nn\sim n,\, qq\sim q,\, qn\sim q,\, nan\sim na,\,qaq\sim qa,\,na\sim b\rangle\]
-We saw that completion still fails; we get the following \index{infinite convergent presentation}infinite convergent presentation:
-\[M_2^{\prime} := \langle a,b,n,q;\,nn\sim n,\,na\sim b,\,bn\sim b,\,ba\sim bb,\,qb^iq\sim qb^i,\, qb^ia\sim qb^{i+1}\rangle\]
-However, we then add $c$ with defining relation $qa\sim c$:
-\[M_3 := \langle a,b,c,n,q;\,nn\sim n,\, qq\sim q,\, qn\sim q,\, nan\sim na,\,qaq\sim qa,\,na\sim b,\,qa\sim c\rangle\]
+\[M_1 := \Pres{a,n,q}{nn\sim n,\, nq\sim n,\, qq\sim q,\,nan\sim na,\,qaq\sim qa}\]
+Completion doesn't terminate with the above; abstractly, we get an \index{infinite monoid presentation}infinite convergent presentation over the same generators:
+\[M_1^\prime := \Pres{a,n,q}{na^in\sim na^i,\, qa^in\sim qa^i,\,qa^iq\sim qa^i}\]
+The first Tietze transformation adds $b$ with defining rewrite rule $na\sim b$, as in the previous example:
+\[M_2 := \Pres{a,b,n,q}{nn\sim n,\, qq\sim q,\, qn\sim q,\, nan\sim na,\,qaq\sim qa,\,na\sim b}\]
+We saw that completion still fails; we get the following \index{infinite monoid presentation}infinite convergent presentation:
+\[M_2^{\prime} := \Pres{a,b,n,q}{nn\sim n,\,na\sim b,\,bn\sim b,\,ba\sim bb,\,qb^iq\sim qb^i,\, qb^ia\sim qb^{i+1}}\]
+However, we then add $c$ with defining rewrite rule $qa\sim c$:
+\[M_3 := \Pres{a,b,c,n,q}{nn\sim n,\, qq\sim q,\, qn\sim q,\, nan\sim na,\,qaq\sim qa,\,na\sim b,\,qa\sim c}\]
 Completion suceeds on $M_3$ using a reduction order where $c<b<a$ and $p<n$, and we get a finite convergent rewrite system. We've already listed the numerous rules once, so we won't do it again. Let's call this finite convergent presentation $M_2^\prime$:
-\[M_3^\prime := \langle a,b,c,n,q;\,\mbox{\ldots 15 relations \ldots}\rangle\]
+\[M_3^\prime := \Pres{a,b,c,n,q}{\mbox{\ldots 15 rewrite rules \ldots}}\]
 The minimized rewrite system corresponds to this presentation:
-\[M_4 :=\langle a,b,c,n,q;\,nn\sim n,\, na\sim b,\, bn\sim b,\, qq\sim q,\, qa\sim c,\, qn\sim q,\, cq\sim c\rangle\]
+\[M_4 :=\Pres{a,b,c,n,q}{nn\sim n,\, na\sim b,\, bn\sim b,\, qq\sim q,\, qa\sim c,\, qn\sim q,\, cq\sim c}\]
 If we start with $M_3$ and perform completion, we again get $M_2^\prime$.
 \end{example}
 
@@ -1782,25 +1782,25 @@ With protocol \texttt{N}, associated type introduction rules allowed us to use a
 \smallskip
 
 Let's write $a$, $b$, $c$, $p$, $q$, $t$ instead of $\texttt{A}$, $\assocsym{P}{A}$, $\assocsym{Q}{A}$, $\protosym{P}$, $\protosym{Q}$, $\ttgp{0}{0}$. Our generic signature defines the following monoid presentation over the alphabet $a$, $p$, $q$, $t$:
-\[M_1 := \langle a,p,q,t;\,pp\sim p,\,pap\sim pa,\,qq\sim q,\, qaq\sim qa,\, tp\sim t,\, tq\sim t\rangle\]
-The Requirement Machine added the symbols $b$ and $c$ with defining relations $pa\sim b$ and $qa\sim c$, respectively:
+\[M_1 := \Pres{a,p,q,t}{pp\sim p,\,pap\sim pa,\,qq\sim q,\, qaq\sim qa,\, tp\sim t,\, tq\sim t}\]
+The Requirement Machine added the symbols $b$ and $c$ with defining rewrite rules $pa\sim b$ and $qa\sim c$, respectively:
 \begin{align*}
-M_2 := \langle a,b,c,p,q,t;\,\hbox{}&pp\sim p,\,pap\sim pa,\,qq\sim q,\, qaq\sim qa,\\
-&tp\sim t,\, tq\sim t,\,pa\sim b,\,qa\sim c\rangle
+M_2 := \Pres{a,b,c,p,q,t}{\hbox{}&pp\sim p,\,pap\sim pa,\,qq\sim q,\, qaq\sim qa,\\
+&tp\sim t,\, tq\sim t,\,pa\sim b,\,qa\sim c}
 \end{align*}
-We saw that completion fails; we got an \index{infinite convergent presentation}infinite convergent presentation over the same alphabet:
+We saw that completion fails; we got an \index{infinite monoid presentation}infinite convergent presentation over the same alphabet:
 \begin{align*}
-M_2^\prime := \langle a,b,c,p,q,t;\,\hbox{}&pp\sim p,\,pa\sim b,\,bp\sim b,\,ba\sim bb,\\
+M_2^\prime := \Pres{a,b,c,p,q,t}{\hbox{}&pp\sim p,\,pa\sim b,\,bp\sim b,\,ba\sim bb,\\
 &qq\sim q,\,qa\sim c,\,cq\sim c,\,ca\sim cc,\\
-&ta\sim tb,\, tb^iq\sim tb^i,\,tb^ic\sim tb^{i+1}\rangle
+&ta\sim tb,\, tb^iq\sim tb^i,\,tb^ic\sim tb^{i+1}}
 \end{align*}
 In fact, the associated type introduction rules don't simplify our understanding of this monoid at all. We can also write down an infinite convergent presentation for the completion of $M_1$:
-\[M_1^\prime := \langle a,p,q,t;\,pa^ip\sim pa^i,\, qa^iq\sim qa^i,\, ta^ip\sim ta^i,\, ta^iq\sim ta^i\rangle\]
+\[M_1^\prime := \Pres{a,p,q,t}{pa^ip\sim pa^i,\, qa^iq\sim qa^i,\, ta^ip\sim ta^i,\, ta^iq\sim ta^i}\]
 This infinite presentation is simple enough that one can implement a one-off algorithm for solving the word problem in $M_1^\prime$. We can simplify the original monoid presentation further by removing $pp\sim p$ and $qq\sim q$; the result is \emph{not} Tietze-equivalent, but it runs into the same problems with completion.
 
-\paragraph{Future directions.} We will now state an open question about this strikingly simple monoid presentation of only four symbols and relations:
+\paragraph{Future directions.} We will now state an open question about this strikingly simple monoid presentation of only four symbols and rewrite rules:
 \begin{quote}
-Can the monoid $\langle a,p,q,t;\,pap\sim pa,\, qaq\sim qa,\, tp\sim t,\, tq\sim t\rangle$ be presented by a finite convergent rewrite system?
+Can the monoid $\Pres{a,p,q,t}{pap\sim pa,\, qaq\sim qa,\, tp\sim t,\, tq\sim t}$ be presented by a finite convergent rewrite system?
 \end{quote}
 Either of the possible outcomes would be of interest:
 \begin{itemize}
@@ -1808,7 +1808,7 @@ Either of the possible outcomes would be of interest:
 \item If instead we prove that no such convergent rewrite system exists, we have another example of a finitely-presented monoid with decidable word problem that cannot be presented by a finite convergent rewrite system, much like \ThmRef{squier s1}.
 \end{itemize}
 
-One approach to the study of \index{infinite convergent presentation}infinite convergent rewrite systems is via formal language theory; this is explored in~\cite{OTTO1998621}. We recall the standard definitions, which can be found in \cite{formalmans1}. A \index{language}\emph{language} over an alphabet $A$ is a subset of the free monoid $A^*$; a language is \index{recursive language}\emph{recursive} if there is a total computable function to determine membership in this set, and a \index{regular language}\emph{regular language} is a set of strings recognized by a finite state automaton (or equivalently, matching a regular expression---the classical kind, without back references). The left-hand sides of the rules in a (finite or infinite) convergent rewrite system define a language in this sense, and a finite convergent rewrite system is then the special case where this language is finite; this direction is explored in.
+One approach to the study of \index{infinite monoid presentation}infinite convergent rewrite systems is via formal language theory; this is explored in~\cite{OTTO1998621}. We recall the standard definitions, which can be found in \cite{formalmans1}. A \index{language}\emph{language} over an alphabet $A$ is a subset of the free monoid $A^*$; a language is \index{recursive language}\emph{recursive} if there is a total computable function to determine membership in this set, and a \index{regular language}\emph{regular language} is a set of strings recognized by a finite state automaton (or equivalently, matching a regular expression---the classical kind, without back references). The left-hand sides of the rules in a (finite or infinite) convergent rewrite system define a language in this sense, and a finite convergent rewrite system is then the special case where this language is finite; this direction is explored in.
 
 Every finitely-presented monoid can be presented by an infinite convergent rewrite system; but if the word problem in this monoid is undecidable, the rewrite system's language is not recursive, so of course this viewpoint does not fundamentally change the difficulty of the problem. However, if we consider infinite convergent presentations with a sufficiently restricted class of language (for instance, regular languages), we can find an effective procedure for term reduction with a rewrite system of this type. Completion then becomes a highly non-trivial problem. A completion procedure for a certain kind of infinite convergent rewrite system was proposed in \cite{NEEDHAM1996195}; there, the left-hand sides involve exponents, much like the notation $ta^ip\sim ta^i$ and $ta^iq\sim ta^i$ used in our examples here. In principle, such an extension could one day be considered for the Requirement Machine.
 \end{example}
@@ -1816,7 +1816,7 @@ Every finitely-presented monoid can be presented by an infinite convergent rewri
 \begin{example}\label{double encoding}
 We end this chapter with one final curiosity. We proved the derived requirements formalism to be undecidable in \SecRef{monoidsasprotocols} by showing that an arbitrary finitely-presented monoid $\AR$ can be encoded in the form of a protocol declaration. In \ChapRef{symbols terms rules} we defined a lowering of a generic signature and its protocol dependencies into a finitely-presented monoid. If we chain both transformations, we see that we can map a finitely-presented monoid to a protocol declaration and then back to a finitely-presented monoid. In what sense does the latter monoid encode the original monoid?
 
-Let $A^*:=\{a,b,c\}$, $R:=\{(ab,c),\,(bc,\varepsilon)\}$, and consider the monoid $M:=\AR$. Written down as a Swift protocol, $M := \langle a,\,b,\,c;\,ab\sim c,\,bc\sim\varepsilon\rangle$ looks like this:
+Let $A^*:=\{a,b,c\}$, $R:=\{(ab,c),\,(bc,\varepsilon)\}$, and consider the monoid $M:=\AR$. Written down as a Swift protocol, $M := \Pres{a,b,c}{ab\sim c,\,bc\sim\varepsilon}$ looks like this:
 \begin{Verbatim}
 protocol P {
   associatedtype A: P
@@ -1851,14 +1851,14 @@ The second set involves protocol and associated type symbols only. We call this 
 \ProtoConf{\assocsym{P}{C}}{P}
 \end{gather*}
 
-The union $\mathcal{N}\cup\mathcal{S}$ is a rewrite system for a protocol encoding the free monoid $\{a,b,c\}^*$. Here, $\mathcal{N}$ contains 12 elements, and $\mathcal{S}$ contains 7 elements. More generally, if $|A|=n$, we have $|\mathcal{N}|=n(n+1)$ and $|\mathcal{S}|=2n+1$. Now, if we identify $a$, $b$, $c$ with $\assocsym{P}{A}$, $\assocsym{P}{B}$, $\assocsym{P}{C}$, and define a new symbol $e:=\protosym{P}$, we see that $\langle A\cup\{e\};\,\mathcal{S}\rangle$ is a convergent presentation. But to understand the object it presents, we need a few related definitions.
+The union $\mathcal{N}\cup\mathcal{S}$ is a rewrite system for a protocol encoding the free monoid $\{a,b,c\}^*$. Here, $\mathcal{N}$ contains 12 elements, and $\mathcal{S}$ contains 7 elements. More generally, if $|A|=n$, we have $|\mathcal{N}|=n(n+1)$ and $|\mathcal{S}|=2n+1$. Now, if we identify $a$, $b$, $c$ with $\assocsym{P}{A}$, $\assocsym{P}{B}$, $\assocsym{P}{C}$, and define a new symbol $e:=\protosym{P}$, we see that $\Pres{A\cup\{e\}}{\mathcal{S}}$ is a convergent presentation. But to understand the object it presents, we need a few related definitions.
 
-A \IndexDefinition{semigroup}\emph{semigroup} is a set together with an associative binary operation, but without a distinguished identity element. The \IndexDefinition{free semigroup}\emph{free semigroup} over a set $A$, denoted $A^+$, is the set of all \emph{non-empty} strings from the symbols of $A$. We can define a \IndexDefinition{finitely-presented semigroup}\emph{finitely-presented semigroup} analogously to a finitely-presented monoid; here the relations have the form $(u,v)$ where $u$, $v\in A^+$.
+A \IndexDefinition{semigroup}\emph{semigroup} is a set together with an associative binary operation, but without a distinguished identity element. The \IndexDefinition{free semigroup}\emph{free semigroup} over a set $A$, denoted $A^+$, is the set of all \emph{non-empty} strings from the symbols of $A$. We can define a \IndexDefinition{finitely-presented semigroup}\emph{finitely-presented semigroup} analogously to a finitely-presented monoid; here the rewrite rules have the form $(u,v)$ where $u$, $v\in A^+$.
 
-Every monoid trivially satisfies the semigroup axioms, and thus a free monoid $A^*$ is also a semigroup. However a free monoid $A^*$ is not a \emph{free} semigroup. For example, taking $A:=\{a,b,c\}$, we see among the elements of $A^*$ \emph{viewed as a semigroup}, we have non-trivial identities involving $\varepsilon$, such as $a=\varepsilon a$, $b\varepsilon=b$, and so on. Thus, this cannot be a free semigroup, where $xy\neq x$ and $xy\neq y$ for all $x$, $y\in A^+$. The free monoid $A^*$ \emph{is} a finitely-presented semigroup though; we must add the symbol $e$ to the alphabet, and a pair of relations $ex=e$, $xe=e$ for each $x\in A$. For example, as a semigroup, $\{a,b,c\}^*$ has four generators and seven relations:
-\[\langle a,\,b,\,c,\,e;\,ee=e,\,ea=a,\,eb=b,\,ec=c,\,ae=a,\,be=b,\,ce=c\rangle\]
+Every monoid trivially satisfies the semigroup axioms, and thus a free monoid $A^*$ is also a semigroup. However a free monoid $A^*$ is not a \emph{free} semigroup. For example, taking $A:=\{a,b,c\}$, we see among the elements of $A^*$ \emph{viewed as a semigroup}, we have non-trivial identities involving $\varepsilon$, such as $a=\varepsilon a$, $b\varepsilon=b$, and so on. Thus, this cannot be a free semigroup, where $xy\neq x$ and $xy\neq y$ for all $x$, $y\in A^+$. The free monoid $A^*$ \emph{is} a finitely-presented semigroup though; we must add the symbol $e$ to the alphabet, and a pair of rewrite rules $ex\sim e$, $xe\sim e$ for each $x\in A$. For example, as a semigroup, $\{a,b,c\}^*$ has four generators and seven rewrite rules:
+\[\Pres{a,b,c,e}{e\sim e,\,ea\sim a,\,eb\sim b,\,ec\sim c,\,ae\sim a,\,be\sim b,\,ce\sim c}\]
 
-Indeed, we see this set of relations is just $\mathcal{S}$, so our embedding of the free monoid as a Swift protocol ends up encoding the free monoid as the finitely-presented semigroup $\langle A\cup\{e\};\,\mathcal{S}\rangle$, but embedded in an even larger semigroup that also contains name symbols and the set of rules $\mathcal{N}$.
+Indeed, we see this set of rewrite rules is just $\mathcal{S}$, so our embedding of the free monoid as a Swift protocol ends up encoding the free monoid as the finitely-presented semigroup $\Pres{A\cup\{e\}}{\mathcal{S}}$, but embedded in an even larger semigroup that also contains name symbols and the set of rules $\mathcal{N}$.
 
 Now, we imagine that we uncomment the \texttt{where} clause of our protocol \texttt{P}, with the two requirements $\SameReq{Self.A.B}{C}$ and $\SameReq{Self.B.C}{Self}$. These requirements contribute two new rewrite rules to our convergent rewrite system; we will call this set $\mathcal{R}$:
 \begin{gather*}
@@ -1866,31 +1866,31 @@ Now, we imagine that we uncomment the \texttt{where} clause of our protocol \tex
 \assocsym{P}{B}.\assocsym{P}{C}\Rightarrow\protosym{P}
 \end{gather*}
 
-We can construct $\mathcal{R}$ from $R$ by replacing $\varepsilon$ with $e$ anywhere that it appears in a relation. This gives us a set of semigroup relations, and we see that $\langle A\cup\{e\}; \mathcal{S}\cup\mathcal{R} \rangle$ is a semigroup presentation of $\AR$:
-\[\langle a,\,b,\,c,\,e;\,ee\sim e,\,ea\sim a,\,eb\sim b,\,ec\sim c,\,ae\sim a,\,be\sim b,\,ce\sim c,\,ab\sim c,\,bc\sim e\rangle\]
-Neither the monoid presentation $M$ nor the semigroup presentation $\langle A\cup\{e\};\,\mathcal{S}\cup\mathcal{R}\rangle$ is convergent. Now consider the following set of relations $\hat{R}$:
+We can construct $\mathcal{R}$ from $R$ by replacing $\varepsilon$ with $e$ anywhere that it appears in a rewrite rule. This gives us a set of semigroup rewrite rules, and we see that $\Pres{A\cup\{e\}}{ \mathcal{S}\cup\mathcal{R}}$ is a semigroup presentation of $\AR$:
+\[\Pres{a,b,c,e}{ee\sim e,\,ea\sim a,\,eb\sim b,\,ec\sim c,\,ae\sim a,\,be\sim b,\,ce\sim c,\,ab\sim c,\,bc\sim e}\]
+Neither the monoid presentation $M$ nor the semigroup presentation $\Pres{A\cup\{e\}}{\mathcal{S}\cup\mathcal{R}}$ is convergent. Now consider the following set of rewrite rules $\hat{R}$:
 \[\hat{R} := \{(cc,a),\,(ba,c),\,(ca,a),\,(cb,\varepsilon)\}\]
-A trivial but technical calculation shows that $\langle A;\,R\cup\hat{R}\rangle$ is a convergent monoid presentation of $\AR$. Next, we transform $\hat{R}$ into a set of semigroup relations, replacing $\varepsilon$ with $e$. We call this set $\hat{\mathcal{R}}$:
+A trivial but technical calculation shows that $\Pres{A}{R\cup\hat{R}}$ is a convergent monoid presentation of $\AR$. Next, we transform $\hat{R}$ into a set of semigroup rewrite rules, replacing $\varepsilon$~with~$e$. We call this set~$\hat{\mathcal{R}}$:
 \begin{gather*}
 \assocsym{P}{C}.\assocsym{P}{C}\Rightarrow\assocsym{P}{A}\\
 \assocsym{P}{B}.\assocsym{P}{A}\Rightarrow\assocsym{P}{C}\\
 \assocsym{P}{C}.\assocsym{P}{A}\Rightarrow\assocsym{P}{A}\\
 \assocsym{P}{C}.\assocsym{P}{B}\Rightarrow\protosym{P}
 \end{gather*}
-We now claim that $\langle A\cup\{e\};\,\mathcal{S}\cup\mathcal{R}\cup\hat{\mathcal{R}}\rangle$ is a convergent semigroup presentation, because we can mechanically transform any positive rewrite path over $\langle A;\,R\cup\hat{R}\rangle$ into a positive rewrite path over this semigroup presentation. The only rewrite step that does not map trivially is $x(cb\Rightarrow\varepsilon)y$, for some $x$, $y\in A^*$. The corresponding rewrite step over the semigroup presentation, $x(cb\Rightarrow e)y$, has destination term $xey$ instead of $xy$. If either one of $x$ or $y$ is non-empty, we can eliminate the occurrence of $e$ by adding a single positive rewrite step from $\mathcal{S}$. Otherwise, if $xey=e$, there is nothing to do. In any given positive rewrite path, this transformation can only add finitely many new rewrite steps involving relations from $\mathcal{S}$. Thus, confluence and termination are preserved.
+We now claim that $\Pres{A\cup\{e\}}{\mathcal{S}\cup\mathcal{R}\cup\hat{\mathcal{R}}}$ is a convergent semigroup presentation, because we can mechanically transform any positive rewrite path over $\Pres{A}{R\cup\hat{R}}$ into a positive rewrite path over this semigroup presentation. The only rewrite step that does not map trivially is $x(cb\Rightarrow\varepsilon)y$, for some $x$, $y\in A^*$. The corresponding rewrite step over the semigroup presentation, $x(cb\Rightarrow e)y$, has destination term $xey$ instead of $xy$. If either one of $x$ or $y$ is non-empty, we can eliminate the occurrence of $e$ by adding a single positive rewrite step from $\mathcal{S}$. Otherwise, if $xey=e$, there is nothing to do. In any given positive rewrite path, this transformation can only add finitely many new rewrite steps involving rewrite rules from $\mathcal{S}$. Thus, confluence and termination are preserved.
 
 It is of course not true in general that the union of two convergent rewrite systems is convergent, however in our construction it happens to work. There are no non-trivial overlaps between the elements of $\mathcal{N}$, $\mathcal{S}$ and $\mathcal{R}$. We've proven the following:
 \begin{theorem}
-Suppose $\AR$ is a finitely-presented monoid, $\hat{R}$ is a finite set of relations such that $\langle A;\,R\cup\hat{R}\rangle$ is a convergent monoid presentation, and both $R$ and $\hat{R}$ are oriented with respect to the shortlex order on $A^*$. We define a protocol \texttt{P} encoding $\AR$, naming the associated types in correspondence with the fixed linear order on the generating set $A$ (for example, if $a<b<c<\cdots$, we have $\assocsym{P}{A}<\assocsym{P}{B}<\assocsym{P}{C}$). Then our protocol \texttt{P} has the following \emph{convergent} presentation:
-\[\langle A\cup\{e\}\cup B;\,\mathcal{N}\cup\mathcal{S}\cup\mathcal{R}\cup\hat{\mathcal{R}}\rangle\]
+Suppose $\AR$ is a finitely-presented monoid, $\hat{R}$ is a finite set of rewrite rules such that $\Pres{A}{R\cup\hat{R}}$ is a convergent monoid presentation, and both $R$ and $\hat{R}$ are oriented with respect to the shortlex order on $A^*$. We define a protocol \texttt{P} encoding $\AR$, naming the associated types in correspondence with the fixed linear order on the generating set $A$ (for example, if $a<b<c<\cdots$, we have $\assocsym{P}{A}<\assocsym{P}{B}<\assocsym{P}{C}$). Then our protocol \texttt{P} has the following \emph{convergent} presentation:
+\[\Pres{A\cup\{e\}\cup B}{\mathcal{N}\cup\mathcal{S}\cup\mathcal{R}\cup\hat{\mathcal{R}}}\]
 Here, $e:=\protosym{P}$, $B$ is a set of name symbols, $\mathcal{N}$ and $\mathcal{S}$ only depend on $A$, and $\mathcal{R}$ and $\hat{\mathcal{R}}$ are constructed from $R$ and $\hat{R}$ as above. The semigroup presented above also contains a sub-semigroup with the following convergent presentation:
-\[\langle A\cup\{e\};\,\mathcal{S}\cup\mathcal{R}\cup\hat{\mathcal{R}}\rangle\]
-This sub-semigroup is isomorphic to the monoid $\langle A;\,R\cup\hat{R}\rangle$ and thus $\AR$.
+\[\Pres{A\cup\{e\}}{\mathcal{S}\cup\mathcal{R}\cup\hat{\mathcal{R}}}\]
+This sub-semigroup is isomorphic to the monoid $\Pres{A}{R\cup\hat{R}}$ and thus $\AR$.
 \end{theorem}
 
 Hence, we see that if we encode a finitely-presented monoid $\AR$ as a protocol~\texttt{P}, the Requirement Machine will accept~\texttt{P} and solve the word problem in $\AR$ if and only if $\AR$ has a convergent presentation compatible with the shortlex order on $A^*$. That's a satisfying conclusion to ``Swift type checking is undecidable.''
 
-Our double encoding of ``a monoid as a protocol as a rewrite system'' introduces many new symbols and relations not found in the original presentation. It is a remarkable fact of our construction then, that a convergent monoid presentation always maps to a convergent rewrite system where the added detritus can always be ``factored out.''
+Our double encoding of ``a monoid as a protocol as a rewrite system'' introduces many new symbols and rewrite rules not found in the original presentation. It is a remarkable fact of our construction then, that a convergent monoid presentation always maps to a convergent rewrite system where the added detritus can always be ``factored out.''
 \end{example}
 
 \section{Source Code Reference}\label{completion sourceref}

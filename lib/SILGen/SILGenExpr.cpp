@@ -31,6 +31,7 @@
 #include "swift/AST/CanTypeVisitor.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticsCommon.h"
+#include "swift/AST/DistributedDecl.h"
 #include "swift/AST/ExistentialLayout.h"
 #include "swift/AST/Expr.h"
 #include "swift/AST/ForeignErrorConvention.h"
@@ -40,6 +41,7 @@
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/Type.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/Basic/type_traits.h"
@@ -519,7 +521,6 @@ namespace {
     RValue visitCaptureListExpr(CaptureListExpr *E, SGFContext C);
     RValue visitAbstractClosureExpr(AbstractClosureExpr *E, SGFContext C);
     ManagedValue tryEmitConvertedClosure(AbstractClosureExpr *e,
-                                         CanAnyFunctionType closureType,
                                          const Conversion &conv);
     ManagedValue emitClosureReference(AbstractClosureExpr *e,
                                       const FunctionTypeInfo &contextInfo);
@@ -1667,6 +1668,14 @@ RValueEmitter::visitPackExpansionExpr(PackExpansionExpr *E,
 
 RValue
 RValueEmitter::visitPackElementExpr(PackElementExpr *E, SGFContext C) {
+  // If this is a captured pack element reference, just emit the parameter value
+  // that was passed to the closure.
+  auto found = SGF.OpaqueValues.find(E);
+  if (found != SGF.OpaqueValues.end())
+    return RValue(SGF, E, SGF.manageOpaqueValue(found->second, E, C));
+
+  // Otherwise, we're going to project the address of an element from the pack
+  // itself.
   FormalEvaluationScope scope(SGF);
 
   LValue lv = SGF.emitLValue(E, SGFAccessKind::OwnedObjectRead);
@@ -1799,9 +1808,7 @@ ManagedValue emitCFunctionPointer(SILGenFunction &SGF,
     (void) emitAnyClosureExpr(SGF, semanticExpr,
                               [&](AbstractClosureExpr *closure) {
       // Emit the closure body.
-      auto closureType =
-        cast<AnyFunctionType>(closure->getType()->getCanonicalType());
-      SGF.SGM.emitClosure(closure, SGF.getFunctionTypeInfo(closureType));
+      SGF.SGM.emitClosure(closure, SGF.getClosureTypeInfo(closure));
 
       loc = closure;
       return ManagedValue();
@@ -2950,10 +2957,10 @@ static bool canEmitSpecializedClosureFunction(CanAnyFunctionType closureType,
 
 /// Try to emit the given closure under the given conversion.
 /// Returns an invalid ManagedValue if this fails.
-ManagedValue
-RValueEmitter::tryEmitConvertedClosure(AbstractClosureExpr *e,
-                                       CanAnyFunctionType closureType,
-                                       const Conversion &conv) {
+ManagedValue RValueEmitter::tryEmitConvertedClosure(AbstractClosureExpr *e,
+                                                    const Conversion &conv) {
+  auto closureType = cast<AnyFunctionType>(e->getType()->getCanonicalType());
+
   // Bail out if we don't have specialized type information from context.
   auto info = tryGetSpecializedClosureTypeFromContext(closureType, conv);
   if (!info) return ManagedValue();
@@ -3002,13 +3009,11 @@ RValue RValueEmitter::visitAbstractClosureExpr(AbstractClosureExpr *e,
   if (auto *placeholder = wrappedValueAutoclosurePlaceholder(e))
     return visitPropertyWrapperValuePlaceholderExpr(placeholder, C);
 
-  auto closureType = cast<AnyFunctionType>(e->getType()->getCanonicalType());
-
   // If we're emitting into a converting context, try to combine the
   // conversion into the emission of the closure function.
   if (auto *convertingInit = C.getAsConversion()) {
-    ManagedValue closure = tryEmitConvertedClosure(e, closureType,
-                                              convertingInit->getConversion());
+    ManagedValue closure =
+        tryEmitConvertedClosure(e, convertingInit->getConversion());
     if (closure.isValid()) {
       convertingInit->initWithConvertedValue(SGF, e, closure);
       convertingInit->finishInitialization(SGF);
@@ -3017,9 +3022,10 @@ RValue RValueEmitter::visitAbstractClosureExpr(AbstractClosureExpr *e,
   }
 
   // Otherwise, emit the expression using the simple type of the expression.
-  auto info = SGF.getFunctionTypeInfo(closureType);
+  auto info = SGF.getClosureTypeInfo(e);
   auto closure = emitClosureReference(e, info);
-  return RValue(SGF, e, closureType, closure);
+
+  return RValue(SGF, e, e->getType()->getCanonicalType(), closure);
 }
 
 ManagedValue
@@ -5972,9 +5978,9 @@ RValue RValueEmitter::visitMakeTemporarilyEscapableExpr(
 }
 
 RValue RValueEmitter::visitOpaqueValueExpr(OpaqueValueExpr *E, SGFContext C) {
-  assert(SGF.OpaqueValues.count(E) && "Didn't bind OpaqueValueExpr");
-  auto value = SGF.OpaqueValues[E];
-  return RValue(SGF, E, SGF.manageOpaqueValue(value, E, C));
+  auto found = SGF.OpaqueValues.find(E);
+  assert(found != SGF.OpaqueValues.end());
+  return RValue(SGF, E, SGF.manageOpaqueValue(found->second, E, C));
 }
 
 RValue RValueEmitter::visitPropertyWrapperValuePlaceholderExpr(
@@ -6735,6 +6741,56 @@ RValue RValueEmitter::visitMacroExpansionExpr(MacroExpansionExpr *E,
 
 RValue RValueEmitter::visitCurrentContextIsolationExpr(
     CurrentContextIsolationExpr *E, SGFContext C) {
+  // If we are in an actor initializer that is isolated to, the current context
+  // isolation flow-sensitive: before 'self' has been initialized, it will be
+  // nil. After 'self' has been initialized, it will be 'self'. Introduce a
+  // custom builtin that Definite Initialization will rewrite appropriately.
+  if (auto ctor = dyn_cast_or_null<ConstructorDecl>(
+          SGF.F.getDeclRef().getDecl())) {
+    auto isolation = getActorIsolation(ctor);
+    if (ctor->isDesignatedInit() &&
+        isolation == ActorIsolation::ActorInstance &&
+        isolation.getActorInstance() == ctor->getImplicitSelfDecl()) {
+      ASTContext &ctx = SGF.getASTContext();
+      auto builtinName = ctx.getIdentifier(
+          isolation.isDistributedActor()
+              ? getBuiltinName(BuiltinValueKind::FlowSensitiveDistributedSelfIsolation)
+              : getBuiltinName(BuiltinValueKind::FlowSensitiveSelfIsolation));
+      SILType resultTy = SGF.getLoweredType(E->getType());
+
+      auto injection = cast<InjectIntoOptionalExpr>(E->getActor());
+      ProtocolConformanceRef conformance;
+      Expr *origActorExpr;
+      if (isolation.isDistributedActor()) {
+        // Create a reference to the asLocalActor getter.
+        auto asLocalActorDecl = getDistributedActorAsLocalActorComputedProperty(
+            SGF.F.getDeclContext()->getParentModule());
+        auto asLocalActorGetter = asLocalActorDecl->getAccessor(AccessorKind::Get);
+        SILDeclRef asLocalActorRef = SILDeclRef(
+            asLocalActorGetter, SILDeclRef::Kind::Func);
+        SGF.emitGlobalFunctionRef(E, asLocalActorRef);
+
+        // Extract the base ('self') and the DistributedActor conformance.
+        auto memberRef = cast<MemberRefExpr>(injection->getSubExpr());
+        conformance = memberRef->getDecl().getSubstitutions()
+            .getConformances()[0];
+        origActorExpr = memberRef->getBase();
+      } else {
+        auto erasure = cast<ErasureExpr>(injection->getSubExpr());
+        conformance = erasure->getConformances()[0];
+        origActorExpr = erasure->getSubExpr();
+      }
+      SGF.SGM.useConformance(conformance);
+
+      SubstitutionMap subs = SubstitutionMap::getProtocolSubstitutions(
+          conformance.getRequirement(), origActorExpr->getType(), conformance);
+      auto origActor = SGF.maybeEmitValueOfLocalVarDecl(
+          ctor->getImplicitSelfDecl(), AccessKind::Read).getValue();
+      auto call = SGF.B.createBuiltin(E, builtinName, resultTy, subs, origActor);
+      return RValue(SGF, E, ManagedValue::forForwardedRValue(SGF, call));
+    }
+  }
+
   return visit(E->getActor(), C);
 }
 

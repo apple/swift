@@ -3,7 +3,7 @@
 
 // Verify that symbolic interfaces are emitted.
 //
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>%t/remarks
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>%t/remarks
 // RUN: echo "EOF" >> %t/remarks
 // RUN: cat %t/remarks | %FileCheck --check-prefixes=REMARK_NEW,REMARK_INITIAL %s
 // RUN: ls %t/store/interfaces | %FileCheck --check-prefix=FILES %s
@@ -11,21 +11,21 @@
 
 // Verify that symbolic interfaces are not emitted when PCM doesn't change.
 //
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NO_UPDATE %s
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NO_UPDATE %s
 // RUN: ls %t/store/interfaces | %FileCheck --check-prefix=FILES %s
 // RUN: cat %t/store/interfaces/CxxModule* | %FileCheck --check-prefix=CHECK %s
 
 // Verify that symbolic interface is re-emitted when the interface is removed.
 //
 // RUN: rm -r %t/store/interfaces
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NEW %s
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NEW %s
 // RUN: ls %t/store/interfaces | %FileCheck --check-prefix=FILES %s
 // RUN: cat %t/store/interfaces/CxxModule* | %FileCheck --check-prefixes=CHECK %s
 
 // Verify that symbolic interface is re-emitted when PCM changes.
 //
 // RUN: echo "using AdditionalAlias = int;" >> %t/Inputs/headerA.h
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NEW %s
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NEW %s
 // RUN: ls %t/store/interfaces | %FileCheck --check-prefix=FILES %s
 // RUN: cat %t/store/interfaces/CxxModule* | %FileCheck --check-prefixes=CHECK,CHECK-UPDATED %s
 

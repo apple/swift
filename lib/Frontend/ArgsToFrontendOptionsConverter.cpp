@@ -14,7 +14,9 @@
 
 #include "ArgsToFrontendInputsConverter.h"
 #include "ArgsToFrontendOutputsConverter.h"
+#include "clang/Driver/Driver.h"
 #include "swift/AST/DiagnosticsFrontend.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Platform.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Option/Options.h"
@@ -68,7 +70,7 @@ bool ArgsToFrontendOptionsConverter::convert(
     Opts.ExplicitModulesOutputPath = A->getValue();
   } else {
     SmallString<128> defaultPath;
-    llvm::sys::path::cache_directory(defaultPath);
+    clang::driver::Driver::getDefaultModuleCachePath(defaultPath);
     Opts.ExplicitModulesOutputPath = defaultPath.str().str();
   }
   if (const Arg *A = Args.getLastArg(OPT_backup_module_interface_path)) {

@@ -156,11 +156,11 @@ function(add_sourcekit_swift_runtime_link_flags target path HAS_SWIFT_MODULES)
   if(SWIFT_BUILD_SWIFT_SYNTAX)
     if(SWIFT_HOST_VARIANT_SDK IN_LIST SWIFT_DARWIN_PLATFORMS)
       # Add rpath to the host Swift libraries.
-      file(RELATIVE_PATH relative_hostlib_path "${path}" "${SWIFTLIB_DIR}/host")
+      file(RELATIVE_PATH relative_hostlib_path "${path}" "${SWIFTLIB_DIR}/host/compiler")
       list(APPEND RPATH_LIST "@loader_path/${relative_hostlib_path}")
     elseif(SWIFT_HOST_VARIANT_SDK MATCHES "LINUX|ANDROID|OPENBSD")
       # Add rpath to the host Swift libraries.
-      file(RELATIVE_PATH relative_hostlib_path "${path}" "${SWIFTLIB_DIR}/host")
+      file(RELATIVE_PATH relative_hostlib_path "${path}" "${SWIFTLIB_DIR}/host/compiler")
       list(APPEND RPATH_LIST "$ORIGIN/${relative_hostlib_path}")
     else()
       target_link_directories(${target} PRIVATE

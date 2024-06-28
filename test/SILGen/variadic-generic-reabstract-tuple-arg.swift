@@ -36,15 +36,14 @@ func test1() {
 // CHECK-NEXT:    [[PACK:%.*]] = alloc_pack $Pack{String}
 // CHECK-NEXT:    [[ARG_TEMP:%.*]] = alloc_stack $String
 //   It'd be nice to avoid this unnecessary copy.
-// CHECK-NEXT:    [[ARG_COPY:%.*]] = copy_value %0 : $String
-// CHECK-NEXT:    store [[ARG_COPY]] to [init] [[ARG_TEMP]] : $*String
+// CHECK-NEXT:    [[ARG_TEMP_BORROW:%.*]] = store_borrow %0 to [[ARG_TEMP]]
 // CHECK-NEXT:    [[INDEX:%.*]] = scalar_pack_index 0 of $Pack{String}
-// CHECK-NEXT:    pack_element_set [[ARG_TEMP]] : $*String into [[INDEX]] of [[PACK]] : $*Pack{String}
+// CHECK-NEXT:    pack_element_set [[ARG_TEMP_BORROW]] : $*String into [[INDEX]] of [[PACK]] : $*Pack{String}
 // CHECK-NEXT:    [[RESULT_TEMP:%.*]] = alloc_stack $Array<String>
 // CHECK-NEXT:    apply %1([[RESULT_TEMP]], [[PACK]]) : $@callee_guaranteed (@pack_guaranteed Pack{String}) -> @out Array<String>
 // CHECK-NEXT:    [[RESULT:%.*]] = load [take] [[RESULT_TEMP]] : $*Array<String>
 // CHECK-NEXT:    dealloc_stack [[RESULT_TEMP]] : $*Array<String>
-// CHECK-NEXT:    destroy_addr [[ARG_TEMP]] : $*String
+// CHECK-NEXT:    end_borrow [[ARG_TEMP_BORROW]]
 // CHECK-NEXT:    dealloc_stack [[ARG_TEMP]] : $*String
 // CHECK-NEXT:    dealloc_pack [[PACK]] : $*Pack{String}
 // CHECK-NEXT:    return [[RESULT]] : $Array<String>

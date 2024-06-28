@@ -477,4 +477,62 @@ struct HasOperatorCallWithDefaultArg {
   int operator()(int x = 0) const { return value + x; }
 };
 
+class HasStaticOperatorCallBase {
+public:
+  static int operator()(int x) { return x + 42; }
+};
+
+class HasStaticOperatorCallDerived : public HasStaticOperatorCallBase {};
+
+class HasStaticOperatorCallWithConstOperator {
+public:
+  inline int operator()(int x, int y) const { return x + y; }
+  static int operator()(int x) {
+        return x - 1;
+   }
+};
+
+struct ClassWithOperatorStarAvailable {
+  int value;
+
+public:
+  int &operator*() { return value; }
+};
+
+struct DerivedClassWithOperatorStarAvailable : ClassWithOperatorStarAvailable {
+};
+
+struct ClassWithOperatorStarUnavailable {
+  int value;
+
+public:
+  int &operator*() __attribute__((availability(swift, unavailable))) {
+    return value;
+  }
+};
+
+struct DerivedClassWithOperatorStarUnavailable
+    : ClassWithOperatorStarUnavailable {};
+
+struct ClassWithSuccessorAvailable {
+  int value;
+
+public:
+  ClassWithSuccessorAvailable &operator++() {
+    value++;
+    return *this;
+  }
+};
+
+struct ClassWithSuccessorUnavailable {
+  int value;
+
+public:
+  ClassWithSuccessorUnavailable &operator++()
+      __attribute__((availability(swift, unavailable))) {
+    value++;
+    return *this;
+  }
+};
+
 #endif

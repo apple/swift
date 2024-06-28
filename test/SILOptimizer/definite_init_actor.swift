@@ -291,9 +291,9 @@ actor TaskMaster {
     init() async {
 
         ////// for the closure
-        // CHECK-LABEL: sil private @$s4test10TaskMasterCACyYacfcyyYaYbcfU_ :
+        // CHECK-LABEL: sil private @$s4test10TaskMasterCACyYacfcyyYacfU_ :
         // CHECK:           hop_to_executor {{%[0-9]+}} : $TaskMaster
-        // CHECK: } // end sil function '$s4test10TaskMasterCACyYacfcyyYaYbcfU_'
+        // CHECK: } // end sil function '$s4test10TaskMasterCACyYacfcyyYacfU_'
         task = Task.detached { await self.sayHello() }
     }
 }

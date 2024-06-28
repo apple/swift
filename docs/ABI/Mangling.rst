@@ -867,6 +867,7 @@ mangled in to disambiguate.
   PARAM-CONVENTION ::= 'l'                   // indirect inout
   PARAM-CONVENTION ::= 'b'                   // indirect inout aliasable
   PARAM-CONVENTION ::= 'n'                   // indirect in guaranteed
+  PARAM-CONVENTION ::= 'X'                   // indirect in C++
   PARAM-CONVENTION ::= 'x'                   // direct owned
   PARAM-CONVENTION ::= 'y'                   // direct unowned
   PARAM-CONVENTION ::= 'g'                   // direct guaranteed

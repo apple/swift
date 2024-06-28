@@ -63,9 +63,11 @@ class SwiftTestCase(unittest.TestCase):
             enable_experimental_parser_validation=False,
             swift_enable_backtracing=False,
             enable_synchronization=False,
+            enable_volatile=False,
             build_early_swiftsyntax=False,
             build_swift_stdlib_static_print=False,
             build_swift_stdlib_unicode_data=True,
+            build_embedded_stdlib_cross_compiling=False,
             swift_freestanding_is_darwin=False,
             build_swift_private_stdlib=True,
             swift_tools_ld64_lto_codegen_only_for_supporting_targets=False)
@@ -109,10 +111,12 @@ class SwiftTestCase(unittest.TestCase):
             '-DSWIFT_ENABLE_EXPERIMENTAL_PARSER_VALIDATION:BOOL=FALSE',
             '-DSWIFT_ENABLE_BACKTRACING:BOOL=FALSE',
             '-DSWIFT_ENABLE_SYNCHRONIZATION:BOOL=FALSE',
+            '-DSWIFT_ENABLE_VOLATILE:BOOL=FALSE',
             '-DSWIFT_STDLIB_STATIC_PRINT=FALSE',
             '-DSWIFT_FREESTANDING_IS_DARWIN:BOOL=FALSE',
             '-DSWIFT_STDLIB_BUILD_PRIVATE:BOOL=TRUE',
             '-DSWIFT_STDLIB_ENABLE_UNICODE_DATA=TRUE',
+            '-DSWIFT_SHOULD_BUILD_EMBEDDED_STDLIB_CROSS_COMPILING=FALSE',
             '-DSWIFT_TOOLS_LD64_LTO_CODEGEN_ONLY_FOR_SUPPORTING_TARGETS:BOOL=FALSE',
             '-USWIFT_DEBUGINFO_NON_LTO_ARGS'
         ]
@@ -140,10 +144,12 @@ class SwiftTestCase(unittest.TestCase):
             '-DSWIFT_ENABLE_EXPERIMENTAL_PARSER_VALIDATION:BOOL=FALSE',
             '-DSWIFT_ENABLE_BACKTRACING:BOOL=FALSE',
             '-DSWIFT_ENABLE_SYNCHRONIZATION:BOOL=FALSE',
+            '-DSWIFT_ENABLE_VOLATILE:BOOL=FALSE',
             '-DSWIFT_STDLIB_STATIC_PRINT=FALSE',
             '-DSWIFT_FREESTANDING_IS_DARWIN:BOOL=FALSE',
             '-DSWIFT_STDLIB_BUILD_PRIVATE:BOOL=TRUE',
             '-DSWIFT_STDLIB_ENABLE_UNICODE_DATA=TRUE',
+            '-DSWIFT_SHOULD_BUILD_EMBEDDED_STDLIB_CROSS_COMPILING=FALSE',
             '-DSWIFT_TOOLS_LD64_LTO_CODEGEN_ONLY_FOR_SUPPORTING_TARGETS:BOOL=FALSE',
             '-USWIFT_DEBUGINFO_NON_LTO_ARGS'
         ]
@@ -460,6 +466,19 @@ class SwiftTestCase(unittest.TestCase):
              'TRUE'],
             [x for x in swift.cmake_options
              if 'DSWIFT_ENABLE_SYNCHRONIZATION' in x])
+
+    def test_volatile_flags(self):
+        self.args.enable_volatile = True
+        swift = Swift(
+            args=self.args,
+            toolchain=self.toolchain,
+            source_dir='/path/to/src',
+            build_dir='/path/to/build')
+        self.assertEqual(
+            ['-DSWIFT_ENABLE_VOLATILE:BOOL='
+             'TRUE'],
+            [x for x in swift.cmake_options
+             if 'DSWIFT_ENABLE_VOLATILE' in x])
 
     def test_freestanding_is_darwin_flags(self):
         self.args.swift_freestanding_is_darwin = True

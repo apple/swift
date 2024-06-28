@@ -118,7 +118,7 @@ enum class TypeResolverContext : uint8_t {
   /// Whether we are checking the parameter list of a subscript.
   SubscriptDecl,
 
-  /// Whether we are checking the parameter list of a closure.
+  /// Whether we are checking the parameter list or result of a closure.
   ClosureExpr,
 
   /// Whether we are in the input type of a function, or under one level of

@@ -294,3 +294,16 @@
 // CHECK: struct HasOperatorCallWithDefaultArg {
 // CHECK:   func callAsFunction(_ x: Int32 = cxxDefaultArg) -> Int32
 // CHECK: }
+
+// CHECK: struct HasStaticOperatorCallBase {
+// CHECK:   func callAsFunction(_ x: Int32) -> Int32
+// CHECK: }
+
+// CHECK: struct HasStaticOperatorCallDerived {
+// CHECK:   func callAsFunction(_ x: Int32) -> Int32
+// CHECK: }
+
+// CHECK: struct HasStaticOperatorCallWithConstOperator {
+// CHECK:   func callAsFunction(_ x: Int32, _ y: Int32) -> Int32
+// CHECK:   func callAsFunction(_ x: Int32) -> Int32
+// CHECK: }

@@ -16,7 +16,6 @@ add_swift_macro_library(ObservationMacros
   ObservableMacro.swift
   SWIFT_DEPENDENCIES
     SwiftDiagnostics
-    SwiftOperators
     SwiftSyntaxBuilder
     SwiftSyntax
     SwiftSyntaxMacros

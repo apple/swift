@@ -61,6 +61,23 @@ public struct AddExtensionMacro: ExtensionMacro {
   }
 }
 
+public struct AddSpecificExtensionMacro: ExtensionMacro {
+  public static func expansion(
+    of node: AttributeSyntax,
+    attachedTo declaration: some DeclGroupSyntax,
+    providingExtensionsOf type: some TypeSyntaxProtocol,
+    conformingTo protocols: [TypeSyntax],
+    in context: some MacroExpansionContext
+  ) throws -> [ExtensionDeclSyntax] {
+    var extensions = [ExtensionDeclSyntax]()
+    let protocolNames = Set(protocols.compactMap { $0.as(IdentifierTypeSyntax.self)?.name.text })
+    if protocolNames.contains("MyProto") {
+        extensions.append(try ExtensionDeclSyntax("extension \(type.trimmed): MyProto") { })
+    }
+    return extensions
+  }
+}
+
 public struct AddPeerVarMacro: PeerMacro {
   public static func expansion(
     of node: AttributeSyntax,

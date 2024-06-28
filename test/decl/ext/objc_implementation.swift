@@ -232,6 +232,11 @@ protocol EmptySwiftProto {}
   // rdar://122280735 - crash when the parameter of a block property needs @escaping
   let rdar122280735: (() -> ()) -> Void = { _ in }
   // expected-error@-1 {{property 'rdar122280735' of type '(() -> ()) -> Void' does not match type '(@escaping () -> Void) -> Void' declared by the header}}
+
+  private func privateNonObjCMethod(_: EmptySwiftProto) {
+    // expected-error@-1 {{method cannot be in an @objc @implementation extension of a class (without final or @nonobjc) because the type of the parameter cannot be represented in Objective-C}}
+    // expected-note@-2 {{protocol-constrained type containing protocol 'EmptySwiftProto' cannot be represented in Objective-C}}
+  }
 }
 
 @objc(PresentAdditions) @implementation extension ObjCClass {

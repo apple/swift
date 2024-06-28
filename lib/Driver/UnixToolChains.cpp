@@ -14,6 +14,7 @@
 
 #include "ToolChains.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/Platform.h"
 #include "swift/Basic/Range.h"
@@ -57,10 +58,16 @@ toolchains::GenericUnix::addPluginArguments(const ArgList &Args,
   CompilerInvocation::computeRuntimeResourcePathFromExecutablePath(
       programPath, /*shared=*/true, pluginPath);
 
-  auto defaultPluginPath = pluginPath;
-  llvm::sys::path::append(defaultPluginPath, "host", "plugins");
+  // In-process plugin server path.
+  auto inProcPluginServerPath = pluginPath;
+  llvm::sys::path::append(inProcPluginServerPath, "host",
+                          "libSwiftInProcPluginServer.so");
+  Arguments.push_back("-in-process-plugin-server-path");
+  Arguments.push_back(Args.MakeArgString(inProcPluginServerPath));
 
   // Default plugin path.
+  auto defaultPluginPath = pluginPath;
+  llvm::sys::path::append(defaultPluginPath, "host", "plugins");
   Arguments.push_back("-plugin-path");
   Arguments.push_back(Args.MakeArgString(defaultPluginPath));
 

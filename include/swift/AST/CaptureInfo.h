@@ -41,9 +41,12 @@ template <> struct DenseMapInfo<swift::CapturedValue>;
 namespace swift {
 class ValueDecl;
 class FuncDecl;
+class Expr;
 class OpaqueValueExpr;
+class PackElementExpr;
 class VarDecl;
 class GenericEnvironment;
+class Type;
 
 /// CapturedValue includes both the declaration being captured, along with flags
 /// that indicate how it is captured.
@@ -52,7 +55,7 @@ class CapturedValue {
 
 public:
   using Storage =
-      llvm::PointerIntPair<llvm::PointerUnion<ValueDecl*, OpaqueValueExpr*>, 2,
+      llvm::PointerIntPair<llvm::PointerUnion<ValueDecl *, Expr *>, 2,
                            unsigned>;
 
 private:
@@ -78,15 +81,7 @@ public:
   CapturedValue(ValueDecl *Val, unsigned Flags, SourceLoc Loc)
       : Value(Val, Flags), Loc(Loc) {}
 
-private:
-  // This is only used in TypeLowering when forming Lowered Capture
-  // Info. OpaqueValueExpr captured value should never show up in the AST
-  // itself.
-  //
-  // NOTE: AbstractClosureExpr::getIsolationCrossing relies upon this and
-  // asserts that it never sees one of these.
-  explicit CapturedValue(OpaqueValueExpr *Val, unsigned Flags)
-      : Value(Val, Flags), Loc(SourceLoc()) {}
+  CapturedValue(Expr *Val, unsigned Flags);
 
 public:
   static CapturedValue getDynamicSelfMetadata() {
@@ -97,9 +92,13 @@ public:
   bool isNoEscape() const { return Value.getInt() & IsNoEscape; }
 
   bool isDynamicSelfMetadata() const { return !Value.getPointer(); }
-  bool isOpaqueValue() const {
-    return Value.getPointer().is<OpaqueValueExpr *>();
+
+  bool isExpr() const {
+    return Value.getPointer().dyn_cast<Expr *>();
   }
+
+  bool isPackElement() const;
+  bool isOpaqueValue() const;
 
   /// Returns true if this captured value is a local capture.
   ///
@@ -107,25 +106,23 @@ public:
   /// values with decls are the only values that are able to be local captures.
   bool isLocalCapture() const;
 
-  CapturedValue mergeFlags(CapturedValue cv) {
-    assert(Value.getPointer() == cv.Value.getPointer() &&
-           "merging flags on two different value decls");
-    return CapturedValue(
-        Storage(Value.getPointer(), getFlags() & cv.getFlags()),
-        Loc);
+  CapturedValue mergeFlags(unsigned flags) const {
+    return CapturedValue(Storage(Value.getPointer(), getFlags() & flags), Loc);
   }
 
   ValueDecl *getDecl() const {
-    assert(Value.getPointer() && "dynamic Self metadata capture does not "
-           "have a value");
     return Value.getPointer().dyn_cast<ValueDecl *>();
   }
 
-  OpaqueValueExpr *getOpaqueValue() const {
-    assert(Value.getPointer() && "dynamic Self metadata capture does not "
-           "have a value");
-    return Value.getPointer().dyn_cast<OpaqueValueExpr *>();
+  Expr *getExpr() const {
+    return Value.getPointer().dyn_cast<Expr *>();
   }
+
+  OpaqueValueExpr *getOpaqueValue() const;
+
+  PackElementExpr *getPackElement() const;
+
+  Type getPackElementType() const;
 
   SourceLoc getLoc() const { return Loc; }
 

@@ -32,7 +32,7 @@ extension Unicode._NFD {
   @_spi(_Unicode)
   @available(SwiftStdlib 5.7, *)
   public struct Iterator {
-    var base: Unicode._InternalNFD<Substring>.Iterator
+    var base: Unicode._InternalNFD<Substring.UnicodeScalarView>.Iterator
   }
 }
 
@@ -44,7 +44,7 @@ extension Unicode._NFD.Iterator: IteratorProtocol {
   @_spi(_Unicode)
   @available(SwiftStdlib 5.7, *)
   public mutating func next() -> Unicode.Scalar? {
-    base.next()?.scalar
+    base.next()
   }
 }
 
@@ -53,7 +53,7 @@ extension Unicode._NFD: Sequence {
   @_spi(_Unicode)
   @available(SwiftStdlib 5.7, *)
   public func makeIterator() -> Iterator {
-    Iterator(base: Unicode._InternalNFD(base: base).makeIterator())
+    Iterator(base: base._internalNFD.makeIterator())
   }
 }
 
@@ -93,7 +93,7 @@ extension Unicode._NFC {
   @_spi(_Unicode)
   @available(SwiftStdlib 5.7, *)
   public struct Iterator {
-    var base: Unicode._InternalNFC<Substring>.Iterator
+    var base: Unicode._InternalNFC<Substring.UnicodeScalarView>.Iterator
   }
 }
 
@@ -114,11 +114,7 @@ extension Unicode._NFC: Sequence {
   @_spi(_Unicode)
   @available(SwiftStdlib 5.7, *)
   public func makeIterator() -> Iterator {
-    Iterator(
-      base: Unicode._InternalNFC<Substring>.Iterator(
-        iterator: Unicode._InternalNFD<Substring>(base: base).makeIterator()
-      )
-    )
+    Iterator(base: base._internalNFC.makeIterator())
   }
 }
 

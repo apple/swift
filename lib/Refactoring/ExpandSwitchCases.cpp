@@ -15,6 +15,7 @@
 #include "swift/AST/DiagnosticsRefactoring.h"
 #include "swift/AST/Pattern.h"
 #include "swift/AST/Stmt.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift::refactoring;
 

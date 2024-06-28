@@ -746,13 +746,9 @@ func addressOnlyNonmutatingProperty<T>(_ x: AddressOnlyNonmutatingSet<T>)
 }
 // CHECK-LABEL: sil hidden [ossa] @$s10properties30addressOnlyNonmutatingProperty{{[_0-9a-zA-Z]*}}F
 // CHECK:         [[SET:%.*]] = function_ref @$s10properties25AddressOnlyNonmutatingSetV4propSivs
-// CHECK:         apply [[SET]]<T>({{%.*}}, [[TMP:%[0-9]*]])
-// CHECK:         destroy_addr [[TMP]]
-// CHECK:         dealloc_stack [[TMP]]
+// CHECK:         apply [[SET]]<T>({{%.*}}, %0)
 // CHECK:         [[GET:%.*]] = function_ref @$s10properties25AddressOnlyNonmutatingSetV4propSivg
 // CHECK:         apply [[GET]]<T>([[TMP:%[0-9]*]])
-// CHECK:         destroy_addr [[TMP]]
-// CHECK:         dealloc_stack [[TMP]]
 
 protocol MakeAddressOnly {}
 struct AddressOnlyReadOnlySubscript {
@@ -764,9 +760,8 @@ struct AddressOnlyReadOnlySubscript {
 // CHECK-LABEL: sil hidden [ossa] @$s10properties015addressOnlyReadC24SubscriptFromMutableBase
 // CHECK:         [[BASE:%.*]] = alloc_box ${ var AddressOnlyReadOnlySubscript }
 // CHECK:         copy_addr [[BASE:%.*]] to [init] [[COPY:%.*]] :
-// CHECK:         copy_addr [[COPY:%.*]] to [init] [[COPY2:%.*]] :
 // CHECK:         [[GETTER:%.*]] = function_ref @$s10properties015AddressOnlyReadC9SubscriptV{{[_0-9a-zA-Z]*}}ig
-// CHECK:         apply [[GETTER]]({{%.*}}, [[COPY2]])
+// CHECK:         apply [[GETTER]]({{%.*}}, [[COPY]])
 func addressOnlyReadOnlySubscriptFromMutableBase(_ x: Int) {
   var base = AddressOnlyReadOnlySubscript()
   _ = base[x]
@@ -834,13 +829,9 @@ protocol NonmutatingProtocol {
 // CHECK-NEXT:   [[C_FIELD_COPY:%.*]] = alloc_stack $@opened("{{.*}}", any NonmutatingProtocol) Self
 // CHECK-NEXT:   copy_addr [[C_FIELD_PAYLOAD]] to [init] [[C_FIELD_COPY]] : $*@opened("{{.*}}", any NonmutatingProtocol) Self
 // CHECK-NEXT:   destroy_value [[C]] : $ReferenceType
-// CHECK-NEXT:   [[C_FIELD_BORROW:%.*]] = alloc_stack
-// CHECK-NEXT:   copy_addr [[C_FIELD_COPY]] to [init] [[C_FIELD_BORROW]]
 // CHECK-NEXT:   [[GETTER:%.*]] = witness_method $@opened("{{.*}}", any NonmutatingProtocol) Self, #NonmutatingProtocol.x!getter : <Self where Self : NonmutatingProtocol> (Self) -> () -> Int, [[C_FIELD_PAYLOAD]] : $*@opened("{{.*}}", any NonmutatingProtocol) Self : $@convention(witness_method: NonmutatingProtocol) <τ_0_0 where τ_0_0 : NonmutatingProtocol> (@in_guaranteed τ_0_0) -> Int
-// CHECK-NEXT:   [[RESULT_VALUE:%.*]] = apply [[GETTER]]<@opened("{{.*}}", any NonmutatingProtocol) Self>([[C_FIELD_BORROW]]) : $@convention(witness_method: NonmutatingProtocol) <τ_0_0 where τ_0_0 : NonmutatingProtocol> (@in_guaranteed τ_0_0) -> Int
-// CHECK-NEXT:   destroy_addr [[C_FIELD_BORROW]]
+// CHECK-NEXT:   [[RESULT_VALUE:%.*]] = apply [[GETTER]]<@opened("{{.*}}", any NonmutatingProtocol) Self>([[C_FIELD_COPY]]) : $@convention(witness_method: NonmutatingProtocol) <τ_0_0 where τ_0_0 : NonmutatingProtocol> (@in_guaranteed τ_0_0) -> Int
 // CHECK-NEXT:   destroy_addr [[C_FIELD_COPY]] : $*@opened("{{.*}}", any NonmutatingProtocol) Self
-// CHECK-NEXT:   dealloc_stack [[C_FIELD_BORROW]]
 // CHECK-NEXT:   dealloc_stack [[C_FIELD_COPY]] : $*@opened("{{.*}}", any NonmutatingProtocol) Self
 // CHECK-NEXT:   destroy_addr [[C_FIELD_BOX]] : $*any NonmutatingProtocol
 // CHECK-NEXT:   dealloc_stack [[C_FIELD_BOX]] : $*any NonmutatingProtocol

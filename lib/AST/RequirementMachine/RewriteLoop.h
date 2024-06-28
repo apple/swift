@@ -13,6 +13,7 @@
 #ifndef SWIFT_REWRITELOOP_H
 #define SWIFT_REWRITELOOP_H
 
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 
@@ -250,11 +251,11 @@ struct RewriteStep {
     Kind = kind;
 
     StartOffset = startOffset;
-    assert(StartOffset == startOffset && "Overflow");
+    ASSERT(StartOffset == startOffset && "Overflow");
     EndOffset = endOffset;
-    assert(EndOffset == endOffset && "Overflow");
+    ASSERT(EndOffset == endOffset && "Overflow");
     Arg = arg;
-    assert(Arg == arg && "Overflow");
+    ASSERT(Arg == arg && "Overflow");
     Inverse = inverse;
   }
 
@@ -335,18 +336,18 @@ struct RewriteStep {
   }
 
   unsigned getRuleID() const {
-    assert(Kind == RewriteStep::Rule);
+    ASSERT(Kind == RewriteStep::Rule);
     return Arg;
   }
 
   unsigned getTypeDifferenceID() const {
-    assert(Kind == RewriteStep::LeftConcreteProjection ||
+    ASSERT(Kind == RewriteStep::LeftConcreteProjection ||
            Kind == RewriteStep::RightConcreteProjection);
     return (Arg >> 16) & 0xffff;
   }
 
   unsigned getSubstitutionIndex() const {
-    assert(Kind == RewriteStep::LeftConcreteProjection ||
+    ASSERT(Kind == RewriteStep::LeftConcreteProjection ||
            Kind == RewriteStep::RightConcreteProjection);
     return Arg & 0xffff;
   }
@@ -363,8 +364,8 @@ struct RewriteStep {
 private:
   static unsigned getConcreteProjectionArg(unsigned differenceID,
                                            unsigned substitutionIndex) {
-    assert(differenceID <= 0xffff);
-    assert(substitutionIndex <= 0xffff);
+    ASSERT(differenceID <= 0xffff);
+    ASSERT(substitutionIndex <= 0xffff);
 
     return (differenceID << 16) | substitutionIndex;
   }
@@ -393,7 +394,7 @@ public:
   }
 
   void resize(unsigned newSize) {
-    assert(newSize <= size());
+    ASSERT(newSize <= size());
     Steps.erase(Steps.begin() + newSize, Steps.end());
   }
 
@@ -489,7 +490,7 @@ public:
   }
 
   void markDeleted() {
-    assert(!Deleted);
+    ASSERT(!Deleted);
     Deleted = 1;
   }
 
@@ -557,7 +558,7 @@ struct RewritePathEvaluator {
   /// We're "in context" if we're in the middle of rewriting concrete
   /// substitutions.
   bool isInContext() const {
-    assert(Primary.size() > 0);
+    ASSERT(Primary.size() > 0);
     return (Primary.size() > 1 || Secondary.size() > 0);
   }
 

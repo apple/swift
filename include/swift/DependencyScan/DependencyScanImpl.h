@@ -60,8 +60,17 @@ struct swiftscan_dependency_info_s {
    */
   swiftscan_string_set_t *direct_dependencies;
 
+  /// The list of link libraries for this module.
+  swiftscan_link_library_set_t *link_libraries;
+
   /// Specific details of a particular kind of module.
   swiftscan_module_details_t details;
+};
+
+struct swiftscan_link_library_info_s {
+  swiftscan_string_ref_t name;
+  bool isFramework;
+  bool forceLoad;
 };
 
 /// Swift modules to be built from a module interface, may have a bridging
@@ -103,6 +112,9 @@ typedef struct {
   /// A flag to indicate whether or not this module is a framework.
   bool is_framework;
 
+  /// A flag that indicates this dependency is associated with a static archive
+  bool is_static;
+
   /// The CASID for CASFileSystemRoot
   swiftscan_string_ref_t cas_fs_root_id;
 
@@ -139,6 +151,9 @@ typedef struct {
 
   /// A flag to indicate whether or not this module is a framework.
   bool is_framework;
+
+  /// A flag that indicates this dependency is associated with a static archive
+  bool is_static;
 
   /// ModuleCacheKey
   swiftscan_string_ref_t module_cache_key;

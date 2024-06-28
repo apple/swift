@@ -108,6 +108,8 @@ def create_parser():
                         help='Enable experimental observation.')
     parser.add_argument('--enable-synchronization', action='store_true',
                         help='Enable Synchronization.')
+    parser.add_argument('--enable-volatile', action='store_true',
+                        help='Enable Volatile.')
     parser.add_argument('-swift-version', metavar='N',
                         help='the Swift version to use')
     parser.add_argument('-show-overlay', action='store_true',

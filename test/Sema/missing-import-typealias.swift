@@ -7,23 +7,22 @@
 // RUN: %target-swift-emit-module-interface(%t/Aliases.swiftinterface) %t/Aliases.swift -I %t
 // RUN: %target-swift-typecheck-module-from-interface(%t/Aliases.swiftinterface) -I %t
 
-// RUN: %target-swift-frontend -typecheck -verify %t/UsesAliasesNoImport.swift -enable-library-evolution -I %t -package-name pkg
+// RUN: %target-swift-frontend -typecheck -verify %t/UsesAliasesNoImport.swift -enable-library-evolution -I %t
 // RUN: %target-swift-frontend -typecheck -verify %t/UsesAliasesImplementationOnlyImport.swift -enable-library-evolution -I %t
 // RUN: %target-swift-frontend -typecheck -verify %t/UsesAliasesSPIOnlyImport.swift -enable-library-evolution -I %t -experimental-spi-only-imports
 // RUN: %target-swift-frontend -typecheck -verify %t/UsesAliasesWithImport.swift -enable-library-evolution -I %t
 
 /// With library evolution disabled UsesAliasesNoImport.swift should compile without diagnostics.
-// RUN: %target-swift-frontend -typecheck %t/UsesAliasesNoImport.swift -I %t -package-name pkg | %FileCheck %t/UsesAliasesNoImport.swift --check-prefix=CHECK-NON-RESILIENT --allow-empty
+// RUN: %target-swift-frontend -typecheck %t/UsesAliasesNoImport.swift -I %t | %FileCheck %t/UsesAliasesNoImport.swift --check-prefix=CHECK-NON-RESILIENT --allow-empty
 
 /// The swiftinterface is broken by the missing import without the workaround.
-// RUN: %target-swift-emit-module-interface(%t/UsesAliasesNoImport.swiftinterface) %t/UsesAliasesNoImport.swift -I %t -package-name pkg \
+// RUN: %target-swift-emit-module-interface(%t/UsesAliasesNoImport.swiftinterface) %t/UsesAliasesNoImport.swift -I %t \
 // RUN:   -disable-print-missing-imports-in-module-interface
 // RUN: not %target-swift-typecheck-module-from-interface(%t/UsesAliasesNoImport.swiftinterface) -I %t
 
 /// The swiftinterface parses fine with the workaround adding the missing imports.
-// RUN: %target-swift-emit-module-interface(%t/UsesAliasesNoImportFixed.swiftinterface) %t/UsesAliasesNoImport.swift -I %t -package-name pkg -emit-package-module-interface-path %t/UsesAliasesNoImportFixed.package.swiftinterface
+// RUN: %target-swift-emit-module-interface(%t/UsesAliasesNoImportFixed.swiftinterface) %t/UsesAliasesNoImport.swift -I %t
 // RUN: %target-swift-typecheck-module-from-interface(%t/UsesAliasesNoImportFixed.swiftinterface) -I %t
-// RUN: %target-swift-typecheck-module-from-interface(%t/UsesAliasesNoImportFixed.package.swiftinterface) -I %t -module-name UsesAliasesNoImportFixed
 
 /// The module with an implementation-only import is not affected by the workaround and remains broken.
 // RUN: %target-swift-emit-module-interface(%t/UsesAliasesImplementationOnlyImport.swiftinterface) %t/UsesAliasesImplementationOnlyImport.swift -I %t \
@@ -67,13 +66,9 @@ import Aliases
 
 // CHECK-NON-RESILIENT-NOT: was not imported by this file
 
-// expected-warning@+2 {{'ClazzAlias' aliases 'Original.Clazz' and cannot be used here because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
+// expected-warning@+2 {{'ClazzAlias' aliases 'Original.Clazz' and cannot be used in a public or '@usableFromInline' conformance because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
 // expected-note@+1 {{The missing import of module 'Original' will be added implicitly}}
 public class InheritsFromClazzAlias: ClazzAlias {}
-
-// expected-warning@+2 {{'ClazzAlias' aliases 'Original.Clazz' and cannot be used here because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
-// expected-note@+1 {{The missing import of module 'Original' will be added implicitly}}
-package class InheritsFromClazzAliasPackage: ClazzAlias {}
 
 @inlinable public func inlinableFunc() {
   // expected-warning@+2 {{'StructAlias' aliases 'Original.Struct' and cannot be used in an '@inlinable' function because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
@@ -84,10 +79,6 @@ package class InheritsFromClazzAliasPackage: ClazzAlias {}
 // expected-warning@+2 {{'ProtoAlias' aliases 'Original.Proto' and cannot be used here because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
 // expected-note@+1 {{The missing import of module 'Original' will be added implicitly}}
 public func takesGeneric<T: ProtoAlias>(_ t: T) {}
-
-// expected-warning@+2 {{'ProtoAlias' aliases 'Original.Proto' and cannot be used here because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
-// expected-note@+1 {{The missing import of module 'Original' will be added implicitly}}
-package func takesGenericPackage<T: ProtoAlias>(_ t: T) {}
 
 public struct HasMembers {
   // expected-warning@+2 {{'WrapperAlias' aliases 'Original.Wrapper' and cannot be used as property wrapper here because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
@@ -101,11 +92,6 @@ extension StructAlias {
   public func someFunc() {}
 }
 
-// expected-warning@+2 {{'StructAlias' aliases 'Original.Struct' and cannot be used in an extension with public, package, or '@usableFromInline' members because 'Original' was not imported by this file; this is an error in the Swift 6 language mode}}
-// expected-note@+1 {{The missing import of module 'Original' will be added implicitly}}
-extension StructAlias {
-  package func someFuncPackage() {}
-}
 
 //--- UsesAliasesImplementationOnlyImport.swift
 

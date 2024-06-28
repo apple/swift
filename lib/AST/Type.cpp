@@ -37,6 +37,7 @@
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/TypeLoc.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Compiler.h"
 #include "clang/AST/Type.h"
 #include "llvm/ADT/APFloat.h"
@@ -1301,6 +1302,7 @@ ParameterListInfo::ParameterListInfo(
   implicitSelfCapture.resize(params.size());
   inheritActorContext.resize(params.size());
   variadicGenerics.resize(params.size());
+  isPassedToSending.resize(params.size());
 
   // No parameter owner means no parameter list means no default arguments
   // - hand back the zeroed bitvector.
@@ -1364,6 +1366,10 @@ ParameterListInfo::ParameterListInfo(
     if (param->getInterfaceType()->is<PackExpansionType>()) {
       variadicGenerics.set(i);
     }
+
+    if (param->isSending()) {
+      isPassedToSending.set(i);
+    }
   }
 }
 
@@ -1404,6 +1410,10 @@ bool ParameterListInfo::isVariadicGenericParameter(unsigned paramIdx) const {
       : false;
 }
 
+bool ParameterListInfo::isPassedToSendingParameter(unsigned paramIdx) const {
+  return paramIdx < isPassedToSending.size() ? isPassedToSending[paramIdx]
+                                             : false;
+}
 
 /// Turn a param list into a symbolic and printable representation that does not
 /// include the types, something like (_:, b:, c:)
@@ -3894,11 +3904,6 @@ Type AnyFunctionType::getThrownError() const {
 }
 
 bool AnyFunctionType::isSendable() const {
-  auto &ctx = getASTContext();
-  if (ctx.LangOpts.hasFeature(Feature::GlobalActorIsolatedTypesUsability)) {
-    // Global-actor-isolated function types are implicitly Sendable.
-    return getExtInfo().isSendable() || getIsolation().isGlobalActor();
-  }
   return getExtInfo().isSendable();
 }
 

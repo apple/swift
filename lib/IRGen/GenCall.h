@@ -121,6 +121,15 @@ namespace irgen {
                                            CanSILFunctionType substitutedType,
                                            SubstitutionMap substitutionMap);
 
+  struct CombinedResultAndErrorType {
+    llvm::Type *combinedTy;
+    llvm::SmallVector<unsigned, 2> errorValueMapping;
+  };
+  CombinedResultAndErrorType
+  combineResultAndTypedErrorType(const IRGenModule &IGM,
+                                 const NativeConventionSchema &resultSchema,
+                                 const NativeConventionSchema &errorSchema);
+
   /// Given an async function, get the pointer to the function to be called and
   /// the size of the context to be allocated.
   ///

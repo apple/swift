@@ -1,7 +1,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %{python} %utils/split_file.py -o %t %s
 
-// RUN: %target-swift-frontend -O -emit-ir %t/Main.swift -enable-experimental-feature Embedded -import-objc-header %t/header.h | %FileCheck %s
+// -enable-import-ptrauth-field-function-pointers is a no-op
+// RUN: %target-swift-frontend -enable-import-ptrauth-field-function-pointers -O -emit-ir %t/Main.swift -enable-experimental-feature Embedded -import-objc-header %t/header.h | %FileCheck %s
 
 // REQUIRES: swift_in_compiler
 // REQUIRES: OS=macosx || OS=linux-gnu

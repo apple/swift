@@ -14,36 +14,43 @@ import TestsUtils
 @_spi(_Unicode)
 import Swift
 
-public let benchmarks = [
-  BenchmarkInfo(
-    name: "StringEqualPointerComparison",
-    runFunction: run_StringEqualPointerComparison,
-    tags: [.validation, .api, .String]),
-  BenchmarkInfo(
-    name: "StringHasPrefixAscii",
-    runFunction: run_StringHasPrefixAscii,
-    tags: [.validation, .api, .String],
-    legacyFactor: 10),
-  BenchmarkInfo(
-    name: "StringHasPrefixUnicode",
-    runFunction: run_StringHasPrefixUnicode,
-    tags: [.validation, .api, .String],
-    legacyFactor: 1000),
-  BenchmarkInfo(
-    name: "StringHasSuffixAscii",
-    runFunction: run_StringHasSuffixAscii,
-    tags: [.validation, .api, .String],
-    legacyFactor: 10),
-  BenchmarkInfo(
-    name: "StringHasSuffixUnicode",
-    runFunction: run_StringHasSuffixUnicode,
-    tags: [.validation, .api, .String],
-    legacyFactor: 1000),
-  BenchmarkInfo(
-    name: "StringIterateWords",
-    runFunction: run_iterateWords,
-    tags: [.validation, .String]),
-]
+public var benchmarks: [BenchmarkInfo] {
+  var result = [
+    BenchmarkInfo(
+      name: "StringEqualPointerComparison",
+      runFunction: run_StringEqualPointerComparison,
+      tags: [.validation, .api, .String]),
+    BenchmarkInfo(
+      name: "StringHasPrefixAscii",
+      runFunction: run_StringHasPrefixAscii,
+      tags: [.validation, .api, .String],
+      legacyFactor: 10),
+    BenchmarkInfo(
+      name: "StringHasPrefixUnicode",
+      runFunction: run_StringHasPrefixUnicode,
+      tags: [.validation, .api, .String],
+      legacyFactor: 1000),
+    BenchmarkInfo(
+      name: "StringHasSuffixAscii",
+      runFunction: run_StringHasSuffixAscii,
+      tags: [.validation, .api, .String],
+      legacyFactor: 10),
+    BenchmarkInfo(
+      name: "StringHasSuffixUnicode",
+      runFunction: run_StringHasSuffixUnicode,
+      tags: [.validation, .api, .String],
+      legacyFactor: 1000),
+  ]
+
+  if #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) {
+    result.append(
+      BenchmarkInfo(
+        name: "StringIterateWords",
+        runFunction: run_iterateWords,
+        tags: [.validation, .String]))
+  }
+  return result
+}
 
 // FIXME(string)
 public func run_StringHasPrefixAscii(_ n: Int) {
@@ -1644,11 +1651,8 @@ architecture on Linux.</p>
 
 extension String {
   @inline(never)
-  @available(SwiftStdlib 5.9, *)
+  @available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
   var _words: [Substring] {
-    guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else {
-      fatalError("Can't run this benchmark")
-    }
     var result: [Substring] = []
     
     var i = startIndex
@@ -1666,6 +1670,7 @@ extension String {
   }
 }
 
+@available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *)
 public func run_iterateWords(_ n: Int) {
   for _ in 0 ..< n {
     blackHole(swiftOrgHTML._words)

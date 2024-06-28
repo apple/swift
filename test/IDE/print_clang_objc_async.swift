@@ -90,7 +90,7 @@ import _Concurrency
 // CHECK: func __leap(_ height: Int) async -> String
 
 // CHECK: @available(*, renamed: "runOnMainThread()")
-// CHECK-NEXT: func runOnMainThread(completionHandler completion: (@MainActor (String) -> Void)? = nil)
+// CHECK-NEXT: func runOnMainThread(completionHandler completion: (@MainActor @Sendable (String) -> Void)? = nil)
 // CHECK-NEXT: @discardableResult
 // CHECK-NEXT: func runOnMainThread() async -> String
 

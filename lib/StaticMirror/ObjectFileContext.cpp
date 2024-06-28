@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/StaticMirror/ObjectFileContext.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Unreachable.h"
 #include "swift/Demangling/Demangler.h"
 #include "swift/RemoteInspection/ReflectionContext.h"

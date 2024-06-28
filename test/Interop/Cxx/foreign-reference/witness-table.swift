@@ -3,8 +3,9 @@
 // REQUIRES: executable_test
 // XFAIL: OS=windows-msvc
 
-// Temporarily disable on arm64e (rdar://128681577)
-// UNSUPPORTED: CPU=arm64e
+// Temporarily disable when running with an older runtime (rdar://128681577)
+// UNSUPPORTED: use_os_stdlib
+// UNSUPPORTED: back_deployment_runtime
 
 import StdlibUnittest
 import WitnessTable

@@ -23,6 +23,7 @@
 #include "IRGenModule.h"
 #include "NativeConventionSchema.h"
 #include "swift/AST/GenericEnvironment.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/IRGen/IRGenSILPasses.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/SILArgument.h"
@@ -2612,7 +2613,7 @@ void LoadableByAddress::recreateSingleApply(
         } else if (newValue->getType().isTrivial(*F)) {
           ownership = LoadOwnershipQualifier::Trivial;
         } else {
-          assert(oldYields[i].isConsumed() &&
+          assert(oldYields[i].isConsumedInCaller() &&
                  "borrowed yields not yet supported here");
           ownership = LoadOwnershipQualifier::Take;
         }
@@ -3629,6 +3630,14 @@ protected:
 
   void visitKeyPathInst(KeyPathInst *kp) {
     singleValueInstructionFallback(kp);
+  }
+
+  void visitMarkDependenceInst(MarkDependenceInst *mark) {
+    // This instruction is purely for semantic tracking in SIL.
+    // Simply forward the value and delete the instruction.
+    auto valAddr = assignment.getAddressForValue(mark->getValue());
+    assignment.mapValueToAddress(mark, valAddr);
+    assignment.markForDeletion(mark);
   }
 
   void visitBeginApplyInst(BeginApplyInst *apply) {

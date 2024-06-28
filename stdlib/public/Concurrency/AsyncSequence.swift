@@ -81,7 +81,7 @@ public protocol AsyncSequence<Element, Failure> {
 
   /// The type of errors produced when iteration over the sequence fails.
   @available(SwiftStdlib 6.0, *)
-  associatedtype Failure: Error = AsyncIterator.Failure
+  associatedtype Failure: Error = any Error
       where AsyncIterator.Failure == Failure
 
   /// Creates the asynchronous iterator that produces elements of this

@@ -49,3 +49,9 @@ protocol HasOperatorPlusEqualProtocol {
 }
 
 extension HasOperatorPlusEqualInt : HasOperatorPlusEqualProtocol {}
+
+protocol HasOperatorCall {
+  func callAsFunction(_ x: Int32) -> Int32
+}
+
+extension HasStaticOperatorCall : HasOperatorCall {}

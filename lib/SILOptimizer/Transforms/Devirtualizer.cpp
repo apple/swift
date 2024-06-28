@@ -17,6 +17,7 @@
 
 #define DEBUG_TYPE "sil-devirtualizer"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/OptimizationRemark.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"

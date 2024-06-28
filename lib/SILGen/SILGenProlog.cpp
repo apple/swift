@@ -23,6 +23,7 @@
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/PropertyWrappers.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Generators.h"
 #include "swift/SIL/SILArgument.h"
@@ -915,6 +916,7 @@ private:
                   MarkUnresolvedNonCopyableValueInst::CheckKind::
                       ConsumableAndAssignable);
               break;
+            case SILArgumentConvention::Indirect_In_CXX:
             case SILArgumentConvention::Indirect_In_Guaranteed:
               argrv = SGF.B.createMarkUnresolvedNonCopyableValueInst(
                   loc, argrv,
@@ -1052,6 +1054,49 @@ static void emitCaptureArguments(SILGenFunction &SGF,
                                  GenericSignature origGenericSig,
                                  CapturedValue capture,
                                  uint16_t ArgNo) {
+  if (auto *expr = capture.getPackElement()) {
+    SILLocation Loc(expr);
+    Loc.markAsPrologue();
+
+    auto interfaceType = expr->getType()->mapTypeOutOfContext();
+
+    auto type = SGF.F.mapTypeIntoContext(interfaceType);
+    auto &lowering = SGF.getTypeLowering(type);
+    SILType ty = lowering.getLoweredType();
+
+    SILValue arg;
+
+    auto expansion = SGF.getTypeExpansionContext();
+    auto captureKind = SGF.SGM.Types.getDeclCaptureKind(capture, expansion);
+    switch (captureKind) {
+    case CaptureKind::Constant:
+    case CaptureKind::StorageAddress:
+    case CaptureKind::Immutable: {
+      auto argIndex = SGF.F.begin()->getNumArguments();
+      // Non-escaping stored decls are captured as the address of the value.
+      auto param = SGF.F.getConventions().getParamInfoForSILArg(argIndex);
+      if (SGF.F.getConventions().isSILIndirect(param))
+        ty = ty.getAddressType();
+
+      auto *fArg = SGF.F.begin()->createFunctionArgument(ty, nullptr);
+      fArg->setClosureCapture(true);
+
+      arg = fArg;
+      break;
+    }
+
+    case CaptureKind::ImmutableBox:
+    case CaptureKind::Box:
+      llvm_unreachable("should be impossible");
+    }
+
+    ManagedValue mv = ManagedValue::forBorrowedRValue(arg);
+    auto inserted = SGF.OpaqueValues.insert(std::make_pair(expr, mv));
+    assert(inserted.second);
+    (void) inserted;
+
+    return;
+  }
 
   auto *VD = cast<VarDecl>(capture.getDecl());
   
@@ -1202,6 +1247,7 @@ static void emitCaptureArguments(SILGenFunction &SGF,
       case SILArgumentConvention::Indirect_InoutAliasable:
       case SILArgumentConvention::Indirect_In:
       case SILArgumentConvention::Indirect_In_Guaranteed:
+      case SILArgumentConvention::Indirect_In_CXX:
       case SILArgumentConvention::Pack_Inout:
       case SILArgumentConvention::Pack_Owned:
       case SILArgumentConvention::Pack_Guaranteed:
@@ -1496,6 +1542,8 @@ uint16_t SILGenFunction::emitBasicProlog(
   // Create the indirect result parameters.
   auto genericSig = DC->getGenericSignatureOfContext();
   resultType = resultType->getReducedType(genericSig);
+  if (errorType)
+    errorType = (*errorType)->getReducedType(genericSig);
 
   std::optional<AbstractionPattern> origClosureType;
   if (TypeContext) origClosureType = TypeContext->OrigType;

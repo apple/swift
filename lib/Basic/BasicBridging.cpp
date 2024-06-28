@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/BasicBridging.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
@@ -21,6 +22,11 @@
 #endif
 
 using namespace swift;
+
+void assertFail(const char * _Nonnull msg, const char * _Nonnull file,
+                SwiftUInt line, const char * _Nonnull function) {
+  ASSERT_failure(msg, file, line, function);
+}
 
 //===----------------------------------------------------------------------===//
 // MARK: BridgedStringRef

@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/IDE/PostfixCompletion.h"
 #include "swift/IDE/CodeCompletion.h"
 #include "swift/IDE/CompletionLookup.h"
@@ -21,31 +22,20 @@ using namespace swift;
 using namespace swift::constraints;
 using namespace swift::ide;
 
-bool PostfixCompletionCallback::Result::canBeMergedWith(const Result &Other,
-                                                        DeclContext &DC) const {
-  if (BaseDecl != Other.BaseDecl) {
+bool PostfixCompletionCallback::Result::tryMerge(const Result &Other,
+                                                 DeclContext *DC) {
+  if (BaseDecl != Other.BaseDecl)
     return false;
-  }
-  if (!BaseTy->isEqual(Other.BaseTy) &&
-      !isConvertibleTo(BaseTy, Other.BaseTy, /*openArchetypes=*/true, DC) &&
-      !isConvertibleTo(Other.BaseTy, BaseTy, /*openArchetypes=*/true, DC)) {
-    return false;
-  }
-  return true;
-}
 
-void PostfixCompletionCallback::Result::merge(const Result &Other,
-                                              DeclContext &DC) {
-  assert(canBeMergedWith(Other, DC));
   // These properties should match if we are talking about the same BaseDecl.
   assert(IsBaseDeclUnapplied == Other.IsBaseDeclUnapplied);
   assert(BaseIsStaticMetaType == Other.BaseIsStaticMetaType);
 
-  if (!BaseTy->isEqual(Other.BaseTy) &&
-      isConvertibleTo(Other.BaseTy, BaseTy, /*openArchetypes=*/true, DC)) {
-    // Pick the more specific base type as it will produce more solutions.
-    BaseTy = Other.BaseTy;
-  }
+  auto baseTy = tryMergeBaseTypeForCompletionLookup(BaseTy, Other.BaseTy, DC);
+  if (!baseTy)
+    return false;
+
+  BaseTy = baseTy;
 
   // There could be multiple results that have different actor isolations if the
   // closure is an argument to a function that has multiple overloads with
@@ -66,18 +56,15 @@ void PostfixCompletionCallback::Result::merge(const Result &Other,
   ExpectsNonVoid &= Other.ExpectsNonVoid;
   IsImpliedResult |= Other.IsImpliedResult;
   IsInAsyncContext |= Other.IsInAsyncContext;
+  return true;
 }
 
 void PostfixCompletionCallback::addResult(const Result &Res) {
-  auto ExistingRes =
-      llvm::find_if(Results, [&Res, DC = DC](const Result &ExistingResult) {
-        return ExistingResult.canBeMergedWith(Res, *DC);
-      });
-  if (ExistingRes != Results.end()) {
-    ExistingRes->merge(Res, *DC);
-  } else {
-    Results.push_back(Res);
+  for (auto idx : indices(Results)) {
+    if (Results[idx].tryMerge(Res, DC))
+      return;
   }
+  Results.push_back(Res);
 }
 
 void PostfixCompletionCallback::fallbackTypeCheck(DeclContext *DC) {

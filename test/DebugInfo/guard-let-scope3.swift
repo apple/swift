@@ -11,11 +11,12 @@ public class S {
       // CHECK: sil_scope [[X1_RHS:[0-9]+]] { loc "{{.*}}":9:19 parent [[P]]
       // CHECK: sil_scope [[X1:[0-9]+]] { loc "{{.*}}":9:19 parent [[P]]
       // CHECK: sil_scope [[X2:[0-9]+]] { loc "{{.*}}":9:29 parent [[X1]]
+      // CHECK: sil_scope [[X3:[0-9]+]] { loc "{{.*}}":9:29 parent [[X1]]
       // CHECK: sil_scope [[GUARD:[0-9]+]] { loc "{{.*}}":9:36 parent [[P]]
       // CHECK: debug_value {{.*}} : $Optional<C>, let, name "x", {{.*}}, scope [[X1]]
-      // CHECK: debug_value {{.*}} : $C, let, name "x", {{.*}}, scope [[X2]]
+      // CHECK: debug_value {{.*}} : $C, let, name "x", {{.*}}, scope [[X3]]
       // FIXME: This source location is a little wild.
-      // CHECK-NEXT: release_value{{.*}}:[[@LINE+5]]:3, scope [[X2]]
+      // CHECK-NEXT: release_value{{.*}}:[[@LINE+5]]:3, scope [[X3]]
       throw MyError()
       // CHECK: function_ref {{.*}}MyError{{.*}}:[[@LINE-1]]:13, scope [[GUARD]]
     }

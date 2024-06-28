@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -typecheck -enable-experimental-feature IsolatedAny -verify %s
+// RUN: %target-swift-frontend -typecheck -verify %s
 
 struct A<T> {
   // expected-note @+1 {{candidate has non-matching type}}

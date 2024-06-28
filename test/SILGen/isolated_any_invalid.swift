@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-silgen -enable-experimental-feature IsolatedAny %s -module-name test -swift-version 6 -disable-availability-checking -verify
+// RUN: %target-swift-frontend -emit-silgen %s -module-name test -swift-version 6 -disable-availability-checking -verify
 // REQUIRES: concurrency
 
 func takeSyncIsolatedAny(fn: @escaping @isolated(any) () -> ()) {}

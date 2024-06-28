@@ -12,6 +12,7 @@
 
 #include "swift/SIL/SILRemarkStreamer.h"
 #include "swift/AST/DiagnosticsFrontend.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/IR/LLVMContext.h"
 
 using namespace swift;

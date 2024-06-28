@@ -2511,6 +2511,32 @@ inline int descendingPriorityOrder(JobPriority lhs,
   return (lhs == rhs ? 0 : lhs > rhs ? -1 : 1);
 }
 
+enum { PriorityBucketCount = 5 };
+
+inline int getPriorityBucketIndex(JobPriority priority) {
+  // Any unknown priorities will be rounded up to a known one.
+  // Priorities higher than UserInteractive are clamped to UserInteractive.
+  // Jobs of unknown priorities will end up in the same bucket as jobs of a
+  // corresponding known priority. Within the bucket they will be sorted in
+  // FIFO order.
+  if (priority > JobPriority::UserInitiated) {
+    // UserInteractive and higher
+    return 0;
+  } else if (priority > JobPriority::Default) {
+    // UserInitiated
+    return 1;
+  } else if (priority > JobPriority::Utility) {
+    // Default
+    return 2;
+  } else if (priority > JobPriority::Background) {
+    // Utility
+    return 3;
+  } else {
+    // Background and lower
+    return 4;
+  }
+}
+
 inline JobPriority withUserInteractivePriorityDowngrade(JobPriority priority) {
   return (priority == JobPriority::UserInteractive) ? JobPriority::UserInitiated
                                                     : priority;
@@ -2671,7 +2697,8 @@ enum class TaskOptionRecordKind : uint8_t {
   /// Information about the result type of the task, used in embedded Swift.
   ResultTypeInfo = 4,
   /// Set the initial task executor preference of the task.
-  InitialTaskExecutor = 5,
+  InitialTaskExecutorUnowned = 5,
+  InitialTaskExecutorOwned = 6,
   /// Request a child task for swift_task_run_inline.
   RunInline = UINT8_MAX,
 };

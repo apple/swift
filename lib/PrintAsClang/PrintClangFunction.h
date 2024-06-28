@@ -143,10 +143,9 @@ public:
       std::optional<IRABIDetailsProvider::MethodDispatchInfo> dispatchInfo);
 
   /// Print Swift type as C/C++ type, as the return type of a C/C++ function.
-  ClangRepresentation
-  printClangFunctionReturnType(Type ty, OptionalTypeKind optKind,
-                               ModuleDecl *moduleContext,
-                               OutputLanguageMode outputLang);
+  ClangRepresentation printClangFunctionReturnType(
+      raw_ostream &stream, Type ty, OptionalTypeKind optKind,
+      ModuleDecl *moduleContext, OutputLanguageMode outputLang);
 
   static void printGenericReturnSequence(
       raw_ostream &os, const GenericTypeParamType *gtpt,

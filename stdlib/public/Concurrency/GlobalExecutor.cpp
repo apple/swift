@@ -161,18 +161,6 @@ SerialExecutorRef _task_serialExecutor_getExecutorRef(
         const SerialExecutorWitnessTable *wtable);
 #pragma clang diagnostic pop
 
-// Implemented in Swift because we need to obtain the user-defined flags on the executor ref.
-//
-// We could inline this with effort, though.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
-extern "C" SWIFT_CC(swift)
-TaskExecutorRef _task_executor_getTaskExecutorRef(
-    HeapObject *executor, const Metadata *selfType,
-    const SerialExecutorWitnessTable *wtable);
-#pragma clang diagnostic pop
-
-
 /// WARNING: This method is expected to CRASH in new runtimes, and cannot be
 /// used to implement "log warnings" mode. We would need a new entry point to
 /// implement a "only log warnings" actor isolation checking mode, and it would

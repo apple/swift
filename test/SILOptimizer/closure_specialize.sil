@@ -938,3 +938,35 @@ bb0(%0 : $Int):
   %empty = tuple ()
   return %empty : $()
 }
+
+struct NC : ~Copyable {
+  deinit {}
+}
+
+sil hidden [noinline] @noncopyable_arg_closure : $@convention(thin) (@guaranteed NC) -> () {
+bb0(%0 : $NC):
+  %retval = tuple ()
+  return %retval : $()
+}
+
+sil hidden [noinline] @use_noncopyable_arg_closure : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> () {
+bb0(%0 : $@noescape @callee_guaranteed () -> ()):
+  %2 = apply %0() : $@noescape @callee_guaranteed () -> ()
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// Ensure that a retain_value of a noncopyable value isn't created.
+// CHECK-LABEL: sil @dont_specialize_noncopyable_arg_closure : {{.*}} {
+// CHECK-NOT:     retain_value {{%.*}} : $NC
+// CHECK-LABEL: } // end sil function 'dont_specialize_noncopyable_arg_closure'
+sil @dont_specialize_noncopyable_arg_closure : $@convention(thin) (@guaranteed NC) -> () {
+bb0(%nc : $NC):
+  %closure_fn = function_ref @noncopyable_arg_closure : $@convention(thin) (@guaranteed NC) -> ()
+  %closure = partial_apply [callee_guaranteed] [on_stack] %closure_fn(%nc) : $@convention(thin) (@guaranteed NC) -> ()
+  %use = function_ref @use_noncopyable_arg_closure : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
+  apply %use(%closure) : $@convention(thin) (@noescape @callee_guaranteed () -> ()) -> ()
+  dealloc_stack %closure : $@noescape @callee_guaranteed () -> ()
+  %11 = tuple ()
+  return %11 : $()
+}

@@ -447,6 +447,12 @@ function(_add_host_variant_link_flags target)
       "SHELL:-Xlinker -no_warn_duplicate_libraries")
   endif()
 
+  # Enable build IDs
+  if(SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_USE_BUILD_ID)
+    target_link_options(${target} PRIVATE
+      "SHELL:-Xlinker --build-id=sha1")
+  endif()
+
 endfunction()
 
 function(_add_swift_runtime_link_flags target relpath_to_lib_dir bootstrapping)
@@ -1016,12 +1022,12 @@ function(add_swift_host_tool executable)
       set_property(
         TARGET ${executable}
         APPEND PROPERTY INSTALL_RPATH
-          "@executable_path/../${extra_relative_rpath}lib/swift/host")
+          "@executable_path/../${extra_relative_rpath}lib/swift/host/compiler")
     else()
       set_property(
         TARGET ${executable}
         APPEND PROPERTY INSTALL_RPATH
-          "$ORIGIN/../${extra_relative_rpath}lib/swift/host")
+          "$ORIGIN/../${extra_relative_rpath}lib/swift/host/compiler")
     endif()
   endif()
 

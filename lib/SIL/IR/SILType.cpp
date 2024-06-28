@@ -19,6 +19,7 @@
 #include "swift/AST/Module.h"
 #include "swift/AST/SemanticAttrs.h"
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/AbstractionPattern.h"
 #include "swift/SIL/SILFunctionConventions.h"
 #include "swift/SIL/SILModule.h"
@@ -448,6 +449,11 @@ bool SILType::isAddressOnly(const SILFunction &F) const {
   auto contextType = hasTypeParameter() ? F.mapTypeIntoContext(*this) : *this;
     
   return F.getTypeLowering(contextType).isAddressOnly();
+}
+
+bool SILType::isFixedABI(const SILFunction &F) const {
+  auto contextType = hasTypeParameter() ? F.mapTypeIntoContext(*this) : *this;
+  return F.getTypeLowering(contextType).isFixedABI();
 }
 
 SILType SILType::substGenericArgs(SILModule &M, SubstitutionMap SubMap,
@@ -1266,7 +1272,7 @@ SILType SILType::addingMoveOnlyWrapperToBoxedType(const SILFunction *fn) {
   return SILType::getPrimitiveObjectType(newBoxType);
 }
 
-SILType SILType::removingMoveOnlyWrapperToBoxedType(const SILFunction *fn) {
+SILType SILType::removingMoveOnlyWrapperFromBoxedType(const SILFunction *fn) {
   auto boxTy = castTo<SILBoxType>();
   auto *oldLayout = boxTy->getLayout();
   auto oldField = oldLayout->getFields()[0];
@@ -1282,6 +1288,17 @@ SILType SILType::removingMoveOnlyWrapperToBoxedType(const SILFunction *fn) {
   auto newBoxType = SILBoxType::get(fn->getASTContext(), newLayout,
                                     boxTy->getSubstitutions());
   return SILType::getPrimitiveObjectType(newBoxType);
+}
+
+SILType SILType::removingAnyMoveOnlyWrapping(const SILFunction *fn) {
+  if (!isMoveOnlyWrapped() && !isBoxedMoveOnlyWrappedType(fn))
+    return *this;
+
+  if (isMoveOnlyWrapped())
+    return removingMoveOnlyWrapper();
+
+  assert(isBoxedMoveOnlyWrappedType(fn));
+  return removingMoveOnlyWrapperFromBoxedType(fn);
 }
 
 bool SILType::isSendable(SILFunction *fn) const {

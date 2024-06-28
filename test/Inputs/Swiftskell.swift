@@ -36,7 +36,7 @@ public enum Either<Success: ~Copyable, Failure: Error>: ~Copyable {
   case failure(Failure)
 }
 
-extension Either: Copyable {}
+extension Either: Copyable where Success: Copyable {}
 
 extension Either where Failure == Swift.Error {
   public init(catching body: () throws -> Success) {
@@ -77,7 +77,7 @@ public enum Maybe<Wrapped: ~Copyable>: ~Copyable {
   case just(Wrapped)
   case nothing
 }
-extension Maybe: Copyable {}
+extension Maybe: Copyable where Wrapped: Copyable {}
 
 extension Maybe: Show where Wrapped: Show & ~Copyable {
   public borrowing func show() -> String {

@@ -33,11 +33,11 @@
 // CHECK-NEXT:  var fromNullableHandler: String { get async }
 
 // CHECK:       @available(*, renamed: "getter:mainDogProp()")
-// CHECK-NEXT:  func getMainDog(_ completion: @escaping @MainActor (String) -> Void)
+// CHECK-NEXT:  func getMainDog(_ completion: @escaping @MainActor @Sendable (String) -> Void)
 // CHECK-NEXT:  var mainDogProp: String { get async }
 
 // CHECK:       @available(*, renamed: "regularMainDog()")
-// CHECK-NEXT:  func regularMainDog(_ completion: @escaping @MainActor (String) -> Void)
+// CHECK-NEXT:  func regularMainDog(_ completion: @escaping @MainActor @Sendable (String) -> Void)
 // CHECK-NEXT:  @discardableResult
 // CHECK-NEXT:  func regularMainDog() async -> String
 // CHECK: }

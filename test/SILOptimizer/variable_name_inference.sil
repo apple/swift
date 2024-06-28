@@ -866,10 +866,10 @@ bb0:
 }
 
 // CHECK-LABEL: begin running test 1 of 1 on begin_borrow_var_decl_3: variable-name-inference with: @trace[0]
-// CHECK-LABEL: Input Value:   %1 = apply %0() : $@convention(thin) () -> @owned Klass
-// CHECK-LABEL: Name: 'unknown'
-// CHECK-LABEL: Root: 'unknown'
-// CHECK-LABEL: end running test 1 of 1 on begin_borrow_var_decl_3: variable-name-inference with: @trace[0]
+// CHECK: Input Value:   %1 = apply %0() : $@convention(thin) () -> @owned Klass
+// CHECK: Name: 'unknown'
+// CHECK: Root: 'unknown'
+// CHECK: end running test 1 of 1 on begin_borrow_var_decl_3: variable-name-inference with: @trace[0]
 sil [ossa] @begin_borrow_var_decl_3 : $@convention(thin) () -> () {
 bb0:
   specify_test "variable-name-inference @trace[0]"
@@ -882,4 +882,18 @@ bb0:
   destroy_value %1 : $Klass
   %9999 = tuple ()
   return %9999 : $()
+}
+
+// CHECK-LABEL: begin running test 1 of 1 on infer_through_end_init_let_ref: variable-name-inference with: @trace[0]
+// CHECK: Input Value:   %2 = end_init_let_ref %0 : $Klass
+// CHECK: Name: 'self'
+// CHECK: Root: %0 = argument of bb0 : $Klass
+// CHECK: end running test 1 of 1 on infer_through_end_init_let_ref: variable-name-inference with: @trace[0]
+sil [ossa] @infer_through_end_init_let_ref : $@convention(thin) (@owned Klass) -> @owned Klass {
+bb0(%0 : @owned $Klass):
+  specify_test "variable-name-inference @trace[0]"
+  debug_value %0 : $Klass, let, name "self", argno 2
+  %1 = end_init_let_ref %0 : $Klass
+  debug_value [trace] %1 : $Klass
+  return %1 : $Klass
 }

@@ -36,6 +36,8 @@ struct KlassPair {
 
 sil @use_klass : $@convention(thin) (@guaranteed Klass) -> ()
 
+protocol Error {}
+
 ///////////
 // Tests //
 ///////////
@@ -561,4 +563,53 @@ bb2:
 bb3(%result : @owned $@moveOnly FakeOptional<Klass>):
   %result2 = moveonlywrapper_to_copyable [owned] %result : $@moveOnly FakeOptional<Klass>
   return %result2 : $FakeOptional<Klass>
+}
+
+// CHECK-LABEL: sil [ossa] @debug_value_undef : {{.*}} {
+// CHECK:         debug_value [moveable_value_debuginfo] undef : $*Klass, var, name "s"
+// CHECK-LABEL: } // end sil function 'debug_value_undef'
+sil  [ossa] @debug_value_undef : $@convention(thin) (@owned Klass) -> () {
+bb0(%x : @owned $Klass):
+  %addr = alloc_stack $@moveOnly Klass
+  %unwrapped_addr = moveonlywrapper_to_copyable_addr %addr : $*@moveOnly Klass
+  store %x to [init] %unwrapped_addr : $*Klass
+  debug_value %addr : $*@moveOnly Klass, var, name "s", argno 1, expr op_deref
+  destroy_addr %addr : $*@moveOnly Klass
+  debug_value undef : $*@moveOnly Klass, var, name "s", argno 1, expr op_deref
+  dealloc_stack %addr : $*@moveOnly Klass
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// SILGen occasionally uses dealloc_box instead of destroy_value. dealloc_box is needed when we don't want to destroy
+// the contents of the box. It seems to happen with property wrappers.
+//
+// CHECK-LABEL: sil [ossa] @dealoc_box : $@convention(thin) (@owned Klass) -> () {
+// CHECK:           [[BOX:%.*]] = alloc_box [moveable_value_debuginfo] ${ var Klass }
+// CHECK:           dealloc_box [[BOX]] : ${ var Klass }
+// CHECK-LABEL: } // end sil function 'dealoc_box'
+sil [ossa] @dealoc_box : $@convention(thin) (@owned Klass) -> () {
+bb0(%x : @owned $Klass):
+  %box = alloc_box ${ var @moveOnly Klass }
+  %addr = project_box %box : ${ var @moveOnly Klass }, 0
+  %unwrapped_addr = moveonlywrapper_to_copyable_addr %addr : $*@moveOnly Klass
+  store %x to [init] %unwrapped_addr : $*Klass
+  debug_value %addr : $*@moveOnly Klass, var, name "s", argno 1, expr op_deref
+  destroy_addr %addr : $*@moveOnly Klass
+  debug_value undef : $*@moveOnly Klass, var, name "s", argno 1, expr op_deref
+  dealloc_box %box : ${ var @moveOnly Klass }
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: sil [ossa] @existential_metatype : $@convention(thin) (@guaranteed any Error) -> @thick any Error.Type {
+// CHECK:         [[EM:%.*]] = existential_metatype $@thick any Error.Type, {{%.*}} : $any Error
+// CHECK:         return [[EM]] : $@thick any Error.Type
+// CHECK-LABEL: } // end sil function 'existential_metatype'
+sil [ossa] @existential_metatype : $@convention(thin) (@guaranteed any Error) -> @thick any Error.Type {
+bb0(%x : @guaranteed $any Error):
+  %y = copyable_to_moveonlywrapper [guaranteed] %x : $any Error
+  %em = existential_metatype $@thick any Error.Type, %y : $@moveOnly (any Error)
+  debug_value %em : $@thick any Error.Type, var, name "s", argno 1, expr op_deref
+  return %em : $@thick any Error.Type
 }

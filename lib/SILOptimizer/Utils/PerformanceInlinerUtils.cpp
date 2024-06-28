@@ -14,6 +14,7 @@
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Utils/PerformanceInlinerUtils.h"
 #include "swift/AST/Module.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "llvm/Support/CommandLine.h"
 
@@ -846,15 +847,13 @@ SILFunction *swift::getEligibleFunction(FullApplySite AI,
   }
 
   // A non-fragile function may not be inlined into a fragile function.
-  // pcmo TODO: remove Caller->isSerialized() and pass its kind to
-  // canBeInlinedIntoCaller instead.
-  if (Caller->isSerialized() &&
-      !Callee->canBeInlinedIntoCaller()) {
-    if (!Callee->hasValidLinkageForFragileRef()) {
+  if (!Callee->canBeInlinedIntoCaller(Caller->getSerializedKind())) {
+    if (Caller->isAnySerialized() &&
+        !Callee->hasValidLinkageForFragileRef(Caller->getSerializedKind())) {
       llvm::errs() << "caller: " << Caller->getName() << "\n";
       llvm::errs() << "callee: " << Callee->getName() << "\n";
-      llvm_unreachable("Should never be inlining a resilient function into "
-                       "a fragile function");
+      ASSERT(false && "Should never be inlining a resilient function into "
+                      "a fragile function");
     }
     return nullptr;
   }

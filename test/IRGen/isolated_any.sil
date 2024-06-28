@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-ir %s -enable-experimental-feature IsolatedAny | %IRGenFileCheck %s
+// RUN: %target-swift-frontend -emit-ir %s | %IRGenFileCheck %s
 
 // REQUIRES: concurrency
 

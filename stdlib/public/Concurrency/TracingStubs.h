@@ -33,8 +33,7 @@ inline void actor_enqueue(HeapObject *actor, Job *job) {}
 
 inline void actor_dequeue(HeapObject *actor, Job *job) {}
 
-inline void actor_state_changed(HeapObject *actor, Job *firstJob,
-                                bool needsPreprocessing, uint8_t state,
+inline void actor_state_changed(HeapObject *actor, Job *firstJob, uint8_t state,
                                 bool isDistributedRemote,
                                 bool isPriorityEscalated, uint8_t maxPriority) {
 }

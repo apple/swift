@@ -1302,14 +1302,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVXeip",
+          key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVyXeXecip",
           key.line: 93,
           key.column: 5,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVXeig",
+              key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVyXeXecig",
               key.line: 93,
               key.column: 46
             },
@@ -1333,14 +1333,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVXeip",
+          key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVyXeXecip",
           key.line: 94,
           key.column: 17,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVXeig",
+              key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVyXeXecig",
               key.line: 94,
               key.column: 61
             },
@@ -1369,14 +1369,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVXeip",
+          key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVyXeXecip",
           key.line: 95,
           key.column: 13,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVXeig",
+              key.usr: "s:28index_effective_access_level18ScopeReducerStruct33_2295DDF1454D6A6D9229E8222CD85214LLVyXeXecig",
               key.line: 95,
               key.column: 53
             },
@@ -2077,14 +2077,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level17ScopeKeeperStructVXeip",
+          key.usr: "s:28index_effective_access_level17ScopeKeeperStructVyXeXecip",
           key.line: 121,
           key.column: 5,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level17ScopeKeeperStructVXeig",
+              key.usr: "s:28index_effective_access_level17ScopeKeeperStructVyXeXecig",
               key.line: 121,
               key.column: 46
             },
@@ -2108,14 +2108,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level17ScopeKeeperStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llip",
+          key.usr: "s:28index_effective_access_level17ScopeKeeperStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llip",
           key.line: 122,
           key.column: 17,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level17ScopeKeeperStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llig",
+              key.usr: "s:28index_effective_access_level17ScopeKeeperStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llig",
               key.line: 122,
               key.column: 61
             },
@@ -2144,14 +2144,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level17ScopeKeeperStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llip",
+          key.usr: "s:28index_effective_access_level17ScopeKeeperStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llip",
           key.line: 123,
           key.column: 13,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level17ScopeKeeperStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llig",
+              key.usr: "s:28index_effective_access_level17ScopeKeeperStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llig",
               key.line: 123,
               key.column: 53
             },
@@ -2852,14 +2852,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVXeip",
+          key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVyXeXecip",
           key.line: 149,
           key.column: 5,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVXeig",
+              key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVyXeXecig",
               key.line: 149,
               key.column: 46
             },
@@ -2883,14 +2883,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llip",
+          key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llip",
           key.line: 150,
           key.column: 17,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llig",
+              key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llig",
               key.line: 150,
               key.column: 61
             },
@@ -2919,14 +2919,14 @@
         {
           key.kind: source.lang.swift.decl.function.subscript,
           key.name: "subscript(_:)",
-          key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llip",
+          key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llip",
           key.line: 151,
           key.column: 13,
           key.entities: [
             {
               key.kind: source.lang.swift.decl.function.accessor.getter,
               key.name: "getter:subscript(_:)",
-              key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVXe33_2295DDF1454D6A6D9229E8222CD85214Llig",
+              key.usr: "s:28index_effective_access_level25PartialScopeReducerStructVyXeXec33_2295DDF1454D6A6D9229E8222CD85214Llig",
               key.line: 151,
               key.column: 53
             },

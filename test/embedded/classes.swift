@@ -15,15 +15,42 @@ class MyClass {
 }
 
 class MySubClass: MyClass {
+  var x = 27
+
   override init() { print("MySubClass.init") }
   deinit { print("MySubClass.deinit") }
   override func foo() { print("MySubClass.foo") }
+
+  func printX() {
+    print(x)
+  }
 }
 
 class MySubSubClass: MySubClass {
   override init() { print("MySubSubClass.init") }
   deinit { print("MySubSubClass.deinit") }
   override func foo() { print("MySubSubClass.foo") }
+}
+
+class OtherSubClass: MyClass {}
+
+func testCasting(_ title: StaticString, _ c: MyClass) {
+  print(title, terminator: "")
+  if let s = c as? MySubClass {
+    s.printX()
+  } else {
+    print("-")
+  }
+}
+
+public class DynamicSelfClass {
+  public static let ds = DynamicSelfClass()
+  public static let i: Int = 42
+  var x: Int
+
+  public init() {
+    self.x = Self.i
+  }
 }
 
 @main
@@ -69,5 +96,17 @@ struct Main {
     // CHECK: MySubClass.deinit
     // CHECK: MyClass.deinit
     print("")
+
+    // CHECK: base: -
+    testCasting("base: ", MyClass())
+    // CHECK: sub: 27
+    testCasting("sub: ", MySubClass())
+    // CHECK: subsub: 27
+    testCasting("subsub: ", MySubSubClass())
+    // CHECK: other: -
+    testCasting("other: ", OtherSubClass())
+
+    // CHECK: 42
+    print(DynamicSelfClass.ds.x)
   }
 }

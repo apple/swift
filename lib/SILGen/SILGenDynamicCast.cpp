@@ -16,6 +16,7 @@
 #include "RValue.h"
 #include "Scope.h"
 #include "ExitableFullExpr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/DynamicCasts.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/TypeLowering.h"

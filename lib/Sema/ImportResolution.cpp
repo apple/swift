@@ -24,6 +24,7 @@
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
 #include "swift/ClangImporter/ClangModule.h"
@@ -574,6 +575,10 @@ UnboundImport::UnboundImport(AttributedImport<UnloadedImportedModule> implicit)
 // MARK: Import validation (except for scoped imports)
 //===----------------------------------------------------------------------===//
 
+ImportOptions getImportOptions(ImportDecl *ID) {
+  return ImportOptions();
+}
+
 /// Create an UnboundImport for a user-written import declaration.
 UnboundImport::UnboundImport(ImportDecl *ID)
   : import(UnloadedImportedModule(ID->getImportPath(), ID->getImportKind()),
@@ -1083,6 +1088,13 @@ CheckInconsistentAccessLevelOnImport::evaluate(
       return;
 
     auto otherAccessLevel = otherImport->getAccessLevel();
+
+    // Only report ambiguities with non-public imports as bare imports are
+    // public when this diagnostic is active. Do not report ambiguities
+    // between implicitly vs explicitly public.
+    if (otherAccessLevel == AccessLevel::Public)
+      return;
+
     auto &diags = mod->getDiags();
     {
       InFlightDiagnostic error =
@@ -1354,6 +1366,13 @@ UnboundImport::UnboundImport(
   if (declaringOptions.contains(ImportFlags::ImplementationOnly) ||
       bystandingOptions.contains(ImportFlags::ImplementationOnly))
     import.options |= ImportFlags::ImplementationOnly;
+  if (declaringOptions.contains(ImportFlags::SPIOnly) ||
+      bystandingOptions.contains(ImportFlags::SPIOnly))
+    import.options |= ImportFlags::SPIOnly;
+
+  // Pick the most restrictive access level.
+  import.accessLevel = std::min(declaringImport.accessLevel,
+                                bystandingImport.accessLevel);
 
   // If either have a `@_documentation(visibility: <access>)` attribute, the
   // cross-import has the more restrictive of the two.
@@ -1374,12 +1393,6 @@ void ImportResolver::crossImport(ModuleDecl *M, UnboundImport &I) {
   // first bind all exported imports in all files, then bind all other imports
   // in each file. This may become simpler if we bind all ImportDecls before we
   // start computing cross-imports, but I haven't figured that part out yet.
-  //
-  // Fixing this is tracked within Apple by rdar://problem/59527118. I haven't
-  // filed an SR because I plan to address it myself, but if this comment is
-  // still here in April 2020 without an SR number, please file a Swift bug and
-  // harass @brentdax to fill in the details.
-
   if (!SF.shouldCrossImport())
     return;
 

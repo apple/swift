@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "sil-projection"
 #include "swift/SIL/Projection.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/IndexTrie.h"
 #include "swift/Basic/NullablePtr.h"
 #include "swift/SIL/DebugUtils.h"

@@ -73,10 +73,7 @@ enum class ExportabilityReason : unsigned {
   ResultBuilder,
   ExtensionWithPublicMembers,
   ExtensionWithConditionalConformances,
-  // Exported members of extension can be `package`.
-  ExtensionWithPackageMembers,
-  // Exported inheritance type can be `package`.
-  ExtensionWithPackageConditionalConformances
+  Inheritance
 };
 
 /// A description of the restrictions on what declarations can be referenced
@@ -84,12 +81,9 @@ enum class ExportabilityReason : unsigned {
 ///
 /// We say a declaration is "exported" if all of the following holds:
 ///
-/// - the declaration is `public`  or `@usableFromInline`
+/// - the declaration is `public` or `@usableFromInline`
 /// - the declaration is not `@_spi`
 /// - the declaration was not imported from an `@_implementationOnly` import
-/// - the declaration is `package`; while treated as exported, the
-///   scope is limited compared to `public`  or `@usableFromInline`;
-///   the `IsPackage` bit is set to track the scope.
 ///
 /// The "signature" of a declaration is the set of all types written in the
 /// declaration (such as function parameter and return types), but not
@@ -112,7 +106,6 @@ class ExportContext {
   AvailabilityContext RunningOSVersion;
   FragileFunctionKind FragileKind;
   unsigned SPI : 1;
-  unsigned IsPackage : 1;
   unsigned Exported : 1;
   unsigned Deprecated : 1;
   unsigned Implicit : 1;
@@ -121,7 +114,7 @@ class ExportContext {
   unsigned Reason : 3;
 
   ExportContext(DeclContext *DC, AvailabilityContext runningOSVersion,
-                FragileFunctionKind kind, bool spi, bool isPackage, bool exported,
+                FragileFunctionKind kind, bool spi, bool exported,
                 bool implicit, bool deprecated,
                 std::optional<PlatformKind> unavailablePlatformKind);
 
@@ -175,9 +168,6 @@ public:
 
   /// If true, the context is SPI and can reference SPI declarations.
   bool isSPI() const { return SPI; }
-
-  /// If true, the context has a package access scope.
-  bool isPackage() const { return IsPackage; }
 
   /// If true, the context is exported and cannot reference SPI declarations
   /// or declarations from `@_implementationOnly` imports.

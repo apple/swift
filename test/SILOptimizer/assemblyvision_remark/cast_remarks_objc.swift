@@ -21,7 +21,6 @@ public func forcedCast2<NS, T>(_ ns: NS) -> T {
   let x = ns
   return x as! T  // expected-remark @:12 {{unconditional runtime cast of value with type 'NS' to 'T'}}
                   // expected-note @-4:34 {{of 'ns'}}
-                  // expected-note @-3:7 {{of 'x'}}
 }
 
 public func forcedCast3<NS, T>(_ ns: NS) -> T {
@@ -29,7 +28,6 @@ public func forcedCast3<NS, T>(_ ns: NS) -> T {
   var x = ns // expected-warning {{variable 'x' was never mutated}}
   return x as! T  // expected-remark @:12 {{unconditional runtime cast of value with type 'NS' to 'T'}}
                   // expected-note @-4:34 {{of 'ns'}}
-                  // expected-note @-3:7 {{of 'x'}}
 }
 
 public func forcedCast4<NS, T>(_ ns: NS, _ ns2: NS) -> T {
@@ -52,7 +50,6 @@ public func condCast2<NS, T>(_ ns: NS) -> T? {
   let x = ns
   return x as? T  // expected-remark @:12 {{conditional runtime cast of value with type 'NS' to 'T'}}
                   // expected-note @-4:32 {{of 'ns'}}
-                  // expected-note @-3:7 {{of 'x'}}
 }
 
 public func condCast3<NS, T>(_ ns: NS) -> T? {
@@ -60,7 +57,6 @@ public func condCast3<NS, T>(_ ns: NS) -> T? {
   var x = ns // expected-warning {{variable 'x' was never mutated}}
   return x as? T  // expected-remark @:12 {{conditional runtime cast of value with type 'NS' to 'T'}}
                   // expected-note @-4:32 {{of 'ns'}}
-                  // expected-note @-3:7 {{of 'x'}}
 }
 
 public func condCast4<NS, T>(_ ns: NS, _ ns2: NS) -> T? {

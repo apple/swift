@@ -25,6 +25,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include "RewriteSystem.h"
@@ -49,8 +50,7 @@ unsigned RewriteSystem::recordRelation(Term lhs, Term rhs) {
   unsigned index = Relations.size();
   Relations.push_back(key);
   auto inserted = RelationMap.insert(std::make_pair(key, index));
-  assert(inserted.second);
-  (void) inserted;
+  DEBUG_ASSERT(inserted.second);
 
   return index;
 }
@@ -63,8 +63,8 @@ unsigned RewriteSystem::recordRelation(Term lhs, Term rhs) {
 /// requirement.
 unsigned RewriteSystem::recordRelation(Symbol lhsProperty,
                                        Symbol rhsProperty) {
-  assert(lhsProperty.isProperty());
-  assert(rhsProperty.isProperty());
+  DEBUG_ASSERT(lhsProperty.isProperty());
+  DEBUG_ASSERT(rhsProperty.isProperty());
 
   MutableTerm lhsTerm;
   lhsTerm.add(lhsProperty);
@@ -86,10 +86,10 @@ unsigned RewriteSystem::recordRelation(Symbol lhsProperty,
 unsigned RewriteSystem::recordConcreteConformanceRelation(
     Symbol concreteSymbol, Symbol protocolSymbol,
     Symbol concreteConformanceSymbol) {
-  assert(protocolSymbol.getKind() == Symbol::Kind::Protocol);
-  assert(protocolSymbol.getProtocol() ==
+  ASSERT(protocolSymbol.getKind() == Symbol::Kind::Protocol);
+  ASSERT(protocolSymbol.getProtocol() ==
          concreteConformanceSymbol.getProtocol());
-  assert(concreteSymbol.getKind() == Symbol::Kind::Superclass ||
+  ASSERT(concreteSymbol.getKind() == Symbol::Kind::Superclass ||
          concreteSymbol.getKind() == Symbol::Kind::ConcreteType);
 
   MutableTerm lhsTerm;
@@ -112,13 +112,13 @@ unsigned RewriteSystem::recordConcreteTypeWitnessRelation(
     Symbol concreteConformanceSymbol,
     Symbol associatedTypeSymbol,
     Symbol typeWitnessSymbol) {
-  assert(concreteConformanceSymbol.getKind() ==
+  ASSERT(concreteConformanceSymbol.getKind() ==
          Symbol::Kind::ConcreteConformance);
-  assert(associatedTypeSymbol.getKind() ==
+  ASSERT(associatedTypeSymbol.getKind() ==
          Symbol::Kind::AssociatedType);
-  assert(concreteConformanceSymbol.getProtocol() ==
+  ASSERT(concreteConformanceSymbol.getProtocol() ==
          associatedTypeSymbol.getProtocol());
-  assert(typeWitnessSymbol.getKind() == Symbol::Kind::ConcreteType);
+  ASSERT(typeWitnessSymbol.getKind() == Symbol::Kind::ConcreteType);
 
   MutableTerm rhsTerm;
   rhsTerm.add(concreteConformanceSymbol);
@@ -138,9 +138,9 @@ unsigned RewriteSystem::recordConcreteTypeWitnessRelation(
 unsigned RewriteSystem::recordSameTypeWitnessRelation(
     Symbol concreteConformanceSymbol,
     Symbol associatedTypeSymbol) {
-  assert(concreteConformanceSymbol.getKind() ==
+  ASSERT(concreteConformanceSymbol.getKind() ==
          Symbol::Kind::ConcreteConformance);
-  assert(associatedTypeSymbol.getKind() ==
+  ASSERT(associatedTypeSymbol.getKind() ==
          Symbol::Kind::AssociatedType);
 
   MutableTerm rhsTerm;

@@ -28,6 +28,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/LLVMPasses/Passes.h"
 #include "clang/AST/StableHash.h"
 #include "clang/Basic/PointerAuthOptions.h"

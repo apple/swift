@@ -48,7 +48,17 @@ public struct Enums: MyProto {
 // CHECK-NEXT:        "mangledTypeName": "n/a - deprecated",
 // CHECK-NEXT:        "isStatic": "false",
 // CHECK-NEXT:        "isComputed": "true",
-// CHECK-NEXT:        "valueKind": "Runtime"
+// CHECK-NEXT:        "valueKind": "FunctionCall",
+// CHECK-NEXT:        "value": {
+// CHECK-NEXT:          "name": "_hashValue",
+// CHECK-NEXT:          "arguments": [
+// CHECK-NEXT:            {
+// CHECK-NEXT:              "label": "for",
+// CHECK-NEXT:              "type": "ExtractEnums.SimpleEnum",
+// CHECK-NEXT:              "valueKind": "Runtime"
+// CHECK-NEXT:            }
+// CHECK-NEXT:          ]
+// CHECK-NEXT:        }
 // CHECK-NEXT:      }
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    "cases": [

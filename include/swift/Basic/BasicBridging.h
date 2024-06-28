@@ -107,6 +107,9 @@ typedef uintptr_t SwiftUInt;
 #define BRIDGING_WRAPPER_NULLABLE(Node, Name) \
   BRIDGING_WRAPPER_IMPL(Node, Nullable##Name, _Nullable)
 
+void assertFail(const char * _Nonnull msg, const char * _Nonnull file,
+                SwiftUInt line, const char * _Nonnull function);
+
 //===----------------------------------------------------------------------===//
 // MARK: ArrayRef
 //===----------------------------------------------------------------------===//

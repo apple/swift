@@ -58,15 +58,12 @@ void swift_ASTGen_buildTopLevelASTNodes(
     BridgedLegacyParser legacyParser, void *_Nonnull outputContext,
     void (*_Nonnull)(void *_Nonnull, void *_Nonnull));
 
-void *_Nullable swift_ASTGen_resolveMacroType(const void *_Nonnull macroType);
-void swift_ASTGen_destroyMacro(void *_Nonnull macro);
-
 void swift_ASTGen_freeBridgedString(BridgedStringRef);
 
-void *_Nonnull swift_ASTGen_resolveExecutableMacro(
+void *_Nonnull swift_ASTGen_resolveExternalMacro(
     const char *_Nonnull moduleName, const char *_Nonnull typeName,
     void *_Nonnull opaquePluginHandle);
-void swift_ASTGen_destroyExecutableMacro(void *_Nonnull macro);
+void swift_ASTGen_destroyExternalMacro(void *_Nonnull macro);
 
 bool swift_ASTGen_checkDefaultArgumentMacroExpression(
     void *_Nonnull diagEngine, void *_Nonnull sourceFile,
@@ -84,13 +81,13 @@ void swift_ASTGen_freeExpansionReplacements(
     ptrdiff_t *_Nullable replacementsPtr, ptrdiff_t numReplacements);
 
 ptrdiff_t swift_ASTGen_expandFreestandingMacro(
-    void *_Nonnull diagEngine, const void *_Nonnull macro, uint8_t externalKind,
+    void *_Nonnull diagEngine, const void *_Nonnull macro,
     const char *_Nonnull discriminator, uint8_t rawMacroRole,
     void *_Nonnull sourceFile, const void *_Nullable sourceLocation,
     BridgedStringRef *_Nonnull evaluatedSourceOut);
 
 ptrdiff_t swift_ASTGen_expandAttachedMacro(
-    void *_Nonnull diagEngine, const void *_Nonnull macro, uint8_t externalKind,
+    void *_Nonnull diagEngine, const void *_Nonnull macro,
     const char *_Nonnull discriminator, const char *_Nonnull qualifiedType,
     const char *_Nonnull conformances, uint8_t rawMacroRole,
     void *_Nonnull customAttrSourceFile,

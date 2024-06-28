@@ -13,6 +13,7 @@
 #include "swift/SIL/CalleeCache.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/AST/ProtocolConformance.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/Compiler.h"
 
 #define DEBUG_TYPE "CalleeCache"

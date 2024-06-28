@@ -2,9 +2,7 @@
 // RUN: %target-swift-frontend %s -typecheck -module-name Operators -clang-header-expose-decls=all-public -emit-clang-header-path %t/operators.h
 // RUN: %FileCheck %s < %t/operators.h
 
-// TODO: %check-interop-cxx-header-in-clang(%t/operators.h)
-// unfortunately the header still triggers an error:
-//   error: no member named '_impl_IntBox' in namespace 'Operators::_impl'
+// RUN: %check-interop-cxx-header-in-clang(%t/operators.h)
 
 // CHECK-LABEL: namespace Operators SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("Operators") {
 

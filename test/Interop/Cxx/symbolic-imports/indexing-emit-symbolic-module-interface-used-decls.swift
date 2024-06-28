@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: split-file %s %t
 
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop 2>&1
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop 2>&1
 // RUN: cat %t/store/interfaces/CxxModule* | %FileCheck --check-prefix=CHECK %s
 
 //--- Inputs/module.modulemap

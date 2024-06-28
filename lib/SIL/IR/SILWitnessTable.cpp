@@ -25,6 +25,7 @@
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/ProtocolConformance.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILModule.h"
 #include "llvm/ADT/SmallString.h"
 
@@ -108,7 +109,7 @@ SILWitnessTable::SILWitnessTable(
     ArrayRef<ConditionalConformance> conditionalConformances)
     : Mod(M), Name(N), Linkage(Linkage), Conformance(Conformance), Entries(),
       ConditionalConformances(), IsDeclaration(true),
-      SerializedKind(IsNotSerialized) {
+      SerializedKind(SerializedKind) {
   convertToDefinition(entries, conditionalConformances, SerializedKind);
 }
 
@@ -169,8 +170,7 @@ void SILWitnessTable::convertToDefinition(
 
 SerializedKind_t SILWitnessTable::conformanceSerializedKind(
                                                             const RootProtocolConformance *conformance) {
-  // Allow serializing conformance with package or public access level
-  // if package serialization is enabled.
+
   auto optInPackage = conformance->getDeclContext()->getParentModule()->serializePackageEnabled();
   auto accessLevelToCheck =
   optInPackage ? AccessLevel::Package : AccessLevel::Public;
@@ -184,9 +184,7 @@ SerializedKind_t SILWitnessTable::conformanceSerializedKind(
 
   auto *nominal = conformance->getDeclContext()->getSelfNominalTypeDecl();
   if (nominal->getEffectiveAccess() >= accessLevelToCheck)
-    return optInPackage &&
-           conformance->getDeclContext()->getParentModule()->isResilient() ?
-           IsSerializedForPackage : IsSerialized;
+    return IsSerialized;
 
   return IsNotSerialized;
 }

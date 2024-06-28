@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/ParseTestSpecification.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILModule.h"

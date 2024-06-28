@@ -610,6 +610,7 @@ inline bool SILModuleConventions::isIndirectSILParam(SILParameterInfo param,
 
   case ParameterConvention::Indirect_In:
   case ParameterConvention::Indirect_In_Guaranteed:
+  case ParameterConvention::Indirect_In_CXX:
     return isTypeIndirectForIndirectParamConvention(param.getInterfaceType(),
                                                     loweredAddresses);
   case ParameterConvention::Indirect_Inout:

@@ -14,8 +14,8 @@
 
 // RUN: %target-swift-frontend(mock-sdk: -sdk %S/../Inputs/clang-importer-sdk -I %t) -emit-module -I %S/Inputs/custom-modules -o %t %s -disable-objc-attr-requires-foundation-module
 // RUN: %target-swift-frontend(mock-sdk: -sdk %S/../Inputs/clang-importer-sdk -I %t) -parse-as-library %t/classes.swiftmodule -typecheck -I %S/Inputs/custom-modules -emit-objc-header-path %t/classes.h -import-objc-header %S/../Inputs/empty.h -disable-objc-attr-requires-foundation-module
-// RUN: %FileCheck %s < %t/classes.h
-// RUN: %FileCheck --check-prefix=NEGATIVE %s < %t/classes.h
+// RUN: %FileCheck %s --input-file %t/classes.h
+// RUN: %FileCheck --check-prefix=NEGATIVE %s --input-file %t/classes.h
 // RUN: %check-in-clang -I %S/Inputs/custom-modules/ %t/classes.h
 // RUN: not %check-in-clang -I %S/Inputs/custom-modules/ -fno-modules -Qunused-arguments %t/classes.h
 // RUN: %check-in-clang -I %S/Inputs/custom-modules/ -fno-modules -Qunused-arguments %t/classes.h -include CoreFoundation.h -include objc_generics.h -include SingleGenericClass.h -include CompatibilityAlias.h
@@ -425,6 +425,28 @@ class MyObject : NSObject {}
 
   // NEGATIVE-NOT: ImplicitObjCInner
   class ImplicitObjCInner : A1 {}
+}
+
+// CHECK-LABEL: @interface NestedCollision1Identical
+// CHECK-NEXT: - (void)before
+// CHECK-NEXT: init
+// CHECK-NEXT: @end
+// CHECK: @interface NestedCollision2Identical
+// CHECK-NEXT: - (void)after
+// CHECK-NEXT: init
+// CHECK-NEXT: @end
+
+// We're intentionally declaring NestedCollision2 before NestedCollision1 to
+// make sure they're being sorted based on their names, not their source order.
+@objc @objcMembers class NestedCollision2 {
+  @objc(NestedCollision2Identical) @objcMembers class Identical: NSObject {
+    @objc func after() {}
+  }
+}
+@objc @objcMembers class NestedCollision1 {
+  @objc(NestedCollision1Identical) @objcMembers class Identical: NSObject {
+    @objc func before() {}
+  }
 }
 
 // CHECK-LABEL: @class Inner2;

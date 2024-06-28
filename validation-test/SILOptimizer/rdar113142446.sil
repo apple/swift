@@ -1,0 +1,31 @@
+// RUN: %target-sil-opt -opt-mode=none  -enable-sil-verify-all %s -sil-consume-operator-copyable-values-checker | %FileCheck %s
+// RUN: %target-sil-opt -opt-mode=speed -enable-sil-verify-all %s -sil-consume-operator-copyable-values-checker | %FileCheck %s
+
+sil_stage raw
+
+import Builtin
+
+class X {}
+
+struct S {}
+
+sil @getX : $@convention(thin) () -> @owned X
+sil @takeX : $@convention(thin) (@owned X) -> S
+
+// CHECK-LABEL: sil [ossa] @testit : {{.*}} {
+// CHECK-NOT:     copy_value
+// CHECK-LABEL: } // end sil function 'testit'
+sil [ossa] @testit : $@convention(thin) () -> () {
+  %getX = function_ref @getX : $@convention(thin) () -> @owned X
+  %x = apply %getX() : $@convention(thin) () -> @owned X
+  %begin = move_value [lexical] [var_decl] %x : $X
+  debug_value %begin : $X, let, name "x"
+  %copy = copy_value %begin : $X
+  %consume = move_value [allows_diagnostics] %copy : $X
+  %takeX = function_ref @takeX : $@convention(thin) (@owned X) -> S
+  apply %takeX(%consume) : $@convention(thin) (@owned X) -> S
+  destroy_value %begin : $X
+  %retval = tuple ()
+  return %retval : $()
+}
+

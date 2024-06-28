@@ -641,7 +641,7 @@ struct Blah {
     @StateObject private var coordinator = Coordinator()
 
     // closure #1 in Blah.test()
-    // CHECK-LABEL: sil private [ossa] @$s4test4BlahVAAyyFyyYaYbcfU_ :
+    // CHECK-LABEL: sil private [ossa] @$s4test4BlahVAAyyFyyYacfU_ : $@convention(thin) @async @substituted <τ_0_0> (@guaranteed Optional<any Actor>, Blah) -> @out τ_0_0 for <()> {
     // CHECK:       [[GENERIC_EXEC:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
     // CHECK:       hop_to_executor [[GENERIC_EXEC]] :
     // CHECK:       hop_to_executor {{%[0-9]+}} : $MainActor
@@ -654,7 +654,7 @@ struct Blah {
     // CHECK:       {{%[0-9]+}} = load [trivial] [[VAL_ACCESS]] : $*Optional<Int>
     // CHECK:       end_access [[VAL_ACCESS]] : $*Optional<Int>
     // CHECK:       hop_to_executor [[GENERIC_EXEC]] : $Optional<Builtin.Executor>
-    // CHECK: } // end sil function '$s4test4BlahVAAyyFyyYaYbcfU_'
+    // CHECK: } // end sil function '$s4test4BlahVAAyyFyyYacfU_'
     @available(SwiftStdlib 5.1, *)
     func test() {
         Task.detached {

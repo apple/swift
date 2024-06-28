@@ -17,6 +17,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Driver/ToolChain.h"
 #include "swift/Driver/Compilation.h"
 #include "swift/Driver/Driver.h"

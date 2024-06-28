@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: split-file %s %t
 
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NEW %s
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -enable-experimental-cxx-interop -Rindexing-system-module 2>&1 | %FileCheck --check-prefix=REMARK_NEW %s
 // RUN: ls %t/store/interfaces | %FileCheck --check-prefix=FILES %s
 // RUN: cat %t/store/interfaces/ObjCxxModule* | %FileCheck --check-prefix=CHECK %s
 
@@ -9,7 +9,7 @@
 // Verify that symbolic interface is not emitted without interop.
 //
 // RUN: rm -r %t/store/interfaces
-// RUN: %target-swift-frontend %t/test.swift -I %t -c -index-system-modules -index-store-path %t/store -Rindexing-system-module 2>&1 > %t/out
+// RUN: %target-swift-frontend %t/test.swift -I %t/Inputs -c -index-system-modules -index-store-path %t/store -Rindexing-system-module 2>&1 > %t/out
 // RUN: echo "non-empty-file-check" >> %t/out
 // RUN: cat %t/out | %FileCheck --check-prefix=REMARK_NONE %s
 // RUN: not ls %t/store/interfaces

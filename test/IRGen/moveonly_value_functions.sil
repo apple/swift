@@ -1,0 +1,57 @@
+// RUN: %target-swift-emit-irgen -O                          \
+// RUN:     -parse-sil                                       \
+// RUN:     -disable-type-layout                             \
+// RUN:     %s                                               \
+// RUN:     -enable-experimental-feature RawLayout           \
+// RUN: |                                                    \
+// RUN: %IRGenFileCheck %s
+
+import Builtin
+import Swift
+
+@usableFromInline
+@frozen @_rawLayout(like: Value, movesAsLike) internal struct _Cell<Value> : ~Copyable where Value : ~Copyable {
+  @_alwaysEmitIntoClient @inlinable deinit
+}
+
+struct Int {
+  var _value: Builtin.Int64
+}
+sil @deinit_count : $@convention(method) <τ_0_0 where τ_0_0 : ~Copyable> (moveonly_value_functions.Int, UnsafeMutablePointer<τ_0_0>) -> UnsafeMutableRawPointer
+
+// CHECK-LABEL: define{{.*}} @"$s15Synchronization5_CellVAARi_zrlEfD"(
+// CHECK-SAME:      ptr %"_Cell<Value>", 
+// CHECK-SAME:      ptr noalias swiftself [[SOURCE:%[0-9]+]]
+// CHECK-SAME:  ) 
+// CHECK-SAME:  {
+// CHECK:       entry:
+// CHECK:         [[CELL_VWT_ADDR:%[^,]+]] = getelementptr inbounds ptr, ptr %"_Cell<Value>", [[INT]] -1
+// CHECK:         %"_Cell<Value>.valueWitnesses" = load ptr, ptr [[CELL_VWT_ADDR]]
+// CHECK:         [[CELL_SIZE_ADDR:%[^,]+]] = getelementptr inbounds %swift.vwtable, ptr %"_Cell<Value>.valueWitnesses", i32 0, i32 8
+// CHECK:         %size = load [[INT]], ptr [[CELL_SIZE_ADDR]]
+// CHECK:         [[DEST:%[^,]+]] = alloca i8, [[INT]] %size
+// CHECK:         call void @llvm.lifetime.start.p0(i64 -1, ptr [[DEST]])
+// CHECK:         [[VALUE_METADATA_ADDR:%[^,]+]] = getelementptr inbounds ptr, ptr %"_Cell<Value>", [[INT]] 2
+// CHECK:         %Value = load ptr, ptr [[VALUE_METADATA_ADDR]]
+// CHECK:         [[VALUE_VWT_ADDR:%[^,]+]] = getelementptr inbounds ptr, ptr %Value, [[INT]] -1
+// CHECK:         %Value.valueWitnesses = load ptr, ptr [[VALUE_VWT_ADDR]]
+// CHECK:         [[VALUE_INIT_WITH_TAKE_ADDR:%[^,]+]] = getelementptr inbounds ptr, ptr %Value.valueWitnesses, i32 4
+// CHECK:         %InitializeWithTake = load ptr, ptr [[VALUE_INIT_WITH_TAKE_ADDR]]
+// CHECK:         call ptr %InitializeWithTake(ptr noalias [[DEST]], ptr noalias [[SOURCE]], ptr %Value)
+// CHECK:         call swiftcc ptr @deinit_count(i64 1, ptr [[DEST]], ptr %Value)
+// CHECK:         call void @llvm.lifetime.end.p0(i64 -1, ptr [[DEST]])
+// CHECK:       }
+sil @$s15Synchronization5_CellVAARi_zrlEfD : $@convention(method) <Value where Value : ~Copyable> (@in _Cell<Value>) -> () {
+bb0(%0 : $*_Cell<Value>):
+  %1 = alloc_stack $_Cell<Value>
+  copy_addr [take] %0 to [init] %1 : $*_Cell<Value>
+  %7 = builtin "addressOfRawLayout"<_Cell<Value>>(%1 : $*_Cell<Value>) : $Builtin.RawPointer
+  %8 = struct $UnsafeMutablePointer<Value> (%7 : $Builtin.RawPointer)
+  %9 = integer_literal $Builtin.Int64, 1
+  %10 = struct $Int (%9 : $Builtin.Int64)
+  %11 = function_ref @deinit_count : $@convention(method) <τ_0_0 where τ_0_0 : ~Copyable> (moveonly_value_functions.Int, UnsafeMutablePointer<τ_0_0>) -> UnsafeMutableRawPointer
+  %12 = apply %11<Value>(%10, %8) : $@convention(method) <τ_0_0 where τ_0_0 : ~Copyable> (moveonly_value_functions.Int, UnsafeMutablePointer<τ_0_0>) -> UnsafeMutableRawPointer
+  %13 = tuple ()
+  dealloc_stack %1 : $*_Cell<Value>
+  return %13 : $()
+}

@@ -32,6 +32,7 @@
 #include "swift/SIL/SILModule.h"
 #include "swift/SIL/SILProfiler.h"
 #include "clang/AST/Decl.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/GraphWriter.h"
@@ -266,7 +267,6 @@ void SILFunction::init(
   this->ForceEnableLexicalLifetimes = DoNotForceEnableLexicalLifetimes;
   this->UseStackForPackMetadata = DoUseStackForPackMetadata;
   this->HasUnsafeNonEscapableResult = false;
-  this->HasResultDependsOnSelf = false;
   this->IsPerformanceConstraint = false;
   this->stackProtection = false;
   this->Inlined = false;
@@ -920,8 +920,6 @@ bool SILFunction::hasName(const char *Name) const {
  Checks if this (callee) function body can be inlined into the caller
  by comparing their SerializedKind_t values. 
  
- If the \p assumeFragileCaller is true, the caller must be serialized,
- in which case the callee needs to be serialized also to be inlined.
  If both callee and caller are not_serialized, the callee can be inlined
  into the caller during SIL inlining passes even if it (and the caller)
  might contain private symbols. If this callee is serialized_for_pkg, it
@@ -934,22 +932,13 @@ Callee  serialized_for_pkg  |      ok        |       ok           |    no
         serialized          |      ok        |       ok           |    ok
 
 */
-bool SILFunction::canBeInlinedIntoCaller(
-      std::optional<SerializedKind_t> callerSerializedKind,
-      bool assumeFragileCaller) const {
-  // If the \p assumeFragileCaller is true, the caller must
-  // be serialized, so return true only if the callee is also
-  // serialized.
-  if (assumeFragileCaller)
-    return isSerialized();
-                                           
+bool SILFunction::canBeInlinedIntoCaller(SerializedKind_t callerSerializedKind) const {
   switch (getSerializedKind()) {
     // If both callee and caller are not_serialized, the callee
     // can be inlined into the caller during SIL inlining passes
     // even if it (and the caller) might contain private symbols.
     case IsNotSerialized:
-      return callerSerializedKind.has_value() &&
-             callerSerializedKind.value() == IsNotSerialized;
+      return callerSerializedKind == IsNotSerialized;
 
     // If Package-CMO is enabled, we serialize package, public,
     // and @usableFromInline decls as [serialized_for_package].
@@ -962,8 +951,7 @@ bool SILFunction::canBeInlinedIntoCaller(
     // for this callee's body to be inlined into the caller.
     // It can however be referenced by [serialized] caller.
     case IsSerializedForPackage:
-      return callerSerializedKind.has_value() &&
-             callerSerializedKind.value() != IsSerialized;
+      return callerSerializedKind != IsSerialized;
     case IsSerialized:
       return true;
   }
@@ -972,16 +960,18 @@ bool SILFunction::canBeInlinedIntoCaller(
 
 /// Returns true if this function can be referenced from a fragile function
 /// body.
-bool SILFunction::hasValidLinkageForFragileRef(
-       std::optional<SerializedKind_t> callerSerializedKind,
-       bool assumeFragileCaller) const {
+bool SILFunction::hasValidLinkageForFragileRef(SerializedKind_t callerSerializedKind) const {
   // Fragile functions can reference 'static inline' functions imported
   // from C.
   if (hasForeignBody())
     return true;
 
+  // The call site of this function must have checked that
+  // caller.isAnySerialized() is true, as indicated by the
+  // function name itself (contains 'ForFragileRef').
+  assert(callerSerializedKind != IsNotSerialized);
   // If we can inline it, we can reference it.
-  if (canBeInlinedIntoCaller(callerSerializedKind, assumeFragileCaller))
+  if (canBeInlinedIntoCaller(callerSerializedKind))
     return true;
 
   // If the containing module has been serialized already, we no longer

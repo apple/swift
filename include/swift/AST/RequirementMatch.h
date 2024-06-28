@@ -239,6 +239,10 @@ enum class CheckKind : unsigned {
 
   /// The witness itself is inaccessible.
   WitnessUnavailable,
+
+  /// The witness is a deprecated default implementation provided by the
+  /// protocol.
+  DefaultWitnessDeprecated,
 };
 /// Describes the suitability of the chosen witness for
 /// the requirement.

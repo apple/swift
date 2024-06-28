@@ -23,6 +23,7 @@
 #include "TypeDifference.h"
 #include "swift/AST/Types.h"
 #include "swift/AST/TypeMatcher.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -160,7 +161,7 @@ namespace {
 
       if (lhsAbstract && rhsAbstract) {
         // FIXME: same-element requirements
-        assert(lhsType->isParameterPack() == rhsType->isParameterPack());
+        ASSERT(lhsType->isParameterPack() == rhsType->isParameterPack());
 
         unsigned lhsIndex = RewriteContext::getGenericParamIndex(lhsType);
         unsigned rhsIndex = RewriteContext::getGenericParamIndex(rhsType);
@@ -174,13 +175,13 @@ namespace {
         } else if (compare > 0) {
           SameTypesOnRHS.emplace_back(lhsIndex, rhsTerm);
         } else {
-          assert(lhsTerm == rhsTerm);
+          ASSERT(lhsTerm == rhsTerm);
         }
         return true;
       }
 
       if (lhsAbstract) {
-        assert(!rhsAbstract);
+        ASSERT(!rhsAbstract);
         unsigned lhsIndex = RewriteContext::getGenericParamIndex(lhsType);
 
         SmallVector<Term, 2> result;
@@ -193,7 +194,7 @@ namespace {
       }
 
       if (rhsAbstract) {
-        assert(!lhsAbstract);
+        ASSERT(!lhsAbstract);
         unsigned rhsIndex = RewriteContext::getGenericParamIndex(rhsType);
 
         SmallVector<Term, 2> result;
@@ -207,7 +208,7 @@ namespace {
 
       // Any other kind of type mismatch involves conflicting concrete types on
       // both sides, which can only happen on invalid input.
-      assert(!lhsAbstract && !rhsAbstract);
+      ASSERT(!lhsAbstract && !rhsAbstract);
       ConcreteConflicts.emplace_back(CanType(lhsType), CanType(rhsType));
       return true;
     }
@@ -333,7 +334,7 @@ swift::rewriting::buildTypeDifference(
             }
 
             // DependentMemberType with ErrorType base is OK.
-            assert(!t->isTypeParameter());
+            ASSERT(!t->isTypeParameter());
             return std::nullopt;
           });
         }
@@ -343,7 +344,7 @@ swift::rewriting::buildTypeDifference(
     }
 
     // DependentMemberType with ErrorType base is OK.
-    assert(!t->isTypeParameter());
+    ASSERT(!t->isTypeParameter());
     return std::nullopt;
   });
 
@@ -372,7 +373,7 @@ swift::rewriting::buildTypeDifference(
 
 unsigned
 RewriteSystem::recordTypeDifference(const TypeDifference &difference) {
-  assert(difference.LHS != difference.RHS);
+  ASSERT(difference.LHS != difference.RHS);
 
   auto key = std::make_tuple(difference.BaseTerm,
                              difference.LHS,
@@ -385,8 +386,7 @@ RewriteSystem::recordTypeDifference(const TypeDifference &difference) {
   Differences.push_back(difference);
 
   auto inserted = DifferenceMap.insert(std::make_pair(key, index));
-  assert(inserted.second);
-  (void) inserted;
+  ASSERT(inserted.second);
 
   return index;
 }
@@ -424,7 +424,7 @@ bool RewriteSystem::computeTypeDifference(
     Term baseTerm, Symbol lhs, Symbol rhs,
     std::optional<unsigned> &lhsDifferenceID,
     std::optional<unsigned> &rhsDifferenceID) {
-  assert(lhs.getKind() == rhs.getKind());
+  ASSERT(lhs.getKind() == rhs.getKind());
 
   lhsDifferenceID = std::nullopt;
   rhsDifferenceID = std::nullopt;
@@ -440,8 +440,7 @@ bool RewriteSystem::computeTypeDifference(
 
   bool success = matcher.match(lhs.getConcreteType(),
                                rhs.getConcreteType());
-  assert(success);
-  (void) success;
+  ASSERT(success);
 
   matcher.verify();
 

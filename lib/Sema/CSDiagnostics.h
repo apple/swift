@@ -1861,20 +1861,6 @@ public:
   bool diagnoseAsError() override;
 };
 
-class NotCopyableFailure final : public FailureDiagnostic {
-  Type noncopyableTy;
-  NoncopyableMatchFailure failure;
-public:
-  NotCopyableFailure(const Solution &solution,
-                     Type noncopyableTy,
-                     NoncopyableMatchFailure failure,
-                     ConstraintLocator *locator)
-      : FailureDiagnostic(solution, locator),
-        noncopyableTy(noncopyableTy), failure(failure) {}
-
-  bool diagnoseAsError() override;
-};
-
 /// Diagnose \c each applied to an expression that is not a pack type.
 class InvalidPackElement final : public FailureDiagnostic {
   Type packElementType;
@@ -2304,6 +2290,19 @@ private:
   /// Emits a note explaining to the user that an ephemeral conversion is only
   /// valid for the duration of the call, and suggests an alternative to use.
   void emitSuggestionNotes() const;
+};
+
+class SendingMismatchFailure final : public ContextualFailure {
+public:
+  SendingMismatchFailure(const Solution &solution, Type srcType, Type dstType,
+                         ConstraintLocator *locator, FixBehavior fixBehavior)
+      : ContextualFailure(solution, srcType, dstType, locator, fixBehavior) {}
+
+  bool diagnoseAsError() override;
+
+private:
+  bool diagnoseArgFailure();
+  bool diagnoseResultFailure();
 };
 
 class AssignmentTypeMismatchFailure final : public ContextualFailure {

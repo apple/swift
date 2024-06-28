@@ -143,6 +143,7 @@
 #include "swift/AST/Requirement.h"
 #include "swift/AST/Type.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "NameLookup.h"
@@ -345,7 +346,7 @@ ConcreteContraction::substTypeParameterRec(Type type, Position position) const {
 /// it is the subject of a conformance requirement.
 Type ConcreteContraction::substTypeParameter(
     Type type, Position position) const {
-  assert(type->isTypeParameter());
+  ASSERT(type->isTypeParameter());
 
   auto result = substTypeParameterRec(type, position);
   if (!result)
@@ -551,13 +552,13 @@ bool ConcreteContraction::performConcreteContraction(
   // subject type is a generic parameter.
   for (auto req : requirements) {
     auto subjectType = req.req.getFirstType();
-    assert(subjectType->isTypeParameter() &&
-           "You forgot to call desugarRequirement()");
+    ASSERT(subjectType->isTypeParameter() &&
+           "Forgot to call desugarRequirement()");
 
     auto kind = req.req.getKind();
     switch (kind) {
     case RequirementKind::SameShape:
-      assert(req.req.getSecondType()->isTypeParameter());
+      ASSERT(req.req.getSecondType()->isTypeParameter());
       continue;
 
     case RequirementKind::SameType: {
@@ -583,8 +584,8 @@ bool ConcreteContraction::performConcreteContraction(
     }
     case RequirementKind::Superclass: {
       auto constraintType = req.req.getSecondType();
-      assert(!constraintType->isTypeParameter() &&
-             "You forgot to call desugarRequirement()");
+      ASSERT(!constraintType->isTypeParameter() &&
+             "Forgot to call desugarRequirement()");
 
       subjectType = stripBoundDependentMemberTypes(subjectType);
       if (typeOccursIn(subjectType,

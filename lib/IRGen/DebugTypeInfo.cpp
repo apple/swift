@@ -18,6 +18,7 @@
 #include "DebugTypeInfo.h"
 #include "FixedTypeInfo.h"
 #include "IRGenModule.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILGlobalVariable.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"

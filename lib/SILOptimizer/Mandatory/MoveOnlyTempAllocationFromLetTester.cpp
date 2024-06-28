@@ -22,6 +22,7 @@
 #include "MoveOnlyDiagnostics.h"
 #include "MoveOnlyUtils.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/PassManager/Passes.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 

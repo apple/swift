@@ -57,11 +57,6 @@ public:
   // Availability: "As late as possible."  Consume the value in the last blocks
   //               beyond the non-consuming uses in which the value has been
   //               consumed on no incoming paths.
-  // AvailabilityWithLeaks: "As late as possible or later."  Consume the value
-  //                        in the last blocks beyond the non-consuming uses in
-  //                        which the value has been consumed on no incoming
-  //                        paths, unless that block's terminator isn't an
-  //                        unreachable, in which case, don't consume it there.
   //
   //                        This boundary works around bugs where SILGen emits
   //                        illegal OSSA lifetimes.
@@ -69,7 +64,6 @@ public:
     enum Value : uint8_t {
       Liveness,
       Availability,
-      AvailabilityWithLeaks,
     };
     Value value;
 
@@ -115,15 +109,16 @@ public:
                : LifetimeCompletion::AlreadyComplete;
   }
 
-  enum AllowLeaks_t : bool {
-    AllowLeaks = true,
-    DoNotAllowLeaks = false,
+  enum class LifetimeEnd : uint8_t {
+    /// The lifetime ends at the boundary.
+    Boundary,
+    /// The lifetime "ends" in a loop.
+    Loop,
   };
 
-  static void visitUnreachableLifetimeEnds(
-      SILValue value, AllowLeaks_t allowLeaks,
-      const SSAPrunedLiveness &liveness,
-      llvm::function_ref<void(SILInstruction *)> visit);
+  static void visitAvailabilityBoundary(
+      SILValue value, const SSAPrunedLiveness &liveness,
+      llvm::function_ref<void(SILInstruction *, LifetimeEnd end)> visit);
 
 protected:
   bool analyzeAndUpdateLifetime(SILValue value, Boundary boundary);
@@ -179,9 +174,6 @@ operator<<(llvm::raw_ostream &OS, OSSALifetimeCompletion::Boundary boundary) {
     break;
   case OSSALifetimeCompletion::Boundary::Availability:
     OS << "availability";
-    break;
-  case OSSALifetimeCompletion::Boundary::AvailabilityWithLeaks:
-    OS << "availability_with_leaks";
     break;
   }
   return OS;

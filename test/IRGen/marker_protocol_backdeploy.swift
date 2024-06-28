@@ -20,8 +20,8 @@ protocol R { }
 // Suppress marker protocols when forming existentials at runtime
 public func takeAnyType<T>(_: T.Type) { }
 
-// CHECK-LABEL: define {{.*}}@"$s26marker_protocol_backdeploy1Q_AA1RpMa"
-// CHECK: $s26marker_protocol_backdeploy1Q_AA1RpML
+// CHECK-LABEL: define {{.*}}@"$ss8Sendable_26marker_protocol_backdeploy1QAB1RpMa"
+// CHECK: ss8Sendable_26marker_protocol_backdeploy1QAB1RpML
 // CHECK-NOT: Sendable
 // CHECK: s26marker_protocol_backdeploy1QMp
 // CHECK-NOT: Sendable

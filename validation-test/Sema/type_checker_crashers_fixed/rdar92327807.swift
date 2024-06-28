@@ -18,13 +18,13 @@ func test(result: MyEnum, optResult: MyEnum?) {
   }
 
   let _ = {
-    if let .co = result { // expected-error 2 {{pattern matching in a condition requires the 'case' keyword}}
+    if let .co = result { // expected-error {{pattern matching in a condition requires the 'case' keyword}}
       // expected-error@-1 {{type 'MyEnum' has no member 'co'}}
     }
   }
 
   let _ = {
-    if let .co = optResult { // expected-error 2 {{pattern matching in a condition requires the 'case' keyword}}
+    if let .co = optResult { // expected-error {{pattern matching in a condition requires the 'case' keyword}}
       // expected-error@-1 {{type 'MyEnum?' has no member 'co'}}
     }
   }

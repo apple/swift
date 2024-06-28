@@ -1,4 +1,3 @@
-// RUN: %target-swift-frontend -emit-sil -strict-concurrency=complete -disable-availability-checking -verify -verify-additional-prefix complete- %s -o /dev/null -disable-region-based-isolation-with-strict-concurrency -enable-upcoming-feature GlobalActorIsolatedTypesUsability
 // RUN: %target-swift-frontend -emit-sil -strict-concurrency=complete -disable-availability-checking -verify -verify-additional-prefix tns-  %s -o /dev/null -enable-upcoming-feature GlobalActorIsolatedTypesUsability
 
 // READ THIS: This test is intended to centralize all tests that use
@@ -29,6 +28,8 @@ protocol ProvidesStaticValue {
 
 @MainActor func transferToMainIndirectConsuming<T>(_ t: consuming T) async {}
 @MainActor func transferToMainDirectConsuming(_ t: consuming NonSendableKlass) async {}
+
+func useInOut<T>(_ t: inout T) {}
 
 actor CustomActorInstance {}
 
@@ -349,11 +350,26 @@ func testAccessStaticGlobals() async {
 nonisolated(unsafe) let globalNonIsolatedUnsafeLetObject = NonSendableKlass()
 nonisolated(unsafe) var globalNonIsolatedUnsafeVarObject = NonSendableKlass()
 
-func testAccessGlobals() async {
+func testPassGlobalToMainActorIsolatedFunction() async {
   await transferToMainDirect(globalNonIsolatedUnsafeLetObject)
   await transferToMainIndirect(globalNonIsolatedUnsafeLetObject)
   await transferToMainDirect(globalNonIsolatedUnsafeVarObject)
   await transferToMainIndirect(globalNonIsolatedUnsafeVarObject)
+}
+
+// We use this to force the modify in testPassGlobalToModify
+nonisolated(unsafe)
+var computedGlobalNonIsolatedUnsafeVarObject : NonSendableKlass {
+  _read {
+    yield globalNonIsolatedUnsafeVarObject
+  }
+  _modify {
+    yield &globalNonIsolatedUnsafeVarObject
+  }
+}
+
+func testPassGlobalToModify() async {
+  useInOut(&computedGlobalNonIsolatedUnsafeVarObject)
 }
 
 ///////////////////////

@@ -76,7 +76,7 @@
                     "convenience" "dynamic" "optional"
                     "indirect" "override" "open" "final"
                     "required" "lazy" "weak"
-                    "_compilerInitialized" "_const" "_local" "_resultDependsOnSelf"
+                    "_compilerInitialized" "_const" "_local"
                     "nonisolated" "distributed")
                   'words) . font-lock-keyword-face)
    `("\\<unowned\\((\\(un\\)?safe)\\)?\\>" . font-lock-keyword-face)

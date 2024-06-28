@@ -22,6 +22,7 @@
 #define DEBUG_TYPE "sil-simplify"
 
 #include "swift/SILOptimizer/Analysis/SimplifyInstruction.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/PatternMatch.h"

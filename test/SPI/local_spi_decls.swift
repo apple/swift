@@ -70,7 +70,7 @@ private protocol PrivateProtocol {} // expected-note {{type declared here}}
 
 @_spi(S) public class BadSubclass : InternalClass {} // expected-error{{class cannot be declared public because its superclass is internal}}
 @_spi(S) public class OkSPISubclass : SPIClass {} // OK
-public class BadPublicClass : SPIClass {} // expected-error {{cannot use class 'SPIClass' here; it is SPI}}
+public class BadPublicClass : SPIClass {} // expected-error {{cannot use class 'SPIClass' in a public or '@usableFromInline' conformance; it is SPI}}
 @_spi(S) public class BadSPIClass : PrivateClass {} // expected-error {{class cannot be declared public because its superclass is private}}
 
 @_spi(s) public func genFunc<T: PrivateProtocol>(_ t: T) {} // expected-error {{global function cannot be declared public because its generic parameter uses a private type}}

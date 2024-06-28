@@ -27,6 +27,7 @@
 #include "swift/AST/TypeVisitor.h"
 #include "swift/AST/ImportCache.h"
 #include "swift/AST/ExistentialLayout.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/AST/ASTPrinter.h"
 

@@ -18,6 +18,7 @@
 #include "swift/ASTSectionImporter/ASTSectionImporter.h"
 #include "../Serialization/ModuleFormat.h"
 #include "swift/AST/ASTContext.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Serialization/SerializedModuleLoader.h"
 #include "swift/Serialization/Validation.h"
 #include "llvm/Support/Debug.h"

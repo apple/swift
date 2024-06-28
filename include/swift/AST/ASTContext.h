@@ -47,6 +47,7 @@
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualOutputBackend.h"
 #include <functional>
 #include <memory>
@@ -83,8 +84,6 @@ namespace swift {
   class DifferentiableAttr;
   class ExtensionDecl;
   struct ExternalSourceLocs;
-  class LoadedExecutablePlugin;
-  class LoadedLibraryPlugin;
   class ForeignRepresentationInfo;
   class FuncDecl;
   class GenericContext;
@@ -409,9 +408,17 @@ private:
   /// Cache of module names that fail the 'canImport' test in this context.
   mutable llvm::StringSet<> FailedModuleImportNames;
 
+  /// Versions of the modules found during versioned canImport checks. 
+  struct ImportedModuleVersionInfo {
+    llvm::VersionTuple Version;
+    llvm::VersionTuple UnderlyingVersion;
+  };
+
   /// Cache of module names that passed the 'canImport' test. This cannot be
-  /// mutable since it needs to be queried for dependency discovery.
-  llvm::StringSet<> SucceededModuleImportNames;
+  /// mutable since it needs to be queried for dependency discovery. Keep sorted
+  /// so caller of `forEachCanImportVersionCheck` can expect deterministic
+  /// ordering.
+  std::map<std::string, ImportedModuleVersionInfo> CanImportModuleVersions;
 
   /// Set if a `-module-alias` was passed. Used to store mapping between module aliases and
   /// their corresponding real names, and vice versa for a reverse lookup, which is needed to check
@@ -1100,9 +1107,14 @@ public:
   ///
   /// Note that even if this check succeeds, errors may still occur if the
   /// module is loaded in full.
-  bool canImportModuleImpl(ImportPath::Module ModulePath,
+  bool canImportModuleImpl(ImportPath::Module ModulePath, SourceLoc loc,
                            llvm::VersionTuple version, bool underlyingVersion,
-                           bool updateFailingList) const;
+                           bool updateFailingList,
+                           llvm::VersionTuple &foundVersion) const;
+
+  /// Add successful canImport modules.
+  void addSucceededCanImportModule(StringRef moduleName, bool underlyingVersion,
+                                   const llvm::VersionTuple &versionInfo);
 
 public:
   namelookup::ImportCache &getImportCache() const;
@@ -1132,7 +1144,7 @@ public:
   ///
   /// Note that even if this check succeeds, errors may still occur if the
   /// module is loaded in full.
-  bool canImportModule(ImportPath::Module ModulePath,
+  bool canImportModule(ImportPath::Module ModulePath, SourceLoc loc,
                        llvm::VersionTuple version = llvm::VersionTuple(),
                        bool underlyingVersion = false);
 
@@ -1144,10 +1156,10 @@ public:
                         llvm::VersionTuple version = llvm::VersionTuple(),
                         bool underlyingVersion = false) const;
 
-  /// \returns a set of names from all successfully canImport module checks.
-  const llvm::StringSet<> &getSuccessfulCanImportCheckNames() const {
-    return SucceededModuleImportNames;
-  }
+  /// Callback on each successful imported.
+  void forEachCanImportVersionCheck(
+      std::function<void(StringRef, const llvm::VersionTuple &,
+                         const llvm::VersionTuple &)>) const;
 
   /// \returns a module with a given name that was already loaded.  If the
   /// module was not loaded, returns nullptr.

@@ -17,6 +17,7 @@
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/Pattern.h"
 #include "swift/AST/Stmt.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/ClangImporter/CXXMethodBridging.h"
 #include "clang/AST/Mangle.h"
 #include "clang/Sema/DelayedDiagnostic.h"
@@ -2021,9 +2022,12 @@ clang::CXXMethodDecl *SwiftDeclSynthesizer::synthesizeCXXForwardingMethod(
 
   auto &clangCtx = ImporterImpl.getClangASTContext();
   auto &clangSema = ImporterImpl.getClangSema();
+  assert(!method->isStatic() ||
+         method->getNameInfo().getName().getCXXOverloadedOperator() ==
+             clang::OO_Call);
   // When emitting symbolic decls, the method might not have a concrete
   // record type as this type.
-  if (ImporterImpl.importSymbolicCXXDecls &&
+  if (ImporterImpl.importSymbolicCXXDecls && !method->isStatic() &&
       !method->getThisType()->getPointeeCXXRecordDecl())
     return nullptr;
 
@@ -2051,6 +2055,11 @@ clang::CXXMethodDecl *SwiftDeclSynthesizer::synthesizeCXXForwardingMethod(
             (forwardingMethodKind == ForwardingMethodKind::Virtual
                  ? "__synthesizedVirtualCall_operatorStar"
                  : "__synthesizedBaseCall_operatorStar")));
+  } else if (name.getCXXOverloadedOperator() == clang::OO_Call) {
+    assert(forwardingMethodKind != ForwardingMethodKind::Virtual);
+    name = clang::DeclarationName(
+        &ImporterImpl.getClangPreprocessor().getIdentifierTable().get(
+            "__synthesizedBaseCall_operatorCall"));
   }
   auto methodType = method->getType();
   // Check if we need to drop the reference from the return type
@@ -2093,7 +2102,8 @@ clang::CXXMethodDecl *SwiftDeclSynthesizer::synthesizeCXXForwardingMethod(
       clangCtx, const_cast<clang::CXXRecordDecl *>(derivedClass),
       method->getSourceRange().getBegin(),
       clang::DeclarationNameInfo(name, clang::SourceLocation()), methodType,
-      method->getTypeSourceInfo(), method->getStorageClass(),
+      method->getTypeSourceInfo(),
+      method->isStatic() ? clang::SC_None : method->getStorageClass(),
       method->UsesFPIntrin(), /*isInline=*/true, method->getConstexprKind(),
       method->getSourceRange().getEnd());
   newMethod->setImplicit();
@@ -2258,6 +2268,27 @@ FuncDecl *SwiftDeclSynthesizer::makeVirtualMethod(
       clangDC, clangDC, clangMethodDecl, ForwardingMethodKind::Virtual,
       ReferenceReturnTypeBehaviorForBaseMethodSynthesis::KeepReference,
       /*forceConstQualifier*/ false);
+
+  auto result = dyn_cast_or_null<FuncDecl>(
+      ctx.getClangModuleLoader()->importDeclDirectly(newMethod));
+  return result;
+}
+
+// MARK: C++ operators
+
+FuncDecl *SwiftDeclSynthesizer::makeInstanceToStaticOperatorCallMethod(
+    const clang::CXXMethodDecl *clangMethodDecl) {
+  auto clangDC = clangMethodDecl->getParent();
+  auto &ctx = ImporterImpl.SwiftContext;
+
+  assert(clangMethodDecl->isStatic() && "Expected a static operator");
+
+  auto newMethod = synthesizeCXXForwardingMethod(
+      clangDC, clangDC, clangMethodDecl, ForwardingMethodKind::Base,
+      ReferenceReturnTypeBehaviorForBaseMethodSynthesis::KeepReference,
+      /*forceConstQualifier*/ true);
+  newMethod->addAttr(clang::SwiftNameAttr::CreateImplicit(
+      clangMethodDecl->getASTContext(), "callAsFunction"));
 
   auto result = dyn_cast_or_null<FuncDecl>(
       ctx.getClangModuleLoader()->importDeclDirectly(newMethod));

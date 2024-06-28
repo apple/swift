@@ -185,3 +185,10 @@ func testStaticVarAccess() {
   // CHECK: [[ADDR:%.*]] = pointer_to_address [[PTR]]
   _ = Base.x
 }
+
+extension PettableContainer {
+  // CHECK-LABEL: sil private [thunk] [ossa] @$sSo17PettableContainerC15objc_extensionsE7extractxyFTo : $@convention(objc_method) @pseudogeneric <T where T : Pettable> (PettableContainer<T>) -> @autoreleased T
+  @objc public func extract() -> T { fatalError() }
+// CHECK-LABEL: sil private [thunk] [ossa] @$sSo17PettableContainerC15objc_extensionsE8extract2xSgyFTo : $@convention(objc_method) @pseudogeneric <T where T : Pettable> (PettableContainer<T>) -> @autoreleased Optional<T>
+  @objc public func extract2() -> T? { fatalError() }
+}

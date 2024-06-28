@@ -600,7 +600,7 @@ protected:
     IsComputingSemanticMembers : 1
   );
 
-  SWIFT_INLINE_BITFIELD_FULL(ProtocolDecl, NominalTypeDecl, 1+1+1+1+1+1+1+1+1+1+1+1+1+1+8,
+  SWIFT_INLINE_BITFIELD_FULL(ProtocolDecl, NominalTypeDecl, 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+8,
     /// Whether the \c RequiresClass bit is valid.
     RequiresClassValid : 1,
 
@@ -624,8 +624,11 @@ protected:
     /// because they could not be imported from Objective-C).
     HasMissingRequirements : 1,
 
-    /// Whether we've computed the inherited protocols list yet.
+    /// Whether we've computed the InheritedProtocolsRequest.
     InheritedProtocolsValid : 1,
+
+    /// Whether we've computed the AllInheritedProtocolsRequest.
+    AllInheritedProtocolsValid : 1,
 
     /// Whether we have computed a requirement signature.
     HasRequirementSignature : 1,
@@ -1915,6 +1918,10 @@ public:
   /// extension X where T: Q, T: ~Copyable { }
   /// \endcode
   bool isWrittenWithConstraints() const;
+
+  /// Does this extension add conformance to an invertible protocol for the
+  /// extended type?
+  bool isAddingConformanceToInvertible() const;
 
   /// If this extension represents an imported Objective-C category, returns the
   /// category's name. Otherwise returns the empty identifier.
@@ -5191,6 +5198,7 @@ class ProtocolDecl final : public NominalTypeDecl {
 
   ArrayRef<PrimaryAssociatedTypeName> PrimaryAssociatedTypeNames;
   ArrayRef<ProtocolDecl *> InheritedProtocols;
+  ArrayRef<ProtocolDecl *> AllInheritedProtocols;
   ArrayRef<AssociatedTypeDecl *> AssociatedTypes;
   ArrayRef<ValueDecl *> ProtocolRequirements;
 
@@ -5267,6 +5275,7 @@ class ProtocolDecl final : public NominalTypeDecl {
   friend class ExistentialConformsToSelfRequest;
   friend class HasSelfOrAssociatedTypeRequirementsRequest;
   friend class InheritedProtocolsRequest;
+  friend class AllInheritedProtocolsRequest;
   friend class PrimaryAssociatedTypesRequest;
   friend class ProtocolRequirementsRequest;
   
@@ -5404,6 +5413,13 @@ private:
   }
   void setInheritedProtocolsValid() {
     Bits.ProtocolDecl.InheritedProtocolsValid = true;
+  }
+
+  bool areAllInheritedProtocolsValid() const {
+    return Bits.ProtocolDecl.AllInheritedProtocolsValid;
+  }
+  void setAllInheritedProtocolsValid() {
+    Bits.ProtocolDecl.AllInheritedProtocolsValid = true;
   }
 
   bool areProtocolRequirementsValid() const {
@@ -6616,8 +6632,6 @@ class ParamDecl : public VarDecl {
 
     /// Whether or not this parameter is '_const'.
     IsCompileTimeConst = 1 << 1,
-
-    HasResultDependsOn = 1 << 2,
   };
 
   llvm::PointerIntPair<Identifier, 3, OptionSet<ArgumentNameFlags>>
@@ -6655,9 +6669,6 @@ class ParamDecl : public VarDecl {
 
     /// Whether or not this parameter is 'isolated'.
     IsIsolated = 1 << 2,
-
-    /// Whether or not this paramater is '_resultDependsOn'
-    IsResultDependsOn = 1 << 3,
 
     /// Whether or not this parameter is 'sending'.
     IsSending = 1 << 4,
@@ -6958,18 +6969,6 @@ public:
     auto flags = ArgumentNameAndFlags.getInt();
     flags = value ? flags | ArgumentNameFlags::IsCompileTimeConst
                   : flags - ArgumentNameFlags::IsCompileTimeConst;
-    ArgumentNameAndFlags.setInt(flags);
-  }
-
-  bool hasResultDependsOn() const {
-    return ArgumentNameAndFlags.getInt().contains(
-        ArgumentNameFlags::HasResultDependsOn);
-  }
-
-  void setResultDependsOn(bool value = true) {
-    auto flags = ArgumentNameAndFlags.getInt();
-    flags = value ? flags | ArgumentNameFlags::HasResultDependsOn
-                  : flags - ArgumentNameFlags::HasResultDependsOn;
     ArgumentNameAndFlags.setInt(flags);
   }
 

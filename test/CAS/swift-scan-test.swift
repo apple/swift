@@ -31,7 +31,7 @@
 // RUN:   @%t/MyApp.cmd
 
 // RUN: diff %t/Test.swiftmodule %t/Test2.swiftmodule
-// RUN: diff %t/test.o %t/test.o
+// RUN: diff %t/test.o %t/test2.o
 
 // CHECK-QUERY-NOT-FOUND: cached output not found
 // CHECK-QUERY: Cached Compilation for key "llvmcas://{{.*}}" has 4 outputs:

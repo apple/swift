@@ -25,7 +25,7 @@ public enum Maybe<Wrapped: ~Copyable>: ~Copyable {
     case none
 }
 
-extension Maybe: Copyable {}
+extension Maybe: Copyable where Wrapped: Copyable {}
 
 public func ncIdentity<T: ~Copyable>(_ t: consuming T) -> T { return t }
 

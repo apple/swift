@@ -103,8 +103,9 @@ class PropertyBag {
   PropertyBag &operator=(PropertyBag &&) = delete;
 
   const SuperclassRequirement &getSuperclassRequirement() const {
-    assert(SuperclassDecl != nullptr);
+    ASSERT(SuperclassDecl != nullptr);
     auto found = Superclasses.find(SuperclassDecl);
+    ASSERT(found != Superclasses.end());
     return found->second;
   }
 

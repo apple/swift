@@ -242,7 +242,10 @@ typedef OpaqueTypedefForFP2 (*FunctionPointerReturningOpaqueTypedef2)(void);
 size_t returns_size_t();
 
 // This will probably never be serializable.
+#if !defined(__cplusplus)
+// C++ error: unnamed struct cannot be defined in the result type of a function
 typedef struct { int x; int y; } *(*UnserializableFunctionPointer)(void);
+#endif
 
 //===---
 // Unions
@@ -308,7 +311,10 @@ typedef struct ModRM {
 // Arrays
 //===---
 void useArray(char x[4], char y[], char z[][8]);
+#if !defined(__cplusplus)
+// error: static array size is a C99 feature, not permitted in C++
 void staticBoundsArray(const char x[static 4]);
+#endif
 
 void useBigArray(char max_size[4096], char max_size_plus_one[4097]);
 void useBigArray2d(char max_size[][4096], char max_size_plus_one[][4097]);

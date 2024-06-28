@@ -93,6 +93,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <vector>
@@ -139,11 +140,11 @@ void PropertyBag::dump(llvm::raw_ostream &out) const {
 /// \p lookupTerm exactly equals the key.
 MutableTerm
 PropertyBag::getPrefixAfterStrippingKey(const MutableTerm &lookupTerm) const {
-  assert(lookupTerm.size() >= Key.size());
+  ASSERT(lookupTerm.size() >= Key.size());
   auto prefixBegin = lookupTerm.begin();
   auto prefixEnd = lookupTerm.end() - Key.size();
-  assert(std::equal(prefixEnd, lookupTerm.end(), Key.begin()) &&
-         "This is not the bag you're looking for");
+  DEBUG_ASSERT(std::equal(prefixEnd, lookupTerm.end(), Key.begin()) &&
+               "This is not the bag you're looking for");
   return MutableTerm(prefixBegin, prefixEnd);
 }
 
@@ -193,9 +194,9 @@ void PropertyBag::copyPropertiesFrom(const PropertyBag *next,
   // If this is the property bag of T and 'next' is the
   // property bag of V, then T := UV for some non-empty U.
   int prefixLength = Key.size() - next->Key.size();
-  assert(prefixLength > 0);
-  assert(std::equal(Key.begin() + prefixLength, Key.end(),
-                    next->Key.begin()));
+  ASSERT(prefixLength > 0);
+  DEBUG_ASSERT(std::equal(Key.begin() + prefixLength, Key.end(),
+                          next->Key.begin()));
 
   // Conformances and the layout constraint, if any, can be copied over
   // unmodified.
@@ -239,7 +240,7 @@ void PropertyBag::copyPropertiesFrom(const PropertyBag *next,
 Symbol PropertyBag::concretelySimplifySubstitution(const MutableTerm &mutTerm,
                                                    RewriteContext &ctx,
                                                    RewritePath *path) const {
-  assert(!ConcreteTypeRules.empty());
+  ASSERT(!ConcreteTypeRules.empty());
   auto &pair = ConcreteTypeRules.front();
 
   // The property map entry might apply to a suffix of the substitution
@@ -270,27 +271,27 @@ Symbol PropertyBag::concretelySimplifySubstitution(const MutableTerm &mutTerm,
 }
 
 void PropertyBag::verify(const RewriteSystem &system) const {
-#ifndef NDEBUG
-  assert(ConformsTo.size() == ConformsToRules.size());
+  if (!CONDITIONAL_ASSERT_enabled())
+    return;
+
+  ASSERT(ConformsTo.size() == ConformsToRules.size());
   for (unsigned i : indices(ConformsTo)) {
     auto symbol = system.getRule(ConformsToRules[i]).getLHS().back();
-    assert(symbol.getKind() == Symbol::Kind::Protocol);
-    assert(symbol.getProtocol() == ConformsTo[i]);
+    ASSERT(symbol.getKind() == Symbol::Kind::Protocol);
+    ASSERT(symbol.getProtocol() == ConformsTo[i]);
   }
 
   // FIXME: Add asserts requiring that the layout, superclass and
   // concrete type symbols match, as above
-  assert(!Layout.isNull() == LayoutRule.has_value());
-  assert(ConcreteType.has_value() == !ConcreteTypeRules.empty());
+  ASSERT(!Layout.isNull() == LayoutRule.has_value());
+  ASSERT(ConcreteType.has_value() == !ConcreteTypeRules.empty());
 
-  assert((SuperclassDecl == nullptr) == Superclasses.empty());
+  ASSERT((SuperclassDecl == nullptr) == Superclasses.empty());
   for (const auto &pair : Superclasses) {
     const auto &req = pair.second;
-    assert(req.SuperclassType.has_value());
-    assert(!req.SuperclassRules.empty());
+    ASSERT(req.SuperclassType.has_value());
+    ASSERT(!req.SuperclassRules.empty());
   }
-
-#endif
 }
 
 PropertyMap::~PropertyMap() {
@@ -472,8 +473,9 @@ void PropertyMap::dump(llvm::raw_ostream &out) const {
 }
 
 void PropertyMap::verify() const {
-#ifndef NDEBUG
+  if (!CONDITIONAL_ASSERT_enabled())
+    return;
+
   for (const auto &props : Entries)
     props->verify(System);
-#endif
 }

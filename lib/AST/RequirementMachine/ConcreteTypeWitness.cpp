@@ -24,6 +24,7 @@
 #include "swift/AST/Module.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include <algorithm>
 #include <vector>
 #include "PropertyMap.h"
@@ -123,9 +124,9 @@ void PropertyMap::concretizeNestedTypesFromConcreteParent(
     ArrayRef<Term> substitutions,
     ArrayRef<unsigned> conformsToRules,
     ArrayRef<const ProtocolDecl *> conformsTo) {
-  assert(requirementKind == RequirementKind::SameType ||
+  ASSERT(requirementKind == RequirementKind::SameType ||
          requirementKind == RequirementKind::Superclass);
-  assert(conformsTo.size() == conformsToRules.size());
+  ASSERT(conformsTo.size() == conformsToRules.size());
 
   for (unsigned i : indices(conformsTo)) {
     auto *proto = conformsTo[i];
@@ -226,7 +227,7 @@ void PropertyMap::concretizeTypeWitnessInConformance(
   auto substitutions = concreteConformanceSymbol.getSubstitutions();
 
   auto *proto = assocType->getProtocol();
-  assert(proto == concreteConformanceSymbol.getProtocol());
+  ASSERT(proto == concreteConformanceSymbol.getProtocol());
 
   if (Debug.contains(DebugFlags::ConcretizeNestedTypes)) {
     llvm::dbgs() << "^^ " << "Looking up type witness for "
@@ -283,7 +284,7 @@ void PropertyMap::concretizeTypeWitnessInConformance(
       key, requirementKind, concreteType, typeWitness, subjectType,
       substitutions, path);
 
-  assert(!path.empty());
+  ASSERT(!path.empty());
   (void) System.addRule(constraintType, subjectType, &path);
   if (Debug.contains(DebugFlags::ConcretizeNestedTypes)) {
     llvm::dbgs() << "^^ Induced rule " << constraintType
@@ -410,7 +411,7 @@ MutableTerm PropertyMap::computeConstraintTermForTypeWitness(
       &substPath);
   if (differenceID) {
     const auto &difference = System.getTypeDifference(*differenceID);
-    assert(difference.LHS == typeWitnessSymbol);
+    ASSERT(difference.LHS == typeWitnessSymbol);
     typeWitnessSymbol = difference.RHS;
     substPath.invert();
   }
@@ -598,7 +599,7 @@ void PropertyMap::inferConditionalRequirements(
   builder.initWithConditionalRequirements(desugaredRequirements,
                                           substitutions);
 
-  assert(builder.PermanentRules.empty());
+  ASSERT(builder.PermanentRules.empty());
 
   System.addRules(std::move(builder.ImportedRules),
                   std::move(builder.PermanentRules),

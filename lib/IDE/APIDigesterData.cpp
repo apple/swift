@@ -14,6 +14,7 @@
 #include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/JSONSerialization.h"
 #include "swift/IDE/APIDigesterData.h"
 #include "swift/AST/DiagnosticEngine.h"

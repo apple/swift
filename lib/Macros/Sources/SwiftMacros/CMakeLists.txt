@@ -18,7 +18,6 @@ add_swift_macro_library(SwiftMacros
   TaskLocalMacro.swift
   SWIFT_DEPENDENCIES
     SwiftDiagnostics
-    SwiftOperators
     SwiftSyntax
     SwiftSyntaxBuilder
     SwiftSyntaxMacros

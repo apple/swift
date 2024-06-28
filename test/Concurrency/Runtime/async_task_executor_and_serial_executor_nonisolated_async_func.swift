@@ -58,7 +58,7 @@ actor Worker {
     // the nonisolated async func properly executes on the task-executor
     await nonisolatedFunc(expectedExecutor: expectedExecutor)
 
-    /// the task-executor preference is inherited properly:
+    // the task-executor preference is inherited properly:
     async let val = {
       dispatchPrecondition(condition: .onQueue(expectedExecutor.queue))
       expectedExecutor.preconditionIsolated()

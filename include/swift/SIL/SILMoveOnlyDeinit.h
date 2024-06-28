@@ -66,8 +66,9 @@ public:
     return funcImpl;
   }
 
-  bool isNotSerialized() const {
-    return SerializedKind_t(serialized) == IsNotSerialized;
+  bool isAnySerialized() const {
+    return SerializedKind_t(serialized) == IsSerialized ||
+           SerializedKind_t(serialized) == IsSerializedForPackage;
   }
   SerializedKind_t getSerializedKind() const {
     return SerializedKind_t(serialized);

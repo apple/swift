@@ -34,6 +34,7 @@ add_swift_target_library(swiftDistributed ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS
   SWIFT_MODULE_DEPENDS_OSX ${swift_distributed_darwin_depencencies}
   SWIFT_MODULE_DEPENDS_TVOS ${swift_distributed_darwin_depencencies}
   SWIFT_MODULE_DEPENDS_WATCHOS ${swift_distributed_darwin_depencencies}
+  SWIFT_MODULE_DEPENDS_ANDROID Android
   SWIFT_MODULE_DEPENDS_LINUX Glibc
   SWIFT_MODULE_DEPENDS_FREEBSD Glibc
   SWIFT_MODULE_DEPENDS_OPENBSD Glibc

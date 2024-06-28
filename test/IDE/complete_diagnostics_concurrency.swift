@@ -1,7 +1,6 @@
 // REQUIRES: concurrency 
 
-// RUN: %empty-directory(%t)
-// RUN: %target-swift-ide-test -batch-code-completion -source-filename %s -filecheck %raw-FileCheck -completion-output-dir %t/output -warn-concurrency
+// RUN: %batch-code-completion -warn-concurrency
 
 func asyncFunc() async {}
 func syncFunc() {}

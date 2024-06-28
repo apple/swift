@@ -34,6 +34,7 @@
 #include "ManagedValue.h"
 #include "swift/SIL/AbstractionPatternGenerators.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Generators.h"
 
 namespace swift {

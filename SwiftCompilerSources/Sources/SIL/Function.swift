@@ -136,7 +136,36 @@ final public class Function : CustomStringConvertible, HasShortDescription, Hash
   }
   public var isSerialized: Bool { bridged.isSerialized() }
 
-  public var hasValidLinkageForFragileRef: Bool { bridged.hasValidLinkageForFragileRef() }
+  public var isAnySerialized: Bool { bridged.isAnySerialized() }
+
+  public enum SerializedKind {
+    case notSerialized, serialized, serializedForPackage
+  }
+
+  public var serializedKind: SerializedKind {
+    switch bridged.getSerializedKind() {
+    case .IsNotSerialized: return .notSerialized
+    case .IsSerialized: return .serialized
+    case .IsSerializedForPackage: return .serializedForPackage
+    @unknown default: fatalError()
+    }
+  }
+
+  private func serializedKindBridged(_ arg: SerializedKind) -> BridgedFunction.SerializedKind {
+    switch arg {
+    case .notSerialized: return .IsNotSerialized
+    case .serialized: return .IsSerialized
+    case .serializedForPackage: return .IsSerializedForPackage
+    }
+  }
+
+  public func canBeInlinedIntoCaller(_ kind: SerializedKind) -> Bool {
+    bridged.canBeInlinedIntoCaller(serializedKindBridged(kind))
+  }
+
+  public func hasValidLinkageForFragileRef(_ kind: SerializedKind) -> Bool {
+    bridged.hasValidLinkageForFragileRef(serializedKindBridged(kind))
+  }
 
   public enum ThunkKind {
     case noThunk, thunk, reabstractionThunk, signatureOptimizedThunk
@@ -249,6 +278,13 @@ extension Function {
 
   public var selfArgument: FunctionArgument { arguments[selfArgumentIndex] }
   
+  public var dynamicSelfMetadata: FunctionArgument? {
+    if bridged.hasDynamicSelfMetadata() {
+      return arguments.last!
+    }
+    return nil
+  }
+
   public var argumentTypes: ArgumentTypeArray { ArgumentTypeArray(function: self) }
 
   public var resultType: Type { bridged.getSILResultType().type }
@@ -259,10 +295,6 @@ extension Function {
 
   public var hasResultDependence: Bool {
     convention.resultDependencies != nil
-  }
-
-  public var hasResultDependsOnSelf: Bool {
-    return bridged.hasResultDependsOnSelf()
   }
 }
 

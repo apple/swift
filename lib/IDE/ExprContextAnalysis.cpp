@@ -28,6 +28,7 @@
 #include "swift/AST/Stmt.h"
 #include "swift/AST/Type.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/IDE/CodeCompletionResult.h"
 #include "swift/Sema/IDETypeChecking.h"

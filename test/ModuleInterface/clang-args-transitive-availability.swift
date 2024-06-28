@@ -49,7 +49,8 @@ import ImportsMacroSpecificClangModule
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      "directDependencies": [
 // CHECK-NEXT:      ],
-// CHECK-NEXT:      "details": {
+// CHECK-NEXT:      "linkLibraries": [
+// CHECK:           "details": {
 // CHECK-NEXT:        "clang": {
 // CHECK-NEXT:          "moduleMapPath": "{{.*}}module.modulemap",
 // CHECK-NEXT:          "contextHash": "{{.*}}",

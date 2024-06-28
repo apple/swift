@@ -14,6 +14,7 @@
 #include "swift/AST/FineGrainedDependencies.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/FineGrainedDependencyFormat.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/Basic/LLVMInitialize.h"
 #include "llvm/Support/CommandLine.h"

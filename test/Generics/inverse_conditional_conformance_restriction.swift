@@ -7,12 +7,15 @@ protocol Q {}
 class DoggoClass {}
 
 struct Blah<T: ~Copyable & ~Escapable>: ~Copyable, ~Escapable {}
-extension Blah: Copyable {} // expected-error {{conditional conformance to suppressible protocol 'Copyable' cannot depend on 'T: Escapable'}}
-extension Blah: Escapable {} // expected-error {{conditional conformance to suppressible protocol 'Escapable' cannot depend on 'T: Copyable'}}
+extension Blah: Copyable where T: Copyable & Escapable {}
+// expected-error@-1 {{conditional conformance to suppressible protocol 'Copyable' cannot depend on 'T: Escapable'}}
 
-struct Yuck<T: ~Copyable & ~Escapable>: ~Copyable, ~Escapable {}
-extension Yuck: Copyable where T: ~Escapable {}
-extension Yuck: Escapable where T: ~Copyable {}
+extension Blah: Escapable where T: Copyable, T: Escapable {}
+// expected-error@-1 {{conditional conformance to suppressible protocol 'Escapable' cannot depend on 'T: Copyable'}}
+
+struct Fixed<T: ~Copyable & ~Escapable>: ~Copyable, ~Escapable {}
+extension Fixed: Copyable where T: Copyable {}
+extension Fixed: Escapable where T: Escapable {}
 
 struct TryConformance<Whatever: ~Copyable>: ~Copyable {}
 extension TryConformance: Copyable

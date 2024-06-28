@@ -1,0 +1,54 @@
+// RUN: %target-sil-opt %s \
+// RUN:   -o /dev/null \
+// RUN:   -sil-verify-all \
+// RUN:   -module-name Swift \
+// RUN:   -enable-experimental-feature NonescapableTypes
+
+// REQUIRES: asserts
+// REQUIRES: swift_in_compiler
+
+// Test the SIL representation for lifetime dependence.
+
+sil_stage raw
+
+class C {}
+
+@_marker public protocol Escapable { }
+
+struct Nonescapable: ~Escapable {}
+
+sil @c_dependence : $@convention(thin) (@guaranteed C) -> _scope(0) @owned Nonescapable
+sil @immortal_dependence : $@convention(thin) () -> _scope(immortal) @owned Nonescapable
+
+// Test that SILType.isEscpable does not crash on a generic box when NoncopyableGenerics is enabled.
+sil shared [serialized] [ossa] @testLocalFunc : $@convention(thin) <T, U> (@guaranteed <τ_0_0> { var τ_0_0 } <U>) -> () {
+bb0(%1 : @closureCapture @guaranteed $<τ_0_0> { var τ_0_0 } <U>):
+  %33 = tuple ()
+  return %33 : $()
+}
+
+// Test that ownership verification handles a mark_dependence with a stored use.
+sil [ossa] @test_mark_dependence_store : $@convention(thin) (@owned C) -> () {
+bb0(%0 : @owned $C):
+  %stk = alloc_stack [var_decl] $Nonescapable
+  %f = function_ref @c_dependence : $@convention(thin) (@guaranteed C) -> _scope(0) @owned Nonescapable
+  %c = apply %f(%0) : $@convention(thin) (@guaranteed C) -> _scope(0) @owned Nonescapable
+
+  %md = mark_dependence [nonescaping] %c : $Nonescapable on %0 : $C
+  store %md to [init] %stk : $*Nonescapable
+
+  destroy_addr %stk : $*Nonescapable
+  dealloc_stack %stk : $*Nonescapable
+  destroy_value %0 : $C
+  %28 = tuple ()
+  return %28 : $()
+}
+
+sil [ossa] @test_immortal_dependence : $@convention(thin) () -> () {
+bb0:
+  %f = function_ref @immortal_dependence : $@convention(thin) () -> _scope(immortal) @owned Nonescapable
+  %c = apply %f() : $@convention(thin) () -> _scope(immortal) @owned Nonescapable
+  destroy_value %c : $Nonescapable
+  %t = tuple ()
+  return %t : $()
+}

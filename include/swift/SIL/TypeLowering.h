@@ -1253,13 +1253,25 @@ public:
                                         SILDeclRef constant,
                                         CanAnyFunctionType origInterfaceType);
 
-  /// Get the boxed interface type to use for a capture of the given decl.
+  /// Get the interface type for a box that holds a mutable local 'var',
+  /// substituted for a closure that captures some superset of the local
+  /// environments captured by the 'var'.
   CanSILBoxType
   getInterfaceBoxTypeForCapture(ValueDecl *captured,
-                                CanType loweredInterfaceType,
+                                CanType loweredContextType,
+                                GenericSignature genericSig,
+                                ArrayRef<GenericEnvironment *> capturedEnvs,
                                 bool isMutable);
-  /// Get the boxed contextual type to use for a capture of the given decl
-  /// in the given generic environment.
+
+  /// Get the interface type for a box that holds a mutable local 'var',
+  /// given that the interface type of the 'var' might capture local
+  /// archetypes.
+  CanSILBoxType
+  getInterfaceBoxTypeForCapture(ValueDecl *captured,
+                                CanType loweredContextType,
+                                bool isMutable);
+
+  /// Get the contextual type for a box that holds a mutable local 'var'.
   CanSILBoxType
   getContextBoxTypeForCapture(ValueDecl *captured,
                               CanType loweredContextType,

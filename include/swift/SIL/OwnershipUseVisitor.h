@@ -213,6 +213,13 @@ bool OwnershipUseVisitor<Impl>::visitLifetimeEndingUses(SILValue ssaDef) {
 template <typename Impl>
 bool OwnershipUseVisitor<Impl>::visitConsumes(SILValue ssaDef) {
   for (Operand *use : ssaDef->getUses()) {
+    // extend_lifetime instructions are non-consuming but need to be visited
+    // because together with consuming uses they enclose all users of the value.
+    if (isa<ExtendLifetimeInst>(use->getUser())) {
+      if (!handleUsePoint(use, UseLifetimeConstraint::NonLifetimeEnding))
+        return false;
+      continue;
+    }
     if (use->isConsuming()) {
       if (PhiOperand(use) && !asImpl().handleOwnedPhi(use))
         return false;
@@ -245,6 +252,9 @@ bool OwnershipUseVisitor<Impl>::visitOuterBorrowScopeEnd(Operand *borrowEnd) {
 
     return handleUsePoint(borrowEnd, UseLifetimeConstraint::LifetimeEnding);
 
+  case OperandOwnership::InstantaneousUse:
+    assert(isa<ExtendLifetimeInst>(borrowEnd->getUser()));
+    return handleUsePoint(borrowEnd, UseLifetimeConstraint::NonLifetimeEnding);
   default:
     llvm_unreachable("expected borrow scope end");
   }

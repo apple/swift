@@ -15,6 +15,7 @@
 #include "swift/AST/AccessScope.h"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsSIL.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FrozenMultiMap.h"
@@ -285,7 +286,7 @@ bool noncopyable::memInstMustConsume(Operand *memOper) {
   case SILInstructionKind::BeginApplyInst:
   case SILInstructionKind::TryApplyInst: {
     FullApplySite applySite(memInst);
-    return applySite.getCaptureConvention(*memOper).isOwnedConvention();
+    return applySite.getCaptureConvention(*memOper).isOwnedConventionInCaller();
   }
   case SILInstructionKind::BeginAccessInst:
     return cast<BeginAccessInst>(memInst)->getAccessKind() ==

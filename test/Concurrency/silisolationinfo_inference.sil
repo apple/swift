@@ -32,6 +32,7 @@ sil @constructNonSendableKlassIndirect : $@convention(thin) () -> @out NonSendab
 sil @constructNonSendableKlassIndirectAsync : $@convention(thin) @async () -> @out NonSendableKlass
 sil @useUnmanagedNonSendableKlass : $@convention(thin) (@guaranteed @sil_unmanaged NonSendableKlass) -> ()
 
+sil @useActor : $@convention(thin) (@sil_isolated @guaranteed MyActor) -> @owned NonSendableKlass
 
 ///////////////////////
 // MARK: Basic Tests //
@@ -698,4 +699,25 @@ bb7:
   dealloc_stack %0 : $*NonSendableKlass
   %9999 = tuple ()
   return %9999 : $()
+}
+
+// CHECK-LABEL: begin running test 1 of 1 on lookthrough_test: sil-isolation-info-inference with: @trace[0]
+// CHECK-NEXT: Input Value:   %7 = apply %6(%5) : $@convention(thin) (@sil_isolated @guaranteed MyActor) -> @owned NonSendableKlass
+// CHECK-NEXT: Isolation: 'argument'-isolated
+// CHECK-NEXT: end running test 1 of 1 on lookthrough_test: sil-isolation-info-inference with: @trace[0]
+sil [ossa] @lookthrough_test : $@convention(thin) (@owned MyActor) -> @owned NonSendableKlass {
+bb0(%0 : @owned $MyActor):
+  specify_test "sil-isolation-info-inference @trace[0]"
+  debug_value %0 : $MyActor, let, name "argument"
+  %1 = end_init_let_ref %0 : $MyActor
+  %1a = copy_value %1 : $MyActor
+  %1b = move_value %1a : $MyActor
+  %1c = begin_borrow %1b : $MyActor
+  %2 = function_ref @useActor : $@convention(thin) (@sil_isolated @guaranteed MyActor) -> @owned NonSendableKlass
+  %3 = apply %2(%1c) : $@convention(thin) (@sil_isolated @guaranteed MyActor) -> @owned NonSendableKlass
+  debug_value [trace] %3 : $NonSendableKlass
+  end_borrow %1c : $MyActor
+  destroy_value %1 : $MyActor
+  destroy_value %1b : $MyActor
+  return %3 : $NonSendableKlass
 }

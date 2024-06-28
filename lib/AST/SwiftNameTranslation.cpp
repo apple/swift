@@ -21,6 +21,7 @@
 #include "swift/AST/LazyResolver.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/ParameterList.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/StringExtras.h"
 
 #include "clang/AST/DeclObjC.h"
@@ -211,8 +212,6 @@ swift::cxx_translation::getNameForCxx(const ValueDecl *VD,
 
 swift::cxx_translation::DeclRepresentation
 swift::cxx_translation::getDeclRepresentation(const ValueDecl *VD) {
-  if (VD->isObjC())
-    return {Unsupported, UnrepresentableObjC};
   if (getActorIsolation(const_cast<ValueDecl *>(VD)).isActorIsolated())
     return {Unsupported, UnrepresentableIsolatedInActor};
   if (isa<MacroDecl>(VD))
@@ -238,6 +237,8 @@ swift::cxx_translation::getDeclRepresentation(const ValueDecl *VD) {
     // Swift's consume semantics are not yet supported in C++.
     if (!typeDecl->canBeCopyable())
       return {Unsupported, UnrepresentableMoveOnly};
+    if (isa<ClassDecl>(VD) && VD->isObjC())
+      return {Unsupported, UnrepresentableObjC};
     if (typeDecl->isGeneric()) {
       if (isa<ClassDecl>(VD))
         return {Unsupported, UnrepresentableGeneric};

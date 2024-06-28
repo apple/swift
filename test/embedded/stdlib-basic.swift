@@ -3,6 +3,7 @@
 
 // REQUIRES: swift_in_compiler
 // REQUIRES: CODEGENERATOR=ARM
+// REQUIRES: embedded_stdlib_cross_compiling
 
 // https://github.com/apple/swift/issues/73249
 // UNSUPPORTED: OS=windows-msvc

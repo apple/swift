@@ -20,6 +20,7 @@
 #include "swift/LLVMPasses/Passes.h"
 #include "ARCEntryPointBuilder.h"
 #include "LLVMARCOpts.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/NullablePtr.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
@@ -274,9 +275,9 @@ static bool performLocalReleaseMotion(CallInst &Release, BasicBlock &BB,
   while (BBI != BB.begin()) {
     --BBI;
 
-    // Don't analyze PHI nodes.  We can't move retains before them and they
-    // aren't "interesting".
-    if (isa<PHINode>(BBI) ||
+    // Don't analyze PHI nodes and landingpad instructions. We can't move
+    // releases before them and they aren't "interesting".
+    if (isa<PHINode>(BBI) || isa<LandingPadInst>(BBI) ||
         // If we found the instruction that defines the value we're releasing,
         // don't push the release past it.
         &*BBI == Release.getArgOperand(0)) {

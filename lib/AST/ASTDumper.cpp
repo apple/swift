@@ -28,6 +28,7 @@
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeVisitor.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/QuotedString.h"
 #include "swift/Basic/STLExtras.h"
@@ -482,21 +483,22 @@ namespace {
     raw_ostream &OS;
     unsigned Indent;
   public:
+    bool ParseIfNeeded;
     llvm::function_ref<Type(Expr *)> GetTypeOfExpr;
     llvm::function_ref<Type(TypeRepr *)> GetTypeOfTypeRepr;
     llvm::function_ref<Type(KeyPathExpr *E, unsigned index)>
         GetTypeOfKeyPathComponent;
     char quote = '"';
 
-    explicit PrintBase(raw_ostream &os, unsigned indent = 0,
-                       llvm::function_ref<Type(Expr *)> getTypeOfExpr = defaultGetTypeOfExpr,
-                       llvm::function_ref<Type(TypeRepr *)> getTypeOfTypeRepr = nullptr,
-                       llvm::function_ref<Type(KeyPathExpr *E, unsigned index)>
-                          getTypeOfKeyPathComponent =
-                              defaultGetTypeOfKeyPathComponent)
-        : OS(os), Indent(indent), GetTypeOfExpr(getTypeOfExpr),
-          GetTypeOfTypeRepr(getTypeOfTypeRepr),
-          GetTypeOfKeyPathComponent(getTypeOfKeyPathComponent) { }
+    explicit PrintBase(
+        raw_ostream &os, unsigned indent = 0, bool parseIfNeeded = false,
+        llvm::function_ref<Type(Expr *)> getTypeOfExpr = defaultGetTypeOfExpr,
+        llvm::function_ref<Type(TypeRepr *)> getTypeOfTypeRepr = nullptr,
+        llvm::function_ref<Type(KeyPathExpr *E, unsigned index)>
+            getTypeOfKeyPathComponent = defaultGetTypeOfKeyPathComponent)
+        : OS(os), Indent(indent), ParseIfNeeded(parseIfNeeded),
+          GetTypeOfExpr(getTypeOfExpr), GetTypeOfTypeRepr(getTypeOfTypeRepr),
+          GetTypeOfKeyPathComponent(getTypeOfKeyPathComponent) {}
 
     bool hasNonStandardOutput() {
       return &OS != &llvm::errs() && &OS != &llvm::dbgs();
@@ -1301,7 +1303,9 @@ namespace {
         break;
       }
 
-      for (Decl *D : IDC->getMembers()) {
+      auto members = ParseIfNeeded ? IDC->getMembers()
+                                   : IDC->getCurrentMembersWithoutLoading();
+      for (Decl *D : members) {
         printRec(D);
       }
       printFoot();
@@ -1313,7 +1317,9 @@ namespace {
         OS << SF.getFilename();
       });
 
-      if (auto items = SF.getCachedTopLevelItems()) {
+      auto items =
+          ParseIfNeeded ? SF.getTopLevelItems() : SF.getCachedTopLevelItems();
+      if (items) {
         for (auto item : *items) {
           if (item.isImplicit())
             continue;
@@ -1556,7 +1562,8 @@ namespace {
         });
       }
 
-      if (auto Body = D->getBody(/*canSynthesize=*/false)) {
+      auto canParse = ParseIfNeeded && !D->isBodySkipped();
+      if (auto Body = D->getBody(canParse)) {
         printRec(Body, &D->getASTContext());
       }
     }
@@ -1858,13 +1865,7 @@ void SourceFile::dump() const {
 }
 
 void SourceFile::dump(llvm::raw_ostream &OS, bool parseIfNeeded) const {
-  // If we're allowed to parse the SourceFile, do so now. We need to force the
-  // parsing request as by default the dumping logic tries not to kick any
-  // requests.
-  if (parseIfNeeded)
-    (void)getTopLevelItems();
-
-  PrintDecl(OS).visitSourceFile(*this);
+  PrintDecl(OS, /*indent*/ 0, parseIfNeeded).visitSourceFile(*this);
   llvm::errs() << '\n';
 }
 
@@ -1889,13 +1890,16 @@ public:
   using PrintBase::PrintBase;
   const ASTContext *Ctx;
 
-  PrintStmt(raw_ostream &os, const ASTContext *ctx, unsigned indent = 0,
-            llvm::function_ref<Type(Expr *)> getTypeOfExpr = defaultGetTypeOfExpr,
-            llvm::function_ref<Type(TypeRepr *)> getTypeOfTypeRepr = nullptr,
-            llvm::function_ref<Type(KeyPathExpr *E, unsigned index)>
-                getTypeOfKeyPathComponent = defaultGetTypeOfKeyPathComponent)
-    : PrintBase(os, indent, getTypeOfExpr, getTypeOfTypeRepr,
-                getTypeOfKeyPathComponent), Ctx(ctx) { }
+  PrintStmt(
+      raw_ostream &os, const ASTContext *ctx, unsigned indent = 0,
+      bool parseIfNeeded = false,
+      llvm::function_ref<Type(Expr *)> getTypeOfExpr = defaultGetTypeOfExpr,
+      llvm::function_ref<Type(TypeRepr *)> getTypeOfTypeRepr = nullptr,
+      llvm::function_ref<Type(KeyPathExpr *E, unsigned index)>
+          getTypeOfKeyPathComponent = defaultGetTypeOfKeyPathComponent)
+      : PrintBase(os, indent, parseIfNeeded, getTypeOfExpr, getTypeOfTypeRepr,
+                  getTypeOfKeyPathComponent),
+        Ctx(ctx) {}
 
   using PrintBase::printRec;
 
@@ -3259,8 +3263,8 @@ void Expr::dump(raw_ostream &OS, llvm::function_ref<Type(Expr *)> getTypeOfExpr,
                 llvm::function_ref<Type(KeyPathExpr *E, unsigned index)>
                     getTypeOfKeyPathComponent,
                 unsigned Indent) const {
-  PrintExpr(OS, Indent, getTypeOfExpr, getTypeOfTypeRepr,
-            getTypeOfKeyPathComponent)
+  PrintExpr(OS, Indent, /*parseIfNeeded*/ false, getTypeOfExpr,
+            getTypeOfTypeRepr, getTypeOfKeyPathComponent)
       .visit(const_cast<Expr *>(this), "");
 }
 
@@ -3462,13 +3466,6 @@ public:
     printFoot();
   }
 
-  void visitResultDependsOnTypeRepr(ResultDependsOnTypeRepr *T,
-                                    StringRef label) {
-    printCommon("_resultDependsOn", label);
-    printRec(T->getBase());
-    printFoot();
-  }
-
   void visitOptionalTypeRepr(OptionalTypeRepr *T, StringRef label) {
     printCommon("type_optional", label);
     printRec(T->getBase());
@@ -3571,8 +3568,9 @@ void PrintBase::printRec(Decl *D, StringRef label) {
       printHead("<null decl>", DeclColor, label);
       printFoot();
     } else {
-      PrintDecl(OS, Indent, GetTypeOfExpr, GetTypeOfTypeRepr,
-                GetTypeOfKeyPathComponent).visit(D, label);
+      PrintDecl(OS, Indent, ParseIfNeeded, GetTypeOfExpr, GetTypeOfTypeRepr,
+                GetTypeOfKeyPathComponent)
+          .visit(D, label);
     }
   }, label);
 }
@@ -3582,8 +3580,9 @@ void PrintBase::printRec(Expr *E, StringRef label) {
       printHead("<null expr>", ExprColor, label);
       printFoot();
     } else {
-      PrintExpr(OS, Indent, GetTypeOfExpr, GetTypeOfTypeRepr,
-                GetTypeOfKeyPathComponent).visit(E, label);
+      PrintExpr(OS, Indent, ParseIfNeeded, GetTypeOfExpr, GetTypeOfTypeRepr,
+                GetTypeOfKeyPathComponent)
+          .visit(E, label);
     }
   }, label);
 }
@@ -3593,8 +3592,9 @@ void PrintBase::printRec(Stmt *S, const ASTContext *Ctx, StringRef label) {
       printHead("<null stmt>", ExprColor, label);
       printFoot();
     } else {
-      PrintStmt(OS, Ctx, Indent, GetTypeOfExpr, GetTypeOfTypeRepr,
-                GetTypeOfKeyPathComponent).visit(S, label);
+      PrintStmt(OS, Ctx, Indent, ParseIfNeeded, GetTypeOfExpr,
+                GetTypeOfTypeRepr, GetTypeOfKeyPathComponent)
+          .visit(S, label);
     }
   }, label);
 }
@@ -3604,8 +3604,9 @@ void PrintBase::printRec(TypeRepr *T, StringRef label) {
       printHead("<null typerepr>", TypeReprColor, label);
       printFoot();
     } else {
-      PrintTypeRepr(OS, Indent, GetTypeOfExpr, GetTypeOfTypeRepr,
-                    GetTypeOfKeyPathComponent).visit(T, label);
+      PrintTypeRepr(OS, Indent, ParseIfNeeded, GetTypeOfExpr, GetTypeOfTypeRepr,
+                    GetTypeOfKeyPathComponent)
+          .visit(T, label);
     }
   }, label);
 }
@@ -3615,9 +3616,9 @@ void PrintBase::printRec(const Pattern *P, StringRef label) {
       printHead("<null pattern>", PatternColor, label);
       printFoot();
     } else {
-      PrintPattern(OS, Indent, GetTypeOfExpr, GetTypeOfTypeRepr,
-                   GetTypeOfKeyPathComponent).visit(const_cast<Pattern *>(P),
-                                                    label);
+      PrintPattern(OS, Indent, ParseIfNeeded, GetTypeOfExpr, GetTypeOfTypeRepr,
+                   GetTypeOfKeyPathComponent)
+          .visit(const_cast<Pattern *>(P), label);
     }
   }, label);
 }
@@ -4543,8 +4544,9 @@ namespace {
         printHead("<null type>", DeclColor, label);
         printFoot();
       } else {
-        PrintType(OS, Indent, GetTypeOfExpr, GetTypeOfTypeRepr,
-                  GetTypeOfKeyPathComponent).visit(type, label);
+        PrintType(OS, Indent, ParseIfNeeded, GetTypeOfExpr, GetTypeOfTypeRepr,
+                  GetTypeOfKeyPathComponent)
+            .visit(type, label);
       }
     }, label);
   }

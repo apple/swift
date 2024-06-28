@@ -159,7 +159,7 @@ public:
   }
 
   unsigned getRuleID(const Rule &rule) const {
-    assert((unsigned)(&rule - &*Rules.begin()) < Rules.size());
+    ASSERT((unsigned)(&rule - &*Rules.begin()) < Rules.size());
     return (unsigned)(&rule - &*Rules.begin());
   }
 

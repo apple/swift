@@ -7,8 +7,9 @@
 
 @_marker public protocol Copyable {}
 
-func nextTime<T>(_ t: T) {} // expected-note {{generic parameter 'T' has an implicit Copyable requirement}}
+func nextTime<T>(_ t: T) {} // expected-note {{Copyable' is implicit here}}
 
 @_moveOnly struct MO {}
 
-nextTime(MO()) // expected-error {{noncopyable type 'MO' cannot be substituted for copyable generic parameter 'T' in 'nextTime'}}
+// NOTE: when building without being the stdlib, we get a Builtin.Copyable
+nextTime(MO()) // expected-error {{global function 'nextTime' requires that 'MO' conform to}}

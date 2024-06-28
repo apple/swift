@@ -175,6 +175,7 @@ bool SourceKit::CodeCompletion::addCustomCompletions(
         addCompletion(custom);
       }
       break;
+    case CompletionKind::TypePossibleFunctionParamBeginning:
     case CompletionKind::TypeDeclResultBeginning:
     case CompletionKind::TypeBeginning:
     case CompletionKind::TypeSimpleOrComposition:
@@ -452,6 +453,7 @@ void CodeCompletionOrganizer::Impl::addCompletionsWithFilter(
   if (filterText.empty()) {
     bool hideLowPriority =
         options.hideLowPriority &&
+        completionKind != CompletionKind::TypePossibleFunctionParamBeginning &&
         completionKind != CompletionKind::TypeDeclResultBeginning &&
         completionKind != CompletionKind::TypeBeginning &&
         completionKind != CompletionKind::TypeSimpleOrComposition &&

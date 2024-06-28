@@ -47,6 +47,7 @@
 /cmake/**/*Windows*                       @compnerd
 
 # docs
+/docs/CrossCompilationModel.md            @MaxDesiatov
 /docs/Generics.rst                        @slavapestov
 /docs/Generics/                           @slavapestov
 /docs/HowToGuides/                        @AnthonyLatsis @LucianoPAlmeida @xedin
@@ -144,7 +145,7 @@
 # TODO: /localization
 
 # stdlib
-/stdlib/                                  @apple/standard-librarians
+/stdlib/                                  @swiftlang/standard-librarians
 /stdlib/public/Backtracing/               @al45tair
 /stdlib/public/Concurrency/               @ktoso
 /stdlib/public/Cxx/                       @zoecarver @hyp @egorzhdan
@@ -181,14 +182,14 @@
 /test/Sema/moveonly*                                @kavon
 /test/SourceKit/                                    @ahoppen @bnbarham @hamishknight @rintaro
 /test/SymbolGraph/                                  @QuietMisdreavus
-/test/abi/                                          @apple/standard-librarians
+/test/abi/                                          @swiftlang/standard-librarians
 /test/decl/                                         @hborla @slavapestov
 /test/decl/protocol/                                @AnthonyLatsis @hborla @slavapestov
 # FIXME: This file could have a dedicated directory.
 /test/decl/protocol/special/DistributedActor.swift  @ktoso
 /test/expr/                                         @hborla @slavapestov @xedin
 /test/refactoring/                                  @ahoppen @bnbarham @hamishknight @rintaro
-/test/stdlib/                                       @apple/standard-librarians
+/test/stdlib/                                       @swiftlang/standard-librarians
 /test/stmt/                                         @hborla @xedin
 /test/type/                                         @hborla @slavapestov @xedin
 
@@ -232,4 +233,4 @@
 # TODO: /validation-test/SILGen/
 # TODO: /validation-test/SILOptimizer/
 /validation-test/Sema/                    @hborla @slavapestov @xedin
-/validation-test/stdlib/                  @apple/standard-librarians
+/validation-test/stdlib/                  @swiftlang/standard-librarians

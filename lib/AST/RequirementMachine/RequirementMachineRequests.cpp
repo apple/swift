@@ -90,6 +90,7 @@
 #include "swift/AST/RequirementSignature.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
 #include <memory>
@@ -236,7 +237,7 @@ llvm::DenseMap<const ProtocolDecl *, RequirementSignature>
 RequirementMachine::computeMinimalProtocolRequirements() {
   auto protos = System.getProtocols();
 
-  assert(protos.size() > 0 &&
+  ASSERT(protos.size() > 0 &&
          "Not a protocol connected component rewrite system");
 
   System.minimizeRewriteSystem(Map);
@@ -487,11 +488,11 @@ RequirementSignatureRequest::evaluate(Evaluator &evaluator,
 GenericSignature
 RequirementMachine::computeMinimalGenericSignature(
     bool reconstituteSugar) {
-  assert(!Sig &&
+  ASSERT(!Sig &&
          "Already computed minimal generic signature");
-  assert(System.getProtocols().empty() &&
+  ASSERT(System.getProtocols().empty() &&
          "Not a top-level generic signature rewrite system");
-  assert(!Params.empty() &&
+  ASSERT(!Params.empty() &&
          "Not a from-source top-level generic signature rewrite system");
 
   System.minimizeRewriteSystem(Map);
@@ -508,7 +509,7 @@ RequirementMachine::computeMinimalGenericSignature(
 
   buildRequirementsFromRules(rules, ArrayRef<unsigned>(), getGenericParams(),
                              reconstituteSugar, reqs, aliases);
-  assert(aliases.empty());
+  ASSERT(aliases.empty());
 
   auto sig = GenericSignature::get(getGenericParams(), reqs);
 
@@ -613,7 +614,7 @@ AbstractGenericSignatureRequest::evaluate(
                                  baseSignature.getGenericParams().end());
     }
     resugaredParameters.append(addedParameters.begin(), addedParameters.end());
-    assert(resugaredParameters.size() ==
+    ASSERT(resugaredParameters.size() ==
                canSignature.getGenericParams().size());
 
     SmallVector<Requirement, 2> resugaredRequirements;
@@ -782,7 +783,6 @@ InferredGenericSignatureRequest::evaluate(
 
   unsigned numOuterParams = genericParams.size();
   if (isExtension) {
-    assert(allowInverses);
     numOuterParams = 0;
   }
 
@@ -805,7 +805,7 @@ InferredGenericSignatureRequest::evaluate(
   if (genericParamList) {
     // If we have multiple parameter lists, we're in SIL mode, and there's
     // no parent signature from context.
-    assert(genericParamList->getOuterParameters() == nullptr || !parentSig);
+    ASSERT(genericParamList->getOuterParameters() == nullptr || !parentSig);
 
     // Collect all outer generic parameter lists.
     SmallVector<GenericParamList *, 2> gpLists;
@@ -819,7 +819,7 @@ InferredGenericSignatureRequest::evaluate(
     // We walk them backwards to order outer parameters before inner
     // parameters.
     for (auto *gpList : llvm::reverse(gpLists)) {
-      assert(gpList->size() > 0 &&
+      ASSERT(gpList->size() > 0 &&
              "Parsed an empty generic parameter list?");
 
       for (auto *gpDecl : *gpList) {

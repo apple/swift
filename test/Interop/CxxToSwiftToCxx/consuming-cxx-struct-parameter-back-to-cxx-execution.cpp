@@ -51,6 +51,18 @@ public:
 __attribute__((swift_attr("retain:immortal")))
 __attribute__((swift_attr("release:immortal")));
 
+class SharedFRT {
+public:
+  SharedFRT() {}
+  SharedFRT(int x) : x(x) {}
+  int x;
+} __attribute__((swift_attr("import_reference")))
+__attribute__((swift_attr("retain:retainShared")))
+__attribute__((swift_attr("release:releaseShared")));
+
+inline void retainShared(SharedFRT *r) { puts("retainShared"); }
+inline void releaseShared(SharedFRT *r) { puts("releaseShared"); }
+
 //--- module.modulemap
 module CxxTest {
     header "header.h"
@@ -74,7 +86,21 @@ public struct TakesNonTrivial {
 }
 
 public func consumeImmortalFRT(_ x: consuming ImmortalFRT) {
-    print("frt x \(x.x)")
+  print("immortal frt x \(x.x)")
+}
+
+public
+func consumeSharedFRT(_ x : consuming SharedFRT) {
+  print("consume shared frt x \(x.x)")
+}
+
+public
+func takeSharedFRT(_ x : SharedFRT) { print("take shared frt x \(x.x)") }
+
+public
+func returnSharedFRT(_ x : SharedFRT) -> SharedFRT {
+  print("return shared frt x \(x.x)")
+  return x
 }
 
 //--- use-swift-cxx-types.cpp
@@ -119,7 +145,22 @@ int main() {
     frt.x = 2;
     UseCxx::consumeImmortalFRT(&frt);
   }
-// CHECK-NEXT: frt x 2
+  // CHECK-NEXT: immortal frt x 2
+  {
+    SharedFRT sfrt;
+    sfrt.x = 2;
+    UseCxx::takeSharedFRT(&sfrt);
+    // CHECK-NEXT: retainShared
+    // CHECK-NEXT: releaseShared
+    // CHECK-NEXT: take shared frt x 2
+    UseCxx::consumeSharedFRT(&sfrt);
+    // CHECK-NEXT: retainShared
+    // CHECK-NEXT: releaseShared
+    // CHECK-NEXT: consume shared frt x 2
+    SharedFRT *sfrtptr = UseCxx::returnSharedFRT(&sfrt);
+    // CHECK-NEXT: retainShared
+    // CHECK-NEXT: return shared frt x 2
+  }
   puts("EndOfTest");
 // CHECK-NEXT: EndOfTest
   return 0;

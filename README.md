@@ -63,6 +63,11 @@ To learn more about the programming language, visit [swift.org](https://swift.or
 Contributions to Swift are welcomed and encouraged! Please see the
 [Contributing to Swift guide](https://swift.org/contributing/).
 
+Before submitting the pull request, please make sure you have [tested your
+ changes](https://github.com/apple/swift/blob/main/docs/ContinuousIntegration.md)
+ and that they follow the Swift project [guidelines for contributing
+ code](https://swift.org/contributing/#contributing-code).
+
 To be a truly great community, [Swift.org](https://swift.org/) needs to welcome
 developers from all walks of life, with different backgrounds, and with a wide
 range of experience. A diverse and friendly community will have more great

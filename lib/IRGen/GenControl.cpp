@@ -18,6 +18,7 @@
 #include "llvm/IR/Function.h"
 #include "IRGenFunction.h"
 #include "IRGenModule.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace irgen;

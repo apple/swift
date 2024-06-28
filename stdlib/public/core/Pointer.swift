@@ -514,10 +514,11 @@ func _convertConstStringToUTF8PointerArgument<
 }
 #else
 @_transparent
-@_unavailableInEmbedded
-public
-func _convertConstStringToUTF8PointerArgument<ToPointer: _Pointer>(
-    _ str: String) -> (Builtin.NativeObject?, ToPointer) {
-  fatalError("unreachable in embedded Swift (marked as unavailable)")
+public // COMPILER_INTRINSIC
+func _convertConstStringToUTF8PointerArgument<
+  ToPointer: _Pointer
+>(_ str: String) -> (Builtin.NativeObject?, ToPointer) {
+  let utf8 = Array(str.utf8CString)
+  return _convertConstArrayToPointerArgument(utf8)
 }
 #endif

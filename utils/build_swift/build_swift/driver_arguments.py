@@ -1147,6 +1147,9 @@ def create_argument_parser():
     option('--build-swift-stdlib-static-print', toggle_true,
            help='Build constant-folding print() support')
 
+    option('--build-embedded-stdlib-cross-compiling', toggle_true,
+           help='Build embedded stdlib for cross-compiling targets.')
+
     option('--build-swift-stdlib-unicode-data', toggle_true,
            default=True,
            help='Include Unicode data in the standard library.'
@@ -1464,6 +1467,10 @@ def create_argument_parser():
     option('--enable-synchronization', toggle_true,
            default=True,
            help='Enable Swift Synchronization.')
+
+    option('--enable-volatile', toggle_true,
+           default=True,
+           help='Enable Volatile module.')
 
     option('--enable-experimental-parser-validation', toggle_true,
            default=False,

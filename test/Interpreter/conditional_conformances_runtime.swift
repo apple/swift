@@ -33,11 +33,35 @@ extension Dictionary: P where Value == (Key) -> Bool {
 
 
 let yx = Y(wrapped: X())
-assert(tryAsP(yx) == 11)
+precondition(tryAsP(yx) == 11)
 
 let dict: [Int : (Int) -> Bool] = [:]
-assert(tryAsP(dict) == 2)
+precondition(tryAsP(dict) == 2)
 
 let yDict = Y(wrapped: dict)
-assert(tryAsP(yDict) == 12)
+precondition(tryAsP(yDict) == 12)
 
+// <rdar://128774651> Generic argument indexing runs off the end when a key
+// argument comes after a non-key argument.
+struct Outer<T> {}
+
+extension Outer where T == Int {
+  struct Inner<U> {
+    // Add some stored properties that will have field offsets in the metadata.
+    // If we read past the end of the generic arguments, we'll find these and
+    // crash on something that's definitely not a valid pointer.
+    var a: T?
+    var b: T?
+    var c: T?
+    var d: T?
+  }
+}
+
+extension Outer.Inner: P where U == String {
+  func foo() -> Int { return 1 }
+}
+
+let conformingInner: Any = Outer.Inner<String>()
+let nonconformingInner: Any = Outer.Inner<Int>()
+precondition(conformingInner is P)
+precondition(!(nonconformingInner is P))

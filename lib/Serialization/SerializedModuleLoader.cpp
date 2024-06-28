@@ -17,6 +17,7 @@
 #include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/ImportCache.h"
 #include "swift/AST/ModuleDependencies.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Basic/Platform.h"
@@ -33,6 +34,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/VersionTuple.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -499,11 +501,21 @@ SerializedModuleLoaderBase::scanModuleFile(Twine modulePath, bool isFramework,
       optionalModuleImports.push_back(
           ScannerImportStatementInfo(optionalImportedModule.str()));
 
+  std::vector<LinkLibrary> linkLibraries;
+  {
+    linkLibraries.reserve(loadedModuleFile->getLinkLibraries().size());
+    llvm::copy(loadedModuleFile->getLinkLibraries(),
+               std::back_inserter(linkLibraries));
+    if (loadedModuleFile->isFramework())
+      linkLibraries.push_back(LinkLibrary(loadedModuleFile->getName(),
+                                          LibraryKind::Framework));
+  }
+
   // Map the set of dependencies over to the "module dependencies".
   auto dependencies = ModuleDependencyInfo::forSwiftBinaryModule(
       modulePath.str(), moduleDocPath, sourceInfoPath, moduleImports,
-      optionalModuleImports, importedHeader, isFramework,
-      /*module-cache-key*/ "");
+      optionalModuleImports, linkLibraries, importedHeader, isFramework,
+      loadedModuleFile->isStaticLibrary(), /*module-cache-key*/ "");
 
   return std::move(dependencies);
 }
@@ -1381,7 +1393,7 @@ swift::extractUserModuleVersionFromInterface(StringRef moduleInterfacePath) {
 }
 
 bool SerializedModuleLoaderBase::canImportModule(
-    ImportPath::Module path, ModuleVersionInfo *versionInfo,
+    ImportPath::Module path, SourceLoc loc, ModuleVersionInfo *versionInfo,
     bool isTestableDependencyLookup) {
   // FIXME: Swift submodules?
   if (path.hasSubmodule())
@@ -1404,36 +1416,55 @@ bool SerializedModuleLoaderBase::canImportModule(
   if (!found)
     return false;
 
-  // If the caller doesn't want version info we're done.
-  if (!versionInfo)
-    return true;
-
-  assert(found);
-  llvm::VersionTuple swiftInterfaceVersion;
   if (!moduleInterfaceSourcePath.empty()) {
-    swiftInterfaceVersion =
+    // If we found interface and version is not requested, we're done.
+    if (!versionInfo)
+      return true;
+
+    auto moduleVersion =
         extractUserModuleVersionFromInterface(moduleInterfaceSourcePath);
+
+    // If version is requested and found in interface, return the version.
+    // Otherwise fallback to binary module handling.
+    if (!moduleVersion.empty()) {
+      versionInfo->setVersion(moduleVersion,
+                              ModuleVersionSourceKind::SwiftInterface);
+      return true;
+    }
   }
 
-  // If failing to extract the user version from the interface file, try the
-  // binary module format, if present.
-  if (swiftInterfaceVersion.empty() && moduleInputBuffer) {
+  if (moduleInputBuffer) {
     auto metaData = serialization::validateSerializedAST(
-        moduleInputBuffer->getBuffer(),
-        Ctx.SILOpts.EnableOSSAModules,
+        moduleInputBuffer->getBuffer(), Ctx.SILOpts.EnableOSSAModules,
         Ctx.LangOpts.SDKName);
-    versionInfo->setVersion(metaData.userModuleVersion,
+
+    // If we only found binary module, make sure that is valid.
+    if (metaData.status != serialization::Status::Valid &&
+        moduleInterfaceSourcePath.empty()) {
+      // Emit warning if the canImport check location is known.
+      if (loc.isValid())
+        Ctx.Diags.diagnose(loc, diag::can_import_invalid_swiftmodule,
+                           moduleInputBuffer->getBufferIdentifier());
+
+      return false;
+    }
+
+    if (versionInfo)
+      versionInfo->setVersion(metaData.userModuleVersion,
+                              ModuleVersionSourceKind::SwiftBinaryModule);
+  }
+
+  if (versionInfo && !versionInfo->isValid()) {
+    // If no version is found, set it to empty version.
+    versionInfo->setVersion(llvm::VersionTuple(),
                             ModuleVersionSourceKind::SwiftBinaryModule);
-  } else {
-    versionInfo->setVersion(swiftInterfaceVersion,
-                            ModuleVersionSourceKind::SwiftInterface);
   }
 
   return true;
 }
 
 bool MemoryBufferSerializedModuleLoader::canImportModule(
-    ImportPath::Module path, ModuleVersionInfo *versionInfo,
+    ImportPath::Module path, SourceLoc loc, ModuleVersionInfo *versionInfo,
     bool isTestableDependencyLookup) {
   // FIXME: Swift submodules?
   if (path.hasSubmodule())

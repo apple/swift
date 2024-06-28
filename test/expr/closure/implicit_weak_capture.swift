@@ -1,4 +1,4 @@
-// RUN: %target-run-simple-swift(-Xfrontend -disable-availability-checking)
+// RUN: %target-run-simple-swift(-Xfrontend -disable-availability-checking -swift-version 6)
 
 // REQUIRES: concurrency
 // REQUIRES: executable_test

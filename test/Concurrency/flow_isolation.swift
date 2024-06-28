@@ -684,8 +684,7 @@ actor OhBrother {
   static var DefaultResult: Int { 10 }
 
   init() {
-    // expected-note@+2 {{after this closure involving 'self', only non-isolated properties of 'self' can be accessed from this init}}
-    // expected-warning@+1 {{cannot access property 'giver' here in non-isolated initializer; this is an error in the Swift 6 language mode}}
+    // this is OK: we're using DynamicSelfType but that doesn't access protected state.
     self.giver = { (x: OhBrother) -> Int in Self.DefaultResult }
   }
 

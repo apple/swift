@@ -1,7 +1,6 @@
 // RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify
 // RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -strict-concurrency=targeted
-// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -strict-concurrency=complete
-// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation
+// RUN: %target-swift-frontend  -disable-availability-checking %s -emit-sil -o /dev/null -verify -strict-concurrency=complete -verify-additional-prefix tns-
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
@@ -195,9 +194,17 @@ extension Collection where Self: Sendable, Element: Sendable, Self.Index: Sendab
       var submitted = 0
 
       func submitNext() async throws {
+        // The reason that we emit an error here is b/c we capture the var box
+        // to i and that is task isolated. This is the region isolation version
+        // of the 'escaping closure captures non-escaping parameter' error.
+        //
+        // TODO: When we have isolation history, isolation history will be able
+        // to tell us what is going on.
         group.addTask { [submitted,i] in // expected-error {{escaping closure captures non-escaping parameter 'transform'}}
-          let value = try await transform(self[i]) // expected-note {{captured here}}
-          return SendableTuple2(submitted, value)
+          // expected-tns-warning @-1 {{task-isolated value of type '() async throws -> SendableTuple2<Int, T>' passed as a strongly transferred parameter}}
+          let _ = try await transform(self[i]) // expected-note {{captured here}}
+          let value: T? = nil
+          return SendableTuple2(submitted, value!)
         }
         submitted += 1
         formIndex(after: &i)

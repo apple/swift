@@ -28,6 +28,7 @@
 #include "MetadataRequest.h"
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/IRGenOptions.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/IRGen/GenericRequirement.h"
 #include "swift/SIL/SILModule.h"
 

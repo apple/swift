@@ -38,6 +38,9 @@ public:
     Enum,
     Type,
     KeyPath,
+    FunctionCall,
+    MemberReference,
+    InterpolatedString,
     Runtime
   };
 
@@ -185,7 +188,7 @@ private:
   std::optional<std::vector<FunctionParameter>> Parameters;
 };
 
-/// An type value representation
+/// A type value representation
 class TypeValue : public CompileTimeValue {
 public:
   TypeValue(swift::Type Type) : CompileTimeValue(ValueKind::Type), Type(Type) {}
@@ -226,6 +229,68 @@ private:
   std::string Path;
   swift::Type RootType;
   std::vector<Component> Components;
+};
+
+/// A function call representation. This is for a function declaration such as
+/// let foo = bar(baz: "abc")
+class FunctionCallValue : public CompileTimeValue {
+public:
+  FunctionCallValue(std::string Identifier,
+                    std::optional<std::vector<FunctionParameter>> Parameters)
+      : CompileTimeValue(ValueKind::FunctionCall), Identifier(Identifier),
+        Parameters(Parameters) {}
+
+  std::string getIdentifier() const { return Identifier; }
+  std::optional<std::vector<FunctionParameter>> getParameters() const {
+    return Parameters;
+  }
+
+  static bool classof(const CompileTimeValue *T) {
+    return T->getKind() == ValueKind::FunctionCall;
+  }
+
+private:
+  std::string Identifier;
+  std::optional<std::vector<FunctionParameter>> Parameters;
+};
+
+/// A member reference representation such as
+/// let foo = MyStruct.bar
+class MemberReferenceValue : public CompileTimeValue {
+public:
+  MemberReferenceValue(swift::Type BaseType, std::string MemberLabel)
+      : CompileTimeValue(ValueKind::MemberReference), BaseType(BaseType),
+        MemberLabel(MemberLabel) {}
+
+  std::string getMemberLabel() const { return MemberLabel; }
+  swift::Type getBaseType() const { return BaseType; }
+
+  static bool classof(const CompileTimeValue *T) {
+    return T->getKind() == ValueKind::MemberReference;
+  }
+
+private:
+  swift::Type BaseType;
+  std::string MemberLabel;
+};
+
+/// A representation of an Interpolated String Literal
+class InterpolatedStringLiteralValue : public CompileTimeValue {
+public:
+  InterpolatedStringLiteralValue(
+      std::vector<std::shared_ptr<CompileTimeValue>> Segments)
+      : CompileTimeValue(ValueKind::InterpolatedString), Segments(Segments) {}
+
+  std::vector<std::shared_ptr<CompileTimeValue>> getSegments() const {
+    return Segments;
+  }
+
+  static bool classof(const CompileTimeValue *T) {
+    return T->getKind() == ValueKind::InterpolatedString;
+  }
+
+private:
+  std::vector<std::shared_ptr<CompileTimeValue>> Segments;
 };
 
 /// A representation of an arbitrary value that does not fall under

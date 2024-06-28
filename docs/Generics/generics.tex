@@ -58,6 +58,17 @@
   }%
 }
 
+% Fix page header to say "Index" instead of "INDEX"
+\renewcommand\imki@indexheaders{\@mkboth{\indexname}{\indexname}}
+
+% We use fleqn to left-align display math by default, but sometimes we want to center
+% something
+\newenvironment{ceqn}{\@fleqnfalse
+  \@mathmargin\@centering \ignorespaces
+}{%
+  \ignorespacesafterend
+}
+
 \makeatother
 
 % Hyperlinks in PDF files. We enable numbering in PDF bookmark titles, and backreferences from bibliography entries, and make the section title in the TOC clickable.
@@ -93,8 +104,8 @@
 \tikzstyle{genericenvlabel}=[fill=white, draw=gray, very thick, rounded corners]
 \tikzstyle{genericenvmatrix}=[matrix, row sep=3pt, column sep=5pt]
 \tikzstyle{genericenvpart}=[rounded corners, fill=light-gray]
-\tikzstyle{abstractvertex}=[circle, fill=gray]
-\tikzstyle{abstractvertex2}=[circle, fill=lightgray]
+\tikzstyle{abstractvertex}=[circle, fill=gray, outer sep=0.1em]
+\tikzstyle{abstractvertex2}=[circle, fill=lightgray, outer sep=0.1em]
 \tikzstyle{SourceFile}=[draw=black,thick,fill=lightgray, outer sep=0.2em]
 \tikzstyle{decl}=[draw=black,thick]
 \tikzstyle{type}=[rounded corners,draw=black,thick,fill=lighter-gray]
@@ -221,6 +232,8 @@
 \newcommand{\SameReq}[2]{[\texttt{#1 == #2}]}
 \newcommand{\ConfReq}[2]{[\texttt{#1:~#2}]}
 
+\newcommand{\GP}{G_\texttt{P}}
+
 \newcommand{\GenericStepDef}{\ttgp{d}{i}\tag{\textsc{Generic}}}
 
 \newcommand{\ConfStepDef}{\ConfReq{T}{P}\tag{\textsc{Conf}}}
@@ -310,14 +323,20 @@
 \newcommand{\rU}{\ttgp{0}{1}}
 \newcommand{\rV}{\ttgp{0}{2}}
 
+% Monoids etc
+\newcommand{\Pres}[2]{\langle #1;\,#2\rangle}
 \newcommand{\PhiInv}{\varphi^{-1}}
 \newcommand{\AR}{\langle A;\,R\rangle}
+\newcommand{\BaseCase}{\smallskip\par\emph{Base case.}\ }
+\newcommand{\InductiveStep}{\smallskip\par\emph{Inductive step.}\ }
+
+\newcommand{\Tight}{\hspace{-0.08em}}
 
 % Used in `Generic Signature Queries' section
 \newcommand{\Query}[2]{\texttt{#1}(#2)}
 
 \newcommand{\QueryDef}[5]{
-\item \textbf{Query:} \IndexDefinition{#1()@\texttt{#1()}}$\texttt{#1}(#2)$
+\item \textbf{Query:} \IndexQueryDef{#1}$\texttt{#1}(#2)$
 
 \textbf{Input:} #3
 
@@ -332,11 +351,15 @@
 % Archetypes print [[like this]]. Must be in math mode
 \newcommand{\archetype}[1]{[\![\texttt{#1}]\!]}
 
+% Generic environment operations
+\newcommand{\MapIn}{\mathsf{in}_G}
+\newcommand{\MapOut}{\mathsf{out}_G}
+
 % Equivalence class notation for math
 \newcommand{\EquivClass}[1]{[\![#1]\!]}
 
 % GitHub links in 'Source Code Reference' sections
-\newcommand{\SourceFile}[1]{\href{https://github.com/apple/swift/tree/main/#1}{\texttt{#1}}}
+\newcommand{\SourceFile}[1]{\href{https://github.com/swiftlang/swift/tree/main/#1}{\texttt{#1}}}
 
 % Note: \apiref{foo}{bar} must be followed by a newline, because of a quirk with \noindent
 \def\apiref#1#2
@@ -367,30 +390,38 @@
 %%%%%
 
 % Type parameter and conformance path graph
-\tikzstyle{root} = [rounded corners, fill=lightgray]
-\tikzstyle{interior} = [rounded corners, fill=light-gray]
+\tikzstyle{root} = [rounded corners, fill=lightgray, outer sep=0.1em]
+\tikzstyle{interior} = [rounded corners, fill=light-gray, outer sep=0.1em]
 
 % Protocol dependency graph
 \tikzstyle{protocol} = [rounded corners, fill=light-gray]
 
 % Title page logo
 
-\newcommand{\GenericsLogo}{\Huge\centering\textcolor{lightgray}{$
-\begin{array}{|cccccccccc|}
-\hline
-\otimes&\circ&+&:&\cdot&\varnothing&\star&\vee&\times&\bot\\
-\sim&\rightarrow&\in&\Rightarrow&=&\vdash&<&\prec&>&\mapsto\\
-+&\varnothing&\cdot&\vee&\star&\bot&\times&\circ&\otimes&:\\
->&\prec&\sim&\mapsto&\in&\rightarrow&=&\Rightarrow&<&\vdash\\
-\cdot&\bot&\star&\circ&\times&:&\otimes&\varnothing&+&\vee\\
-<&\Rightarrow&>&\vdash&\sim&\prec&\in&\mapsto&=&\rightarrow\\
-\star&:&\times&\varnothing&\otimes&\vee&+&\bot&\cdot&\circ\\
-=&\mapsto&<&\rightarrow&>&\Rightarrow&\sim&\vdash&\in&\prec\\
-\times&\vee&\otimes&\bot&+&\circ&\cdot&:&\star&\varnothing\\
-\in&\vdash&=&\prec&<&\mapsto&>&\rightarrow&\sim&\Rightarrow\\
-\hline
-\end{array}
-$}}
+\newcommand{\GenericsLogo}{
+\begin{center}
+\begin{tikzpicture}[x=2cm, y=2cm]
+\foreach \a in {0,1,2,3,4,5} {
+  \foreach \b in {0,1,2,3,4,5} {
+    \node (A\a B\b) [circle, draw, very thick, outer sep=0.4em] at (\a,\b) {};
+  }
+}
+
+\foreach \a in {0,1,2,3,4,5} {
+  \path [arrow, very thick] (A\a B4) edge (A\a B3);
+  \path [arrow, very thick] (A\a B2) edge (A\a B1);
+  \path [arrow, very thick] (A\a B0) edge (A\a B1);
+}
+
+\foreach \a in {0,1,2,3,4} {
+  \pgfmathtruncatemacro\aa{\a+1}
+  \foreach \b in {0,2,3,4,5} {
+    \path [arrow, very thick] (A\a B\b) edge (A\aa B\b);
+  }
+}
+\end{tikzpicture}
+\end{center}
+}
 
 % I don't like boldface page numbers in the table of contents.
 \RedeclareSectionCommands[tocpagenumberformat=]{chapter}
@@ -434,6 +465,11 @@ $}}
 % Swift version history
 \newcommand{\IndexSwift}[1]{\index{Swift!#1}\index{history}}
 
+% Generic signature queries
+\newcommand{\IndexQueryDef}[1]{\IndexDefinition{#1()@$\texttt{#1}()$}}
+\newcommand{\IndexQuerySource}[1]{\IndexSource{#1()@$\texttt{#1}()$}}
+\newcommand{\IndexQuery}[1]{\Index{#1()@$\texttt{#1}()$}}
+
 % Normally a seealso index entry elides the page number, but sometimes we want index entries that look like this:
 %
 % foo, 123
@@ -452,7 +488,6 @@ $}}
 
 \titlehead{\GenericsLogo}
 \title{Compiling Swift Generics}
-\subtitle{Implementation Reference Manual (DRAFT v2)}
 \author{Slava Pestov}
 
 % Put chapter/section headings at the top of each page
@@ -490,7 +525,7 @@ $}}
 % The Good Stuff
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\part{Syntax}\label{part fundamentals}
+\part{Syntax}\label{part syntax}
 
 \subfile{chapters/introduction}
 
@@ -500,7 +535,7 @@ $}}
 
 \subfile{chapters/declarations}
 
-\part{Semantics}\label{part blocks}
+\part{Semantics}\label{part semantics}
 
 \subfile{chapters/generic-signatures}
 
@@ -510,7 +545,7 @@ $}}
 
 \subfile{chapters/archetypes}
 
-\part{Processes}\label{part odds and ends}
+\part{Specialties}\label{part specialties}
 
 \subfile{chapters/type-resolution}
 
@@ -520,7 +555,7 @@ $}}
 
 \subfile{chapters/conformance-paths}
 
-\part[]{More Features}\label{part features}
+\part[]{Supplements}\label{part supplements}
 
 \subfile{chapters/opaque-return-types}
 

@@ -17,6 +17,7 @@
 
 #define DEBUG_TYPE "sil-generic-specializer"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/OptimizationRemark.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"

@@ -333,8 +333,8 @@ extension _StringGutsSlice {
     with other: _StringGutsSlice,
     expecting: _StringComparisonResult
   ) -> Bool {
-    var iter1 = Substring(self)._internalNFC.makeIterator()
-    var iter2 = Substring(other)._internalNFC.makeIterator()
+    var iter1 = Substring(self).unicodeScalars._internalNFC.makeIterator()
+    var iter2 = Substring(other).unicodeScalars._internalNFC.makeIterator()
 
     var scalar1: Unicode.Scalar? = nil
     var scalar2: Unicode.Scalar? = nil

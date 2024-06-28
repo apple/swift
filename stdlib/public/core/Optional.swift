@@ -132,7 +132,7 @@ public enum Optional<Wrapped: ~Copyable>: ~Copyable {
   case some(Wrapped)
 }
 
-extension Optional: Copyable /* where Wrapped: Copyable */ {}
+extension Optional: Copyable where Wrapped: Copyable {}
 
 extension Optional: Sendable where Wrapped: ~Copyable & Sendable { }
 
@@ -232,7 +232,7 @@ extension Optional where Wrapped: ~Copyable {
   ) throws(E) -> U? {
     #if compiler(>=6.0) && $NoncopyableGenerics
     switch self {
-    case .some(_borrowing y):
+    case .some(let y):
       return .some(try transform(y))
     case .none:
       return .none
@@ -310,7 +310,7 @@ extension Optional where Wrapped: ~Copyable {
   ) throws(E) -> U? {
     #if compiler(>=6.0) && $NoncopyableGenerics
     switch self {
-    case .some(_borrowing y):
+    case .some(let y):
       return try transform(y)
     case .none:
       return .none
@@ -418,8 +418,8 @@ extension Optional where Wrapped: ~Copyable {
   ///
   /// - Returns: The wrapped value being stored in this instance. If this
   ///   instance is `nil`, returns `nil`.
-  @_alwaysEmitIntoClient // FIXME(NCG): Make this public.
-  public mutating func _take() -> Self {
+  @_alwaysEmitIntoClient
+  public mutating func take() -> Self {
     let result = consume self
     self = nil
     return result
@@ -437,6 +437,7 @@ extension Optional: CustomDebugStringConvertible {
       #if !$Embedded
       debugPrint(value, terminator: "", to: &result)
       #else
+      _ = value
       "(cannot print value in embedded Swift)".write(to: &result)
       #endif
       result += ")"

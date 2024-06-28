@@ -30,6 +30,7 @@
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/ProtocolConformanceRef.h"
 #include "swift/ABI/MetadataValues.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace irgen;
@@ -472,7 +473,7 @@ static llvm::Value *addOptionRecord(IRGenFunction &IGF,
 }
 
 /// Add a task option record to the options list if the given value
-/// is presernt.
+/// is present.
 template <class RecordTraits>
 static llvm::Value *maybeAddOptionRecord(IRGenFunction &IGF,
                                          llvm::Value *curRecordPointer,
@@ -645,15 +646,15 @@ struct TaskGroupRecordTraits {
   }
 };
 
-struct InitialTaskExecutorRecordTraits {
+struct InitialTaskExecutorUnownedRecordTraits {
   static StringRef getLabel() {
-    return "task_executor";
+    return "task_executor_unowned";
   }
   static llvm::StructType *getRecordType(IRGenModule &IGM) {
-    return IGM.SwiftInitialTaskExecutorPreferenceTaskOptionRecordTy;
+    return IGM.SwiftInitialTaskExecutorUnownedPreferenceTaskOptionRecordTy;
   }
   static TaskOptionRecordFlags getRecordFlags() {
-    return TaskOptionRecordFlags(TaskOptionRecordKind::InitialTaskExecutor);
+    return TaskOptionRecordFlags(TaskOptionRecordKind::InitialTaskExecutorUnowned);
   }
   static CanType getValueType(ASTContext &ctx) {
     return ctx.TheExecutorType;
@@ -667,6 +668,36 @@ struct InitialTaskExecutorRecordTraits {
       IGF.Builder.CreateStructGEP(executorRecord, 0, Size()));
     IGF.Builder.CreateStore(taskExecutor.claimNext(),
       IGF.Builder.CreateStructGEP(executorRecord, 1, Size()));
+  }
+};
+
+struct InitialTaskExecutorOwnedRecordTraits {
+  static StringRef getLabel() {
+    return "task_executor_owned";
+  }
+  static llvm::StructType *getRecordType(IRGenModule &IGM) {
+    return IGM.SwiftInitialTaskExecutorOwnedPreferenceTaskOptionRecordTy;
+  }
+  static TaskOptionRecordFlags getRecordFlags() {
+    return TaskOptionRecordFlags(TaskOptionRecordKind::InitialTaskExecutorOwned);
+  }
+  static CanType getValueType(ASTContext &ctx) {
+    return OptionalType::get(ctx.getProtocol(KnownProtocolKind::TaskExecutor)
+                                 ->getDeclaredInterfaceType())
+        ->getCanonicalType();
+  }
+
+  void initialize(IRGenFunction &IGF, Address recordAddr,
+                  Explosion &taskExecutor) const {
+    auto executorRecord =
+      IGF.Builder.CreateStructGEP(recordAddr, 1, 2 * IGF.IGM.getPointerSize());
+
+    // This relies on the fact that the HeapObject is directly followed by a
+    // pointer to the witness table.
+    IGF.Builder.CreateStore(taskExecutor.claimNext(),
+        IGF.Builder.CreateStructGEP(executorRecord, 0, Size()));
+    IGF.Builder.CreateStore(taskExecutor.claimNext(),
+        IGF.Builder.CreateStructGEP(executorRecord, 1, Size()));
   }
 };
 
@@ -693,15 +724,25 @@ maybeAddInitialTaskExecutorOptionRecord(IRGenFunction &IGF,
                                         llvm::Value *prevOptions,
                                         OptionalExplosion &taskExecutor) {
   return maybeAddOptionRecord(IGF, prevOptions,
-                              InitialTaskExecutorRecordTraits(),
+                              InitialTaskExecutorUnownedRecordTraits(),
                               taskExecutor);
+}
+
+static llvm::Value *
+maybeAddInitialTaskExecutorOwnedOptionRecord(IRGenFunction &IGF,
+                                        llvm::Value *prevOptions,
+                                        OptionalExplosion &taskExecutorExistential) {
+  return maybeAddOptionRecord(IGF, prevOptions,
+                              InitialTaskExecutorOwnedRecordTraits(),
+                              taskExecutorExistential);
 }
 
 std::pair<llvm::Value *, llvm::Value *>
 irgen::emitTaskCreate(IRGenFunction &IGF, llvm::Value *flags,
                       OptionalExplosion &serialExecutor,
                       OptionalExplosion &taskGroup,
-                      OptionalExplosion &taskExecutor,
+                      OptionalExplosion &taskExecutorUnowned,
+                      OptionalExplosion &taskExecutorExistential,
                       Explosion &taskFunction,
                       SubstitutionMap subs) {
   llvm::Value *taskOptions =
@@ -729,8 +770,14 @@ irgen::emitTaskCreate(IRGenFunction &IGF, llvm::Value *flags,
   taskOptions = maybeAddTaskGroupOptionRecord(IGF, taskOptions, taskGroup);
 
   // Add an option record for the initial task executor, if present.
-  taskOptions =
-    maybeAddInitialTaskExecutorOptionRecord(IGF, taskOptions, taskExecutor);
+  {
+    // Deprecated: This is the UnownedTaskExecutor? which is NOT consuming
+    taskOptions = maybeAddInitialTaskExecutorOptionRecord(
+        IGF, taskOptions, taskExecutorUnowned);
+    // Take an (any TaskExecutor)? which we retain until task has completed
+    taskOptions = maybeAddInitialTaskExecutorOwnedOptionRecord(
+        IGF, taskOptions, taskExecutorExistential);
+  }
 
   // In embedded Swift, create and pass result type info.
   taskOptions = maybeAddEmbeddedSwiftResultTypeInfo(IGF, taskOptions, resultType);

@@ -35,7 +35,7 @@ func test() {
   // FIXME: -module-abi-name ABI name is leaking.
 
   let _: String = #fooMacro(1)
-  // expected-error @-1 {{typeMismatch(CompilerSwiftCompilerPluginMessageHandling.PluginToHostMessage}}
+  // expected-error @-1 {{typeMismatch(_CompilerSwiftCompilerPluginMessageHandling.PluginToHostMessage}}
   let _: String = #fooMacro(2)
   // expected-error @-1 {{failed to receive result from plugin (from macro 'fooMacro')}}
   let _: String = #fooMacro(3)

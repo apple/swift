@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Parse/Lexer.h"
 #include "swift/Refactoring/Refactoring.h"
 
@@ -146,6 +147,18 @@ void RenameRangeDetailCollector::splitAndRenameLabel(CharSourceRange Range,
     return splitAndRenameCallArg(Range, NameIndex);
   case LabelRangeType::Param:
     return splitAndRenameParamLabel(Range, NameIndex, /*IsCollapsible=*/true);
+  case LabelRangeType::EnumCaseParam:
+    if (Range.getByteLength() == 0) {
+      // If the associated value currently doesn't have a label, emit a
+      // `CallArgumentCombined` range, which will cause a new label followed by
+      // `:` to be inserted in the same fashion that call arguments get inserted
+      // to calls
+      return addRenameRange(Range, RefactoringRangeKind::CallArgumentCombined, NameIndex);
+    } else {
+      // If the associated value has a label already, we are in the same case as
+      // function parameters.
+      return splitAndRenameParamLabel(Range, NameIndex, /*IsCollapsible=*/true);
+    }
   case LabelRangeType::NoncollapsibleParam:
     return splitAndRenameParamLabel(Range, NameIndex,
                                     /*IsCollapsible=*/false);
@@ -248,6 +261,7 @@ bool RenameRangeDetailCollector::labelRangeMatches(CharSourceRange Range,
       LLVM_FALLTHROUGH;
     case LabelRangeType::CallArg:
     case LabelRangeType::Param:
+    case LabelRangeType::EnumCaseParam:
     case LabelRangeType::CompoundName:
       return ExistingLabel == (Expected.empty() ? "_" : Expected);
     case LabelRangeType::None:

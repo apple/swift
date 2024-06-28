@@ -260,12 +260,6 @@ public:
     return reinterpret_cast<const TaskExecutorWitnessTable*>(table);
   }
 
-//  /// Do we have to do any work to start running as the requested
-//  /// executor?
-//  bool mustSwitchToRun(TaskExecutorRef newExecutor) const {
-//    return Identity != newExecutor.Identity;
-//  }
-
   /// Get the raw value of the Implementation field, for tracing.
   uintptr_t getRawImplementation() const {
     return Implementation & WitnessTableMask;

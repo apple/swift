@@ -206,3 +206,23 @@ sil [ossa] @caller_specify_test : $@convention(thin) () -> () {
   %retval = apply %callee() : $@convention(thin) () -> ()
   return %retval : $()
 }
+
+
+// CHECK-LABEL: sil [ossa] @caller_extend_lifetime : {{.*}} {
+// CHECK:       bb0([[O:%[^,]+]] :
+// CHECK:         extend_lifetime [[O]]
+// CHECK-LABEL: } // end sil function 'caller_extend_lifetime'
+sil [always_inline] [ossa] @callee_extend_lifetime : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+entry(%o : @owned $Builtin.NativeObject):
+  br loop
+loop:
+  extend_lifetime %o : $Builtin.NativeObject
+  br loop
+}
+
+sil [ossa] @caller_extend_lifetime : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+entry(%o : @owned $Builtin.NativeObject):
+  %callee = function_ref @callee_extend_lifetime : $@convention(thin) (@owned Builtin.NativeObject) -> ()
+  %retval = apply %callee(%o) : $@convention(thin) (@owned Builtin.NativeObject) -> ()
+  return %retval : $()
+}

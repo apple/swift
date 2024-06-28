@@ -14,6 +14,7 @@
 
 #include "swift/SIL/FieldSensitivePrunedLiveness.h"
 #include "swift/AST/TypeExpansionContext.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/SmallBitVector.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
@@ -161,6 +162,12 @@ SubElementOffset::computeForAddress(SILValue projectionDerivedFromRoot,
     if (auto *oea =
             dyn_cast<OpenExistentialAddrInst>(projectionDerivedFromRoot)) {
       projectionDerivedFromRoot = oea->getOperand();
+      continue;
+    }
+
+    if (auto *iea =
+            dyn_cast<InitExistentialAddrInst>(projectionDerivedFromRoot)) {
+      projectionDerivedFromRoot = iea->getOperand();
       continue;
     }
 

@@ -7,6 +7,10 @@
 // RUN: %target-swift-frontend -typecheck -emit-const-values-path %t/ExtractFromMacroExpansion.swiftconstvalues -const-gather-protocols-file %t/protocols.json -primary-file %s -load-plugin-library %t/%target-library-name(MacroDefinition)
 // RUN: cat %t/ExtractFromMacroExpansion.swiftconstvalues 2>&1 | %FileCheck %s
 
+// Do the same, but ensure the WMO compilation flow produces the same result
+// RUN: %target-swift-frontend -typecheck -emit-const-values-path %t/ExtractFromMacroExpansionWMO.swiftconstvalues -const-gather-protocols-file %t/protocols.json -O %s -load-plugin-library %t/%target-library-name(MacroDefinition)
+// RUN: cat %t/ExtractFromMacroExpansionWMO.swiftconstvalues 2>&1 | %FileCheck %s
+
 protocol MyProto { }
 
 @freestanding(declaration, names: named(MacroAddedStruct))

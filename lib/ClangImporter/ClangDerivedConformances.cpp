@@ -14,6 +14,7 @@
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/ProtocolConformance.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/ClangImporter/ClangImporterRequests.h"
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/Overload.h"
@@ -392,6 +393,28 @@ static bool synthesizeCXXOperator(ClangImporter::Implementation &impl,
 
 bool swift::isIterator(const clang::CXXRecordDecl *clangDecl) {
   return getIteratorCategoryDecl(clangDecl);
+}
+
+ValueDecl *
+swift::importer::getImportedMemberOperator(const DeclBaseName &name,
+                                           NominalTypeDecl *selfType,
+                                           std::optional<Type> parameterType) {
+  assert(name.isOperator());
+  // Handle ==, -, and += operators, that are required operators for C++
+  // iterator types to conform to the corresponding Cxx iterator protocols.
+  // These operators can be instantiated and synthesized by clang importer below,
+  // and thus require additional lookup logic when they're being deserialized.
+  if (name.getIdentifier() == selfType->getASTContext().Id_EqualsOperator) {
+    return getEqualEqualOperator(selfType);
+  }
+  if (name.getIdentifier() == selfType->getASTContext().getIdentifier("-")) {
+    return getMinusOperator(selfType);
+  }
+  if (name.getIdentifier() == selfType->getASTContext().getIdentifier("+=") &&
+      parameterType) {
+    return getPlusEqualOperator(selfType, *parameterType);
+  }
+  return nullptr;
 }
 
 void swift::conformToCxxIteratorIfNeeded(
@@ -1018,4 +1041,91 @@ void swift::conformToCxxVectorIfNeeded(ClangImporter::Implementation &impl,
   impl.addSynthesizedTypealias(decl, ctx.getIdentifier("RawIterator"),
                                rawIteratorTy);
   impl.addSynthesizedProtocolAttrs(decl, {KnownProtocolKind::CxxVector});
+}
+
+void swift::conformToCxxFunctionIfNeeded(
+    ClangImporter::Implementation &impl, NominalTypeDecl *decl,
+    const clang::CXXRecordDecl *clangDecl) {
+  PrettyStackTraceDecl trace("conforming to CxxFunction", decl);
+
+  assert(decl);
+  assert(clangDecl);
+  ASTContext &ctx = decl->getASTContext();
+  clang::ASTContext &clangCtx = impl.getClangASTContext();
+  clang::Sema &clangSema = impl.getClangSema();
+
+  // Only auto-conform types from the C++ standard library. Custom user types
+  // might have a similar interface but different semantics.
+  if (!isStdDecl(clangDecl, {"function"}))
+    return;
+
+  // There is no typealias for the argument types on the C++ side, so to
+  // retrieve the argument types we look at the overload of `operator()` that
+  // got imported into Swift.
+
+  auto callAsFunctionDecl = lookupDirectSingleWithoutExtensions<FuncDecl>(
+      decl, ctx.getIdentifier("callAsFunction"));
+  if (!callAsFunctionDecl)
+    return;
+
+  auto operatorCallDecl = dyn_cast_or_null<clang::CXXMethodDecl>(
+      callAsFunctionDecl->getClangDecl());
+  if (!operatorCallDecl)
+    return;
+
+  std::vector<clang::QualType> operatorCallParamTypes;
+  llvm::transform(
+      operatorCallDecl->parameters(),
+      std::back_inserter(operatorCallParamTypes),
+      [](const clang::ParmVarDecl *paramDecl) { return paramDecl->getType(); });
+
+  auto funcPointerType = clangCtx.getPointerType(clangCtx.getFunctionType(
+      operatorCallDecl->getReturnType(), operatorCallParamTypes,
+      clang::FunctionProtoType::ExtProtoInfo())).withConst();
+
+  // Create a fake variable with a function type that matches the type of
+  // `operator()`.
+  auto fakeFuncPointerVarDecl = clang::VarDecl::Create(
+      clangCtx, /*DC*/ clangCtx.getTranslationUnitDecl(),
+      clang::SourceLocation(), clang::SourceLocation(), /*Id*/ nullptr,
+      funcPointerType, clangCtx.getTrivialTypeSourceInfo(funcPointerType),
+      clang::StorageClass::SC_None);
+  auto fakeFuncPointerRefExpr = new (clangCtx) clang::DeclRefExpr(
+      clangCtx, fakeFuncPointerVarDecl, false, funcPointerType,
+      clang::ExprValueKind::VK_LValue, clang::SourceLocation());
+
+  auto clangDeclTyInfo = clangCtx.getTrivialTypeSourceInfo(
+      clang::QualType(clangDecl->getTypeForDecl(), 0));
+  SmallVector<clang::Expr *, 1> constructExprArgs = {fakeFuncPointerRefExpr};
+
+  // Instantiate the templated constructor that would accept this fake variable.
+  auto constructExprResult = clangSema.BuildCXXTypeConstructExpr(
+      clangDeclTyInfo, clangDecl->getLocation(), constructExprArgs,
+      clangDecl->getLocation(), /*ListInitialization*/ false);
+  if (!constructExprResult.isUsable())
+    return;
+
+  auto castExpr = dyn_cast_or_null<clang::CastExpr>(constructExprResult.get());
+  if (!castExpr)
+    return;
+
+  auto bindTempExpr =
+      dyn_cast_or_null<clang::CXXBindTemporaryExpr>(castExpr->getSubExpr());
+  if (!bindTempExpr)
+    return;
+
+  auto constructExpr =
+      dyn_cast_or_null<clang::CXXConstructExpr>(bindTempExpr->getSubExpr());
+  if (!constructExpr)
+    return;
+
+  auto constructorDecl = constructExpr->getConstructor();
+
+  auto importedConstructor =
+      impl.importDecl(constructorDecl, impl.CurrentVersion);
+  if (!importedConstructor)
+    return;
+  decl->addMember(importedConstructor);
+
+  // TODO: actually conform to some form of CxxFunction protocol
 }

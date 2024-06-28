@@ -181,6 +181,13 @@ function(add_swift_compiler_modules_library name)
     # Workaround a crash in the LoadableByAddress pass
     # https://github.com/apple/swift/issues/73254
     list(APPEND swift_compile_options "-Xllvm" "-sil-disable-pass=loadable-address")
+
+    # The STL in VS 17.10 requires Clang 17 or higher, but bootstrapping generally uses toolchains with older versions
+    # versions of Clang. Swift 6 toolchains are the first to include Clang 17, so if we are on Windows and using an
+    # earlier toolchain, we need to relax to relax this requirement with ALLOW_COMPILER_AND_STL_VERSION_MISMATCH.
+    if (CMAKE_Swift_COMPILER_VERSION VERSION_LESS 6.0)
+      list(APPEND swift_compile_options "-Xcc" "-D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH")
+    endif()
   else()
     list(APPEND sdk_option "-I" "${swift_exec_bin_dir}/../lib" "-I" "${sdk_path}/usr/lib")
   endif()

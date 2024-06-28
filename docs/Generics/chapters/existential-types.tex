@@ -516,7 +516,7 @@ The next two kinds of self-conforming existential have protocol conformance requ
 
 TODO: example of working case here.
 
-The last two conditions are semantic, and not representational. If the last condition was not enforced, the below code would be accepted, despite not having a well-defined meaning---the \texttt{init()} requirement is being invoked on the protocol metatype itself, and not a concrete implementation of the protocol:
+The last two conditions are semantic, and not representational. If the last condition was not enforced, the below code would be accepted, despite not having a defined meaning---the \texttt{init()} requirement is being invoked on the protocol metatype itself, and not a concrete implementation of the protocol:
 \begin{Verbatim}
 @objc protocol Initable {
   init()

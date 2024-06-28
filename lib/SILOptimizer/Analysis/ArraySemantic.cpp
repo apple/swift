@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/SILOptimizer/Analysis/ArraySemantic.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILArgument.h"
@@ -815,7 +816,8 @@ bool swift::ArraySemanticsCall::replaceByAppendingValues(
     SILValue Args[] = {AllocStackInst, ArrRef};
     Builder.createApply(Loc, FnRef, Subs, Args);
     Builder.createDeallocStack(Loc, AllocStackInst);
-    if (!isConsumedParameter(AppendFnTy->getParameters()[0].getConvention())) {
+    if (!isConsumedParameterInCaller(
+            AppendFnTy->getParameters()[0].getConvention())) {
       ValLowering.emitDestroyValue(Builder, Loc, CopiedVal);
     }
   }

@@ -72,6 +72,9 @@ class Swift(product.Product):
         # Add synchronization flag.
         self.cmake_options.extend(self._enable_synchronization)
 
+        # Add volatile flag.
+        self.cmake_options.extend(self._enable_volatile)
+
         # Add static vprintf flag
         self.cmake_options.extend(self._enable_stdlib_static_vprintf)
 
@@ -81,6 +84,8 @@ class Swift(product.Product):
         self.cmake_options.extend(self._build_swift_private_stdlib)
 
         self.cmake_options.extend(self._enable_stdlib_unicode_data)
+
+        self.cmake_options.extend(self._enable_embedded_stdlib_cross_compiling)
 
         self.cmake_options.extend(
             self._swift_tools_ld64_lto_codegen_only_for_supporting_targets)
@@ -220,6 +225,11 @@ updated without updating swift.py?")
                  self.args.enable_synchronization)]
 
     @property
+    def _enable_volatile(self):
+        return [('SWIFT_ENABLE_VOLATILE:BOOL',
+                 self.args.enable_volatile)]
+
+    @property
     def _enable_stdlib_static_vprintf(self):
         return [('SWIFT_STDLIB_STATIC_PRINT',
                  self.args.build_swift_stdlib_static_print)]
@@ -248,6 +258,11 @@ updated without updating swift.py?")
     def _enable_experimental_parser_validation(self):
         return [('SWIFT_ENABLE_EXPERIMENTAL_PARSER_VALIDATION:BOOL',
                  self.args.enable_experimental_parser_validation)]
+
+    @property
+    def _enable_embedded_stdlib_cross_compiling(self):
+        return [('SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB_CROSS_COMPILING',
+                 self.args.build_embedded_stdlib_cross_compiling)]
 
     def _handle_swift_debuginfo_non_lto_args(self):
         if ('swift_debuginfo_non_lto_args' not in self.args

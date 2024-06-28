@@ -47,8 +47,7 @@ void actor_dequeue(HeapObject *actor, Job *job);
 // State values are:
 // Idle = 0, Scheduled = 1, Running = 2, Zombie_ReadyForDeallocation = 3,
 // invalid/unknown = 255
-void actor_state_changed(HeapObject *actor, Job *firstJob,
-                         bool needsPreprocessing, uint8_t state,
+void actor_state_changed(HeapObject *actor, Job *firstJob, uint8_t state,
                          bool isDistributedRemote, bool isPriorityEscalated,
                          uint8_t maxPriority);
 

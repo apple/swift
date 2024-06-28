@@ -66,4 +66,4 @@ func testKeyPathAccessorsForOptionalStorageComponents() {
   _ = \ObjCProtocol.flag
 }
 
-// CHECK-macosx-x86_64: sil [transparent] [serialized] @$s10ObjectiveC22_convertObjCBoolToBoolySbAA0cD0VF : $@convention(thin) (ObjCBool) -> Bool
+// CHECK-macosx-x86_64: sil [transparent] [serialized] {{.*}}@$s10ObjectiveC22_convertObjCBoolToBoolySbAA0cD0VF : $@convention(thin) (ObjCBool) -> Bool

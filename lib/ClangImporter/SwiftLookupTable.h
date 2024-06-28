@@ -549,7 +549,7 @@ public:
   /// entities should reside.
   SmallVector<SingleEntry, 4>
   lookupGlobalsAsMembers(SerializedSwiftName baseName,
-                         std::optional<EffectiveClangContext> searchContext);
+                         EffectiveClangContext searchContext);
 
   SmallVector<SingleEntry, 4>
   allGlobalsAsMembersInContext(EffectiveClangContext context);

@@ -159,3 +159,20 @@ func f_56075() -> Int {
   }
   func appendix() {} // no-warning
 }
+
+// https://github.com/apple/swift/issues/73649
+func testUnreachableExistential() {
+  protocol P {
+    func run()
+  }
+
+  func unreachableExistential(_ it: any P) -> Bool {
+    return true
+    it.run() // expected-warning {{code after 'return' will never be executed}}
+  }
+
+  func unreachableOptionalChainedExistential(_ it: (any P)?) -> Bool {
+    return false
+    it?.run() // expected-warning {{code after 'return' will never be executed}}
+  }
+}

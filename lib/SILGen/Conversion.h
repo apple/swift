@@ -17,6 +17,7 @@
 #ifndef SWIFT_LOWERING_CONVERSION_H
 #define SWIFT_LOWERING_CONVERSION_H
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/ExternalUnion.h"
 #include "Initialization.h"
 #include "SGFContext.h"

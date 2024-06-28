@@ -30,6 +30,7 @@
 #include "swift/AST/ModuleLoader.h"
 #include "swift/AST/Pattern.h"
 #include "swift/AST/TypeDifferenceVisitor.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Compiler.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/Basic/Version.h"
@@ -324,7 +325,7 @@ public:
       }
     }
     Cached.File = getOrCreateFile(
-        SM.getDisplayNameForLoc(SL, !ForceGeneratedSourceToDisk), Source);
+        SM.getDisplayNameForLoc(SL, ForceGeneratedSourceToDisk), Source);
     std::tie(Cached.Line, Cached.Column) =
         SM.getPresumedLineAndColumnForLoc(SL);
     // When WinDbg finds two locations with the same line but different

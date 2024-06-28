@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -O %s -emit-sil -o /dev/null
+// RUN: %target-swift-frontend -O %s -enable-ossa-modules -emit-sil -o /dev/null
 
 public class X {}
 

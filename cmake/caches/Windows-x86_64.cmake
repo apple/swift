@@ -129,6 +129,7 @@ set(CLANG_TOOLS
       clang
       clangd
       clang-deps-launcher
+      clang-features-file
       clang-format
       clang-resource-headers
       clang-scan-deps

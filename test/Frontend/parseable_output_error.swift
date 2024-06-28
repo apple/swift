@@ -1,6 +1,6 @@
-// RUN: not %target-swift-frontend -primary-file %s -o %t.out -emit-module -emit-module-path %t.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
+// RUN: not %target-swift-frontend -c -primary-file %s -o %t.out -emit-module -emit-module-path %t.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
 // Check without primary files (WMO):
-// RUN: not %target-swift-frontend %s -o %t.out -emit-module -emit-module-path %t.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
+// RUN: not %target-swift-frontend -c %s -o %t.out -emit-module -emit-module-path %t.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
 
 func foo() {
     return 11;

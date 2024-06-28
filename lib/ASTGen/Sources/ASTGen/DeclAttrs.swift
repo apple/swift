@@ -288,7 +288,6 @@ extension ASTGenVisitor {
         .override,
         .indirect,
         .final,
-        .resultDependsOnSelf,
         .knownToBeLocal,
         .compileTimeConst:
 

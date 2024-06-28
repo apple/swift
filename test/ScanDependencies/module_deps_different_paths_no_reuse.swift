@@ -27,6 +27,8 @@ import A
 // CHECK-INITIAL-SCAN-DAG:          "swift": "Swift"
 // CHECK-INITIAL-SCAN-DAG:          "swift": "SwiftOnoneSupport"
 // CHECK-INITIAL-SCAN:      ],
+// CHECK-INITIAL-SCAN-NEXT:      "linkLibraries": [
+// CHECK-INITIAL-SCAN-NEXT:      ],
 // CHECK-INITIAL-SCAN-NEXT:      "details": {
 // CHECK-INITIAL-SCAN-NEXT:        "swift": {
 // CHECK-INITIAL-SCAN-NEXT:          "moduleInterfacePath": "{{.*}}/Swift/A.swiftinterface",
@@ -39,6 +41,8 @@ import A
 // CHECK-DIFFERENT-DAG:          "swift": "Swift"
 // CHECK-DIFFERENT-DAG:          "swift": "SwiftOnoneSupport"
 // CHECK-DIFFERENT:      ],
+// CHECK-DIFFERENT-NEXT:      "linkLibraries": [
+// CHECK-DIFFERENT-NEXT:      ],
 // CHECK-DIFFERENT-NEXT:      "details": {
 // CHECK-DIFFERENT-NEXT:        "swift": {
 // CHECK-DIFFERENT-NEXT:          "moduleInterfacePath": "{{.*}}/SwiftDifferent/A.swiftinterface",

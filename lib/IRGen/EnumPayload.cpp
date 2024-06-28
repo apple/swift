@@ -15,6 +15,7 @@
 #include "Explosion.h"
 #include "GenEnum.h"
 #include "IRGenModule.h"
+#include "swift/Basic/Assertions.h"
 
 #include <algorithm>
 #include <map>

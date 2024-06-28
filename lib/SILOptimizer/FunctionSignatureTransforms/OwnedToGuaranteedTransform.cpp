@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "fso-owned-to-guaranteed-transform"
 #include "FunctionSignatureOpts.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/AST/SemanticAttrs.h"
 #include "llvm/Support/CommandLine.h"

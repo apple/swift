@@ -63,6 +63,7 @@
 
 #include "PropertyMap.h"
 #include "RewriteSystem.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace rewriting;
@@ -174,7 +175,7 @@ void RewriteSystem::buildRewritePathForJoiningTerms(MutableTerm lhsTerm,
 
   path->append(lhsPath);
 
-  assert(lhsTerm == rhsTerm);
+  CONDITIONAL_ASSERT(lhsTerm == rhsTerm);
 }
 
 /// Given two concrete type rules (T.[LHS] => T) and (T.[RHS] => T) and
@@ -283,7 +284,7 @@ void RewriteSystem::processTypeDifference(const TypeDifference &difference,
 /// RewriteSystem::getTypeDifference().
 std::optional<unsigned> RewriteSystem::simplifySubstitutions(
     Term baseTerm, Symbol symbol, const PropertyMap *map, RewritePath *path) {
-  assert(symbol.hasSubstitutions());
+  ASSERT(symbol.hasSubstitutions());
 
   // Fast path if the type is fully concrete.
   auto substitutions = symbol.getSubstitutions();
@@ -347,12 +348,12 @@ std::optional<unsigned> RewriteSystem::simplifySubstitutions(
     if (path) {
       // The rewrite path should consist of a Decompose, followed by a number
       // of Shifts, followed by a Compose.
-  #ifndef NDEBUG
-      for (auto iter = path->begin() + oldSize; iter < path->end(); ++iter) {
-        assert(iter->Kind == RewriteStep::Shift ||
-               iter->Kind == RewriteStep::Decompose);
+      if (CONDITIONAL_ASSERT_enabled()) {
+        for (auto iter = path->begin() + oldSize; iter < path->end(); ++iter) {
+          ASSERT(iter->Kind == RewriteStep::Shift ||
+                 iter->Kind == RewriteStep::Decompose);
+        }
       }
-  #endif
 
       path->resize(oldSize);
     }
@@ -362,7 +363,7 @@ std::optional<unsigned> RewriteSystem::simplifySubstitutions(
   auto difference = buildTypeDifference(baseTerm, symbol,
                                         sameTypes, concreteTypes,
                                         Context);
-  assert(difference.LHS != difference.RHS);
+  ASSERT(difference.LHS != difference.RHS);
 
   unsigned differenceID = recordTypeDifference(difference);
 
@@ -399,8 +400,8 @@ void RewriteSystem::simplifyLeftHandSideSubstitutions(const PropertyMap *map) {
       continue;
 
     auto difference = getTypeDifference(*differenceID);
-    assert(difference.LHS == symbol);
-    assert(difference.RHS != symbol);
+    ASSERT(difference.LHS == symbol);
+    ASSERT(difference.RHS != symbol);
 
     MutableTerm rhs(rule.getRHS());
     MutableTerm lhs(rhs);

@@ -19,7 +19,6 @@ protocol MyProtocol {}
 // LIBRARY-DAG: Keyword[func]/None:                 func; name=func
 // LIBRARY-DAG: Keyword[import]/None:               import; name=import
 // LIBRARY-DAG: Keyword[init]/None:                 init; name=init
-// LIBRARY-DAG: Keyword[inout]/None:                inout; name=inout
 // LIBRARY-DAG: Keyword[operator]/None:             operator; name=operator
 // LIBRARY-DAG: Keyword[precedencegroup]/None:      precedencegroup; name=precedencegroup
 // LIBRARY-DAG: Keyword[protocol]/None/Flair[CommonKeyword]: protocol; name=protocol
@@ -86,7 +85,6 @@ protocol MyProtocol {}
 // SCRIPT-DAG: Keyword[func]/None:                 func; name=func
 // SCRIPT-DAG: Keyword[import]/None:               import; name=import
 // SCRIPT-DAG: Keyword[init]/None:                 init; name=init
-// SCRIPT-DAG: Keyword[inout]/None:                inout; name=inout
 // SCRIPT-DAG: Keyword[operator]/None:             operator; name=operator
 // SCRIPT-DAG: Keyword[precedencegroup]/None:      precedencegroup; name=precedencegroup
 // SCRIPT-DAG: Keyword[protocol]/None:             protocol; name=protocol

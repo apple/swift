@@ -13,7 +13,7 @@
 import TestsUtils
 
 public var benchmarks: [BenchmarkInfo] {
-  guard #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *) else {
+  guard #available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *) else {
     return []
   }
   return [
@@ -82,7 +82,7 @@ let _asciiString = #"""
   """#
 let asciiString = String(repeating: _asciiString, count: 10)
 
-@available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, *)
+@available(macOS 14.0, iOS 17.0, watchOS 10.0, tvOS 17.0, *)
 func run(string: String, n: Int) {
   var state = Unicode._CharacterRecognizer()
   var c = 0

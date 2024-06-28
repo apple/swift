@@ -1195,7 +1195,7 @@ public:
         genericParamCounts(genericParamCounts) {}
 
   MetadataOrPack getMetadata(unsigned depth, unsigned index) const;
-  MetadataOrPack getMetadataOrdinal(unsigned ordinal) const;
+  MetadataOrPack getMetadataFullOrdinal(unsigned ordinal) const;
   const WitnessTable *getWitnessTable(const Metadata *type,
                                       unsigned index) const;
 };
@@ -1415,8 +1415,8 @@ _gatherGenericParameters(const ContextDescriptor *context,
         [&substitutions](unsigned depth, unsigned index) {
           return substitutions.getMetadata(depth, index).Ptr;
         },
-        [&substitutions](unsigned ordinal) {
-          return substitutions.getMetadataOrdinal(ordinal).Ptr;
+        [&substitutions](unsigned fullOrdinal, unsigned keyOrdinal) {
+          return substitutions.getMetadataFullOrdinal(fullOrdinal).Ptr;
         },
         [&substitutions](const Metadata *type, unsigned index) {
           return substitutions.getWitnessTable(type, index);
@@ -1849,12 +1849,12 @@ public:
           // FIXME: variadic generics
           return genArgs[index].getMetadata();
         },
-        [genArgs](unsigned ordinal) {
-          if (ordinal >= genArgs.size())
+        [genArgs](unsigned fullOrdinal, unsigned keyOrdinal) {
+          if (fullOrdinal >= genArgs.size())
             return (const Metadata*)nullptr;
 
           // FIXME: variadic generics
-          return genArgs[ordinal].getMetadata();
+          return genArgs[fullOrdinal].getMetadata();
         },
         [](const Metadata *type, unsigned index) -> const WitnessTable * {
           swift_unreachable("never called");
@@ -2814,8 +2814,8 @@ swift_distributed_getWitnessTables(GenericEnvironmentDescriptor *genericEnv,
       [&substFn](unsigned depth, unsigned index) {
         return substFn.getMetadata(depth, index).Ptr;
       },
-      [&substFn](unsigned ordinal) {
-        return substFn.getMetadataOrdinal(ordinal).Ptr;
+      [&substFn](unsigned fullOrdinal, unsigned keyOrdinal) {
+        return substFn.getMetadataKeyArgOrdinal(keyOrdinal).Ptr;
       },
       [&substFn](const Metadata *type, unsigned index) {
         return substFn.getWitnessTable(type, index);
@@ -3243,8 +3243,8 @@ SubstGenericParametersFromMetadata::getMetadata(
   return MetadataOrPack(genericArgs[flatIndex]);
 }
 
-MetadataOrPack
-SubstGenericParametersFromMetadata::getMetadataOrdinal(unsigned ordinal) const {
+MetadataOrPack SubstGenericParametersFromMetadata::getMetadataKeyArgOrdinal(
+    unsigned ordinal) const {
   // Don't attempt anything if we have no generic parameters.
   if (genericArgs == nullptr)
     return MetadataOrPack();
@@ -3281,8 +3281,8 @@ MetadataOrPack SubstGenericParametersFromWrittenArgs::getMetadata(
   return MetadataOrPack();
 }
 
-MetadataOrPack SubstGenericParametersFromWrittenArgs::getMetadataOrdinal(
-                                        unsigned ordinal) const {
+MetadataOrPack SubstGenericParametersFromWrittenArgs::getMetadataFullOrdinal(
+    unsigned ordinal) const {
   if (ordinal < allGenericArgs.size()) {
     return MetadataOrPack(allGenericArgs[ordinal]);
   }

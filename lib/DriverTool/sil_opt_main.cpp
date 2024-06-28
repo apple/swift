@@ -17,6 +17,7 @@
 
 #include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/AST/SILOptions.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Basic/InitializeSwiftModules.h"
 #include "swift/Basic/LLVMInitialize.h"
@@ -571,22 +572,6 @@ struct SILOptOptions {
       "Xcc",
       llvm::cl::desc("option to pass to clang"));
 
-  llvm::cl::opt<bool> DisableRegionBasedIsolationWithStrictConcurrency =
-      llvm::cl::opt<bool>(
-          "disable-region-based-isolation-with-strict-concurrency",
-          llvm::cl::init(false));
-
-  llvm::cl::opt<bool>
-      DisableTransferringArgsAndResultsWithRegionBasedIsolation = llvm::cl::opt<
-          bool>(
-          "disable-transferring-args-and-results-with-region-based-isolation",
-          llvm::cl::init(false));
-
-  llvm::cl::opt<bool> DisableSendingArgsAndResultsWithRegionBasedIsolation =
-      llvm::cl::opt<bool>(
-          "disable-sending-args-and-results-with-region-based-isolation",
-          llvm::cl::init(false));
-
   llvm::cl::opt<std::string> SwiftVersionString = llvm::cl::opt<std::string>(
       "swift-version",
       llvm::cl::desc(
@@ -800,22 +785,8 @@ int sil_opt_main(ArrayRef<const char *> argv, void *MainAddr) {
 
   // If we have strict concurrency set as a feature and were told to turn off
   // region based isolation... do so now.
-  if (Invocation.getLangOptions().hasFeature(Feature::StrictConcurrency) &&
-      !options.DisableRegionBasedIsolationWithStrictConcurrency) {
+  if (Invocation.getLangOptions().hasFeature(Feature::StrictConcurrency)) {
     Invocation.getLangOptions().enableFeature(Feature::RegionBasedIsolation);
-  }
-
-  if (Invocation.getLangOptions().hasFeature(Feature::RegionBasedIsolation)) {
-    if (!options.DisableTransferringArgsAndResultsWithRegionBasedIsolation)
-      Invocation.getLangOptions().enableFeature(
-          Feature::TransferringArgsAndResults);
-    if (!options.DisableSendingArgsAndResultsWithRegionBasedIsolation)
-      Invocation.getLangOptions().enableFeature(Feature::SendingArgsAndResults);
-  }
-
-  if (Invocation.getLangOptions().hasFeature(
-          Feature::TransferringArgsAndResults)) {
-    Invocation.getLangOptions().enableFeature(Feature::SendingArgsAndResults);
   }
 
   Invocation.getDiagnosticOptions().VerifyMode =

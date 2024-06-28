@@ -36,6 +36,7 @@
 namespace swift {
 class ASTContext;
 class ModuleDecl;
+class ImportDecl;
 
 // MARK: - Fundamental import enums
 
@@ -101,6 +102,8 @@ enum class ImportFlags {
 using ImportOptions = OptionSet<ImportFlags>;
 
 void simple_display(llvm::raw_ostream &out, ImportOptions options);
+
+ImportOptions getImportOptions(ImportDecl *ID);
 
 // MARK: - Import Paths
 

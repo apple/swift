@@ -446,3 +446,29 @@ public class F<T> {
 public func testClosureMethodParam<T>(f: F<T>) throws {
   try f.test { return f.t! }
 }
+
+struct AddressOnlyNoncopyableStruct: ~Copyable {
+  let x: Any = 123
+
+  borrowing func hello() {}
+}
+
+func simpleNonescapingClosure(with body: () -> ()) {
+  body()
+}
+
+// CHECK-LABEL: s22closure_lifetime_fixup27trySimpleNonescapingClosure
+// CHECK: [[FIRST:%.*]] = alloc_stack [var_decl] $AddressOnlyNoncopyableStruct, let, name "foo"
+// CHECK: [[SECOND:%.*]] = alloc_stack [var_decl] $AddressOnlyNoncopyableStruct, let, name "bar"
+// CHECK: [[PA:%.*]] = partial_apply [callee_guaranteed] [on_stack] %{{.*}}([[FIRST]], [[SECOND]])
+// CHECK: [[MD_ONE:%.*]] = mark_dependence [nonescaping] [[PA]] : $@noescape @callee_guaranteed () -> () on [[FIRST]] : $*AddressOnlyNoncopyableStruct
+// CHECK: [[MD_TWO:%.*]] = mark_dependence [nonescaping] [[MD_ONE]] : $@noescape @callee_guaranteed () -> () on [[SECOND]] : $*AddressOnlyNoncopyableStruct
+func trySimpleNonescapingClosure() {
+  let foo = AddressOnlyNoncopyableStruct()
+  let bar = AddressOnlyNoncopyableStruct()
+
+  simpleNonescapingClosure {
+    foo.hello() // OK
+    bar.hello() // OK
+  }
+}

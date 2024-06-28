@@ -59,7 +59,7 @@ const uint16_t SWIFTMODULE_VERSION_MAJOR = 0;
 /// it just ensures a conflict if two people change the module format.
 /// Don't worry about adhering to the 80-column limit for this line.
 const uint16_t SWIFTMODULE_VERSION_MINOR =
-    875; // Add package field to SerializedKind_t
+    878; // immortal bit in LifetimeDependence
 
 /// A standard hash seed used for all string hashes in a serialized module.
 ///
@@ -389,6 +389,7 @@ enum class ParameterConvention : uint8_t {
   Pack_Owned,
   Pack_Inout,
   Pack_Guaranteed,
+  Indirect_In_CXX,
 };
 using ParameterConventionField = BCFixed<4>;
 
@@ -862,11 +863,11 @@ namespace control_block {
     MODULE_NAME,
     TARGET,
     SDK_NAME,
-    SDK_VERSION,
     REVISION,
-    CHANNEL,
     IS_OSSA,
     ALLOWABLE_CLIENT_NAME,
+    CHANNEL,
+    SDK_VERSION,
   };
 
   using MetadataLayout = BCRecordLayout<
@@ -897,18 +898,8 @@ namespace control_block {
     BCBlob
   >;
 
-  using SDKVersionLayout = BCRecordLayout<
-    SDK_VERSION,
-    BCBlob
-  >;
-
   using RevisionLayout = BCRecordLayout<
     REVISION,
-    BCBlob
-  >;
-
-  using ChannelLayout = BCRecordLayout<
-    CHANNEL,
     BCBlob
   >;
 
@@ -919,6 +910,16 @@ namespace control_block {
 
   using AllowableClientLayout = BCRecordLayout<
     ALLOWABLE_CLIENT_NAME,
+    BCBlob
+  >;
+
+  using ChannelLayout = BCRecordLayout<
+    CHANNEL,
+    BCBlob
+  >;
+
+  using SDKVersionLayout = BCRecordLayout<
+    SDK_VERSION,
     BCBlob
   >;
 }
@@ -1268,7 +1269,6 @@ namespace decls_block {
                      BCFixed<1>,              // isolated
                      BCFixed<1>,              // noDerivative?
                      BCFixed<1>,              // compileTimeConst
-                     BCFixed<1>,              // _resultDependsOn
                      BCFixed<1>               // transferring
                      >;
 
@@ -2166,7 +2166,8 @@ namespace decls_block {
     BCFixed<1>, // implicit
     TypeIDField, // like type
     BCVBR<32>, // size
-    BCVBR<8> // alignment
+    BCVBR<8>, // alignment
+    BCFixed<1> // movesAsLike
   >;
   
   using SwiftNativeObjCRuntimeBaseDeclAttrLayout = BCRecordLayout<
@@ -2213,6 +2214,7 @@ namespace decls_block {
 
   using LifetimeDependenceLayout =
       BCRecordLayout<LIFETIME_DEPENDENCE,
+                     BCFixed<1>,         // isImmortal
                      BCFixed<1>,         // hasInheritLifetimeParamIndices
                      BCFixed<1>,         // hasScopeLifetimeParamIndices
                      BCArray<BCFixed<1>> // concatenated param indices

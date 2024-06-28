@@ -591,9 +591,7 @@ ProtocolConformance *deriveImplicitSendableConformance(Evaluator &evaluator,
 /// Check whether we are in an actor's initializer or deinitializer.
 /// \returns nullptr iff we are not in such a declaration. Otherwise,
 ///          returns a pointer to the declaration.
-AbstractFunctionDecl const *isActorInitOrDeInitContext(
-    const DeclContext *dc,
-    llvm::function_ref<bool(const AbstractClosureExpr *)> isSendable);
+const AbstractFunctionDecl *isActorInitOrDeInitContext(const DeclContext *dc);
 
 /// Determine whether this declaration is always accessed asynchronously.
 bool isAsyncDecl(ConcreteDeclRef declRef);

@@ -168,6 +168,7 @@ endfunction()
 #   SWIFT_SDK_${prefix}_IS_SIMULATOR              Whether this is a simulator target.
 #   SWIFT_SDK_${prefix}_ARCH_${ARCH}_TRIPLE       Triple name
 #   SWIFT_SDK_${prefix}_ARCH_${ARCH}_MODULE       Module triple name for this SDK
+#   SWIFT_SDK_${prefix}_USE_BUILD_ID              Whether to pass --build-id to the linker
 macro(configure_sdk_darwin
     prefix name deployment_version xcrun_name
     triple_name module_name architectures)
@@ -215,6 +216,9 @@ macro(configure_sdk_darwin
   set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED FALSE)
   set(SWIFT_SDK_${prefix}_STATIC_ONLY FALSE)
   get_threading_package(${prefix} "darwin" SWIFT_SDK_${prefix}_THREADING_PACKAGE)
+
+  # On Darwin we get UUIDs automatically, without the --build-id flag
+  set(SWIFT_SDK_${prefix}_USE_BUILD_ID FALSE)
 
   set(SWIFT_SDK_${prefix}_ARCHITECTURES ${architectures})
   if(SWIFT_DARWIN_SUPPORTED_ARCHS)
@@ -333,6 +337,15 @@ macro(configure_sdk_unix name architectures)
     set(SWIFT_SDK_${prefix}_STATIC_ONLY TRUE)
   else()
     set(SWIFT_SDK_${prefix}_STATIC_ONLY FALSE)
+  endif()
+
+  if("${prefix}" STREQUAL "LINUX"
+      OR "${prefix}" STREQUAL "ANDROID"
+      OR "${prefix}" STREQUAL "FREEBSD"
+      OR "${prefix}" STREQUAL "OPENBSD")
+    set(SWIFT_SDK_${prefix}_USE_BUILD_ID TRUE)
+  else()
+    set(SWIFT_SDK_${prefix}_USE_BUILD_ID FALSE)
   endif()
 
   # GCC on Linux is usually located under `/usr`.
@@ -494,6 +507,7 @@ macro(configure_sdk_windows name environment architectures)
   set(SWIFT_SDK_${prefix}_IMPORT_LIBRARY_SUFFIX ".lib")
   set(SWIFT_SDK_${prefix}_STATIC_LINKING_SUPPORTED FALSE)
   set(SWIFT_SDK_${prefix}_STATIC_ONLY FALSE)
+  set(SWIFT_SDK_${prefix}_USE_BUILD_ID FALSE)
   get_threading_package(${prefix} "win32" SWIFT_SDK_${prefix}_THREADING_PACKAGE)
 
   foreach(arch ${architectures})

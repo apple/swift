@@ -13,6 +13,7 @@
 #include "swift/SILOptimizer/Utils/GenericCloner.h"
 
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/OwnershipUtils.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILBasicBlock.h"
@@ -143,7 +144,8 @@ void GenericCloner::populateCloned() {
           // Store the new direct parameter to an alloc_stack.
           createAllocStack();
           SILValue addr;
-          if (NewArg->getArgumentConvention().isGuaranteedConvention() &&
+          if (NewArg->getArgumentConvention()
+                  .isGuaranteedConventionInCallee() &&
               NewArg->getFunction()->hasOwnership()) {
             auto *sbi = getBuilder().createStoreBorrow(Loc, NewArg, ASI);
             StoreBorrowsToCleanup.push_back(sbi);

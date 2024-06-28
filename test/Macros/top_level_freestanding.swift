@@ -60,7 +60,7 @@ func lookupGlobalFreestandingExpansion() {
 
 #anonymousTypes(public: true) { "hello" }
 
-// CHECK-SIL: sil @$s9MacroUser03$s9A70User33_082AE7CFEFA6960C804A9FE7366EB5A0Ll14anonymousTypesfMf_4namefMu_C5helloSSyF
+// CHECK-SIL: sil @$s9MacroUser03$s9A115User0033top_level_freestandingswift_DbGHjfMX60_0_33_082AE7CFEFA6960C804A9FE7366EB5A0Ll14anonymousTypesfMf_4namefMu_C5helloSSyF
 
 @main
 struct Main {
@@ -94,8 +94,8 @@ func testArbitraryAtGlobal() {
 }
 #endif
 
-// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser33_{{.*}}9stringifyfMf1_{{.*}}warning: 'deprecated()' is deprecated
-// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser33_{{.*}}9stringifyfMf2_{{.*}}warning: 'deprecated()' is deprecated
+// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser0039top_level_freestanding_otherswift_jrGEmfMX12_17_33_7FDB3F9D78D0279543373AD342C3C331Ll9stringifyfMf1{{.*}}: warning: 'deprecated()' is deprecated
+// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser0039top_level_freestanding_otherswift_jrGEmfMX16_17_33_7FDB3F9D78D0279543373AD342C3C331Ll9stringifyfMf2{{.*}}: warning: 'deprecated()' is deprecated
 
 #varValue
 
@@ -107,8 +107,8 @@ func testGlobalVariable() {
 
 // expected-note @+1 6 {{in expansion of macro 'anonymousTypes' here}}
 #anonymousTypes(causeErrors: true) { "foo" }
-// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser33{{.*}}anonymousTypesfMf0_{{.*}}error: use of protocol 'Equatable' as a type must be written 'any Equatable'
-// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser03{{.*}}anonymousTypes{{.*}}introduceTypeCheckingErrorsfMf_{{.*}}error: use of protocol 'Hashable' as a type must be written 'any Hashable'
+// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser0033top_level_freestandingswift_DbGHjfMX108_0_33_082AE7CFEFA6960C804A9FE7366EB5A0Ll14anonymousTypesfMf0_{{.*}}: error: use of protocol 'Equatable' as a type must be written 'any Equatable'
+// DIAG_BUFFERS-DAG: @__swiftmacro_9MacroUser00142___swiftmacro_9MacroUser0033top_level_freestandingswift_DbGHjfMX108_0_33_082AE7CFEFA6960C804A9FE7366EB5A0Ll14anonymousTypesfMf0_swift_DAIABdjIbfMX23_2_33_082AE7CFEFA6960C804A9FE7366EB5A0Ll27introduceTypeCheckingErrorsfMf_{{.*}}: error: use of protocol 'Hashable' as a type must be written 'any Hashable'
 
 // expected-note @+1 2 {{in expansion of macro 'anonymousTypes' here}}
 #anonymousTypes { () -> String in

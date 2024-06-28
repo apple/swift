@@ -18,6 +18,7 @@
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsModuleDiffer.h"
 #include "swift/APIDigester/ModuleDiagsConsumer.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 

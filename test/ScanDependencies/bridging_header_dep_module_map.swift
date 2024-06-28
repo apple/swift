@@ -49,7 +49,18 @@
 // CHECK-DAG:    "clang": "Dart"
 // CHECK: ],
 // CHECK: "commandLine": [
-// CHECK: "-fmodule-map-file={{.*}}{{/|\\}}CHeaders{{/|\\}}module.modulemap"
+// CHECK: "-Xcc"
+// CHECK-NEXT: "-fno-implicit-modules"
+// CHECK: "-Xcc"
+// CHECK-NEXT: "-fno-implicit-module-maps"
+// CHECK-DAG: "-Xcc",
+// CHECK-NEXT: "-fmodule-file=Dart={{.*}}"
+// CHECK-DAG: "-Xcc"
+// CHECK-NEXT: "-fmodule-map-file={{.*}}{{/|\\}}CHeaders{{/|\\}}module.modulemap"
+// CHECK-DAG: "-Xcc",
+// CHECK-NEXT: "-fmodule-file=SwiftShims={{.*}}"
+// CHECK-DAG: "-Xcc",
+// CHECK-NEXT: "-fmodule-file=X={{.*}}"
 // CHECK-NOT: "-fmodule-map-file={{.*}}{{/|\\}}TestCHeaders{{/|\\}}module.modulemap"
 // CHECK: ]
 

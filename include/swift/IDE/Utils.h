@@ -465,15 +465,34 @@ enum class RegionType {
 };
 
 enum class RefactoringRangeKind {
-  BaseName,                    // func [foo](a b: Int)
-  KeywordBaseName,             // [init](a: Int)
-  ParameterName,               // func foo(a[ b]: Int)
-  NoncollapsibleParameterName, // subscript(a[ a]: Int)
-  DeclArgumentLabel,           // func foo([a] b: Int)
-  CallArgumentLabel,           // foo([a]: 1)
-  CallArgumentColon,           // foo(a[: ]1)
-  CallArgumentCombined,        // foo([]1) could expand to foo([a: ]1)
-  SelectorArgumentLabel,       // foo([a]:)
+  /// `func [foo](a b: Int)`
+  BaseName,
+  
+  /// `[init](a: Int)`
+  KeywordBaseName,
+  
+  /// `func foo(a[ b]: Int)`
+  ParameterName,
+  
+  /// `subscript(a[ a]: Int)`
+  NoncollapsibleParameterName,
+  
+  /// `func foo([a] b: Int)`
+  DeclArgumentLabel,
+  
+  /// `foo([a]: 1)`
+  CallArgumentLabel,
+  
+  /// `foo(a[: ]1)`
+  CallArgumentColon,
+  
+  /// `foo([]1) could expand to foo([a: ]1)`
+  /// Also used for enum case declarations without a label, eg.
+  /// `case foo([]String)` should expand to `case foo([a: ]String)`.
+  CallArgumentCombined,
+
+  /// `foo([a]:)`
+  SelectorArgumentLabel,
 };
 
 struct NoteRegion {

@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -target %target-cpu-apple-macosx10.50 -enable-experimental-feature IsolatedAny
+// RUN: %target-typecheck-verify-swift -target %target-cpu-apple-macosx10.50
 
 // REQUIRES: OS=macosx
 

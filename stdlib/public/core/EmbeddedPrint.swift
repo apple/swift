@@ -36,7 +36,7 @@ public func print(_ string: StaticString, terminator: StaticString = "\n") {
 @_disfavoredOverload
 public func print(_ string: String, terminator: StaticString = "\n") {
   var string = string
-  _ = string.withUTF8 { buf in
+  string.withUTF8 { buf in
     for c in buf {
       putchar(CInt(c))
     }
@@ -51,7 +51,7 @@ public func print(_ string: String, terminator: StaticString = "\n") {
 @_disfavoredOverload
 public func print(_ object: some CustomStringConvertible, terminator: StaticString = "\n") {
   var string = object.description
-  _ = string.withUTF8 { buf in
+  string.withUTF8 { buf in
     for c in buf {
       putchar(CInt(c))
     }

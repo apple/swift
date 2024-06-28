@@ -1,5 +1,4 @@
-// RUN: %empty-directory(%t)
-// RUN: %target-swift-ide-test -batch-code-completion -source-filename %s -filecheck %raw-FileCheck -completion-output-dir %t -module-name "Mod"
+// RUN: %batch-code-completion -module-name "Mod"
 
 protocol BaseP1 {}
 protocol BaseP2 {}

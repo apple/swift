@@ -22,6 +22,7 @@
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/Basic/STLExtras.h"
 #include "RequirementMachine/RequirementMachine.h"
@@ -1282,9 +1283,7 @@ void GenericSignatureImpl::getRequirementsWithInverses(
 
   // Filter out explicit conformances to invertible protocols.
   for (auto req : getRequirements()) {
-    if (req.getKind() == RequirementKind::Conformance &&
-        req.getFirstType()->is<GenericTypeParamType>() &&
-        req.getProtocolDecl()->getInvertibleProtocolKind()) {
+    if (req.isInvertibleProtocolRequirement()) {
       continue;
     }
 

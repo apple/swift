@@ -103,4 +103,4 @@ L<https://developer.apple.com/swift/resources>
 
 Swift Programming Language at L<https://github.com/apple/swift>
 
-Swift Package Manager at L<https://github.com/apple/swift-package-manager>
+Swift Package Manager at L<https://github.com/swiftlang/swift-package-manager>

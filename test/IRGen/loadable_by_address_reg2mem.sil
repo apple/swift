@@ -296,3 +296,21 @@ bb0(%0 : $*union_t):
   dealloc_stack %1 : $*union_t
   return %13 : $()
 }
+
+// This test case used to crash because we did not handle `mark_dependence`.
+sil @test12 : $@convention(thin) () -> () {
+bb0:
+  %0 = alloc_stack $X
+  %1 = alloc_stack $Y
+  %2 = alloc_stack $X
+  %3 = load %0 : $*X
+  %4 = load %2 : $*X
+  %5 = mark_dependence %3 : $X on %4 : $X
+  %6 = struct $Y (%5 : $X , %5 : $X)
+  store %6 to %1 : $*Y
+  dealloc_stack %2 : $*X
+  dealloc_stack %1 : $*Y
+  dealloc_stack %0 : $*X
+  %t = tuple ()
+  return %t : $()
+}

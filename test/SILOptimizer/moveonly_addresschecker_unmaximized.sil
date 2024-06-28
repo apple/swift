@@ -23,6 +23,7 @@ struct M4: ~Copyable {
 
 sil @get_M4 : $@convention(thin) () -> @owned M4
 sil @end_2 : $@convention(thin) (@owned M, @owned M) -> ()
+sil @see_addr : $@convention(thin) (@in_guaranteed M) -> ()
 sil @see_addr_2 : $@convention(thin) (@in_guaranteed M, @in_guaranteed M) -> ()
 sil @replace_2 : $@convention(thin) (@inout M, @inout M) -> ()
 sil @get_out_2 : $@convention(thin) () -> (@out M, @out M)
@@ -235,3 +236,20 @@ bb0(%m_in : @owned $M):
   apply %die(%pa) : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> @owned String) -> Never
   unreachable
 }
+
+// CHECK-LABEL: sil [ossa] @dont_destroy_store_borrowed_addr : {{.*}} {
+// CHECK-NOT:     destroy_addr
+// CHECK-LABEL: } // end sil function 'dont_destroy_store_borrowed_addr'
+sil [ossa] @dont_destroy_store_borrowed_addr : $@convention(thin) (@guaranteed M) -> () {
+bb0(%0 : @guaranteed $M):
+  %stack = alloc_stack $M
+  %mark = mark_unresolved_non_copyable_value [consumable_and_assignable] %stack : $*M
+  %borrow = store_borrow %0 to %mark : $*M
+  %see_addr = function_ref @see_addr : $@convention(thin) (@in_guaranteed M) -> ()
+  apply %see_addr(%borrow) : $@convention(thin) (@in_guaranteed M) -> ()
+  end_borrow %borrow : $*M
+  dealloc_stack %stack : $*M
+  %retval = tuple ()
+  return %retval : $()
+}
+

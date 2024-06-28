@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/Parse/ParseBridging.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Bridging/ASTGen.h"
 #include "swift/Parse/Parser.h"
 

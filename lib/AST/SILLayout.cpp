@@ -29,6 +29,7 @@
 #include "swift/AST/SILLayout.h"
 #include "swift/AST/GenericSignature.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Range.h"
 
 using namespace swift;

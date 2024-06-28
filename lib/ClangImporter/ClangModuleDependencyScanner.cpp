@@ -18,6 +18,7 @@
 #include "swift/AST/ModuleDependencies.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/ClangImporter/ClangImporter.h"
+#include "swift/Basic/Assertions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendOptions.h"
@@ -285,12 +286,19 @@ ModuleDependencyVector ClangImporter::bridgeClangModuleDependencies(
     if (Mapper)
       Mapper->mapInPlace(mappedPCMPath);
 
+    std::vector<LinkLibrary> LinkLibraries;
+    for (const auto &ll : clangModuleDep.LinkLibraries)
+      LinkLibraries.push_back(
+        {ll.Library,
+         ll.IsFramework ? LibraryKind::Framework : LibraryKind::Library});
+
     // Module-level dependencies.
     llvm::StringSet<> alreadyAddedModules;
     auto dependencies = ModuleDependencyInfo::forClangModule(
         pcmPath, mappedPCMPath, clangModuleDep.ClangModuleMapFile,
         clangModuleDep.ID.ContextHash, swiftArgs, fileDeps, capturedPCMArgs,
-        RootID, IncludeTree, /*module-cache-key*/ "", clangModuleDep.IsSystem);
+        LinkLibraries, RootID, IncludeTree, /*module-cache-key*/ "",
+        clangModuleDep.IsSystem);
     for (const auto &moduleName : clangModuleDep.ClangModuleDeps) {
       dependencies.addModuleImport(moduleName.ModuleName, &alreadyAddedModules);
       // It is safe to assume that all dependencies of a Clang module are Clang modules.

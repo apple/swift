@@ -64,12 +64,12 @@ FEATURE(ConcurrencyDiscardingTaskGroup,                 (5, 9))
 FEATURE(ConcurrencyDistributedActorWithCustomExecutor,  (5, 9))
 FEATURE(SignedDescriptor,                               (5, 9))
 
-FEATURE(ObjCSymbolicReferences,                         (5, 11))
-FEATURE(TypedThrows,                                    (5, 11))
-FEATURE(StaticReadOnlyArrays,                           (5, 11))
-FEATURE(SwiftExceptionPersonality,                      (5, 11))
+FEATURE(ObjCSymbolicReferences,                         (6, 0))
+FEATURE(TypedThrows,                                    (6, 0))
+FEATURE(StaticReadOnlyArrays,                           (6, 0))
+FEATURE(SwiftExceptionPersonality,                      (6, 0))
 // Metadata support for @isolated(any) function types
-FEATURE(IsolatedAny,                                    (5, 11))
+FEATURE(IsolatedAny,                                    (6, 0))
 
 FEATURE(TaskExecutor,                                   FUTURE)
 FEATURE(Differentiation,                                FUTURE)

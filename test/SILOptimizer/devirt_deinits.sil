@@ -273,6 +273,16 @@ bb0(%0 : $*S4):
   return %r : $()
 }
 
+// CHECK-LABEL: sil [ossa] @nonCopyable_generic :
+// CHECK:         destroy_addr %0
+// CHECK:       } // end sil function 'nonCopyable_generic'
+sil [ossa] @nonCopyable_generic : $@convention(thin) <T where T : ~Copyable> (@in T) -> () {
+bb0(%0 : $*T):
+  destroy_addr %0 : $*T
+  %r = tuple ()
+  return %r : $()
+}
+
 sil @s1_deinit : $@convention(method) (@owned S1) -> ()
 sil @s2_deinit : $@convention(method) (@owned S2) -> ()
 sil @s3_deinit : $@convention(method) <T> (@in S3<T>) -> ()

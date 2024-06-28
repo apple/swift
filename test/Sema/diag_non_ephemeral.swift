@@ -537,5 +537,5 @@ func testTuplingNonEphemeral(_ ptr: UnsafePointer<Int>) {
 
   // Note we can't perform X-to-pointer conversions in this case even if we
   // wanted to.
-  fn(([1], ptr)) // expected-error {{tuple type '([Int], UnsafePointer<Int>)' is not convertible to tuple type '(UnsafePointer<Int>, UnsafePointer<Int>)'}}
+  fn(([1], ptr)) // expected-error {{cannot convert value of type '([Int], UnsafePointer<Int>)' to expected argument type '(UnsafePointer<Int>, UnsafePointer<Int>)'}}
 }

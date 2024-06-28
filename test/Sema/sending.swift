@@ -10,14 +10,12 @@ func test_good(_ x: sending Int) {}
 
 func test_consuming_after_sending(_ x: sending consuming Int) {} // expected-error {{'sending' must be placed after specifier 'consuming'}}
 
-func test_borrowing_after_sending(_ x: sending borrowing Int) {} // expected-error {{'sending' must be placed after specifier 'borrowing'}}
-
 func test_inout_after_sending(_ x: sending inout Int) {} // expected-error {{'sending' must be placed after specifier 'inout'}}
 
 func test_repeated_sending(_ x: sending sending Int) {} // expected-error {{parameter may have at most one 'sending' specifier}}
 
-func test_repeated_sending_mixed(_ x: sending borrowing sending inout Int) {}
-// expected-error @-1 {{'sending' must be placed after specifier 'borrowing'}}
+func test_repeated_sending_mixed(_ x: sending consuming sending inout Int) {}
+// expected-error @-1 {{'sending' must be placed after specifier 'consuming'}}
 // expected-error @-2 {{parameter may have at most one 'sending' specifier}}
 // expected-error @-3 {{parameter may have at most one of the 'inout', 'borrowing', or 'consuming' specifiers}}
 

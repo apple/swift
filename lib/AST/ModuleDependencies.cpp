@@ -17,6 +17,8 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/AST/DiagnosticsSema.h"
+#include "swift/AST/MacroDefinition.h"
+#include "swift/AST/PluginLoader.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/Frontend/Frontend.h"
 #include "llvm/CAS/CASProvidingFileSystem.h"
@@ -103,6 +105,21 @@ void ModuleDependencyInfo::addTestableImport(ImportPath::Module module) {
   dyn_cast<SwiftSourceModuleDependenciesStorage>(storage.get())->addTestableImport(module);
 }
 
+void ModuleDependencyInfo::addMacroDependency(StringRef macroModuleName,
+                                              StringRef libraryPath,
+                                              StringRef executablePath) {
+  if (auto swiftSourceStorage =
+          dyn_cast<SwiftSourceModuleDependenciesStorage>(storage.get()))
+    swiftSourceStorage->addMacroDependency(macroModuleName, libraryPath,
+                                           executablePath);
+  else if (auto swiftInterfaceStorage =
+               dyn_cast<SwiftInterfaceModuleDependenciesStorage>(storage.get()))
+    swiftInterfaceStorage->addMacroDependency(macroModuleName, libraryPath,
+                                              executablePath);
+  else
+    llvm_unreachable("Unexpected dependency kind");
+}
+
 bool ModuleDependencyInfo::isTestableImport(StringRef moduleName) const {
   if (auto swiftSourceDepStorage = getAsSwiftSourceModule())
     return swiftSourceDepStorage->testableImports.contains(moduleName);
@@ -183,35 +200,45 @@ void ModuleDependencyInfo::addModuleImports(
   SmallVector<Decl *, 32> decls;
   sourceFile.getTopLevelDecls(decls);
   for (auto decl : decls) {
-    auto importDecl = dyn_cast<ImportDecl>(decl);
-    if (!importDecl)
-      continue;
+    if (auto importDecl = dyn_cast<ImportDecl>(decl)) {
+      ImportPath::Builder scratch;
+      auto realPath = importDecl->getRealModulePath(scratch);
 
-    ImportPath::Builder scratch;
-    auto realPath = importDecl->getRealModulePath(scratch);
+      // Explicit 'Builtin' import is not a part of the module's
+      // dependency set, does not exist on the filesystem,
+      // and is resolved within the compiler during compilation.
+      SmallString<64> importedModuleName;
+      realPath.getString(importedModuleName);
+      if (importedModuleName == BUILTIN_NAME)
+        continue;
 
-    // Explicit 'Builtin' import is not a part of the module's
-    // dependency set, does not exist on the filesystem,
-    // and is resolved within the compiler during compilation.
-    SmallString<64> importedModuleName;
-    realPath.getString(importedModuleName);
-    if (importedModuleName == BUILTIN_NAME)
-      continue;
+      // Ignore/diagnose tautological imports akin to import resolution
+      if (!swift::dependencies::checkImportNotTautological(
+              realPath, importDecl->getLoc(), sourceFile,
+              importDecl->isExported()))
+        continue;
 
-    // Ignore/diagnose tautological imports akin to import resolution
-    if (!swift::dependencies::checkImportNotTautological(
-            realPath, importDecl->getLoc(), sourceFile,
-            importDecl->isExported()))
-      continue;
+      addModuleImport(realPath, &alreadyAddedModules, sourceManager,
+                      importDecl->getLoc());
 
-    addModuleImport(realPath, &alreadyAddedModules,
-                    sourceManager, importDecl->getLoc());
-
-    // Additionally, keep track of which dependencies of a Source
-    // module are `@Testable`.
-    if (getKind() == swift::ModuleDependencyKind::SwiftSource &&
-        importDecl->isTestable())
-      addTestableImport(realPath);
+      // Additionally, keep track of which dependencies of a Source
+      // module are `@Testable`.
+      if (getKind() == swift::ModuleDependencyKind::SwiftSource &&
+          importDecl->isTestable())
+        addTestableImport(realPath);
+    } else if (auto macroDecl = dyn_cast<MacroDecl>(decl)) {
+      auto macroDef = macroDecl->getDefinition();
+      auto &ctx = macroDecl->getASTContext();
+      if (macroDef.kind != MacroDefinition::Kind::External)
+        continue;
+      auto external = macroDef.getExternalMacro();
+      PluginLoader &loader = ctx.getPluginLoader();
+      auto &entry = loader.lookupPluginByModuleName(external.moduleName);
+      if (entry.libraryPath.empty() && entry.executablePath.empty())
+        continue;
+      addMacroDependency(external.moduleName.str(), entry.libraryPath,
+                         entry.executablePath);
+    }
   }
 
   auto fileName = sourceFile.getFilename();
@@ -483,7 +510,7 @@ SwiftDependencyScanningService::SwiftDependencyScanningService() {
 }
 
 bool
-swift::dependencies::checkImportNotTautological(const ImportPath::Module modulePath, 
+swift::dependencies::checkImportNotTautological(const ImportPath::Module modulePath,
                                                 const SourceLoc importLoc,
                                                 const SourceFile &SF,
                                                 bool isExported) {
@@ -507,6 +534,80 @@ swift::dependencies::checkImportNotTautological(const ImportPath::Module moduleP
                        filename, modulePath.front().Item);
 
   return false;
+}
+
+void
+swift::dependencies::registerCxxInteropLibraries(
+    const llvm::Triple &Target,
+    StringRef mainModuleName,
+    bool hasStaticCxx, bool hasStaticCxxStdlib,
+    std::function<void(const LinkLibrary&)> RegistrationCallback) {
+  if (Target.isOSDarwin())
+    RegistrationCallback(LinkLibrary("c++", LibraryKind::Library));
+  else if (Target.isOSLinux())
+    RegistrationCallback(LinkLibrary("stdc++", LibraryKind::Library));
+
+  // Do not try to link Cxx with itself.
+  if (mainModuleName != "Cxx") {
+    RegistrationCallback(LinkLibrary(Target.isOSWindows() && hasStaticCxx
+                                        ? "libswiftCxx"
+                                        : "swiftCxx",
+                                     LibraryKind::Library));
+  }
+
+  // Do not try to link CxxStdlib with the C++ standard library, Cxx or
+  // itself.
+  if (llvm::none_of(llvm::ArrayRef{"Cxx", "CxxStdlib", "std"},
+                    [mainModuleName](StringRef Name) {
+                      return mainModuleName == Name;
+                    })) {
+    // Only link with CxxStdlib on platforms where the overlay is available.
+    switch (Target.getOS()) {
+    case llvm::Triple::Win32: {
+      RegistrationCallback(
+          LinkLibrary(hasStaticCxxStdlib ? "libswiftCxxStdlib" : "swiftCxxStdlib",
+                      LibraryKind::Library));
+      break;
+    }
+    default:
+      if (Target.isOSDarwin() || Target.isOSLinux())
+        RegistrationCallback(LinkLibrary("swiftCxxStdlib",
+                                         LibraryKind::Library));
+      break;
+    }
+  }
+}
+
+void
+swift::dependencies::registerBackDeployLibraries(
+    const IRGenOptions &IRGenOpts,
+    std::function<void(const LinkLibrary&)> RegistrationCallback) {
+  auto addBackDeployLib = [&](llvm::VersionTuple version,
+                              StringRef libraryName, bool forceLoad) {
+    std::optional<llvm::VersionTuple> compatibilityVersion;
+    if (libraryName == "swiftCompatibilityDynamicReplacements") {
+      compatibilityVersion = IRGenOpts.
+          AutolinkRuntimeCompatibilityDynamicReplacementLibraryVersion;
+    } else if (libraryName == "swiftCompatibilityConcurrency") {
+      compatibilityVersion =
+          IRGenOpts.AutolinkRuntimeCompatibilityConcurrencyLibraryVersion;
+    } else {
+      compatibilityVersion = IRGenOpts.
+          AutolinkRuntimeCompatibilityLibraryVersion;
+    }
+
+    if (!compatibilityVersion)
+      return;
+
+    if (*compatibilityVersion > version)
+      return;
+
+    RegistrationCallback({libraryName, LibraryKind::Library, forceLoad});
+  };
+
+#define BACK_DEPLOYMENT_LIB(Version, Filter, LibraryName, ForceLoad) \
+    addBackDeployLib(llvm::VersionTuple Version, LibraryName, ForceLoad);
+  #include "swift/Frontend/BackDeploymentLibs.def"
 }
 
 void SwiftDependencyTracker::addCommonSearchPathDeps(
@@ -534,58 +635,6 @@ void SwiftDependencyTracker::addCommonSearchPathDeps(
   // Add VFSOverlay file.
   for (auto &Overlay: Opts.VFSOverlayFiles)
     FS->status(Overlay);
-
-  // Add plugin dylibs from the toolchain only by look through the plugin search
-  // directory.
-  auto recordFiles = [&](StringRef Path) {
-    std::error_code EC;
-    for (auto I = FS->dir_begin(Path, EC);
-         !EC && I != llvm::vfs::directory_iterator(); I = I.increment(EC)) {
-      if (I->type() != llvm::sys::fs::file_type::regular_file)
-        continue;
-#if defined(_WIN32)
-      constexpr StringRef libPrefix{};
-      constexpr StringRef libSuffix = ".dll";
-#else
-      constexpr StringRef libPrefix = "lib";
-      constexpr StringRef libSuffix = LTDL_SHLIB_EXT;
-#endif
-      StringRef filename = llvm::sys::path::filename(I->path());
-      if (filename.starts_with(libPrefix) && filename.ends_with(libSuffix))
-        FS->status(I->path());
-    }
-  };
-  for (auto &entry : Opts.PluginSearchOpts) {
-    switch (entry.getKind()) {
-
-    // '-load-plugin-library <library path>'.
-    case PluginSearchOption::Kind::LoadPluginLibrary: {
-      auto &val = entry.get<PluginSearchOption::LoadPluginLibrary>();
-      FS->status(val.LibraryPath);
-      break;
-    }
-
-    // '-load-plugin-executable <executable path>#<module name>, ...'.
-    case PluginSearchOption::Kind::LoadPluginExecutable: {
-      // We don't have executable plugin in toolchain.
-      break;
-    }
-
-    // '-plugin-path <library search path>'.
-    case PluginSearchOption::Kind::PluginPath: {
-      auto &val = entry.get<PluginSearchOption::PluginPath>();
-      recordFiles(val.SearchPath);
-      break;
-    }
-
-    // '-external-plugin-path <library search path>#<server path>'.
-    case PluginSearchOption::Kind::ExternalPluginPath: {
-      auto &val = entry.get<PluginSearchOption::ExternalPluginPath>();
-      recordFiles(val.SearchPath);
-      break;
-    }
-    }
-  }
 }
 
 void SwiftDependencyTracker::startTracking() {

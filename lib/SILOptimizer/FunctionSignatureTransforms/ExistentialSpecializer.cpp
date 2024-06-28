@@ -17,6 +17,7 @@
 
 #define DEBUG_TYPE "sil-existential-specializer"
 #include "ExistentialTransform.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SILOptimizer/Analysis/ProtocolConformanceAnalysis.h"
@@ -194,14 +195,14 @@ bool ExistentialSpecializer::canSpecializeExistentialArgsInFunction(
     // into an existential if it is non-consuming (if it's consuming, it's
     // moved into the existential via `copy_addr [take]`).  Introducing a copy
     // of a move-only value isn't legal.
-    if (!paramInfo.isConsumed() &&
+    if (!paramInfo.isConsumedInCallee() &&
         paramInfo.getSILStorageInterfaceType().isMoveOnly())
       continue;
 
-    ETAD.AccessType = paramInfo.isConsumed()
+    ETAD.AccessType = paramInfo.isConsumedInCallee()
                           ? OpenedExistentialAccess::Mutable
                           : OpenedExistentialAccess::Immutable;
-    ETAD.isConsumed = paramInfo.isConsumed();
+    ETAD.isConsumed = paramInfo.isConsumedInCallee();
 
     /// Save the attributes
     ExistentialArgDescriptor[Idx] = ETAD;

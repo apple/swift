@@ -520,11 +520,6 @@ BridgedBasicBlock BridgedArgument::getParent() const {
   return {getArgument()->getParent()};
 }
 
-bool BridgedArgument::hasResultDependsOn() const {
-  auto *fArg = static_cast<swift::SILFunctionArgument*>(getArgument());
-  return fArg->hasResultDependsOn();
-}
-
 bool BridgedArgument::isReborrow() const { return getArgument()->isReborrow(); }
 
 BridgedNullableVarDecl BridgedArgument::getVarDecl() const {
@@ -692,8 +687,8 @@ bool BridgedFunction::hasUnsafeNonEscapableResult() const {
   return getFunction()->hasUnsafeNonEscapableResult();
 }
 
-bool BridgedFunction::hasResultDependsOnSelf() const {
-  return getFunction()->hasResultDependsOnSelf();
+bool BridgedFunction::hasDynamicSelfMetadata() const {
+  return getFunction()->hasDynamicSelfMetadata();
 }
 
 BridgedFunction::EffectsKind BridgedFunction::getEffectAttribute() const {
@@ -720,8 +715,20 @@ bool BridgedFunction::isSerialized() const {
   return getFunction()->isSerialized();
 }
 
-bool BridgedFunction::hasValidLinkageForFragileRef() const {
-  return getFunction()->hasValidLinkageForFragileRef();
+bool BridgedFunction::isAnySerialized() const {
+  return getFunction()->isAnySerialized();
+}
+
+BridgedFunction::SerializedKind BridgedFunction::getSerializedKind() const {
+  return (SerializedKind)getFunction()->getSerializedKind();
+}
+
+bool BridgedFunction::canBeInlinedIntoCaller(SerializedKind kind) const {
+  return getFunction()->canBeInlinedIntoCaller(swift::SerializedKind_t(kind));
+}
+
+bool BridgedFunction::hasValidLinkageForFragileRef(SerializedKind kind) const {
+  return getFunction()->hasValidLinkageForFragileRef(swift::SerializedKind_t(kind));
 }
 
 bool BridgedFunction::needsStackProtection() const {

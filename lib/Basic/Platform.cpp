@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Platform.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -470,7 +471,13 @@ swift::getSwiftRuntimeCompatibilityVersionForTarget(
         return floorFor64(llvm::VersionTuple(5, 5));
       return floorFor64(llvm::VersionTuple(5, 6));
     } else if (Major == 13) {
-      return floorFor64(llvm::VersionTuple(5, 7));
+      if (Minor <= 2)
+        return floorFor64(llvm::VersionTuple(5, 7));
+      return floorFor64(llvm::VersionTuple(5, 8));
+    } else if (Major == 14) {
+      if (Minor <= 3)
+        return floorFor64(llvm::VersionTuple(5, 9));
+      return floorFor64(llvm::VersionTuple(5, 10));
     }
   } else if (Triple.isiOS()) { // includes tvOS
     llvm::VersionTuple OSVersion = Triple.getiOSVersion();
@@ -510,7 +517,13 @@ swift::getSwiftRuntimeCompatibilityVersionForTarget(
         return floorForArchitecture(llvm::VersionTuple(5, 5));
       return floorForArchitecture(llvm::VersionTuple(5, 6));
     } else if (Major <= 16) {
-      return floorForArchitecture(llvm::VersionTuple(5, 7));
+      if (Minor <= 3)
+        return floorForArchitecture(llvm::VersionTuple(5, 7));
+      return floorForArchitecture(llvm::VersionTuple(5, 8));
+    } else if (Major <= 17) {
+      if (Minor <= 3)
+        return floorForArchitecture(llvm::VersionTuple(5, 9));
+      return floorForArchitecture(llvm::VersionTuple(5, 10));
     }
   } else if (Triple.isWatchOS()) {
     llvm::VersionTuple OSVersion = Triple.getWatchOSVersion();
@@ -541,11 +554,25 @@ swift::getSwiftRuntimeCompatibilityVersionForTarget(
         return floorFor64bits(llvm::VersionTuple(5, 5));
       return floorFor64bits(llvm::VersionTuple(5, 6));
     } else if (Major <= 9) {
-      return floorFor64bits(llvm::VersionTuple(5, 7));
+      if (Minor <= 3)
+        return floorFor64bits(llvm::VersionTuple(5, 7));
+      return floorFor64bits(llvm::VersionTuple(5, 8));
+    } else if (Major <= 10) {
+      if (Minor <= 3)
+        return floorFor64bits(llvm::VersionTuple(5, 9));
+      return floorFor64bits(llvm::VersionTuple(5, 10));
     }
   }
   else if (Triple.isXROS()) {
-    return std::nullopt;
+    llvm::VersionTuple OSVersion = Triple.getOSVersion();
+    unsigned Major = OSVersion.getMajor();
+    unsigned Minor = OSVersion.getMinor().value_or(0);
+
+    if (Major <= 1) {
+      if (Minor <= 0)
+        return llvm::VersionTuple(5, 9);
+      return llvm::VersionTuple(5, 10);
+    }
   }
 
   return std::nullopt;

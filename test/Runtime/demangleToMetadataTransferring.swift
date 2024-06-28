@@ -1,5 +1,5 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-build-swift -enable-experimental-feature TransferringArgsAndResults -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete  -Xfrontend -disable-availability-checking -parse-stdlib %s -module-name main -o %t/a.out
+// RUN: %target-build-swift -strict-concurrency=complete  -Xfrontend -disable-availability-checking -parse-stdlib %s -module-name main -o %t/a.out
 // RUN: %target-codesign %t/a.out
 // RUN: %target-run %t/a.out
 

@@ -108,6 +108,7 @@
 #include "swift/AST/Expr.h"
 #include "swift/AST/IRGenOptions.h"
 #include "swift/AST/LazyResolver.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/SIL/SILModule.h"
 #include "llvm/IR/CFG.h"

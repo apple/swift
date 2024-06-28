@@ -31,3 +31,8 @@ module SwiftOverlayShims {
   header "LibcOverlayShims.h"
   export *
 }
+
+module _SynchronizationShims {
+  header "_SynchronizationShims.h"
+  export *
+}

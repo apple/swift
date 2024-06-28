@@ -59,6 +59,9 @@ _ = true ? x : 1.2 // expected-error {{result values in '? :' expression have mi
 _ = (x: true) ? true : false // expected-error {{cannot convert value of type '(x: Bool)' to expected condition type 'Bool'}}
 _ = (x: 1) ? true : false // expected-error {{cannot convert value of type '(x: Int)' to expected condition type 'Bool'}}
 
+func resultBool() -> Bool { true }
+_ = resultBool ? true : false // expected-error {{function 'resultBool' was used as a property; add () to call it}} {{15-15=()}}
+
 let ib: Bool! = false
 let eb: Bool? = .some(false)
 let conditional = ib ? "Broken" : "Heart" // should infer Bool!

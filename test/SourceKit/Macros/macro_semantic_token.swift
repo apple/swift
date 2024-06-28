@@ -11,8 +11,11 @@ macro anonymousTypes(_: () -> String) = #externalMacro(module: "MacroDefinition"
 //##-- Prepare the macro plugin.
 // RUN: %host-build-swift -swift-version 5 -emit-library -o %t/%target-library-name(MacroDefinition) -module-name=MacroDefinition %S/../../Macros/Inputs/syntax_macro_definitions.swift -g -no-toolchain-stdlib-rpath
 
+// This command just dumps the SILGen in case the buffer name changes and you need to find it. It will always pass.
+// RUN: %target-swift-frontend -primary-file %s -swift-version 5 -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser -emit-silgen
+
 // Check the output of the `#anonymousTypes` macro
-// RUN: %sourcekitd-test -req=semantic-tokens @__swiftmacro_9MacroUser33_8C2BB8A10AE555140C0EDFDEB4A9572DLl14anonymousTypesfMf_.swift -primary-file %s -- -swift-version 5 -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser %s | %FileCheck %s --check-prefix IN_BUFFER
+// RUN: %sourcekitd-test -req=semantic-tokens @__swiftmacro_9MacroUser0031macro_semantic_tokenswift_yFFIifMX4_0_33_8C2BB8A10AE555140C0EDFDEB4A9572DLl14anonymousTypesfMf_.swift -primary-file %s -- -swift-version 5 -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser %s | %FileCheck %s --check-prefix IN_BUFFER
 
 // Check that we get some semantic tokens. Checking exact offsets is brittle.
 // IN_BUFFER: source.lang.swift.ref.struct

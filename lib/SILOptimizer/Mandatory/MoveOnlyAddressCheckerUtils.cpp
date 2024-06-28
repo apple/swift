@@ -228,6 +228,7 @@
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsSIL.h"
 #include "swift/AST/SemanticAttrs.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FrozenMultiMap.h"
@@ -429,6 +430,7 @@ static bool visitScopeEndsRequiringInit(
     case SILArgumentConvention::Indirect_In:
     case SILArgumentConvention::Indirect_Out:
     case SILArgumentConvention::Indirect_In_Guaranteed:
+    case SILArgumentConvention::Indirect_In_CXX:
     case SILArgumentConvention::Direct_Guaranteed:
     case SILArgumentConvention::Direct_Owned:
     case SILArgumentConvention::Direct_Unowned:
@@ -1023,6 +1025,7 @@ void UseState::initializeLiveness(
       case swift::SILArgumentConvention::Indirect_In_Guaranteed:
       case swift::SILArgumentConvention::Indirect_Inout:
       case swift::SILArgumentConvention::Indirect_InoutAliasable:
+      case swift::SILArgumentConvention::Indirect_In_CXX:
         // We need to add our address to the initInst array to make sure that
         // later invariants that we assert upon remain true.
         LLVM_DEBUG(
@@ -1258,6 +1261,13 @@ void UseState::initializeLiveness(
                             << *livenessInstAndValue.first;
                liveness.print(llvm::dbgs()));
   }
+  
+  auto updateForLivenessAccess = [&](BeginAccessInst *beginAccess,
+                                     const SmallBitVector &livenessMask) {
+    for (auto *endAccess : beginAccess->getEndAccesses()) {
+      liveness.updateForUse(endAccess, livenessMask, false /*lifetime ending*/);
+    }
+  };
 
   for (auto livenessInstAndValue : nonconsumingUses) {
     if (auto *lbi = dyn_cast<LoadBorrowInst>(livenessInstAndValue.first)) {
@@ -1265,16 +1275,15 @@ void UseState::initializeLiveness(
           AccessPathWithBase::computeInScope(lbi->getOperand());
       if (auto *beginAccess =
               dyn_cast_or_null<BeginAccessInst>(accessPathWithBase.base)) {
-        for (auto *endAccess : beginAccess->getEndAccesses()) {
-          liveness.updateForUse(endAccess, livenessInstAndValue.second,
-                                false /*lifetime ending*/);
-        }
+        updateForLivenessAccess(beginAccess, livenessInstAndValue.second);
       } else {
         for (auto *ebi : lbi->getEndBorrows()) {
           liveness.updateForUse(ebi, livenessInstAndValue.second,
                                 false /*lifetime ending*/);
         }
       }
+    } else if (auto *bai = dyn_cast<BeginAccessInst>(livenessInstAndValue.first)) {
+      updateForLivenessAccess(bai, livenessInstAndValue.second);
     } else {
       liveness.updateForUse(livenessInstAndValue.first,
                             livenessInstAndValue.second,
@@ -2144,6 +2153,13 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
   // Ignore end_access.
   if (isa<EndAccessInst>(user))
     return true;
+    
+  // Ignore sanitizer markers.
+  if (auto bu = dyn_cast<BuiltinInst>(user)) {
+    if (bu->getBuiltinKind() == BuiltinValueKind::TSanInoutAccess) {
+      return true;
+    }
+  }
 
   // This visitor looks through store_borrow instructions but does visit the
   // end_borrow of the store_borrow. If we see such an end_borrow, register the
@@ -2545,6 +2561,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
 
     case SILArgumentConvention::Indirect_Inout:
     case SILArgumentConvention::Indirect_InoutAliasable:
+    case SILArgumentConvention::Indirect_In_CXX:
     case SILArgumentConvention::Indirect_In:
     case SILArgumentConvention::Indirect_Out:
     case SILArgumentConvention::Direct_Unowned:
@@ -2559,7 +2576,7 @@ bool GatherUsesVisitor::visitUse(Operand *op) {
   }
 
   if (auto *yi = dyn_cast<YieldInst>(user)) {
-    if (yi->getYieldInfoForOperand(*op).isGuaranteed()) {
+    if (yi->getYieldInfoForOperand(*op).isGuaranteedInCaller()) {
       LLVM_DEBUG(llvm::dbgs() << "coroutine yield\n");
       SmallVector<TypeTreeLeafTypeRange, 2> leafRanges;
       TypeTreeLeafTypeRange::get(op, getRootAddress(), leafRanges);
@@ -2927,13 +2944,13 @@ bool GlobalLivenessChecker::testInstVectorLiveness(
           continue;
         case IsLive::LiveOut: {
           LLVM_DEBUG(llvm::dbgs() << "    Live out block!\n");
-          // If we see a live out block that is also a def block, we need to fa
-#ifndef NDEBUG
+          // If we see a live out block that is also a def block, skip.
           SmallBitVector defBits(addressUseState.getNumSubelements());
           liveness.isDefBlock(block, errorSpan, defBits);
-          assert((defBits & errorSpan).none() &&
-                 "If in def block... we are in liveness block");
-#endif
+          if (!(defBits & errorSpan).none()) {
+            LLVM_DEBUG(llvm::dbgs() << "    Also a def block; skipping!\n");
+            continue;
+          }
           [[clang::fallthrough]];
         }
         case IsLive::LiveWithin:
@@ -3037,6 +3054,13 @@ static void insertDestroyBeforeInstruction(UseState &addressUseState,
                                            SILValue baseAddress,
                                            SmallBitVector &bv,
                                            ConsumeInfo &consumes) {
+  if (!baseAddress->getUsersOfType<StoreBorrowInst>().empty()) {
+    // If there are _any_ store_borrow users, then all users of the address are
+    // store_borrows (and dealloc_stacks).  Nothing is stored, there's nothing
+    // to destroy.
+    return;
+  }
+
   // If we need all bits...
   if (bv.all()) {
     // And our next instruction is a destroy_addr on the base address, just

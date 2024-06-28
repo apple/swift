@@ -12,6 +12,7 @@
 
 #include "swift/IDE/ImportDepth.h"
 #include "swift/AST/Module.h"
+#include "swift/Basic/Assertions.h"
 #include "clang/Basic/Module.h"
 
 using namespace swift;

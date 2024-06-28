@@ -1,0 +1,683 @@
+//===--- android.modulemap ------------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2024 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+// The module map for the Android NDK.
+// A portion of the modules in this file are prefixed
+// with an underscore, to discourage users from importing them from
+// Swift directly, as these modules might be overriden by the C++ stdlib.
+// Instead, users should import 'Android' or another
+// umbrella module that includes these headers.
+
+// The top level 'Android' module can be included from Swift.
+module SwiftAndroid [system] {
+  header "SwiftAndroidNDK.h"
+  export *
+}
+
+// The top level 'Bionic' module is the C standard library
+// used in the Android NDK.
+module Bionic [system] {
+  header "SwiftBionic.h"
+  export *
+}
+
+// The individual modules for the Bionic C standard library used
+// by the Android NDK.
+module _assert [system] {
+  // <assert.h>'s use of NDEBUG requires textual inclusion.
+  textual header "assert.h"
+}
+module _complex [system] {
+  header "complex.h"
+  export *
+}
+module _ctype [system] {
+  header "ctype.h"
+  export *
+}
+module _errno [system] {
+  header "errno.h"
+  export *
+}
+module _fenv [system] {
+  header "fenv.h"
+  export *
+}
+// Use 'no_undeclared_includes' to avoid pulling in the libc++ headers.
+// FIXME: this can be dropped once NDK's libc++ 'std' module is split
+// into individual submodules.
+module _inttypes [system] [no_undeclared_includes] {
+  header "inttypes.h"
+  export *
+  use _stdint
+  use _sys_cdefs
+}
+module _limits [system] {
+  header "limits.h"
+  export *
+  explicit module posix_limits {
+    header "bits/posix_limits.h"
+    export *
+  }
+}
+module _locale [system] {
+  header "locale.h"
+  export *
+}
+module _malloc [system] {
+  header "malloc.h"
+  export *
+}
+module _math [system] {
+  header "math.h"
+  export *
+  link "m"
+}
+module _setjmp [system] {
+  header "setjmp.h"
+  export *
+}
+module _signal [system] {
+  header "signal.h"
+  // The 'signal.h' header unfortunately has a circular include
+  // with 'sys/ucontext.h' and thus it must be part of this module.
+  header "sys/ucontext.h"
+  export *
+  explicit module bits_signaltypes {
+    header "bits/signal_types.h"
+    export *
+  }
+}
+module _stdatomic [system] {
+  header "stdatomic.h"
+  export *
+}
+module _stdint [system] {
+  header "stdint.h"
+  export *
+}
+module _stdio [system] {
+  header "stdio.h"
+  export *
+  explicit module stdio_ext {
+    header "stdio_ext.h"
+    export *
+  }
+}
+module _stdlib [system] {
+  header "stdlib.h"
+  export *
+}
+module _string [system] {
+  header "string.h"
+  export *
+}
+module _threads [system] {
+  header "threads.h"
+  export *
+  explicit module threads_inlines {
+    header "bits/threads_inlines.h"
+    export *
+  }
+}
+module _time [system] {
+  header "time.h"
+  export *
+  explicit module sys_time {
+    header "sys/time.h"
+    export *
+  }
+  explicit module sys_times {
+    header "sys/times.h"
+    export *
+  }
+}
+module _uchar [system] {
+  header "uchar.h"
+  export *
+}
+module _wchar [system] {
+  header "wchar.h"
+  export *
+  explicit module mbstate_t {
+    header "bits/mbstate_t.h"
+    export *
+  }
+}
+
+// POSIX and another android NDK headers.
+module alloca [system] {
+  header "alloca.h"
+  export *
+}
+
+module ar [system] {
+  header "ar.h"
+  export *
+}
+
+module cpio [system] {
+  header "cpio.h"
+  export *
+}
+
+module posix_filesystem [system] {
+  // This module groups all file, paths and filesystem
+  // operations into one module.
+  explicit module dirent {
+    header "dirent.h"
+    export *
+  }
+  explicit module fcntl {
+    header "fcntl.h"
+    // Note: Do not re-export imported modules
+    // to prevent exporting constants from linux/stat.h .
+  }
+  explicit module fnmatch {
+    header "fnmatch.h"
+    export *
+  }
+  explicit module fts {
+    header "fts.h"
+    export *
+  }
+  explicit module ftw {
+    header "ftw.h"
+    export *
+  }
+  explicit module glob {
+    header "glob.h"
+    export *
+  }
+  explicit module mntent {
+    header "mntent.h"
+    export *
+  }
+  explicit module libgen {
+    header "libgen.h"
+    export *
+  }
+  explicit module nl_types {
+    header "nl_types.h"
+    export *
+  }
+  explicit module paths {
+    header "paths.h"
+    export *
+  }
+  explicit module poll {
+    header "poll.h"
+    export *
+  }
+  explicit module pwd {
+    header "pwd.h"
+    export *
+  }
+  explicit module utime {
+    header "utime.h"
+    export *
+  } 
+  explicit module bits_ioctl {
+    header "bits/ioctl.h"
+    export *
+  }
+  explicit module linux_stat {
+    private header "linux/stat.h"
+    export *
+  }
+  explicit module sys_epoll {
+    header "sys/epoll.h"
+    export *
+  }
+  explicit module sys_eventfd {
+    header "sys/eventfd.h"
+    export *
+  }
+  explicit module sys_fcntl {
+    header "sys/fcntl.h"
+    export *
+  }
+  explicit module sys_file {
+    header "sys/file.h"
+    export *
+  }
+  explicit module sys_inotify {
+    header "sys/inotify.h"
+    export *
+  }
+  explicit module sys_ioctl {
+    header "sys/ioctl.h"
+    export *
+  }
+  explicit module sys_mount {
+    header "sys/mount.h"
+    export *
+  }
+  explicit module sys_sendfile {
+    header "sys/sendfile.h"
+    export *
+  }
+  explicit module sys_stat {
+    header "sys/stat.h"
+    // Note: Do not re-export imported modules
+    // to prevent exporting constants from linux/stat.h .
+  }
+  explicit module sys_statvfs {
+    header "sys/statvfs.h"
+    export *
+  }
+  explicit module sys_vfs {
+    header "sys/vfs.h"
+    export *
+  }
+  explicit module sys_uio {
+    header "sys/uio.h"
+    export *
+  }
+}
+
+module dl [system] {
+  // This module groups all dl* based operations
+  // into one module.
+  explicit module dlfcn {
+    header "dlfcn.h"
+    export *
+  }
+  explicit module link_ {
+    header "link.h"
+    export *
+  }
+}
+
+module error [system] {
+  header "error.h"
+  export *
+  explicit module err {
+    header "err.h"
+    export *
+  }
+}
+
+module execinfo [system] {
+  header "execinfo.h"
+  export *
+}
+
+module features [system] {
+  header "features.h"
+  export *
+}
+
+module getopt [system] {
+  header "getopt.h"
+  export *
+}
+
+module grp [system] {
+  header "grp.h"
+  export *
+}
+
+module iconv [system] {
+  header "iconv.h"
+  export *
+}
+
+module inet [system] {
+  // This module groups headers related to inet
+  // and networking.
+  explicit module ifaddrs {
+    header "ifaddrs.h"
+    export *
+  }
+  explicit module netdb {
+    header "netdb.h"
+    export *
+  }
+  explicit module arpa_inet {
+    header "arpa/inet.h"
+    export *
+  }
+  explicit module net_if {
+    header "net/if.h"
+    export *
+  }
+  explicit module netinet_in {
+    header "netinet/in.h"
+    export *
+  }
+  explicit module netinet_in6 {
+    header "netinet/in6.h"
+    export *
+  }
+  explicit module netinet_tcp {
+    header "netinet/tcp.h"
+    export *
+  }
+  explicit module bits_ip_mreq_source {
+    header "bits/ip_mreq_source.h"
+    export *
+  }
+  explicit module bits_ip_msfilter {
+    header "bits/ip_msfilter.h"
+    export *
+  }
+  explicit module bits_in_addr {
+    header "bits/in_addr.h"
+    export *
+  }
+  explicit module linux_if {
+    header "linux/if.h"
+    export *
+  }
+  explicit module sys_socket {
+    header "sys/socket.h"
+    export *
+  }
+}
+
+module jni [system] {
+  header "jni.h"
+  export *
+}
+
+module langinfo [system] {
+  header "langinfo.h"
+  export *
+}
+
+module pthread [system] {
+  header "pthread.h"
+  export *
+}
+
+module pty [system] {
+  header "pty.h"
+  export *
+}
+
+module regex [system] {
+  header "regex.h"
+  export *
+}
+
+module resolv [system] {
+  header "resolv.h"
+  export *
+}
+
+module sched [system] {
+  header "sched.h"
+  export *
+}
+
+module search [system] {
+  header "search.h"
+  export *
+}
+
+module semaphore [system] {
+  header "semaphore.h"
+  export *
+}
+
+module spawn [system] {
+  header "spawn.h"
+  export *
+}
+
+module strings [system] {
+  header "strings.h"
+  export *
+}
+
+module sys [system] {
+  explicit module syscall {
+    header "syscall.h"
+    export *
+  }
+  explicit module sysexits {
+    header "sysexits.h"
+    export *
+  }
+  explicit module syslog {
+    header "syslog.h"
+    export *
+  }
+}
+
+module tar [system] {
+  header "tar.h"
+  export *
+}
+
+module termio [system] {
+  explicit module termio {
+    header "termio.h"
+    export *
+  }
+  explicit module termios {
+    header "termios.h"
+    export *
+  }
+}
+
+module uconfig_local [system] {
+  header "uconfig_local.h"
+  export *
+}
+
+module ucontext [system] {
+  header "ucontext.h"
+  export *
+}
+
+module unistd [system] {
+  header "unistd.h"
+  export *
+  explicit module sys_unistd {
+    header "sys/unistd.h"
+    export *
+  }
+}
+
+module utmp [system] {
+  explicit module utmp {
+    header "utmp.h"
+    export *
+  }
+  explicit module utmpx {
+    header "utmpx.h"
+    export *
+  }
+}
+
+module wait [system] {
+  header "wait.h"
+  export *
+  explicit module sys_wait {
+    header "sys/wait.h"
+    export *
+  }
+}
+
+module xlocale [system] {
+  header "xlocale.h"
+  export *
+}
+
+// Additional modules in the 'android' subdirectory.
+module android_defs [system] {
+  explicit module ndk_version {
+    header "android/ndk-version.h"
+    export *
+  }
+  explicit module versioning {
+    header "android/versioning.h"
+    export *
+  }
+}
+
+module android_apis [system] {
+  explicit module asset_manager_jni {
+    header "android/asset_manager_jni.h"
+    export *
+  }
+  explicit module asset_manager {
+    header "android/asset_manager.h"
+    export *
+  }
+  explicit module log {
+    header "android/log.h"
+    export *
+  }
+  explicit module trace {
+    header "android/trace.h"
+    export *
+  }
+}
+
+// Additional modules in the 'bits' subdirectory.
+module _bits_sa_family_t [system] {
+  // Note: this module is not part of 'inet'
+  // to prevent a circular modular dependency. 
+  header "bits/sa_family_t.h"
+  export *
+}
+module _bits_stdatomic [system] {
+  // Note: this module is not part of 'stdatomic'
+  // as it depends on libc++ and forcing it to
+  // be in the same module breaks that modularization
+  // chain.
+  header "bits/stdatomic.h"
+  export *
+}
+
+// Additional modules in the 'linux' subdirectory.
+module _linux_time [system] {
+  // Note: this module is not part of '_time'
+  // to prevent a circular modular dependency
+  // between linux_time and sys modules.
+  header "linux/time.h"
+  header "linux/time_types.h"
+  export *
+  explicit module bits_timespec {
+    header "bits/timespec.h"
+    export *
+  }
+}
+
+// Additional modules in the 'sys' subdirectory.
+module _sys_cdefs [system] {
+  header "sys/cdefs.h"
+  // Circular included header, so combine them
+  // into the same module.
+  header "android/api-level.h"
+  export *
+}
+module _sys_core [system] {
+  explicit module endian {
+    header "sys/endian.h"
+    export *
+  }
+  explicit module errno {
+    header "sys/errno.h"
+    export *
+  }
+  explicit module ifunc {
+    header "sys/ifunc.h"
+    export *
+  }
+  explicit module ipc {
+    header "sys/ipc.h"
+    export *
+  }
+  explicit module mman {
+    header "sys/mman.h"
+    export *
+  }
+  explicit module mman_common {
+    header "asm-generic/mman-common.h"
+    export *
+  }
+  explicit module msg {
+    header "sys/msg.h"
+    export *
+  }
+  explicit module random {
+    header "sys/random.h"
+    export *
+  }
+  explicit module resource {
+    header "sys/resource.h"
+    export *
+  }
+  explicit module sem {
+    header "sys/sem.h"
+    export *
+  }
+  explicit module shm {
+    header "sys/shm.h"
+    export *
+  }
+  explicit module un {
+    header "sys/un.h"
+    export *
+  }
+  explicit module utsname {
+    header "sys/utsname.h"
+    export *
+  }
+}
+module _sys_select [system] {
+  // Note: this module is not part of 
+  // 'sys_core' to prevent circular dependency error.
+  header "sys/select.h"
+  export *
+}
+// Use 'no_undeclared_includes' to avoid pulling in the libc++ module.
+// This module depends on 'stdint.h', which is defined in libc++.
+// We can't import libc++ as that would cause circular dependency
+// between libc++ and this module. Using 'no_undeclared_includes'
+// ensures that we include 'stdint.h' from usr/include instead of libc++.
+module _sys_types [system] [no_undeclared_includes] {
+  header "sys/types.h"
+  // The 'sys/types.h' header has a circular include
+  // with 'bits/pthread_types.h' and thus it must be in the same module.
+  header "bits/pthread_types.h"
+  export *
+  use _stdint
+  use _sys_cdefs
+  use _Builtin_stddef
+}
+// Use 'no_undeclared_includes' to avoid pulling in the libc++ module.
+// This module depends on 'stdint.h', which is defined in libc++.
+// We can't import libc++ as that would cause circular dependency
+// between libc++ and this module. Using 'no_undeclared_includes'
+// ensures that we include 'stdint.h' from usr/include instead of libc++.
+module _sys_user [system] [no_undeclared_includes]  {
+  header "sys/user.h"
+  export *
+  use _stdint
+  use _sys_cdefs
+  use _Builtin_stddef
+}
+
+// Module for zlib headers.
+module zlib [system] {
+  header "zlib.h"
+  explicit module zconf {
+    header "zconf.h"
+    export *
+  }
+  export *
+  link "z"
+}

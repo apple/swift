@@ -57,6 +57,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Range.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
@@ -203,8 +204,8 @@ RewritePath RewritePath::splitCycleAtRule(unsigned ruleID) const {
       if (step.getRuleID() != ruleID)
         break;
 
-      assert(!sawRule && "Rule appears more than once?");
-      assert(!step.isInContext() && "Rule appears in context?");
+      ASSERT(!sawRule && "Rule appears more than once?");
+      ASSERT(!step.isInContext() && "Rule appears in context?");
 
       ruleWasInverted = step.Inverse;
       sawRule = true;
@@ -286,7 +287,7 @@ bool RewritePath::replaceRulesWithPaths(
         bool inverse = newStep.Inverse ^ step.Inverse;
 
         if (newStep.pushesTermsOnStack() && inverse) {
-          assert(pushCount > 0);
+          ASSERT(pushCount > 0);
           --pushCount;
         }
 
@@ -313,7 +314,7 @@ bool RewritePath::replaceRulesWithPaths(
       }
 
       // Rewrite steps which push and pop the stack must come in balanced pairs.
-      assert(pushCount == 0);
+      ASSERT(pushCount == 0);
 
       break;
     }
@@ -380,7 +381,7 @@ RewritePath::findRulesAppearingOnceInEmptyContext(const MutableTerm &term,
   SmallVector<unsigned, 1> rulesOnceInEmptyContext;
   for (auto rule : rulesInEmptyContext) {
     auto found = ruleFrequency.find(rule);
-    assert(found != ruleFrequency.end());
+    ASSERT(found != ruleFrequency.end());
 
     if (found->second == 1)
       rulesOnceInEmptyContext.push_back(rule);
@@ -578,7 +579,7 @@ RewritePathEvaluator::applyRewriteRule(const RewriteStep &step,
                                        const RewriteSystem &system) {
   auto &term = getCurrentTerm();
 
-  assert(step.Kind == RewriteStep::Rule);
+  ASSERT(step.Kind == RewriteStep::Rule);
 
   const auto &rule = system.getRule(step.getRuleID());
 
@@ -617,11 +618,11 @@ RewritePathEvaluator::applyRewriteRule(const RewriteStep &step,
 std::pair<MutableTerm, MutableTerm>
 RewritePathEvaluator::applyPrefixSubstitutions(const RewriteStep &step,
                                                const RewriteSystem &system) {
-  assert(step.Arg != 0);
+  ASSERT(step.Arg != 0);
 
   auto &term = getCurrentTerm();
 
-  assert(step.Kind == RewriteStep::PrefixSubstitutions);
+  ASSERT(step.Kind == RewriteStep::PrefixSubstitutions);
 
   auto &ctx = system.getRewriteContext();
   MutableTerm prefix(term.begin() + step.StartOffset,
@@ -667,10 +668,10 @@ RewritePathEvaluator::applyPrefixSubstitutions(const RewriteStep &step,
 
 void RewritePathEvaluator::applyShift(const RewriteStep &step,
                                       const RewriteSystem &system) {
-  assert(step.Kind == RewriteStep::Shift);
-  assert(step.StartOffset == 0);
-  assert(step.EndOffset == 0);
-  assert(step.Arg == 0);
+  ASSERT(step.Kind == RewriteStep::Shift);
+  ASSERT(step.StartOffset == 0);
+  ASSERT(step.EndOffset == 0);
+  ASSERT(step.Arg == 0);
 
   if (!step.Inverse) {
     // Move top of primary stack to secondary stack.
@@ -687,7 +688,7 @@ void RewritePathEvaluator::applyShift(const RewriteStep &step,
 
 void RewritePathEvaluator::applyDecompose(const RewriteStep &step,
                                           const RewriteSystem &system) {
-  assert(step.Kind == RewriteStep::Decompose);
+  ASSERT(step.Kind == RewriteStep::Decompose);
 
   unsigned numSubstitutions = step.Arg;
 
@@ -755,7 +756,7 @@ void RewritePathEvaluator::applyDecompose(const RewriteStep &step,
 AppliedRewriteStep
 RewritePathEvaluator::applyRelation(const RewriteStep &step,
                                     const RewriteSystem &system) {
-  assert(step.Kind == RewriteStep::Relation);
+  ASSERT(step.Kind == RewriteStep::Relation);
 
   auto relation = system.getRelation(step.Arg);
   auto &term = getCurrentTerm();
@@ -794,7 +795,7 @@ RewritePathEvaluator::applyRelation(const RewriteStep &step,
 
 void RewritePathEvaluator::applyDecomposeConcrete(const RewriteStep &step,
                                                   const RewriteSystem &system) {
-  assert(step.Kind == RewriteStep::DecomposeConcrete);
+  ASSERT(step.Kind == RewriteStep::DecomposeConcrete);
 
   const auto &difference = system.getTypeDifference(step.Arg);
   auto bug = [&](StringRef msg) {
@@ -860,7 +861,7 @@ void RewritePathEvaluator::applyDecomposeConcrete(const RewriteStep &step,
 void
 RewritePathEvaluator::applyLeftConcreteProjection(const RewriteStep &step,
                                                   const RewriteSystem &system) {
-  assert(step.Kind == RewriteStep::LeftConcreteProjection);
+  ASSERT(step.Kind == RewriteStep::LeftConcreteProjection);
 
   const auto &difference = system.getTypeDifference(step.getTypeDifferenceID());
   unsigned index = step.getSubstitutionIndex();
@@ -917,7 +918,7 @@ RewritePathEvaluator::applyLeftConcreteProjection(const RewriteStep &step,
 void
 RewritePathEvaluator::applyRightConcreteProjection(const RewriteStep &step,
                                                    const RewriteSystem &system) {
-  assert(step.Kind == RewriteStep::RightConcreteProjection);
+  ASSERT(step.Kind == RewriteStep::RightConcreteProjection);
 
   const auto &difference = system.getTypeDifference(step.getTypeDifferenceID());
   unsigned index = step.getSubstitutionIndex();

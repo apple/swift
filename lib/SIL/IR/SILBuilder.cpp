@@ -12,6 +12,7 @@
 
 #include "swift/SIL/SILBuilder.h"
 #include "swift/AST/Expr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/Projection.h"
 #include "swift/SIL/SILGlobalVariable.h"
 
@@ -102,6 +103,10 @@ SILType SILBuilder::getPartialApplyResultType(
   }
   for (auto yield : FTI->getYields()) {
     needsSubstFunctionType |= yield.getInterfaceType()->hasTypeParameter();
+  }
+  if (FTI->hasErrorResult()) {
+    needsSubstFunctionType
+      |= FTI->getErrorResult().getInterfaceType()->hasTypeParameter();
   }
 
   SubstitutionMap appliedSubs;

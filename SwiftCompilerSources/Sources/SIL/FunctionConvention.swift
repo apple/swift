@@ -171,7 +171,7 @@ public struct ParameterInfo : CustomStringConvertible {
     switch convention {
     case .indirectIn, .indirectInGuaranteed:
       return hasLoweredAddresses || type.isOpenedExistentialWithError()
-    case .indirectInout, .indirectInoutAliasable:
+    case .indirectInout, .indirectInoutAliasable, .indirectInCXX:
       return true
     case .directOwned, .directUnowned, .directGuaranteed:
       return false

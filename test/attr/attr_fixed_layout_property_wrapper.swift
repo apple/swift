@@ -1,9 +1,8 @@
 // RUN: %target-typecheck-verify-swift -swift-version 5 -package-name myPkg
 
-private class PrivateType {} 
-// expected-note@-1 2 {{class 'PrivateType' is not '@usableFromInline' or public}}
-// expected-note@-2 2 {{initializer 'init()' is not '@usableFromInline' or public}}
-// expected-note@-3 2 {{type declared here}}
+private class PrivateType {} // expected-note {{class 'PrivateType' is not '@usableFromInline' or public}}
+// expected-note@-1 {{initializer 'init()' is not '@usableFromInline' or public}}
+// expected-note@-2 {{type declared here}}
 
 package class PackageType {
   // expected-note@-1 {{class 'PackageType' is not '@usableFromInline' or public}}
@@ -44,21 +43,4 @@ public struct Wrapper<T> {
 
   @Wrapper private var z1: PackageTypeForInline
   @Wrapper private var z2 = PackageTypeForInline()
-}
-
-
-@frozen package struct FrozenPackageStruct {
-  @Wrapper private var p1: PrivateType
-  // expected-error@-1 {{type referenced from a stored property in a '@frozen package' struct must be '@usableFromInline', public, or package}}
-
-  @Wrapper private var p2 = PrivateType()
-  // expected-error@-1 {{class 'PrivateType' is private and cannot be referenced from a property initializer in a '@frozen' type}}
-  // expected-error@-2 {{initializer 'init()' is private and cannot be referenced from a property initializer in a '@frozen' type}}
-  // expected-error@-3 {{type referenced from a stored property with inferred type 'PrivateType' in a '@frozen package' struct must be '@usableFromInline', public, or package}}
-
-  // no-errors below
-  @Wrapper private var q1: PackageType
-  @Wrapper private var q2 = PackageType()
-  @Wrapper private var r1: PackageTypeForInline
-  @Wrapper private var r2 = PackageTypeForInline()
 }

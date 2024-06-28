@@ -226,13 +226,13 @@ func testAsyncExprWithoutAwait() async {
   if let result: A = result {} // expected-error {{expression is 'async' but is not marked with 'await'}} {{22-22=await }}
   // expected-warning@-1 {{immutable value 'result' was never used; consider replacing with '_' or removing it}}
   // expected-note@-2 {{reference to async let 'result' is 'async'}}
-  if let result: A {} // expected-error {{expression is 'async' but is not marked with 'await'}} {{19-19= = await result}}
+  if let result: A {} // expected-error {{expression is 'async' but is not marked with 'await'}} {{18-18=await }}
   // expected-warning@-1 {{immutable value 'result' was never used; consider replacing with '_' or removing it}}
   // expected-note@-2 {{reference to async let 'result' is 'async'}}
   if let result = result {} // expected-error {{expression is 'async' but is not marked with 'await'}} {{19-19=await }}
   // expected-warning@-1 {{value 'result' was defined but never used; consider replacing with boolean test}}
   // expected-note@-2 {{reference to async let 'result' is 'async'}}
-  if let result {} // expected-error {{expression is 'async' but is not marked with 'await'}} {{16-16= = await result}}
+  if let result {} // expected-error {{expression is 'async' but is not marked with 'await'}} {{10-10=await }}
   // expected-warning@-1 {{value 'result' was defined but never used; consider replacing with boolean test}}
   // expected-note@-2 {{reference to async let 'result' is 'async'}}
   let a = f("a") // expected-error {{expression is 'async' but is not marked with 'await'}} {{11-11=await }}

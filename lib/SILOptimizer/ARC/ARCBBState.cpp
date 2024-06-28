@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "arc-sequence-opts"
 #include "ARCBBState.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/Debug.h"
 
 using namespace swift;

@@ -2,7 +2,7 @@
 
 struct G<T: ~Copyable>: ~Copyable {}
 
-extension G: Copyable {}
+extension G: Copyable where T: Copyable {}
 
 protocol Base {}
 protocol Derived: Base {}

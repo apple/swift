@@ -27,3 +27,34 @@ do {
   print(v1 == v2)
   // CHECK: true
 }
+
+@_marker
+protocol Marker {
+}
+
+do {
+  print(G<any (C & Sendable)>.self)
+  // CHECK: G<C>
+
+  class D<T> {
+  }
+
+  print((D<Int> & Sendable).self)
+  // CHECK: D<Int>
+
+  print((D<C & Marker> & Sendable).self)
+  // CHECK: D<C>
+
+  print((any Marker & Sendable).self)
+  // CHECK: Any
+
+  print((AnyObject & Sendable & Marker).self)
+  // CHECK: AnyObject
+
+  func generic<T>(_: T.Type) {
+    print((D<T> & Sendable).self)
+  }
+
+  generic(Int.self)
+  // CHECK: D<Int>
+}

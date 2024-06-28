@@ -1,0 +1,196 @@
+// RUN: %target-run-simple-swiftgyb(-Xfrontend -sil-verify-all) | %FileCheck %t/main.swift
+// RUN: %target-run-simple-swiftgyb(-O -Xfrontend -sil-verify-all) | %FileCheck %t/main.swift
+
+// This test uses gyb substitute let and var in as the introducers for the
+// vardecls that are consumed.  This guarantees that the same ordering results
+// from checking the consume operator when applied to lets as when applied to
+// lets.
+
+// REQUIRES: executable_test
+
+class X {
+  let number: Int
+  let function: StaticString
+  let line: UInt
+  init(_ number: Int, function: StaticString = #function, line: UInt = #line) {
+    self.number = number
+    self.function = function
+    self.line = line
+    print("hi - \(function) - \(number) - \(line)")
+  }
+  deinit {
+    print("adios - \(function) - \(number) - \(line)")
+  }
+}
+
+func barrier(_ name: String = "", function: StaticString = #function, line: UInt = #line) {
+  print("barrier - \(name) - \(function) - \(line)")
+}
+
+func endcap(name: String, _ args: [Any], function: StaticString = #function, line: UInt = #line) {
+  print("\(name) \(function)(", terminator: "")
+  for (index, arg) in args.enumerated() {
+    print(arg, terminator: "")
+    if index != args.count - 1 {
+      print(", ", terminator: "")
+    }
+  }
+   print(") - \(line)")
+}
+
+func begin(_ args: [Any], function: StaticString = #function, line: UInt = #line) {
+  endcap(name: "begin", args, function: function, line: line)
+}
+
+func end(_ args: [Any], function: StaticString = #function, line: UInt = #line) {
+  endcap(name: "end", args, function: function, line: line)
+}
+
+func takeX(_ x: consuming X) {}
+
+% for introducer in ["let", "var"]:
+
+func simple_${introducer}() {
+  // CHECK-LABEL: begin simple_{{let|var}}
+  begin([])
+  do {
+  // CHECK: hi
+  ${introducer} x = X(0)
+  // CHECK: adios
+  takeX(consume x)
+  // CHECK: barrier
+  barrier()
+  }
+  // CHECK-LABEL: end simple_{{let|var}}
+  end([])
+}
+
+// CHECK-LABEL: begin testLeft_{{let|var}}(_:)(true)
+// CHECK:       hi
+// CHECK:       adios
+// CHECK:       barrier - left
+// CHECK:       barrier - end
+// CHECK-LABEL: end testLeft_{{let|var}}(_:)(true)
+// CHECK-LABEL: begin testLeft_{{let|var}}(_:)(false)
+// CHECK:       hi
+// CHECK:       barrier - right
+// CHECK:       adios
+// CHECK:       barrier - end
+// CHECK-LABEL: end testLeft_{{let|var}}(_:)(false)
+func testLeft_${introducer}(_ condition: Bool) {
+  begin([condition])
+  do {
+  ${introducer} x = X(0)
+  if condition {
+    takeX(consume x)
+    barrier("left")
+  } else {
+    barrier("right")
+  }
+  barrier("end")
+  }
+  end([condition])
+}
+
+// CHECK-LABEL: begin testNested1_{{let|var}}(_:_:)(false, false)
+// CHECK:       hi
+// CHECK:       barrier - not c1, not c2
+// CHECK:       barrier - not c1
+// CHECK:       adios
+// CHECK-LABEL: end testNested1_{{let|var}}(_:_:)(false, false)
+// CHECK-LABEL: begin testNested1_{{let|var}}(_:_:)(false, true)
+// CHECK:       hi
+// CHECK:       barrier - not c1, c2
+// CHECK:       barrier - not c1
+// CHECK:       adios
+// CHECK-LABEL: end testNested1_{{let|var}}(_:_:)(false, true)
+// CHECK-LABEL: begin testNested1_{{let|var}}(_:_:)(true, false)
+// CHECK:       hi
+// CHECK:       adios
+// CHECK:       barrier - c2
+// CHECK-LABEL: end testNested1_{{let|var}}(_:_:)(true, false)
+// CHECK-LABEL: begin testNested1_{{let|var}}(_:_:)(true, true)
+// CHECK:       hi
+// CHECK:       adios
+// CHECK:       barrier - c2
+// CHECK-LABEL: end testNested1_{{let|var}}(_:_:)(true, true)
+func testNested1_${introducer}(_ c1: Bool, _ c2: Bool) {
+  begin([c1, c2])
+  do {
+  ${introducer} x = X(0)
+  if c1 {
+    takeX(consume x)
+    barrier("c2")
+  } else {
+    if c2 {
+      takeX(x)
+      barrier("not c1, c2")
+    } else {
+      barrier("not c1, not c2")
+    }
+    barrier("not c1")
+  }
+  }
+  end([c1, c2])
+}
+
+// CHECK-LABEL: begin testNested2_{{let|var}}(_:_:)(false, false)
+// CHECK:       hi
+// CHECK:       barrier - not c1, not c2
+// CHECK:       adios
+// CHECK:       barrier - not c1
+// CHECK-LABEL: end testNested2_{{let|var}}(_:_:)(false, false)
+// CHECK-LABEL: begin testNested2_{{let|var}}(_:_:)(false, true)
+// CHECK:       hi
+// CHECK:       adios
+// CHECK:       barrier - not c1, c2
+// CHECK:       barrier - not c1
+// CHECK-LABEL: end testNested2_{{let|var}}(_:_:)(false, true)
+// CHECK-LABEL: begin testNested2_{{let|var}}(_:_:)(true, false)
+// CHECK:       hi
+// CHECK:       adios
+// CHECK:       barrier - c1
+// CHECK-LABEL: end testNested2_{{let|var}}(_:_:)(true, false)
+// CHECK-LABEL: begin testNested2_{{let|var}}(_:_:)(true, true)
+// CHECK:       hi
+// CHECK:       adios
+// CHECK:       barrier - c1
+// CHECK-LABEL: end testNested2_{{let|var}}(_:_:)(true, true)
+func testNested2_${introducer}(_ c1: Bool, _ c2: Bool) {
+  begin([c1, c2])
+  do {
+  ${introducer} x = X(0)
+  if c1 {
+    takeX(consume x)
+    barrier("c1")
+  } else {
+    if c2 {
+      takeX(consume x)
+      barrier("not c1, c2")
+    } else {
+      barrier("not c1, not c2")
+    }
+    barrier("not c1")
+  }
+  }
+  end([c1, c2])
+}
+
+func main_${introducer}() {
+  simple_${introducer}()
+  testLeft_${introducer}(true)
+  testLeft_${introducer}(false)
+  testNested1_${introducer}(false, false)
+  testNested1_${introducer}(false, true)
+  testNested1_${introducer}(true, false)
+  testNested1_${introducer}(true, true)
+  testNested2_${introducer}(false, false)
+  testNested2_${introducer}(false, true)
+  testNested2_${introducer}(true, false)
+  testNested2_${introducer}(true, true)
+}
+
+% end
+
+main_let()
+main_var()

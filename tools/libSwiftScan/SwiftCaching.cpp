@@ -26,6 +26,7 @@
 #include "swift/Frontend/CachingUtils.h"
 #include "swift/Frontend/CompileJobCacheKey.h"
 #include "swift/Frontend/CompileJobCacheResult.h"
+#include "swift/Frontend/DiagnosticHelper.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/PrintingDiagnosticConsumer.h"
 #include "swift/Option/Options.h"
@@ -917,19 +918,7 @@ static llvm::Error replayCompilation(SwiftScanReplayInstance &Instance,
   const auto &Input = AllInputs[Comp.InputIndex];
 
   // Setup DiagnosticsConsumers.
-  // FIXME: Reduce code duplication against `performFrontend()` and add support
-  // for JSONFIXIT, SerializedDiagnostics, etc.
-  PrintingDiagnosticConsumer PDC(Err);
-  Inst.addDiagnosticConsumer(&PDC);
-
-  if (Invocation.getDiagnosticOptions().UseColor)
-    PDC.forceColors();
-  PDC.setPrintEducationalNotes(
-      Invocation.getDiagnosticOptions().PrintEducationalNotes);
-  PDC.setFormattingStyle(
-      Invocation.getDiagnosticOptions().PrintedFormattingStyle);
-  PDC.setEmitMacroExpansionFiles(
-      Invocation.getDiagnosticOptions().EmitMacroExpansionFiles);
+  DiagnosticHelper DH = DiagnosticHelper::create(Inst, Err, /*QuasiPID=*/true);
 
   std::string InstanceSetupError;
   if (Inst.setupForReplay(Instance.Invocation, InstanceSetupError,
@@ -989,6 +978,9 @@ static llvm::Error replayCompilation(SwiftScanReplayInstance &Instance,
   // Replay diagnostics first.
   // FIXME: Currently, the diagnostics is replay from the first file.
   if (DiagnosticsOutput) {
+    DH.initDiagConsumers(Invocation);
+    DH.beginMessage(Invocation, Instance.Args);
+
     if (auto E = CDP->replayCachedDiagnostics(DiagnosticsOutput->getData()))
       return E;
 
@@ -996,7 +988,18 @@ static llvm::Error replayCompilation(SwiftScanReplayInstance &Instance,
       Inst.getDiags().diagnose(SourceLoc(), diag::replay_output,
                                "<cached-diagnostics>",
                                CAS.getID(Comp.Key).toString());
+  } else {
+    // Don't write anything when parseable output is requested.
+    if (Invocation.getFrontendOptions().FrontendParseableOutput)
+      DH.setSuppressOutput(true);
   }
+
+  SWIFT_DEFER {
+    if (DiagnosticsOutput) {
+      DH.endMessage(0);
+      Inst.getDiags().finishProcessing();
+    }
+  };
 
   // OutputBackend for replay.
   ReplayOutputBackend Backend(

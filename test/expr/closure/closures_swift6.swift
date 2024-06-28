@@ -81,6 +81,8 @@ class C_56501 {
   }
 }
 
+func takesEscapingWithAllowedImplicitSelf(@_implicitSelfCapture _ fn: @escaping () -> Void) {}
+
 public final class TestImplicitSelfForWeakSelfCapture: Sendable {
   static let staticOptional: TestImplicitSelfForWeakSelfCapture? = .init()
   func method() { }
@@ -130,6 +132,12 @@ public final class TestImplicitSelfForWeakSelfCapture: Sendable {
       }
     }
 
+    takesEscapingWithAllowedImplicitSelf { [weak self] in
+      method() // expected-error {{explicit use of 'self' is required when 'self' is optional, to make control flow explicit}} expected-note {{reference 'self?.' explicitly}}
+      guard let self = self else { return }
+      method()
+    }
+
     doVoidStuff { [weak self] in
       doVoidStuff { // expected-note {{capture 'self' explicitly to enable implicit 'self' in this closure}}
         guard let self = self else { return }
@@ -172,6 +180,11 @@ public final class TestImplicitSelfForWeakSelfCapture: Sendable {
       func innerFunction2() {
           method()
           self.method()
+      }
+
+      doVoidStuff { [self] in
+        method()
+        self.method()
       }
     }
     
@@ -794,6 +807,40 @@ struct TestInvalidSelfCaptureInStruct {
     doVoidStuffNonEscaping { [self = TestInvalidSelfCaptureInStruct()] in // expected-note {{variable other than 'self' captured here under the name 'self' does not enable implicit 'self'}}
       method() // expected-error {{call to method 'method' in closure requires explicit use of 'self' to make capture semantics explicit}}
       self.method()
+    }
+  }
+}
+
+// rdar://129475277
+class rdar129475277 {
+  func bar() -> Int { 0 }
+  func method() {}
+
+  func test1() {
+    takesEscapingWithAllowedImplicitSelf { [weak self] in
+      takesEscapingWithAllowedImplicitSelf {
+        method() // expected-error {{explicit use of 'self' is required when 'self' is optional, to make control flow explicit}} expected-note {{reference 'self?.' explicitly}}
+      }
+    }
+
+    takesEscapingWithAllowedImplicitSelf { [weak self] in
+      takesEscapingWithAllowedImplicitSelf {
+        doVoidStuffNonEscaping {
+          withNonEscapingAutoclosure(bar()) // expected-error {{explicit use of 'self' is required when 'self' is optional, to make control flow explicit}} expected-note {{reference 'self?.' explicitly}}
+        }
+      }
+    }
+
+    takesEscapingWithAllowedImplicitSelf { [weak self] in
+      withNonEscapingAutoclosure(bar()) // expected-error {{explicit use of 'self' is required when 'self' is optional, to make control flow explicit}} expected-note {{reference 'self?.' explicitly}}
+    }
+  }
+
+  func test2() {
+    guard case let self: rdar129475277? = nil else { return }
+    // expected-warning@-1 {{'guard' condition is always true, body is unreachable}}
+    doVoidStuffNonEscaping {
+      method() // expected-error {{explicit use of 'self' is required when 'self' is optional, to make control flow explicit}} expected-note {{reference 'self?.' explicitly}}
     }
   }
 }

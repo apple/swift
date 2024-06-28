@@ -20,6 +20,7 @@
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/SemanticAttrs.h"
 #include "clang/AST/Mangle.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 
@@ -210,10 +211,6 @@ void SILFunctionBuilder::addFunctionAttributes(
 
   if (Attrs.hasAttribute<UnsafeNonEscapableResultAttr>()) {
     F->setHasUnsafeNonEscapableResult(true);
-  }
-
-  if (Attrs.hasAttribute<ResultDependsOnSelfAttr>()) {
-    F->setHasResultDependsOnSelf();
   }
 
   // Validate `@differentiable` attributes by calling `getParameterIndices`.

@@ -59,6 +59,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/Decl.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Range.h"
 #include "llvm/ADT/DenseMap.h"
@@ -170,7 +171,7 @@ public:
 void
 RewriteSystem::decomposeTermIntoConformanceRuleLeftHandSides(
     MutableTerm term, SmallVectorImpl<unsigned> &result) const {
-  assert(term.back().getKind() == Symbol::Kind::Protocol);
+  ASSERT(term.back().getKind() == Symbol::Kind::Protocol);
 
   // If T is canonical and T.[P] => T, then by confluence, T.[P]
   // reduces to T in a single step, via a rule V.[P] => V, where
@@ -183,22 +184,22 @@ RewriteSystem::decomposeTermIntoConformanceRuleLeftHandSides(
     abort();
   }
 
-  assert(steps.size() == 1 &&
+  ASSERT(steps.size() == 1 &&
          "Canonical conformance term should simplify in one step");
 
   const auto &step = *steps.begin();
 
   const auto &rule = getRule(step.getRuleID());
-  assert(rule.isAnyConformanceRule());
+  CONDITIONAL_ASSERT(rule.isAnyConformanceRule());
 
   // The identity conformance ([P].[P] => [P]) decomposes to an empty
   // conformance path.
   if (rule.isIdentityConformanceRule())
     return;
 
-  assert(step.Kind == RewriteStep::Rule);
-  assert(step.EndOffset == 0);
-  assert(!step.Inverse);
+  ASSERT(step.Kind == RewriteStep::Rule);
+  ASSERT(step.EndOffset == 0);
+  ASSERT(!step.Inverse);
 
   // If |U| > 0, recurse with the term U.[domain(V)]. Since T is
   // canonical, we know that U is canonical as well.
@@ -221,8 +222,8 @@ RewriteSystem::decomposeTermIntoConformanceRuleLeftHandSides(
     MutableTerm term, unsigned ruleID,
     SmallVectorImpl<unsigned> &result) const {
   const auto &rule = getRule(ruleID);
-  assert(rule.isAnyConformanceRule());
-  assert(!rule.isIdentityConformanceRule());
+  CONDITIONAL_ASSERT(rule.isAnyConformanceRule());
+  CONDITIONAL_ASSERT(!rule.isIdentityConformanceRule());
 
   // Compute domain(V).
   const auto &lhs = rule.getLHS();
@@ -253,12 +254,12 @@ RewriteSystem::decomposeTermIntoConformanceRuleLeftHandSides(
 static const ProtocolDecl *getParentConformanceForTerm(Term lhs) {
   // The last element is a protocol symbol, because this is the left hand side
   // of a conformance rule.
-  assert(lhs.back().getKind() == Symbol::Kind::Protocol ||
+  ASSERT(lhs.back().getKind() == Symbol::Kind::Protocol ||
          lhs.back().getKind() == Symbol::Kind::ConcreteConformance);
 
   // The second to last symbol is either an associated type, protocol or generic
   // parameter symbol.
-  assert(lhs.size() >= 2);
+  ASSERT(lhs.size() >= 2);
 
   auto parentSymbol = lhs[lhs.size() - 2];
 
@@ -330,7 +331,7 @@ void MinimalConformances::collectConformanceRules() {
     // conformance path to derive.
     if (auto *parentProto = getParentConformanceForTerm(lhs)) {
       MutableTerm mutTerm(lhs.begin(), lhs.end() - 2);
-      assert(!mutTerm.empty());
+      ASSERT(!mutTerm.empty());
 
       mutTerm.add(Symbol::forProtocol(parentProto, Context));
 
@@ -528,7 +529,7 @@ void RewriteSystem::computeCandidateConformancePaths(
           // If the LHS rule is a conformance rule and the RHS rule is
           // a suffix of the LHS rule, the RHS rule must also be a
           // conformance rule.
-          assert(rhs.isAnyConformanceRule());
+          CONDITIONAL_ASSERT(rhs.isAnyConformanceRule());
 
           // Build the term U.
           MutableTerm u(lhs.getLHS().begin(), from);

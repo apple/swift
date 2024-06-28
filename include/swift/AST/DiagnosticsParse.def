@@ -51,6 +51,8 @@ ERROR(extra_tokens_conditional_compilation_directive,none,
       "extra tokens following conditional compilation directive", ())
 ERROR(unexpected_rbrace_in_conditional_compilation_block,none,
       "unexpected '}' in conditional compilation block", ())
+ERROR(ifconfig_unexpectedtoken,none,
+      "unexpected tokens in '#if' body", ())
 ERROR(unexpected_if_following_else_compilation_directive,none,
       "unexpected 'if' keyword following '#else' conditional compilation "
       "directive; did you mean '#elseif'?",
@@ -1222,6 +1224,8 @@ ERROR(expected_case_where_expr,PointsToFirstBadToken,
       "expected expression for 'where' guard of 'case'", ())
 ERROR(expected_case_colon,PointsToFirstBadToken,
       "expected ':' after '%0'", (StringRef))
+ERROR(extra_case_keyword,none,
+      "extraneous 'case' keyword in pattern", ())
 ERROR(default_with_where,none,
       "'default' cannot be used with a 'where' guard expression",
       ())
@@ -2156,6 +2160,10 @@ ERROR(init_accessor_is_not_on_property,none,
       "init accessors could only be associated with properties",
       ())
 
+ERROR(init_accessor_is_not_in_the_primary_declaration,none,
+      "init accessors cannot be declared in an extension",
+      ())
+
 ERROR(missing_storage_restrictions_attr_label,none,
       "missing label in @storageRestrictions attribute", ())
 
@@ -2209,7 +2217,8 @@ ERROR(sending_and_transferring_used_together,none,
 WARNING(transferring_is_now_sendable,none,
         "'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly",
         ())
-
+ERROR(sending_cannot_be_used_with_borrowing,none,
+      "'%0' cannot be used together with 'borrowing'", (StringRef))
 
 #define UNDEFINE_DIAGNOSTIC_MACROS
 #include "DefineDiagnosticMacros.h"

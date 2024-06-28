@@ -72,4 +72,8 @@ struct HasVirtualMethod {
   virtual int return42() { return 42; } 
 };
 
+struct HasStaticOperatorCall {
+  static int operator()(int x) { return x * 2; }
+};
+
 #endif // TEST_INTEROP_CXX_CLASS_INPUTS_PROTOCOL_CONFORMANCE_H

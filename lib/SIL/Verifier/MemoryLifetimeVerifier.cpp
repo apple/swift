@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sil-memory-lifetime-verifier"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/MemoryLocations.h"
 #include "swift/SIL/BitDataflow.h"
 #include "swift/SIL/CalleeCache.h"
@@ -565,6 +566,7 @@ void MemoryLifetimeVerifier::setFuncOperandBits(BlockState &state, Operand &op,
                                         SILArgumentConvention convention,
                                         bool isTryApply) {
   switch (convention) {
+    case SILArgumentConvention::Indirect_In_CXX:
     case SILArgumentConvention::Indirect_In:
       killBits(state, op.get());
       break;
@@ -788,7 +790,9 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
           requireBitsSet(bits, sbi->getDest(), &I);
           locations.clearBits(bits, sbi->getDest());
         } else if (auto *lbi = dyn_cast<LoadBorrowInst>(ebi->getOperand())) {
-          requireBitsSet(bits, lbi->getOperand(), &I);
+          if (!lbi->isUnchecked()) {
+            requireBitsSet(bits, lbi->getOperand(), &I);
+          }
         }
         break;
       }
@@ -849,10 +853,10 @@ void MemoryLifetimeVerifier::checkBlock(SILBasicBlock *block, Bits &bits) {
               fnType->getYields()[index].getConvention());
           if (argConv.isIndirectConvention()) {
             if (argConv.isInoutConvention() ||
-                argConv.isGuaranteedConvention()) {
+                argConv.isGuaranteedConventionInCaller()) {
               requireBitsSet(bits | ~nonTrivialLocations, yieldedValues[index],
                              &I);
-            } else if (argConv.isOwnedConvention()) {
+            } else if (argConv.isOwnedConventionInCaller()) {
               requireBitsClear(bits & nonTrivialLocations, yieldedValues[index],
                                &I);
             }
@@ -890,6 +894,7 @@ void MemoryLifetimeVerifier::checkFuncArgument(Bits &bits, Operand &argumentOp,
     requireNoStoreBorrowLocation(argumentOp.get(), applyInst);
   
   switch (argumentConvention) {
+    case SILArgumentConvention::Indirect_In_CXX:
     case SILArgumentConvention::Indirect_In:
       requireBitsSetForArgument(bits, &argumentOp);
       locations.clearBits(bits, argumentOp.get());

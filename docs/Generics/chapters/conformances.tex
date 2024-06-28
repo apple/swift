@@ -344,12 +344,11 @@ If we take \IndexSetDefinition{assoctype}{\AssocTypeObj{P}}$\AssocTypeObj{P}$ to
 An \IndexDefinition{abstract conformance}\emph{abstract conformance} represents the conformance of a \index{type parameter}type parameter of some \index{generic signature}generic signature to a protocol. Unlike concrete conformances, abstract conformances do not refer to a specific declaration, nor do they store their type witnesses directly. They are to concrete conformances, what type parameters are to concrete types. If it is understood that \texttt{T} is a type parameter, we use the same notation for abstract conformances as for concrete conformances:
 \[\protosym{P}\otimes\texttt{T} = \ConfReq{T}{P}\]
 
-If the conformance \emph{requirement} $\ConfReq{T}{P}$ can be \index{derived requirement}derived in a generic signature $G$, then there is an abstract conformance $\ConfReq{T}{P}\in\ConfObj{G}$. (To put it another way, an abstract conformance $\ConfReq{T}{P}$ exists if the \Index{requiresProtocol()@\texttt{requiresProtocol()}}\texttt{requiresProtocol()} generic signature query returns true with \texttt{T} and \texttt{P}.)
+If the conformance \emph{requirement} $\ConfReq{T}{P}$ can be \index{derived requirement}derived in a generic signature $G$, then there is an abstract conformance $\ConfReq{T}{P}\in\ConfObj{G}$. (To put it another way, an abstract conformance $\ConfReq{T}{P}$ exists if the \IndexQuery{requiresProtocol}$\Query{requiresProtocol}{G,\,\texttt{T},\,\texttt{P}}$ is true.)
 
-To complete our type substitution algebra, we now define what it means to project a type witness from, or apply a substitution map to, an abstract conformance. Recall that a \index{bound dependent member type}\index{dependent member type}bound dependent member type \texttt{T.[P]A} is valid in a generic signature $G$ if it can be constructed with a derivation. A derivation of a type parameter always ends up with a \IndexStep{AssocType}\textsc{AssocType} derivation step applied to some derived conformance requirement $\ConfReq{T}{P}$:
+To complete our type substitution algebra, we now define what it means to project a type witness from, or apply a substitution map to, an abstract conformance. Recall that a \index{bound dependent member type}\index{dependent member type}bound dependent member type \texttt{T.[P]A} is a valid type parameter if it can be derived by applying the \IndexStep{AssocDecl}\textsc{AssocDecl} inference rule to some derived conformance requirement $\ConfReq{T}{P}$:
 \begin{gather*}
-\cdots\vdash\ConfReq{T}{P}\tag{1}\\
-(1)\vdash\texttt{T.[P]A}
+\AssocDeclStepDef
 \end{gather*}
 The derived conformance requirement $\ConfReq{T}{P}$ gives us the abstract conformance $\ConfReq{T}{P}$, and its type witness for \texttt{A} must be the dependent member type \texttt{T.[P]A}:
 \[\AssocType{[P]A} \otimes \ConfReq{T}{P} = \texttt{T.[P]A}\]
@@ -437,7 +436,7 @@ The second time around, the original subject type is itself a dependent member t
 \end{gather*}
 \end{example}
 
-\paragraph{Protocol substitution maps.} If \texttt{T} is any interface type (not just a type parameter) conforming to some protocol \texttt{P}, the normal, specialized or abstract conformance $\ConfReq{T}{P}$ defines a substitution map for the protocol generic signature \verb|<Self where Self: P>| in a natural way. This is the \emph{protocol substitution map}, denoted by $\Sigma_{\ConfReq{T}{P}}$:
+\paragraph{Protocol substitution maps.} If \texttt{T} is any interface type (not just a type parameter) conforming to some protocol \texttt{P}, the normal, specialized or abstract conformance $\ConfReq{T}{P}$ defines a substitution map for the protocol generic signature \verb|<Self where Self: P>| in a natural way. This is the \IndexDefinition{protocol substitution map}\emph{protocol substitution map}, denoted by $\Sigma_{\ConfReq{T}{P}}$:
 \[\Sigma_{\ConfReq{T}{P}} := \SubstMapC{
 \SubstType{Self}{T}
 }{

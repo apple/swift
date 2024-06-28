@@ -22,6 +22,7 @@
 
 #include "OwnershipLiveRange.h"
 #include "SemanticARCOptVisitor.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/LinearLifetimeChecker.h"
 #include "swift/SIL/MemAccessUtils.h"
 #include "swift/SIL/OwnershipUtils.h"

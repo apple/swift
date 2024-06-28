@@ -5,6 +5,7 @@
 
 // REQUIRES: swift_in_compiler
 // REQUIRES: OS=macosx || OS=linux-gnu
+// REQUIRES: volatile
 
 import _Volatile
 

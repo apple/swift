@@ -16,6 +16,7 @@
 
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/PrettyStackTrace.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/IRGen/IRSymbolVisitor.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/SIL/SILFunctionBuilder.h"

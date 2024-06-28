@@ -21,6 +21,7 @@
 #include "swift/AST/ImportCache.h"
 #include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/SourceFile.h"
+#include "swift/Basic/Assertions.h"
 
 #define DEBUG_TYPE "operator-name-lookup"
 

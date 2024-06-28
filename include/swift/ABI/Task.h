@@ -419,12 +419,16 @@ public:
 
   /// Get the preferred task executor reference if there is one set for this
   /// task.
-  TaskExecutorRef getPreferredTaskExecutor();
+  TaskExecutorRef getPreferredTaskExecutor(bool assumeHasRecord = false);
 
   /// WARNING: Only to be used during task creation, in other situations prefer
   /// to use `swift_task_pushTaskExecutorPreference` and
   /// `swift_task_popTaskExecutorPreference`.
-  void pushInitialTaskExecutorPreference(TaskExecutorRef preferred);
+  ///
+  /// The `owned` parameter indicates if the executor is owned by the task,
+  /// and must be released when the task completes.
+  void pushInitialTaskExecutorPreference(
+      TaskExecutorRef preferred, bool owned);
 
   /// WARNING: Only to be used during task completion (destroy).
   ///

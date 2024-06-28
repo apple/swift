@@ -130,11 +130,15 @@ public:
 
   /// Check that the witness and requirement have compatible actor contexts.
   ///
+  /// \param usesPreconcurrency Will be set true if the conformance is
+  /// @preconcurrency and we made use of that fact.
+  ///
   /// \returns the isolation that needs to be enforced to invoke the witness
   /// from the requirement, used when entering an actor-isolated synchronous
   /// witness from an asynchronous requirement.
   std::optional<ActorIsolation> checkActorIsolation(ValueDecl *requirement,
-                                                    ValueDecl *witness);
+                                                    ValueDecl *witness,
+                                                    bool &usesPreconcurrency);
 
   /// Enforce restrictions on non-final classes witnessing requirements
   /// involving the protocol 'Self' type.

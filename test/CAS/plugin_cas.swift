@@ -7,7 +7,7 @@
 // RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/clang-module-cache %s \
 // RUN:   -o %t/deps.json -I %S/../ScanDependencies/Inputs/CHeaders -I %S/../ScanDependencies/Inputs/Swift \
 // RUN:   -emit-dependencies -emit-dependencies-path %t/deps.d -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h \
-// RUN:   -swift-version 4 -cache-compile-job \
+// RUN:   -swift-version 4 -enable-cross-import-overlays -cache-compile-job \
 // RUN:   -cas-path %t/cas \
 // RUN:   -cas-plugin-path %llvm_libs_dir/libCASPluginTest%llvm_plugin_ext \
 // RUN:   -cas-plugin-option first-prefix=myfirst- -cas-plugin-option second-prefix=mysecond- \
@@ -26,7 +26,7 @@
 // RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-interface -module-cache-path %t/clang-module-cache %s \
 // RUN:   -o %t/deps_clang_target.json -I %S/../ScanDependencies/Inputs/CHeaders \
 // RUN:   -I %S/../ScanDependencies/Inputs/Swift -import-objc-header %S/../ScanDependencies/Inputs/CHeaders/Bridging.h \
-// RUN:   -swift-version 4 -clang-target %target-cpu-apple-macosx10.14 -cache-compile-job \
+// RUN:   -swift-version 4 -enable-cross-import-overlays -clang-target %target-cpu-apple-macosx10.14 -cache-compile-job \
 // RUN:   -cas-path %t/cas \
 // RUN:   -cas-plugin-path %llvm_libs_dir/libCASPluginTest%llvm_plugin_ext \
 // RUN:   -cas-plugin-option first-prefix=myfirst- -cas-plugin-option second-prefix=mysecond- \
@@ -113,7 +113,8 @@ import SubE
 // CHECK-DAG:   "swift": "Swift"
 // CHECK-DAG:   "swift": "SwiftOnoneSupport"
 // CHECK: ],
-// CHECK-NEXT: "details": {
+// CHECK-NEXT: "linkLibraries": [
+// CHECK: "details": {
 
 // CHECK: "commandLine": [
 // CHECK: "-compile-module-from-interface"

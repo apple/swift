@@ -24,6 +24,7 @@ set(sources
   Visibility.h
   _SwiftConcurrency.h
   _SwiftDistributed.h
+  _SynchronizationShims.h
 
   module.modulemap
   )

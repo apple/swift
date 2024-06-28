@@ -60,11 +60,6 @@ else()
   list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS "-fswift-async-fp=never")
 endif()
 
-list(APPEND SWIFT_RUNTIME_CONCURRENCY_SWIFT_FLAGS
-  "-enable-experimental-feature"
-  "IsolatedAny2"
-)
-
 list(APPEND SWIFT_RUNTIME_CONCURRENCY_C_FLAGS
   "-D__STDC_WANT_LIB_EXT1__=1")
 
@@ -156,6 +151,7 @@ add_swift_target_library(swift_Concurrency ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} I
   ${SWIFT_RUNTIME_CONCURRENCY_C_SOURCES}
   ${SWIFT_RUNTIME_CONCURRENCY_SWIFT_SOURCES}
 
+  SWIFT_MODULE_DEPENDS_ANDROID Android
   SWIFT_MODULE_DEPENDS_LINUX Glibc
   SWIFT_MODULE_DEPENDS_FREEBSD Glibc
   SWIFT_MODULE_DEPENDS_OPENBSD Glibc
@@ -188,9 +184,12 @@ if(NOT swift_optimized)
   set(SWIFT_SHOULD_BUILD_EMBEDDED_CONCURRENCY FALSE)
 elseif(BOOTSTRAPPING_MODE STREQUAL "OFF")
   set(SWIFT_SHOULD_BUILD_EMBEDDED_CONCURRENCY FALSE)
+elseif(SWIFT_HOST_VARIANT STREQUAL "windows") # For now, don't build embedded Concurrency on Windows
+  set(SWIFT_SHOULD_BUILD_EMBEDDED_CONCURRENCY FALSE)
 endif()
 if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB AND SWIFT_SHOULD_BUILD_EMBEDDED_CONCURRENCY)
-  add_custom_target(embedded-concurrency ALL)
+  add_custom_target(embedded-concurrency)
+  add_dependencies(embedded-libraries embedded-concurrency)
 
   set(SWIFT_ENABLE_REFLECTION OFF)
   set(SWIFT_STDLIB_SUPPORT_BACK_DEPLOYMENT OFF)

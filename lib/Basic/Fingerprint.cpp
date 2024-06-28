@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Fingerprint.h"
 #include "swift/Basic/STLExtras.h"
 #include "llvm/Support/Format.h"

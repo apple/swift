@@ -16,6 +16,7 @@
 //===----------------------------------------------------------------------===//
 #include "swift/ABI/MetadataValues.h"
 #include "swift/AST/IRGenOptions.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/SourceLoc.h"
 #include "swift/IRGen/Linking.h"
 #include "llvm/IR/Instructions.h"

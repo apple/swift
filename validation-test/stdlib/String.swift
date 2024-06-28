@@ -1235,6 +1235,8 @@ StringTests.test("Conversions") {
 
 #if canImport(Glibc)
   import Glibc
+#elseif canImport(Android)
+  import Android
 #endif
 
 StringTests.test("lowercased()") {

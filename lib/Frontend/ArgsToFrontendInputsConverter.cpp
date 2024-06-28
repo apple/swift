@@ -14,6 +14,7 @@
 
 #include "ArgsToFrontendOutputsConverter.h"
 #include "swift/AST/DiagnosticsFrontend.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Frontend/FrontendOptions.h"
 #include "swift/Option/Options.h"

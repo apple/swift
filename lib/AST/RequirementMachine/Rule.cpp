@@ -14,6 +14,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/Types.h"
 #include "swift/AST/TypeWalker.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/raw_ostream.h"
 #include "RewriteContext.h"
 #include "Term.h"
@@ -112,9 +113,7 @@ bool Rule::isProtocolRefinementRule(RewriteContext &ctx) const {
     auto *proto = LHS[0].getProtocol();
     auto *otherProto = LHS[1].getProtocol();
 
-    auto inherited = ctx.getInheritedProtocols(proto);
-    return (std::find(inherited.begin(), inherited.end(), otherProto)
-            != inherited.end());
+    return proto->inheritsFrom(otherProto);
   }
 
   return false;
@@ -183,7 +182,7 @@ std::optional<Identifier> Rule::isProtocolTypeAliasRule() const {
     }
   } else {
     // This is the case where the underlying type is concrete.
-    assert(LHS.size() == 3);
+    ASSERT(LHS.size() == 3);
 
     auto prop = isPropertyRule();
     if (!prop || prop->getKind() != Symbol::Kind::ConcreteType)

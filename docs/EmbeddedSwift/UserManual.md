@@ -20,13 +20,13 @@ The following document explains how to use Embedded Swift's support in the Swift
 A typical setup and build + run cycle for an embedded development board involves:
 
 - (1) Getting an SDK with the C compilers, headers and libraries for the target
-- (2) Building the C source code, and Swift source code
+- (2) Building the C source code, and Swift source code into object files.
 - (3) Linking all the libraries, C object files, and Swift object files.
-- (4) Post-processing the linked firmware into a flashable format (UD2, BIN, or bespoke formats)
+- (4) Post-processing the linked firmware into a flashable format (UF2, BIN, or bespoke formats)
 - (5) Uploading the flashable binary to the board over a USB cable using some vendor-provided JTAG/SWD tool or by copying it to a fake USB Mass Storage volume presented by the board.
 - (6) Restarting the board, observing physical effects of the firmware (LEDs light up) or UART output over USB, or presence on network, etc.
 
-Most of these steps are out of scope for this document, instead refer to the vendor provided documentation and get familiar with the details of firmware development for your board without Swift in the mix first. Even if you want to build a completely pure Swift firmware, you are still very likely going to need the vendor provided tooling for linking, post-processing, uploading, etc.
+Most of these steps are out of scope for this document, instead refer to the vendor provided documentation. This document only focuses on (2) from the list above, and it's important that you first get familiar with the details of firmware development for your board without Swift in the mix. Even if you want to build a completely pure Swift firmware, you are still going to need the vendor provided tooling for linking, post-processing, uploading, etc.
 
 ## Building code using Embedded Swift
 
@@ -41,7 +41,7 @@ $ swiftc -target <target triple> -enable-experimental-feature Embedded -wmo \
 
 ### Building Swift firmware for an embedded target
 
-To build Swift firmware (for now ingnoring integration with SDKs, libraries and other pre-existing C code), we can use the `-target` argument to specify the CPU architecture. The target triple also decides whether the output object file will be an ELF file, or a Mach-O. For example:
+To build Swift firmware (for now ignoring integration with SDKs, libraries and other pre-existing C code), we can use the `-target` argument to specify the CPU architecture. The target triple also decides whether the output object file will be an ELF file, or a Mach-O. For example:
 
 ```bash
 # To build an ARMv7 Mach-O object file:
@@ -49,7 +49,7 @@ $ swiftc -target armv7-apple-none-macho -enable-experimental-feature Embedded -w
   input1.swift input2.swift ... -c -o output.o
 
 # To build an ARMv7 ELF object file:
-$ swiftc -target armv7-unknown-none-eabi -enable-experimental-feature Embedded -wmo \
+$ swiftc -target armv7-none-none-eabi -enable-experimental-feature Embedded -wmo \
   input1.swift input2.swift ... -c -o output.o
 ```
 
@@ -59,7 +59,7 @@ For example, a Raspberry Pi Pico / Pico W should target the ARMv6-M architecture
 
 ```bash
 # To build an ELF object file for ARMv6-M with soft float ABI (floating-point arguments passed in integer registers) and "short enums":
-$ swiftc -target armv6m-unknown-none-eabi -enable-experimental-feature Embedded -wmo \
+$ swiftc -target armv6m-none-none-eabi -enable-experimental-feature Embedded -wmo \
    -Xcc -mfloat-abi=soft -Xcc -fshort-enums \
   input1.swift input2.swift ... -c -o output.o
 ```
@@ -98,6 +98,58 @@ Segment __TEXT: 16384
 ...
 ```
 
+## Strings
+
+Both StaticString and String types are available in Embedded Swift. As is the case in desktop Swift, certain operations on strings require Unicode data tables for strict Unicode compliance. In Embedded Swift. these data tables are provided as a separate static library (libUnicodeDataTables.a) that users need to link in manually – if they need to use these string operations. If the library is required, linking will fail due to missing on one or more of the following symbols:
+
+```
+_swift_stdlib_getAge
+_swift_stdlib_getBinaryProperties
+_swift_stdlib_getCaseMapping
+_swift_stdlib_getComposition
+_swift_stdlib_getDecompositionEntry
+_swift_stdlib_getGeneralCategory
+_swift_stdlib_getGraphemeBreakProperty
+_swift_stdlib_getMapping
+_swift_stdlib_getMphIdx
+_swift_stdlib_getNameAlias
+_swift_stdlib_getNormData
+_swift_stdlib_getNumericType
+_swift_stdlib_getNumericValue
+_swift_stdlib_getScalarBitArrayIdx
+_swift_stdlib_getScalarName
+_swift_stdlib_getScript
+_swift_stdlib_getScriptExtensions
+_swift_stdlib_getSpecialMapping
+_swift_stdlib_getWordBreakProperty
+_swift_stdlib_isLinkingConsonant
+_swift_stdlib_nfd_decompositions
+```
+
+To resolve this, link in the libswiftUnicodeDataTables.a that's in Swift toolchain's resource directory (`lib/swift/`) under the target triple that you're using:
+
+```bash
+$ swiftc <inputs> -target armv6m-none-none-eabi -enable-experimental-feature Embedded -wmo -c -o output.o
+$ ld ... -o binary output.o $(dirname `which swiftc`)/../lib/swift/embedded/armv6m-none-none-eabi/libswiftUnicodeDataTables.a
+```
+
+**Unicode data tables are required for (list not exhaustive):**
+
+- Comparing String objects for equality
+- Sorting Strings
+- Using String's hash values, and in particular using String as dictionary keys
+- Using String's .count property
+- Using Unicode-aware string processing APIs (.split(), iterating characters, indexing)
+- Using Unicode-aware conversion String APIs (.uppercased(), .lowercased(), etc.)
+
+**For contrast, unicode data tables are *not required for* (list not exhaustive):**
+
+- Using StaticString
+- Creating, concatenating, string interpolating, and printing String objects
+- Using .utf8, .utf16, and .unicodeScalars views of strings, including their .count property, using them as dictionary keys
+
+Manually linking libUnicodeDataTables.a is required for several reasons, including acknowledging that the data tables are desirable: Since they have a non-negligible size, it's useful to be aware that you are using them.
+
 ## Conditionalizing compilation for Embedded Swift
 
 It's often useful to have source code be compilable under both regular Swift and Embedded Swift. The following syntax is available for that (but note that as the rest of Embedded Swift, it's experimental, subject to change and not considered source stable):
@@ -133,8 +185,7 @@ Features that are not available:
 - **Not available**: Runtime reflection (`Mirror` APIs).
 - **Not available**: Values of protocol types ("existentials"), e.g. `let a: Hashable = ...`, are not allowed. `Any` and `AnyObject` are also not allowed.
 - **Not available**: Metatypes, e.g. `let t = SomeClass.Type` or `type(of: value)` are not allowed.
-- **Not available yet (under development)**: The print() function for types other than StaticString and integers.
-- **Not available yet (under development)**: String. (StaticString **is** available).
+- **Not available**: Printing and stringification of arbitrary types (achieved via reflection in desktop Swift).
 - **Not available yet (under development)**: Swift Concurrency.
 
 For a more complete list of supported features in Embedded Swift, see [Embedded Swift -- Status](EmbeddedSwiftStatus.md).
@@ -159,7 +210,14 @@ The Embedded Swift standard library is distributed in the toolchain the same way
 
 ## Allocating and non-allocating Embedded Swift mode
 
-Embedded Swift does allow instantiating and using reference types (classes) which are refcounted objects allocated on the heap. A common case of needing those is for dynamic containers like arrays and sets (they use dynamically-sized heap-allocated class instances as their storage). Outside of creating class instances and explicitly calling allocation APIs (e.g. `UnsafeMutablePointer.allocate()`), Embedded Swift does not perform allocations or cause heap usage.
+Embedded Swift does allow instantiating and using reference types (classes) which are refcounted objects allocated on the heap. A common case of needing those is for dynamic containers like arrays and sets (they use dynamically-sized heap-allocated class instances as their storage). There is only a handful of Swift language features that cause allocations:
+
+- creating class instances,
+- escaping a closure that captures local variables,
+- creating an indirect enum case with a payload referencing the enum itself
+- explicitly calling allocation APIs (e.g. `UnsafeMutablePointer.allocate()`).
+
+Outside of those cases, Embedded Swift does not perform allocations or cause heap usage.
 
 Some embedded platforms don't have and/or don't want *any heap allocations whatsoever* and don't provide a heap at all. The `-no-allocations` compiler flag can be used to match that, which will cause the compiler to produce an error at compile time when creating class instances or calling allocation APIs.
 

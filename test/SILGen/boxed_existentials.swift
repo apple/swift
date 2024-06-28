@@ -64,13 +64,10 @@ func test_property(_ x: Error) -> String {
 // CHECK-LABEL: sil hidden [ossa] @$s18boxed_existentials13test_propertyySSs5Error_pF
 // CHECK: bb0([[ARG:%.*]] : @guaranteed $any Error):
 // CHECK:         [[VALUE:%.*]] = open_existential_box [[ARG]] : $any Error to $*[[VALUE_TYPE:@opened\(.*, any Error\) Self]]
-// FIXME: Extraneous copy here
-// CHECK-NEXT:    [[COPY:%[0-9]+]] = alloc_stack $[[VALUE_TYPE]]
-// CHECK-NEXT:    copy_addr [[VALUE]] to [init] [[COPY]] : $*[[VALUE_TYPE]]
 // CHECK:         [[METHOD:%.*]] = witness_method $[[VALUE_TYPE]], #Error._domain!getter
 // -- self parameter of witness is @in_guaranteed; no need to copy since
 //    value in box is immutable and box is guaranteed
-// CHECK:         [[RESULT:%.*]] = apply [[METHOD]]<[[VALUE_TYPE]]>([[COPY]])
+// CHECK:         [[RESULT:%.*]] = apply [[METHOD]]<[[VALUE_TYPE]]>([[VALUE]])
 // CHECK-NOT:         destroy_value [[ARG]]
 // CHECK:         return [[RESULT]]
 
@@ -93,10 +90,8 @@ func test_property_of_lvalue(_ x: Error) -> String {
 // CHECK:         [[COPY:%.*]] = alloc_stack $[[VALUE_TYPE]]
 // CHECK:         copy_addr [[VALUE]] to [init] [[COPY]]
 // CHECK:         destroy_value [[VALUE_BOX]]
-// CHECK:         [[BORROW:%.*]] = alloc_stack $[[VALUE_TYPE]]
-// CHECK:         copy_addr [[COPY]] to [init] [[BORROW]]
 // CHECK:         [[METHOD:%.*]] = witness_method $[[VALUE_TYPE]], #Error._domain!getter
-// CHECK:         [[RESULT:%.*]] = apply [[METHOD]]<[[VALUE_TYPE]]>([[BORROW]])
+// CHECK:         [[RESULT:%.*]] = apply [[METHOD]]<[[VALUE_TYPE]]>([[COPY]])
 // CHECK:         destroy_addr [[COPY]]
 // CHECK:         dealloc_stack [[COPY]]
 // CHECK:         end_borrow [[VAR_LIFETIME]]

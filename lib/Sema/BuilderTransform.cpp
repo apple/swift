@@ -25,6 +25,7 @@
 #include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Sema/ConstraintSystem.h"
 #include "swift/Sema/IDETypeChecking.h"
 #include "swift/Sema/SolutionResult.h"
@@ -72,6 +73,9 @@ class ResultBuilderTransform
   DeclContext *dc;
   ResultBuilder builder;
 
+  /// The source range of the body.
+  SourceRange bodyRange;
+
   /// The result type of this result builder body.
   Type ResultType;
 
@@ -80,9 +84,9 @@ class ResultBuilderTransform
 
 public:
   ResultBuilderTransform(ConstraintSystem &cs, DeclContext *dc,
-                         Type builderType, Type resultTy)
+                         SourceRange bodyRange, Type builderType, Type resultTy)
       : ctx(cs.getASTContext()), dc(dc), builder(cs, dc, builderType),
-        ResultType(resultTy) {}
+        bodyRange(bodyRange), ResultType(resultTy) {}
 
   UnsupportedElt getUnsupportedElement() const { return FirstUnsupported; }
 
@@ -238,12 +242,14 @@ protected:
       // buildBlock higher.
       buildBlockArguments.push_back(expr);
     } else if (ctx.CompletionCallback && expr->getSourceRange().isValid() &&
+               containsIDEInspectionTarget(bodyRange, ctx.SourceMgr) &&
                !containsIDEInspectionTarget(expr->getSourceRange(),
                                             ctx.SourceMgr)) {
-      // A statement that doesn't contain the code completion expression can't
-      // influence the type of the code completion expression. Add a variable
-      // for it that we can put into the buildBlock call but don't add the
-      // expression itself into the transformed body to improve performance.
+      // A top-level expression that doesn't contain the code completion
+      // expression can't influence the type of the code completion expression
+      // if they're in the same result builder. Add a variable for it that we
+      // can put into the buildBlock call but don't add the expression itself
+      // into the transformed body to improve performance.
       auto *resultVar = buildPlaceholderVar(expr->getStartLoc(), newBody);
       buildBlockArguments.push_back(
           builder.buildVarRef(resultVar, expr->getStartLoc()));
@@ -1176,6 +1182,7 @@ ConstraintSystem::matchResultBuilder(AnyFunctionRef fn, Type builderType,
   // let's do it and cache the result.
   if (!transformedBody) {
     ResultBuilderTransform transform(*this, fn.getAsDeclContext(),
+                                     fn.getBody()->getSourceRange(),
                                      builderType, bodyResultType);
     auto *body = transform.apply(fn.getBody());
 

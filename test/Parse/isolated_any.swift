@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -enable-experimental-feature IsolatedAny -disable-availability-checking
+// RUN: %target-typecheck-verify-swift -disable-availability-checking
 
 // REQUIRES: asserts
 

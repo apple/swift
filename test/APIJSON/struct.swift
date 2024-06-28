@@ -2,9 +2,8 @@
 // RUN: %empty-directory(%t)
 // RUN: %empty-directory(%t/ModuleCache)
 // RUN: %target-swift-frontend %s -typecheck -parse-as-library -emit-module-interface-path %t/MyModule.swiftinterface -enable-library-evolution -module-name MyModule -swift-version 5
-// RUN: %target-swift-api-extract -o - -pretty-print %t/MyModule.swiftinterface -module-name MyModule -module-cache-path %t/ModuleCache | %FileCheck %s --check-prefixes=CHECK,CHECK-EXTRACT
 // RUN: %target-swift-frontend %s -typecheck -parse-as-library -emit-module-interface-path %t/MyModule.swiftinterface -enable-library-evolution -module-name MyModule -swift-version 5 -emit-api-descriptor-path %t/api.json
-// RUN: %validate-json %t/api.json | %FileCheck %s --check-prefixes=CHECK,CHECK-EMIT
+// RUN: %validate-json %t/api.json | %FileCheck %s
 
 // Struct has no objc data.
 @available(macOS 10.13, *)
@@ -21,39 +20,34 @@ public struct TestStruct {
 // CHECK-NEXT:     {
 // CHECK-NEXT:       "name": "_$s8MyModule10TestStructV10testMethodyyF",
 // CHECK-NEXT:       "access": "public",
-// CHECK-EXTRACT-NEXT:  "file": "/@input/MyModule.swiftinterface",
-// CHECK-EMIT-NEXT:     "file": "SOURCE_DIR/test/APIJSON/struct.swift",
+// CHECK-NEXT:       "file": "SOURCE_DIR/test/APIJSON/struct.swift",
 // CHECK-NEXT:       "linkage": "exported",
 // CHECK-NEXT:       "introduced": "10.14"
 // CHECK-NEXT:     },
 // CHECK-NEXT:     {
 // CHECK-NEXT:       "name": "_$s8MyModule10TestStructVACycfC",
 // CHECK-NEXT:       "access": "public",
-// CHECK-EXTRACT-NEXT:  "file": "/@input/MyModule.swiftinterface",
-// CHECK-EMIT-NEXT:     "file": "SOURCE_DIR/test/APIJSON/struct.swift",
+// CHECK-NEXT:       "file": "SOURCE_DIR/test/APIJSON/struct.swift",
 // CHECK-NEXT:       "linkage": "exported"
 // CHECK-NEXT:     },
 // CHECK-NEXT:     {
 // CHECK-NEXT:       "name": "_$s8MyModule10TestStructVMa",
 // CHECK-NEXT:       "access": "public",
-// CHECK-EXTRACT-NEXT:  "file": "/@input/MyModule.swiftinterface",
-// CHECK-EMIT-NEXT:     "file": "SOURCE_DIR/test/APIJSON/struct.swift",
+// CHECK-NEXT:       "file": "SOURCE_DIR/test/APIJSON/struct.swift",
 // CHECK-NEXT:       "linkage": "exported",
 // CHECK-NEXT:       "introduced": "10.13"
 // CHECK-NEXT:     },
 // CHECK-NEXT:     {
 // CHECK-NEXT:       "name": "_$s8MyModule10TestStructVMn",
 // CHECK-NEXT:       "access": "public",
-// CHECK-EXTRACT-NEXT:  "file": "/@input/MyModule.swiftinterface",
-// CHECK-EMIT-NEXT:     "file": "SOURCE_DIR/test/APIJSON/struct.swift",
+// CHECK-NEXT:       "file": "SOURCE_DIR/test/APIJSON/struct.swift",
 // CHECK-NEXT:       "linkage": "exported",
 // CHECK-NEXT:       "introduced": "10.13"
 // CHECK-NEXT:     },
 // CHECK-NEXT:     {
 // CHECK-NEXT:       "name": "_$s8MyModule10TestStructVN",
 // CHECK-NEXT:       "access": "public",
-// CHECK-EXTRACT-NEXT:  "file": "/@input/MyModule.swiftinterface",
-// CHECK-EMIT-NEXT:     "file": "SOURCE_DIR/test/APIJSON/struct.swift",
+// CHECK-NEXT:       "file": "SOURCE_DIR/test/APIJSON/struct.swift",
 // CHECK-NEXT:       "linkage": "exported",
 // CHECK-NEXT:       "introduced": "10.13"
 // CHECK-NEXT:     }

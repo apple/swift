@@ -153,3 +153,15 @@ struct Wrapper : ~Escapable {
     return view
   }
 }
+
+enum FakeOptional<Wrapped: ~Escapable>: ~Escapable {
+  case none, some(Wrapped)
+}
+
+extension FakeOptional: Escapable where Wrapped: Escapable {}
+
+extension FakeOptional where Wrapped: ~Escapable {
+  init(nilLiteral: ()) -> dependsOn(immortal) Self {
+    self = .none
+  }
+}

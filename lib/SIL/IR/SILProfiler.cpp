@@ -17,6 +17,7 @@
 #include "swift/AST/Module.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/Stmt.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Parse/Lexer.h"
 #include "swift/SIL/FormalLinkage.h"
 #include "swift/SIL/SILModule.h"
@@ -114,11 +115,22 @@ static bool shouldProfile(SILDeclRef Constant) {
     }
   }
 
-  // Do not profile AST nodes in unavailable contexts.
   if (auto *D = DC->getInnermostDeclarationDeclContext()) {
+    // Do not profile AST nodes in unavailable contexts.
     if (D->getSemanticUnavailableAttr()) {
       LLVM_DEBUG(llvm::dbgs() << "Skipping ASTNode: unavailable context\n");
       return false;
+    }
+
+    // Do not profile functions that have had their bodies replaced (e.g
+    // function body macros).
+    // TODO: If/when preamble macros become an official feature, we'll
+    // need to be more nuanced here.
+    if (auto *AFD = dyn_cast<AbstractFunctionDecl>(D)) {
+      if (AFD->getOriginalBodySourceRange() != AFD->getBodySourceRange()) {
+        LLVM_DEBUG(llvm::dbgs() << "Skipping function: body replaced\n");
+        return false;
+      }
     }
   }
 
@@ -247,9 +259,12 @@ bool shouldSkipExpr(Expr *E) {
 /// Whether the children of a decl that isn't explicitly handled should be
 /// walked.
 static bool shouldWalkIntoUnhandledDecl(const Decl *D) {
-  // We want to walk into the initializer for a pattern binding decl. This
-  // allows us to map LazyInitializerExprs.
-  return isa<PatternBindingDecl>(D);
+  // We want to walk into initializers for bindings, and the expansions of
+  // MacroExpansionDecls, which will be nested within MacroExpansionExprs in
+  // local contexts. We won't record any regions within the macro expansion,
+  // but still need to walk to get accurate counter information in case e.g
+  // there's a throwing function call in the expansion.
+  return isa<PatternBindingDecl>(D) || isa<MacroExpansionDecl>(D);
 }
 
 /// Whether the expression \c E could potentially throw an error.
@@ -468,6 +483,10 @@ private:
   /// The region's ending location.
   std::optional<SourceLoc> EndLoc;
 
+  /// Whether the region is within a macro expansion. Such regions do not
+  /// get recorded, but are needed to track the counters within the expansion.
+  bool IsInMacroExpansion = false;
+
   SourceMappingRegion(Kind RegionKind, std::optional<CounterExpr> Counter,
                       std::optional<SourceLoc> StartLoc)
       : RegionKind(RegionKind), Counter(Counter), StartLoc(StartLoc) {
@@ -515,6 +534,14 @@ public:
 
   SourceMappingRegion(SourceMappingRegion &&Region) = default;
   SourceMappingRegion &operator=(SourceMappingRegion &&RHS) = default;
+
+  bool isInMacroExpansion() const {
+    return IsInMacroExpansion;
+  }
+
+  void setIsInMacroExpansion() {
+    IsInMacroExpansion = true;
+  }
 
   /// Whether this region is for scoping only.
   bool isForScopingOnly() const { return RegionKind == Kind::ScopingOnly; }
@@ -810,6 +837,7 @@ struct PGOMapping : public ASTWalker {
 struct CoverageMapping : public ASTWalker {
 private:
   const SourceManager &SM;
+  SourceFile *SF;
 
   /// The SIL function being profiled.
   SILDeclRef Constant;
@@ -835,6 +863,12 @@ private:
   std::optional<CounterExpr> ExitCounter;
 
   Stmt *ImplicitTopLevelBody = nullptr;
+
+  /// The number of parent MacroExpansionExprs.
+  unsigned MacroDepth = 0;
+
+  /// Whether the current walk is within a macro expansion.
+  bool isInMacroExpansion() const { return MacroDepth > 0; }
 
   /// Return true if \c Ref has an associated counter.
   bool hasCounter(ProfileCounterRef Ref) { return CounterExprs.count(Ref); }
@@ -992,6 +1026,10 @@ private:
 
   /// Push a region onto the stack.
   void pushRegion(SourceMappingRegion Region) {
+    // Note on the region whether we're currently in a macro expansion.
+    if (isInMacroExpansion())
+      Region.setIsInMacroExpansion();
+
     LLVM_DEBUG({
       llvm::dbgs() << "Pushed region: ";
       Region.print(llvm::dbgs(), SM);
@@ -1025,6 +1063,11 @@ private:
       Region.print(llvm::dbgs(), SM);
       llvm::dbgs() << "\n";
     });
+
+    // Don't record regions in macro expansions, they don't have source
+    // locations that can be meaningfully mapped to source code.
+    if (Region.isInMacroExpansion())
+      return;
 
     // Don't bother recording regions that are only present for scoping.
     if (Region.isForScopingOnly())
@@ -1111,9 +1154,10 @@ private:
 
 public:
   CoverageMapping(
-      const SourceManager &SM, SILDeclRef Constant,
+      SourceFile *SF, SILDeclRef Constant,
       const llvm::DenseMap<ProfileCounterRef, unsigned> &ConcreteCounters)
-      : SM(SM), Constant(Constant), ConcreteCounters(ConcreteCounters) {}
+    : SM(SF->getASTContext().SourceMgr), SF(SF), Constant(Constant),
+      ConcreteCounters(ConcreteCounters) {}
 
   LazyInitializerWalking getLazyInitializerWalkingBehavior() override {
     // We want to walk lazy initializers present in the synthesized getter for
@@ -1135,20 +1179,33 @@ public:
   /// source regions.
   SILCoverageMap *emitSourceRegions(SILModule &M, StringRef Name,
                                     StringRef PGOFuncName, uint64_t Hash,
-                                    SourceFile *SF, StringRef Filename) {
+                                    StringRef Filename) {
     if (SourceRegions.empty())
       return nullptr;
 
-    using MappedRegion = SILCoverageMap::MappedRegion;
+    auto FileSourceRange = SM.getRangeForBuffer(*SF->getBufferID());
+    auto isLocInFile = [&](SourceLoc Loc) {
+      return FileSourceRange.contains(Loc) || FileSourceRange.getEnd() == Loc;
+    };
 
+    using MappedRegion = SILCoverageMap::MappedRegion;
     std::vector<MappedRegion> Regions;
     SourceRange OuterRange;
     for (const auto &Region : SourceRegions) {
       assert(Region.hasStartLoc() && "invalid region");
       assert(Region.hasEndLoc() && "incomplete region");
 
-      // Build up the outer range from the union of all coverage regions.
       SourceRange Range(Region.getStartLoc(), Region.getEndLoc());
+
+      // Make sure we haven't ended up with any source locations outside the
+      // SourceFile (e.g for generated code such as macros), asserting in an
+      // asserts build, dropping in a non-asserts build.
+      if (!isLocInFile(Range.Start) || !isLocInFile(Range.End)) {
+        assert(false && "range outside of file");
+        continue;
+      }
+
+      // Build up the outer range from the union of all coverage regions.
       if (!OuterRange) {
         OuterRange = Range;
       } else {
@@ -1520,10 +1577,14 @@ public:
 
     if (hasCounter(E)) {
       pushRegion(SourceMappingRegion::forNode(E, SM));
-    } else if (isa<OptionalTryExpr>(E)) {
+    } else if (isa<OptionalTryExpr>(E) || isa<MacroExpansionExpr>(E)) {
       // If we have a `try?`, that doesn't already have a counter, record it
       // as a scoping-only region. We need it to scope child error branches,
       // but don't need it in the resulting set of regions.
+      //
+      // If we have a macro expansion, also push a scoping-only region. We'll
+      // discard any regions recorded within the macro, but will adjust for any
+      // control flow that may have happened within the macro.
       assignCounter(E, getCurrentCounter());
       pushRegion(SourceMappingRegion::scopingOnly(E, SM));
     }
@@ -1558,6 +1619,10 @@ public:
       // Already visited the children.
       return Action::SkipChildren(TE);
     }
+
+    if (isa<MacroExpansionExpr>(E))
+      MacroDepth += 1;
+
     return shouldWalkIntoExpr(E, Parent, Constant);
   }
 
@@ -1572,6 +1637,11 @@ public:
       replaceCount(
           CounterExpr::Sub(getCurrentCounter(), ThrowCount, CounterBuilder),
           Lexer::getLocForEndOfToken(SM, E->getEndLoc()));
+    }
+
+    if (isa<MacroExpansionExpr>(E)) {
+      assert(isInMacroExpansion());
+      MacroDepth -= 1;
     }
 
     if (hasCounter(E))
@@ -1610,7 +1680,6 @@ static void walkNode(NodeToProfile Node, ASTWalker &Walker) {
 }
 
 void SILProfiler::assignRegionCounters() {
-  const auto &SM = M.getASTContext().SourceMgr;
   auto *DC = forDecl.getInnermostDeclContext();
   auto *SF = DC->getParentSourceFile();
   assert(SF && "Not within a SourceFile?");
@@ -1647,10 +1716,10 @@ void SILProfiler::assignRegionCounters() {
   PGOFuncHash = 0x0;
 
   if (EmitCoverageMapping) {
-    CoverageMapping Coverage(SM, forDecl, RegionCounterMap);
+    CoverageMapping Coverage(SF, forDecl, RegionCounterMap);
     walkNode(Root, Coverage);
     CovMap = Coverage.emitSourceRegions(M, CurrentFuncName, PGOFuncName,
-                                        PGOFuncHash, SF, CurrentFileName);
+                                        PGOFuncHash, CurrentFileName);
   }
 
   if (llvm::IndexedInstrProfReader *IPR = M.getPGOReader()) {

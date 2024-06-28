@@ -21,6 +21,7 @@
 #include "swift/SIL/SILValue.h"
 #include "swift/SIL/AbstractionPatternGenerators.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/ExternalUnion.h"
 #include "swift/Basic/Generators.h"
 

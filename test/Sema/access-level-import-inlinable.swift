@@ -43,20 +43,6 @@ public struct PackageImportType {
     public init() {}
 }
 
-public protocol PackageImportProto {
-  associatedtype T
-}
-
-public func PackageFunc() {}
-
-@propertyWrapper
-public struct PackageImportWrapper<T> {
-  public var wrappedValue: T
-  public init(wrappedValue: T) {
-    self.wrappedValue = wrappedValue
-  }
-}
-
 //--- InternalLib.swift
 public protocol InternalImportProto {
     associatedtype T
@@ -90,12 +76,7 @@ public struct PrivateImportType {
 public import PublicLib
 
 package import PackageLib
-// expected-note@-1 9 {{struct 'PackageImportType' imported as 'package' from 'PackageLib' here}}
-// expected-note@-2 2 {{global function 'PackageFunc()' imported as 'package' from 'PackageLib' here}}
-// expected-note@-3 2 {{protocol 'PackageImportProto' imported as 'package' from 'PackageLib' here}}
-// expected-note@-4 2 {{initializer 'init()' imported as 'package' from 'PackageLib' here}}
-// expected-note@-5 2 {{generic struct 'PackageImportWrapper' imported as 'package' from 'PackageLib' here}}
-// expected-note@-6 2 {{initializer 'init(wrappedValue:)' imported as 'package' from 'PackageLib' here}}
+// expected-note@-1 4 {{struct 'PackageImportType' imported as 'package' from 'PackageLib' here}}
 
 internal import InternalLib
 // expected-note@-1 9 {{struct 'InternalImportType' imported as 'internal' from 'InternalLib' here}}
@@ -109,29 +90,24 @@ fileprivate import FileprivateLib
 // expected-note@-3 2 {{protocol 'FileprivateImportProto' imported as 'fileprivate' from 'FileprivateLib' here}}
 
 private import PrivateLib
-// expected-note@-1 12 {{struct 'PrivateImportType' imported as 'private' from 'PrivateLib' here}}
-// expected-note@-2 2 {{initializer 'init()' imported as 'private' from 'PrivateLib' here}}
+// expected-note@-1 10 {{struct 'PrivateImportType' imported as 'private' from 'PrivateLib' here}}
+ // expected-note@-2 2 {{initializer 'init()' imported as 'private' from 'PrivateLib' here}}
 
 public struct GenericType<T, U> {}
 
 @inlinable public func inlinable() {
 
   PublicFunc()
-  PackageFunc() // expected-error {{global function 'PackageFunc()' is package and cannot be referenced from an '@inlinable' function}}
   InternalFunc() // expected-error {{global function 'InternalFunc()' is internal and cannot be referenced from an '@inlinable' function}}
 
   let _: PublicImportType
-  let _: PackageImportType // expected-error {{struct 'PackageImportType' is package and cannot be referenced from an '@inlinable' function}}
   let _: InternalImportType // expected-error {{struct 'InternalImportType' is internal and cannot be referenced from an '@inlinable' function}}
 
   let _ = PublicImportType()
-  let _ = PackageImportType() // expected-error {{struct 'PackageImportType' is package and cannot be referenced from an '@inlinable' function}}
-  // expected-error @-1 {{initializer 'init()' is package and cannot be referenced from an '@inlinable' function}}
   let _ = PrivateImportType() // expected-error {{struct 'PrivateImportType' is private and cannot be referenced from an '@inlinable' function}}
   // expected-error @-1 {{initializer 'init()' is private and cannot be referenced from an '@inlinable' function}}
 
   let _: any PublicImportProto
-  let _: any PackageImportProto // expected-error {{protocol 'PackageImportProto' is package and cannot be referenced from an '@inlinable' function}}
   let _: any InternalImportProto // expected-error {{protocol 'InternalImportProto' is internal and cannot be referenced from an '@inlinable' function}}
 
   let _: any FileprivateImportProto & InternalImportProto // expected-error {{protocol 'FileprivateImportProto' is fileprivate and cannot be referenced from an '@inlinable' function}}
@@ -150,10 +126,6 @@ public struct GenericType<T, U> {}
   @PublicImportWrapper
   var wrappedPublic: PublicImportType
 
-  @PackageImportWrapper // expected-error {{initializer 'init(wrappedValue:)' is package and cannot be referenced from an '@inlinable' function}}
-  // expected-error @-1 {{generic struct 'PackageImportWrapper' is package and cannot be referenced from an '@inlinable' function}}
-  var wrappedPackage: PublicImportType
-
   @FileprivateImportWrapper // expected-error {{initializer 'init(wrappedValue:)' is fileprivate and cannot be referenced from an '@inlinable' function}}
   // expected-error @-1 {{generic struct 'FileprivateImportWrapper' is fileprivate and cannot be referenced from an '@inlinable' function}}
   var wrappedFileprivate: PublicImportType
@@ -166,21 +138,16 @@ public struct GenericType<T, U> {}
 @_alwaysEmitIntoClient public func alwaysEmitIntoClient() {
 
   PublicFunc()
-  PackageFunc() // expected-error {{global function 'PackageFunc()' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   InternalFunc() // expected-error {{global function 'InternalFunc()' is internal and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
 
   let _: PublicImportType
-  let _: PackageImportType // expected-error {{struct 'PackageImportType' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   let _: InternalImportType // expected-error {{struct 'InternalImportType' is internal and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
 
   let _ = PublicImportType()
-  let _ = PackageImportType() // expected-error {{struct 'PackageImportType' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
-  // expected-error @-1 {{initializer 'init()' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   let _ = PrivateImportType() // expected-error {{struct 'PrivateImportType' is private and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   // expected-error @-1 {{initializer 'init()' is private and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
 
   let _: any PublicImportProto
-  let _: any PackageImportProto // expected-error {{protocol 'PackageImportProto' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   let _: any InternalImportProto // expected-error {{protocol 'InternalImportProto' is internal and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
 
   let _: any FileprivateImportProto & InternalImportProto // expected-error {{protocol 'FileprivateImportProto' is fileprivate and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
@@ -199,10 +166,6 @@ public struct GenericType<T, U> {}
   @PublicImportWrapper
   var wrappedPublic: PublicImportType
 
-  @PackageImportWrapper // expected-error {{initializer 'init(wrappedValue:)' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
-  // expected-error @-1 {{generic struct 'PackageImportWrapper' is package and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
-  var wrappedPackage: PublicImportType
-
   @FileprivateImportWrapper // expected-error {{initializer 'init(wrappedValue:)' is fileprivate and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   // expected-error @-1 {{generic struct 'FileprivateImportWrapper' is fileprivate and cannot be referenced from an '@_alwaysEmitIntoClient' function}}
   var wrappedFileprivate: PublicImportType
@@ -217,20 +180,9 @@ public struct GenericType<T, U> {}
   // expected-note @-1 {{struct 'PrivateImportType' is imported by this file as 'private' from 'PrivateLib'}}
 }
 
-@frozen package struct PkgBadFields1 {
-  private var field: PrivateImportType // expected-error {{type referenced from a stored property in a '@frozen package' struct must be '@usableFromInline', public, or package}}
-  // expected-note @-1 {{struct 'PrivateImportType' is imported by this file as 'private' from 'PrivateLib'}}
-}
-
 @_fixed_layout public struct FixedBadFields1 {
 // expected-warning@-1 {{'@frozen' attribute is now used for fixed-layout structs}}
   private var field: PrivateImportType // expected-error {{type referenced from a stored property in a '@frozen' struct must be '@usableFromInline' or public}}
-  // expected-note @-1 {{struct 'PrivateImportType' is imported by this file as 'private' from 'PrivateLib'}}
-}
-
-@_fixed_layout package struct PkgFixedBadFields1 {
-  // expected-warning@-1 {{'@frozen' attribute is now used for fixed-layout structs}}
-  private var field: PrivateImportType // expected-error {{type referenced from a stored property in a '@frozen package' struct must be '@usableFromInline', public, or package}}
   // expected-note @-1 {{struct 'PrivateImportType' is imported by this file as 'private' from 'PrivateLib'}}
 }
 
@@ -298,17 +250,6 @@ public struct GenericType<T, U> {}
 }
 
 // expected-error@+1 {{the result of a '@usableFromInline' function must be '@usableFromInline' or public}}
-@usableFromInline func notReallyUsableFromInlinePkg() -> PackageImportType? { return nil }
-// expected-note @-1 {{struct 'PackageImportType' is imported by this file as 'package' from 'PackageLib'}}
-@frozen public struct BadFieldsPkg7 {
-  private var field = notReallyUsableFromInlinePkg() // expected-error {{type referenced from a stored property with inferred type 'PackageImportType?' in a '@frozen' struct must be '@usableFromInline' or public}}
-}
-@_fixed_layout public struct FrozenBadFieldsPkg7 {
-  // expected-warning@-1 {{'@frozen' attribute is now used for fixed-layout structs}}
-  private var field = notReallyUsableFromInlinePkg() // expected-error {{type referenced from a stored property with inferred type 'PackageImportType?' in a '@frozen' struct must be '@usableFromInline' or public}}
-}
-
-// expected-error@+1 {{the result of a '@usableFromInline' function must be '@usableFromInline' or public}}
 @usableFromInline func notReallyUsableFromInline() -> InternalImportType? { return nil }
   // expected-note @-1 {{struct 'InternalImportType' is imported by this file as 'internal' from 'InternalLib'}}
 @frozen public struct BadFields7 {
@@ -320,36 +261,13 @@ public struct GenericType<T, U> {}
   private var field = notReallyUsableFromInline() // expected-error {{type referenced from a stored property with inferred type 'InternalImportType?' in a '@frozen' struct must be '@usableFromInline' or public}}
 }
 
-@frozen package struct PkgBadFields7 {
-  private var field = notReallyUsableFromInline() // expected-error {{type referenced from a stored property with inferred type 'InternalImportType?' in a '@frozen package' struct must be '@usableFromInline', public, or package}}
-}
-@_fixed_layout package struct PkgFrozenBadFields7 {
-  // expected-warning@-1 {{'@frozen' attribute is now used for fixed-layout structs}}
-  private var field = notReallyUsableFromInline() // expected-error {{type referenced from a stored property with inferred type 'InternalImportType?' in a '@frozen package' struct must be '@usableFromInline', public, or package}}
-}
-
 @frozen public struct OKFields {
-  public var field: PublicImportType
   internal static var staticProp: InternalImportType?
   private var computed: PrivateImportType? { return nil }
 }
 
 @_fixed_layout public struct FixedOKFields {
 // expected-warning@-1 {{'@frozen' attribute is now used for fixed-layout structs}}
-  public var field: PublicImportType
-  internal static var staticProp: InternalImportType?
-  private var computed: PrivateImportType? { return nil }
-}
-
-@frozen package struct PkgOKFields {
-  package var field: PackageImportType
-  internal static var staticProp: InternalImportType?
-  private var computed: PrivateImportType? { return nil }
-}
-
-@_fixed_layout package struct PkgFixedOKFields {
-  // expected-warning@-1 {{'@frozen' attribute is now used for fixed-layout structs}}
-  package var field: PackageImportType
   internal static var staticProp: InternalImportType?
   private var computed: PrivateImportType? { return nil }
 }

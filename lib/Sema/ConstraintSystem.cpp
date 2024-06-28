@@ -29,6 +29,7 @@
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
 #include "swift/Sema/CSFix.h"
@@ -1747,8 +1748,17 @@ FunctionType *ConstraintSystem::adjustFunctionTypeForConcurrency(
       });
 
   if (Context.LangOpts.hasFeature(Feature::InferSendableFromCaptures)) {
+    DeclContext *DC = nullptr;
     if (auto *FD = dyn_cast<AbstractFunctionDecl>(decl)) {
-      auto *DC = FD->getDeclContext();
+      DC = FD->getDeclContext();
+    } else if (auto EED = dyn_cast<EnumElementDecl>(decl)) {
+      if (EED->hasAssociatedValues() &&
+          !locator.endsWith<LocatorPathElt::PatternMatch>()) {
+        DC = EED->getDeclContext();
+      }
+    }
+
+    if (DC) {
       // All global functions should be @Sendable
       if (DC->isModuleScopeContext()) {
         if (!adjustedTy->getExtInfo().isSendable()) {
@@ -6669,6 +6679,16 @@ static bool shouldHaveDirectCalleeOverload(const CallExpr *callExpr) {
   return true;
 }
 #endif
+
+ASTNode ConstraintSystem::includingParentApply(ASTNode node) {
+  if (auto *expr = getAsExpr(node)) {
+    if (auto apply = getAsExpr<ApplyExpr>(getParentExpr(expr))) {
+      if (apply->getFn() == expr)
+        return apply;
+    }
+  }
+  return node;
+}
 
 Type Solution::resolveInterfaceType(Type type) const {
   auto resolvedType = type.transform([&](Type type) -> Type {

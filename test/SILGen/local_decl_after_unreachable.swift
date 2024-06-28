@@ -13,4 +13,6 @@ func foo() {
     // CHECK-LABEL: sil {{.*}} @{{.*}}3foo{{.*}}3bar{{.*}}F : {{.*}} {
     func bar(_: Any) {}
 
+    // Check that we don't crash here
+    lazy var v = 42
 }

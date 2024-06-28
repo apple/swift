@@ -57,9 +57,9 @@ extension P {
     }
   }
 
-  // CHECK-LABEL: define{{.*}} swiftcc void @"$s19typed_throws_thunks1PP2g34bodyyyyAA9FixedSizeVYKXE_tAGYKFTj"(ptr %0, ptr %1, ptr noalias swiftself %2, ptr noalias nocapture swifterror dereferenceable(8) %3, ptr %4, ptr %5, ptr %6)
+  // CHECK-LABEL: define{{.*}} swiftcc { i64, i64 } @"$s19typed_throws_thunks1PP2g34bodyyyyAA9FixedSizeVYKXE_tAGYKFTj"(ptr %0, ptr %1, ptr noalias swiftself %2, ptr noalias nocapture swifterror dereferenceable(8) %3, ptr %4, ptr %5)
   // CHECK-NOT: ret
-  // CHECK:  call swiftcc void {{.*}}(ptr %0, ptr %1, ptr noalias swiftself %2, ptr noalias nocapture swifterror dereferenceable(8) %3, ptr %4, ptr %5, ptr %6)
+  // CHECK:  call swiftcc { i64, i64 } {{.*}}(ptr %0, ptr %1, ptr noalias swiftself %2, ptr noalias nocapture swifterror dereferenceable(8) %3, ptr %4, ptr %5)
 
 
   public func g3(body: () throws(FixedSize) -> Void) throws(FixedSize) {

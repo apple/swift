@@ -7,12 +7,12 @@ public protocol Proto {
   func req()
 }
 
-public struct ConformsToProtoMissingRequirement: Proto {
-  // expected-error@-1 {{type 'ConformsToProtoMissingRequirement' does not conform to protocol 'Proto'}}
+public struct ConformsToProto_MissingRequirement: Proto {
+  // expected-error@-1 {{type 'ConformsToProto_MissingRequirement' does not conform to protocol 'Proto'}}
 }
 
-public struct ConformsToProtoNearMiss: Proto {
-  // expected-error@-1 {{type 'ConformsToProtoNearMiss' does not conform to protocol 'Proto'}}
+public struct ConformsToProto_NearMiss: Proto {
+  // expected-error@-1 {{type 'ConformsToProto_NearMiss' does not conform to protocol 'Proto'}}
 
   public func req(x: Int) {}
 }
@@ -21,8 +21,16 @@ public protocol ProtoWithAssociatedType {
   associatedtype A
 }
 
-public struct ConformsToProtoProtoWithAssociatedType: ProtoWithAssociatedType {
-  // expected-error@-1 {{type 'ConformsToProtoProtoWithAssociatedType' does not conform to protocol 'ProtoWithAssociatedType'}}
+public struct ConformsToProtoWithAssociatedType_MissingTypeRequirement: ProtoWithAssociatedType {
+  // expected-error@-1 {{type 'ConformsToProtoWithAssociatedType_MissingTypeRequirement' does not conform to protocol 'ProtoWithAssociatedType'}}
+}
+
+public protocol ProtoWithConstrainedAssociatedType {
+  associatedtype A: Proto
+}
+
+public struct ConformsToProtoWithConstrainedAssociatedType_MissingTypeRequirement: ProtoWithConstrainedAssociatedType {
+  // expected-error@-1 {{type 'ConformsToProtoWithConstrainedAssociatedType_MissingTypeRequirement' does not conform to protocol 'ProtoWithConstrainedAssociatedType'}}
 }
 
 public struct GenericStruct<T> {

@@ -16,6 +16,10 @@ import Foundation
 
 // We should never see @_objcImplementation in the header
 // NEGATIVE-NOT: @_objcImplementation
+// NEGATIVE-NOT: @implementation
+
+// @objc should be omitted on extensions
+// NEGATIVE-NOT: @objc{{.*}} extension
 
 //
 // @_objcImplementation class

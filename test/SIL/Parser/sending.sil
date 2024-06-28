@@ -1,11 +1,12 @@
-// RUN: %target-sil-opt -enable-upcoming-feature SendingArgsAndResults -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete %s | %target-sil-opt -enable-upcoming-feature SendingArgsAndResults -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete | %FileCheck %s
+// RUN: %target-sil-opt -strict-concurrency=complete %s | %target-sil-opt -strict-concurrency=complete | %FileCheck %s
+// RUN: %target-sil-opt %s | %target-sil-opt | %FileCheck %s
 
 sil_stage raw
 
 // CHECK-LABEL: func transferValueDefault<T>(_ t: sending T)
 func transferValueDefault<T>(_ t: sending T)
-// CHECK-LABEL: func transferValueBorrowing<T>(_ t: borrowing sending T)
-func transferValueBorrowing<T>(_ t: borrowing sending T)
+// CHECK-LABEL: func transferValueBorrowing<T>(_ t: __shared sending T)
+func transferValueBorrowing<T>(_ t: __shared sending T)
 // CHECK-LABEL: func transferValueConsuming<T>(_ t: consuming sending T)
 func transferValueConsuming<T>(_ t: consuming sending T)
 

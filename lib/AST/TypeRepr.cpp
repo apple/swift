@@ -23,6 +23,7 @@
 #include "swift/AST/GenericParamList.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
 #include "llvm/ADT/SmallString.h"
@@ -109,14 +110,18 @@ bool TypeRepr::hasOpaque() {
     findIf([](TypeRepr *ty) { return isa<OpaqueReturnTypeRepr>(ty); });
 }
 
+bool TypeRepr::isParenType() const {
+  auto *tuple = dyn_cast<TupleTypeRepr>(this);
+  return tuple && tuple->isParenType();
+}
+
 TypeRepr *TypeRepr::getWithoutParens() const {
-  auto *repr = const_cast<TypeRepr *>(this);
-  while (auto *tupleRepr = dyn_cast<TupleTypeRepr>(repr)) {
-    if (!tupleRepr->isParenType())
-      break;
-    repr = tupleRepr->getElementType(0);
+  auto *result = this;
+  while (result->isParenType()) {
+    result = cast<TupleTypeRepr>(result)->getElementType(0);
   }
-  return repr;
+
+  return const_cast<TypeRepr *>(result);
 }
 
 bool TypeRepr::isSimpleUnqualifiedIdentifier(Identifier identifier) const {
@@ -855,9 +860,6 @@ void SpecifierTypeRepr::printImpl(ASTPrinter &Printer,
     break;
   case TypeReprKind::CompileTimeConst:
     Printer.printKeyword("_const", Opts, " ");
-    break;
-  case TypeReprKind::ResultDependsOn:
-    Printer.printKeyword("_resultDependsOn", Opts, " ");
     break;
   }
   printTypeRepr(Base, Printer, Opts);

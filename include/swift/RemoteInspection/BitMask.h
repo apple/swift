@@ -74,7 +74,16 @@ public:
 
   BitMask(unsigned sizeInBytes, uint64_t sourceMask): size(sizeInBytes) {
     mask = (uint8_t *)calloc(1, sizeInBytes);
-    memcpy(mask, &sourceMask, sizeInBytes);
+    if (!mask) {
+      assert(false && "Failed to allocate Bitmask");
+      size = 0;
+      return;
+    }
+    size_t toCopy = sizeInBytes;
+    if (toCopy > sizeof(sourceMask)) {
+      toCopy = sizeof(sourceMask);
+    }
+    memcpy(mask, &sourceMask, toCopy);
   }
 
   // Construct a bitmask of the appropriate number of bytes

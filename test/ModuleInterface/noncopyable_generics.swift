@@ -1,8 +1,12 @@
 // RUN: %empty-directory(%t)
 
+// Due to SE427NoInferenceOnExtension not being in production
+// REQUIRES: asserts
+
 // RUN: %target-swift-frontend -swift-version 5 -enable-library-evolution -emit-module \
 // RUN:     -enable-experimental-feature SuppressedAssociatedTypes \
 // RUN:     -enable-experimental-feature NonescapableTypes \
+// RUN:     -enable-experimental-feature SE427NoInferenceOnExtension \
 // RUN:     -o %t/NoncopyableGenerics_Misc.swiftmodule \
 // RUN:     -emit-module-interface-path %t/NoncopyableGenerics_Misc.swiftinterface \
 // RUN:     %S/Inputs/NoncopyableGenerics_Misc.swift
@@ -10,6 +14,7 @@
 // RUN: %target-swift-frontend -swift-version 5 -enable-library-evolution -emit-module \
 // RUN:     -enable-experimental-feature SuppressedAssociatedTypes \
 // RUN:     -enable-experimental-feature NonescapableTypes \
+// RUN:     -enable-experimental-feature SE427NoInferenceOnExtension \
 // RUN:     -o %t/Swiftskell.swiftmodule \
 // RUN:     -emit-module-interface-path %t/Swiftskell.swiftinterface \
 // RUN:     %S/../Inputs/Swiftskell.swift
@@ -24,16 +29,19 @@
 // RUN: %target-swift-frontend -compile-module-from-interface \
 // RUN:     -enable-experimental-feature SuppressedAssociatedTypes \
 // RUN:     -enable-experimental-feature NonescapableTypes \
+// RUN:     -enable-experimental-feature SE427NoInferenceOnExtension \
 // RUN:    %t/NoncopyableGenerics_Misc.swiftinterface -o %t/NoncopyableGenerics_Misc.swiftmodule
 
 // RUN: %target-swift-frontend -compile-module-from-interface \
 // RUN:     -enable-experimental-feature SuppressedAssociatedTypes \
 // RUN:     -enable-experimental-feature NonescapableTypes \
+// RUN:     -enable-experimental-feature SE427NoInferenceOnExtension \
 // RUN:    %t/Swiftskell.swiftinterface -o %t/Swiftskell.swiftmodule
 
 // RUN: %target-swift-frontend -emit-silgen -I %t %s \
 // RUN:     -enable-experimental-feature SuppressedAssociatedTypes \
 // RUN:    -enable-experimental-feature NonescapableTypes \
+// RUN:     -enable-experimental-feature SE427NoInferenceOnExtension \
 // RUN:    -o %t/final.silgen
 
 // RUN: %FileCheck %s --check-prefix=CHECK-SILGEN < %t/final.silgen
@@ -77,18 +85,18 @@ import NoncopyableGenerics_Misc
 // CHECK-MISC-NEXT: public struct ExplicitHello<T> : ~Swift.Copyable where T : ~Copyable {
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension {{.*}}.ExplicitHello : Swift.Copyable {
+// CHECK-MISC-NEXT: extension {{.*}}.ExplicitHello : Swift.Copyable where T : Swift.Copyable {
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
 // CHECK-MISC-NEXT: public struct Hello<T> : ~Swift.Copyable, ~Swift.Escapable where T : ~Copyable, T : ~Escapable {
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension NoncopyableGenerics_Misc.Hello : Swift.Escapable where T : ~Copyable {
+// CHECK-MISC-NEXT: extension NoncopyableGenerics_Misc.Hello : Swift.Escapable where T : Swift.Escapable {
 // CHECK-MISC-NEXT: }
 // CHECK-MISC: #endif
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension NoncopyableGenerics_Misc.Hello : Swift.Copyable where T : ~Escapable {
+// CHECK-MISC-NEXT: extension NoncopyableGenerics_Misc.Hello : Swift.Copyable where T : Swift.Copyable {
 // CHECK-MISC-NEXT: }
 // CHECK-MISC: #endif
 
@@ -121,19 +129,19 @@ import NoncopyableGenerics_Misc
 // CHECK-MISC:   public struct InnerVariation2<D> : ~Swift.Copyable, ~Swift.Escapable where D : ~Escapable
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension {{.*}}.Outer : Swift.Copyable {
+// CHECK-MISC-NEXT: extension {{.*}}.Outer : Swift.Copyable where A : Swift.Copyable {
 // CHECK-MISC: #endif
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension {{.*}}.Outer.InnerStruct : Swift.Copyable {
+// CHECK-MISC-NEXT: extension {{.*}}.Outer.InnerStruct : Swift.Copyable where A : Swift.Copyable, C : Swift.Copyable {
 // CHECK-MISC: #endif
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension {{.*}}.Outer.InnerVariation1 : Swift.Copyable {
+// CHECK-MISC-NEXT: extension {{.*}}.Outer.InnerVariation1 : Swift.Copyable where A : Swift.Copyable, D : Swift.Copyable {
 // CHECK-MISC: #endif
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-MISC-NEXT: extension {{.*}}.Outer.InnerVariation2 : Swift.Escapable where A : ~Copyable {
+// CHECK-MISC-NEXT: extension {{.*}}.Outer.InnerVariation2 : Swift.Escapable where D : Swift.Escapable {
 // CHECK-MISC: #endif
 
 // CHECK-MISC: #if compiler(>=5.3) && $NoncopyableGenerics
@@ -215,6 +223,11 @@ import NoncopyableGenerics_Misc
 // CHECK-MISC-NEXT: public struct RegularTwice : ~Swift.Copyable, ~Swift.Copyable {
 // CHECK-MISC-NEXT: }
 
+// CHECK-MISC-NEXT: #if compiler(>=5.3) && $NoncopyableGenerics
+// CHECK-MISC-NEXT: public struct Continuation<T, E> where E : Swift.Error, T : ~Copyable {
+// CHECK-MISC-NOT:  ~
+// CHECK-MISC:      #endif
+
 // NOTE: below are extensions emitted at the end of NoncopyableGenerics_Misc.swift
 // CHECK-MISC: extension {{.*}}.VeryNested : {{.*}}.Publik {}
 
@@ -250,7 +263,7 @@ import Swiftskell
 // CHECK: #endif
 
 // CHECK: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-NEXT: extension Swiftskell.Pair : Swift.Copyable {
+// CHECK-NEXT: extension Swiftskell.Pair : Swift.Copyable where L : Swift.Copyable, R : Swift.Copyable {
 // CHECK: #endif
 
 // CHECK: #if compiler(>=5.3) && $NoncopyableGenerics
@@ -258,7 +271,7 @@ import Swiftskell
 // CHECK: #endif
 
 // CHECK: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK-NEXT: extension Swiftskell.Maybe : Swift.Copyable {
+// CHECK-NEXT: extension Swiftskell.Maybe : Swift.Copyable where Wrapped : Swift.Copyable {
 // CHECK: #endif
 
 // CHECK: #if compiler(>=5.3) && $NoncopyableGenerics

@@ -13,6 +13,7 @@
 #define DEBUG_TYPE "sil-arc-analysis"
 
 #include "swift/SILOptimizer/Analysis/ARCAnalysis.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/Projection.h"
@@ -496,7 +497,7 @@ mayGuaranteedUseValue(SILInstruction *User, SILValue Ptr, AliasAnalysis *AA) {
   // Ptr. If we fail, return true.
   auto Params = FType->getParameters();
   for (unsigned i : indices(Params)) {    
-    if (!Params[i].isGuaranteed())
+    if (!Params[i].isGuaranteedInCaller())
       continue;
     SILValue Op = FAS.getArgumentsWithoutIndirectResults()[i];
     if (!AA->isNoAlias(Op, Ptr))

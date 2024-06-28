@@ -362,6 +362,10 @@ extension DistributedActor {
   /// state.
   ///
   /// When the actor is remote, the closure won't be executed and this function will return nil.
+  @_alwaysEmitIntoClient
+  // we need to silgen_name here because the signature is the same as __abi_whenLocal,
+  // and even though this is @AEIC, the symbol name would conflict.
+  @_silgen_name("$s11Distributed0A5ActorPAAE20whenLocalTypedThrowsyqd__Sgqd__xYiYaYbqd_0_YKXEYaqd_0_YKs8SendableRd__s5ErrorRd_0_r0_lF")
   public nonisolated func whenLocal<T: Sendable, E>(
     _ body: @Sendable (isolated Self) async throws(E) -> T
   ) async throws(E) -> T? {
@@ -371,6 +375,17 @@ extension DistributedActor {
     } else {
       return nil
     }
+  }
+
+  // ABI: This is a workaround when in Swift 6 this method was introduced
+  // in order to support typed-throws, but missed to add @_aeic.
+  // In practice, this method should not ever be used by anyone, ever.
+  @usableFromInline
+  @_silgen_name("$s11Distributed0A5ActorPAAE9whenLocalyqd__Sgqd__xYiYaYbqd_0_YKXEYaqd_0_YKs8SendableRd__s5ErrorRd_0_r0_lF")
+  internal nonisolated func __abi_whenLocal<T: Sendable, E>(
+    _ body: @Sendable (isolated Self) async throws(E) -> T
+  ) async throws(E) -> T? {
+    try await whenLocal(body)
   }
 
   // ABI: Historical whenLocal, rethrows was changed to typed throws `throws(E)`

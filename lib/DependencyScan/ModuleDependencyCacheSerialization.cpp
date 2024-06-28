@@ -12,6 +12,7 @@
 
 #include "swift/AST/FileSystem.h"
 #include "swift/AST/ModuleDependencies.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/PrettyStackTrace.h"
 #include "swift/Basic/Version.h"
 #include "swift/DependencyScan/SerializedModuleDependencyCacheFormat.h"
@@ -251,14 +252,14 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       cache.configureForContextHash(getContextHash());
       unsigned outputPathFileID, interfaceFileID,
           compiledModuleCandidatesArrayID, buildCommandLineArrayID,
-          extraPCMArgsArrayID, contextHashID, isFramework, bridgingHeaderFileID,
+          extraPCMArgsArrayID, contextHashID, isFramework, isStatic, bridgingHeaderFileID,
           sourceFilesArrayID, bridgingSourceFilesArrayID,
           bridgingModuleDependenciesArrayID, overlayDependencyIDArrayID,
           CASFileSystemRootID, bridgingHeaderIncludeTreeID, moduleCacheKeyID;
       SwiftInterfaceModuleDetailsLayout::readRecord(
           Scratch, outputPathFileID, interfaceFileID,
           compiledModuleCandidatesArrayID, buildCommandLineArrayID,
-          extraPCMArgsArrayID, contextHashID, isFramework, bridgingHeaderFileID,
+          extraPCMArgsArrayID, contextHashID, isFramework, isStatic, bridgingHeaderFileID,
           sourceFilesArrayID, bridgingSourceFilesArrayID,
           bridgingModuleDependenciesArrayID, overlayDependencyIDArrayID,
           CASFileSystemRootID, bridgingHeaderIncludeTreeID, moduleCacheKeyID);
@@ -293,6 +294,9 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       std::vector<StringRef> extraPCMRefs;
       for (auto &arg : *extraPCMArgs)
         extraPCMRefs.push_back(arg);
+      std::vector<StringRef> compiledCandidatesRefs;
+      for (auto &cc : compiledCandidatesRefs)
+        compiledCandidatesRefs.push_back(cc);
 
       auto rootFileSystemID = getIdentifier(CASFileSystemRootID);
       if (!rootFileSystemID)
@@ -301,11 +305,12 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       if (!moduleCacheKeyID)
         llvm::report_fatal_error("Bad moduleCacheKey");
 
+      // TODO: LinkLibraries
       // Form the dependencies storage object
       auto moduleDep = ModuleDependencyInfo::forSwiftInterfaceModule(
           outputModulePath.value(), optionalSwiftInterfaceFile.value(),
-          *compiledModuleCandidates, buildCommandRefs, extraPCMRefs,
-          *contextHash, isFramework, *rootFileSystemID, *moduleCacheKey);
+          compiledCandidatesRefs, buildCommandRefs, {}, extraPCMRefs,
+          *contextHash, isFramework, isStatic, *rootFileSystemID, *moduleCacheKey);
 
       // Add imports of this module
       for (const auto &moduleName : currentModuleImports)
@@ -484,13 +489,14 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       unsigned compiledModulePathID, moduleDocPathID, moduleSourceInfoPathID,
                overlayDependencyIDArrayID, headerImportID,
                headerModuleDependenciesArrayID,
-               headerImportsSourceFilesArrayID, isFramework,
+               headerImportsSourceFilesArrayID, isFramework, isStatic,
                moduleCacheKeyID;
       SwiftBinaryModuleDetailsLayout::readRecord(
           Scratch, compiledModulePathID, moduleDocPathID,
           moduleSourceInfoPathID, overlayDependencyIDArrayID,
           headerImportID, headerModuleDependenciesArrayID,
-          headerImportsSourceFilesArrayID, isFramework, moduleCacheKeyID);
+          headerImportsSourceFilesArrayID, isFramework, isStatic,
+          moduleCacheKeyID);
 
       auto compiledModulePath = getIdentifier(compiledModulePathID);
       if (!compiledModulePath)
@@ -508,11 +514,12 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       if (!headerImport)
         llvm::report_fatal_error("Bad binary direct dependencies: no header import");
 
+      // TODO: LinkLibraries
       // Form the dependencies storage object
       auto moduleDep = ModuleDependencyInfo::forSwiftBinaryModule(
            *compiledModulePath, *moduleDocPath, *moduleSourceInfoPath,
-           currentModuleImports, currentOptionalModuleImports,
-           *headerImport, isFramework, *moduleCacheKey);
+           currentModuleImports, currentOptionalModuleImports, {},
+           *headerImport, isFramework, isStatic, *moduleCacheKey);
 
       auto headerModuleDependencies = getStringArray(headerModuleDependenciesArrayID);
       if (!headerModuleDependencies)
@@ -619,10 +626,11 @@ bool ModuleDependenciesCacheDeserializer::readGraph(SwiftDependencyScanningServi
       if (!moduleCacheKeyID)
         llvm::report_fatal_error("Bad moduleCacheKey");
 
+      // TODO: LinkLibraries
       // Form the dependencies storage object
       auto moduleDep = ModuleDependencyInfo::forClangModule(
           *pcmOutputPath, *mappedPCMPath, *moduleMapPath, *contextHash,
-          *commandLineArgs, *fileDependencies, *capturedPCMArgs,
+          *commandLineArgs, *fileDependencies, *capturedPCMArgs, {},
           *rootFileSystemID, *clangIncludeTreeRoot, *moduleCacheKey, isSystem);
 
       // Add dependencies of this module
@@ -984,7 +992,8 @@ void ModuleDependenciesCacheSerializer::writeModuleInfo(
                    ModuleIdentifierArrayKind::CompiledModuleCandidates),
         getArrayID(moduleID, ModuleIdentifierArrayKind::BuildCommandLine),
         getArrayID(moduleID, ModuleIdentifierArrayKind::ExtraPCMArgs),
-        getIdentifier(swiftTextDeps->contextHash), swiftTextDeps->isFramework,
+        getIdentifier(swiftTextDeps->contextHash), 
+        swiftTextDeps->isFramework, swiftTextDeps->isStatic,
         bridgingHeaderFileId,
         getArrayID(moduleID, ModuleIdentifierArrayKind::SourceFiles),
         getArrayID(moduleID, ModuleIdentifierArrayKind::BridgingSourceFiles),
@@ -1040,7 +1049,7 @@ void ModuleDependenciesCacheSerializer::writeModuleInfo(
         getArrayID(moduleID, ModuleIdentifierArrayKind::DependencyHeaders),
         getArrayID(moduleID, ModuleIdentifierArrayKind::HeaderInputModuleDependencies),
         getArrayID(moduleID, ModuleIdentifierArrayKind::HeaderInputDependencySourceFiles),
-        swiftBinDeps->isFramework,
+        swiftBinDeps->isFramework, swiftBinDeps->isStatic,
         getIdentifier(swiftBinDeps->moduleCacheKey));
 
     break;

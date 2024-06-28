@@ -21,6 +21,7 @@
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/ClangImporter/ClangModule.h"
 #include "DerivedConformances.h"
 
@@ -28,20 +29,23 @@ using namespace swift;
 
 enum NonconformingMemberKind { AssociatedValue, StoredProperty };
 
-DerivedConformance::DerivedConformance(ASTContext &ctx, Decl *conformanceDecl,
-                                       NominalTypeDecl *nominal,
-                                       ProtocolDecl *protocol)
-    : Context(ctx), ConformanceDecl(conformanceDecl), Nominal(nominal),
-      Protocol(protocol) {
-  assert(getConformanceContext()->getSelfNominalTypeDecl() == nominal);
+DerivedConformance::DerivedConformance(
+    const NormalProtocolConformance *conformance, NominalTypeDecl *nominal,
+    ProtocolDecl *protocol)
+    : Context(nominal->getASTContext()), Conformance(conformance),
+      Nominal(nominal), Protocol(protocol) {
+  auto *DC = Conformance->getDeclContext();
+  ConformanceDecl = DC->getInnermostDeclarationDeclContext();
+  assert(ConformanceDecl);
+  assert(DC->getSelfNominalTypeDecl() == nominal);
 }
 
 DeclContext *DerivedConformance::getConformanceContext() const {
-  return cast<DeclContext>(ConformanceDecl);
+  return Conformance->getDeclContext();
 }
 
 ModuleDecl *DerivedConformance::getParentModule() const {
-  return cast<DeclContext>(ConformanceDecl)->getParentModule();
+  return getConformanceContext()->getParentModule();
 }
 
 void DerivedConformance::addMembersToConformanceContext(
@@ -279,7 +283,7 @@ void DerivedConformance::diagnoseIfSynthesisUnsupportedForDecl(
 ValueDecl *DerivedConformance::getDerivableRequirement(NominalTypeDecl *nominal,
                                                        ValueDecl *requirement) {
   // Note: whenever you update this function, also update
-  // TypeChecker::deriveProtocolRequirement.
+  // deriveProtocolRequirement.
   ASTContext &ctx = nominal->getASTContext();
   const auto name = requirement->getName();
 

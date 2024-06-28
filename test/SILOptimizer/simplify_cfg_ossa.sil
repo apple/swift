@@ -25,6 +25,7 @@ class Klass {
   var a: Int
    deinit
   init()
+  func foo() -> Int?
 }
 
 class B {}
@@ -36,6 +37,10 @@ sil [ossa] @get_klass : $@convention(thin) () -> @owned Klass
 
 struct KlassWrapper {
   var k: Klass
+}
+
+struct OptionalKlassWrapper {
+  @_hasStorage var k: Optional<Klass>
 }
 
 internal enum CompareResult {
@@ -1843,3 +1848,42 @@ bb10(%7 : $()):
 bb11:
   unreachable
 }
+
+// CHECK-LABEL: sil [ossa] @jump_threading_creates_phi :
+// CHECK:         = borrowed %{{[0-9]+}} : $Klass from (%1 : $OptionalKlassWrapper)
+// CHECK:       } // end sil function 'jump_threading_creates_phi'
+sil [ossa] @jump_threading_creates_phi: $@convention(thin) (Optional<A>, @guaranteed OptionalKlassWrapper) -> () {
+bb0(%0 : $Optional<A>, %1 : @guaranteed $OptionalKlassWrapper):
+  %2 = alloc_stack [lexical] $Optional<A>
+  store %0 to [trivial] %2 : $*Optional<A>
+  switch_enum_addr %2 : $*Optional<A>, case #Optional.some!enumelt: bb1, case #Optional.none!enumelt: bb2
+
+bb1:
+  %5 = unchecked_take_enum_data_addr %2 : $*Optional<A>, #Optional.some!enumelt
+  %6 = load [trivial] %5 : $*A
+  br bb3(%6 : $A)
+
+bb2:
+  %8 = enum $A, #A.B!enumelt
+  br bb3(%8 : $A)
+
+bb3(%10 : $A):
+  dealloc_stack %2 : $*Optional<A>
+  %12 = enum $Optional<A>, #Optional.some!enumelt, %10 : $A
+  %13 = struct_extract %1 : $OptionalKlassWrapper, #OptionalKlassWrapper.k
+  switch_enum %13 : $Optional<Klass>, case #Optional.some!enumelt: bb4, case #Optional.none!enumelt: bb5
+
+bb4(%15 : @guaranteed $Klass):
+  %16 = class_method %15 : $Klass, #Klass.foo : (Klass) -> () -> Int?, $@convention(method) (@guaranteed Klass) -> Optional<Int>
+  %17 = apply %16(%15) : $@convention(method) (@guaranteed Klass) -> Optional<Int>
+  br bb6(%17 : $Optional<Int>)
+
+bb5:
+  %19 = enum $Optional<Int>, #Optional.none!enumelt
+  br bb6(%19 : $Optional<Int>)
+
+bb6(%21 : $Optional<Int>):
+  %22 = tuple ()
+  return %22 : $()
+}
+

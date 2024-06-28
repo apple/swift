@@ -151,8 +151,13 @@ static int action_replay_result(swiftscan_cas_t cas, const char *key,
                                 std::vector<const char *> &Args) {
   swiftscan_string_ref_t err_msg;
   auto comp = swiftscan_cache_query(cas, key, /*globally=*/false, &err_msg);
-  if (!comp)
-    return printError(err_msg);
+  if (!comp) {
+    if (err_msg.length != 0)
+      return printError(err_msg);
+
+    llvm::errs() << "key " << key << " not found for replay\n";
+    return EXIT_FAILURE;
+  }
 
   SWIFT_DEFER { swiftscan_cached_compilation_dispose(comp); };
   auto numOutput = swiftscan_cached_compilation_get_num_outputs(comp);

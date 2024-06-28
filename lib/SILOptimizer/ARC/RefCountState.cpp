@@ -13,6 +13,7 @@
 #define DEBUG_TYPE "arc-sequence-opts"
 #include "RefCountState.h"
 #include "RCStateTransition.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 

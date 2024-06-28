@@ -18,6 +18,7 @@
 #include "Initialization.h"
 #include "ManagedValue.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/SIL/SILLocation.h"
 #include <memory>

@@ -61,6 +61,7 @@
 
 #define DEBUG_TYPE "sil-move-async-var-debuginfo-propagator"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FrozenMultiMap.h"
 #include "swift/SIL/ApplySite.h"

@@ -69,12 +69,13 @@ func asyncFunc() async {
 // CHECK-SIL-NEXT:  [[FLAGS:%.*]] = struct $Int ([[T0]] : $Builtin.Int64)
 // CHECK-SIL-NEXT:  [[OPT_SERIAL_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
 // CHECK-SIL-NEXT:  [[GROUP:%.*]] = enum $Optional<Builtin.RawPointer>, #Optional.none
-// CHECK-SIL-NEXT:  [[TASK_EXECUTOR:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SIL-NEXT:  [[TASK_EXECUTOR_UNOWNED:%.*]] = enum $Optional<Builtin.Executor>, #Optional.none
+// CHECK-SIL-NEXT:  [[TASK_EXECUTOR_OWNED:%.*]] = enum $Optional<any TaskExecutor>, #Optional.none
 // CHECK-SIL-NEXT:  // function_ref thunk for @escaping @convention(thin) @async () -> ()
-// CHECK-SIL-NEXT:  [[THUNK_FN:%.*]] = function_ref @$sIetH_yts5Error_pIeghHrzo_TR : $@convention(thin) @Sendable @async (@convention(thin) @async () -> ()) -> (@out (), @error any Error)
-// CHECK-SIL-NEXT:  [[THUNK:%.*]] = partial_apply [callee_guaranteed] [[THUNK_FN]]([[ASYNC_MAIN_FN]]) : $@convention(thin) @Sendable @async (@convention(thin) @async () -> ()) -> (@out (), @error any Error)
-// CHECK-SIL-NEXT:  [[CONVERTED_THUNK:%.*]] = convert_function [[THUNK]] : $@Sendable @async @callee_guaranteed () -> (@out (), @error any Error) to $@Sendable @async @callee_guaranteed @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <()>
-// CHECK-SIL-NEXT:  [[TASK_RESULT:%.*]] = builtin "createAsyncTask"<()>([[FLAGS]] : $Int, [[OPT_SERIAL_EXECUTOR]] : $Optional<Builtin.Executor>, [[GROUP]] : $Optional<Builtin.RawPointer>, [[TASK_EXECUTOR]] : $Optional<Builtin.Executor>, [[CONVERTED_THUNK]] : $@Sendable @async @callee_guaranteed @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <()>) : $(Builtin.NativeObject, Builtin.RawPointer)
+// CHECK-SIL-NEXT:  [[THUNK_FN:%.*]] = function_ref @$sIetH_yts5Error_pIegHrzo_TR : $@convention(thin) @async (@convention(thin) @async () -> ()) -> (@out (), @error any Error)
+// CHECK-SIL-NEXT:  [[THUNK:%.*]] = partial_apply [callee_guaranteed] [[THUNK_FN]]([[ASYNC_MAIN_FN]]) : $@convention(thin) @async (@convention(thin) @async () -> ()) -> (@out (), @error any Error)
+// CHECK-SIL-NEXT:  [[CONVERTED_THUNK:%.*]] = convert_function [[THUNK]] : $@async @callee_guaranteed () -> (@out (), @error any Error) to $@async @callee_guaranteed @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <()>
+// CHECK-SIL-NEXT:  [[TASK_RESULT:%.*]] = builtin "createAsyncTask"<()>([[FLAGS]] : $Int, [[OPT_SERIAL_EXECUTOR]] : $Optional<Builtin.Executor>, [[GROUP]] : $Optional<Builtin.RawPointer>, [[TASK_EXECUTOR_UNOWNED]] : $Optional<Builtin.Executor>, [[TASK_EXECUTOR_OWNED]] : $Optional<any TaskExecutor>, [[CONVERTED_THUNK]] : $@async @callee_guaranteed @substituted <τ_0_0> () -> (@out τ_0_0, @error any Error) for <()>) : $(Builtin.NativeObject, Builtin.RawPointer)
 // CHECK-SIL-NEXT:  [[TASK:%.*]] = tuple_extract [[TASK_RESULT]] : $(Builtin.NativeObject, Builtin.RawPointer), 0
 // CHECK-SIL-NEXT:  // function_ref swift_job_run
 // CHECK-SIL-NEXT:  [[RUN_FN:%.*]] = function_ref @swift_job_run : $@convention(thin) (UnownedJob, UnownedSerialExecutor) -> ()

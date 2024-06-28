@@ -48,8 +48,8 @@ struct OSSACanonicalizer {
 
   OSSACanonicalizer(SILFunction *fn, DominanceInfo *domTree,
                     InstructionDeleter &deleter)
-      : canonicalizer(false /*pruneDebugMode*/,
-                      !fn->shouldOptimize() /*maximizeLifetime*/, fn,
+      : canonicalizer(DontPruneDebugInsts,
+                      MaximizeLifetime_t(!fn->shouldOptimize()), fn,
                       nullptr /*accessBlockAnalysis*/, domTree,
                       nullptr /*calleeAnalysis*/, deleter) {}
 
@@ -64,7 +64,7 @@ struct OSSACanonicalizer {
     CanonicalizeOSSALifetime::LivenessState canonicalizerState;
 
     LivenessState(OSSACanonicalizer &parent, SILValue def)
-        : parent(parent), canonicalizerState(parent.canonicalizer, def) {}
+        : parent(parent), canonicalizerState(parent.canonicalizer, def, {}) {}
 
     ~LivenessState() { parent.clear(); }
   };

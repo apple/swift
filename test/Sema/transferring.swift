@@ -1,4 +1,4 @@
-// RUN: %target-typecheck-verify-swift -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation -enable-experimental-feature TransferringArgsAndResults
+// RUN: %target-typecheck-verify-swift -strict-concurrency=complete
 
 // REQUIRES: asserts
 // REQUIRES: concurrency
@@ -28,6 +28,7 @@ func test_repeated_transferring_mixed(_ x: transferring borrowing transferring i
 // expected-error @-3 {{parameter may have at most one of the 'inout', 'borrowing', or 'consuming' specifiers}}
 // expected-warning @-4 {{'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly}}
 // expected-warning @-5 {{'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly}}
+// expected-error @-6 {{'transferring' cannot be used together with 'borrowing'}}
 
 // Just until we get the results setup.
 func test_transferring_result_in_tuple() -> (transferring Int, Int) {}

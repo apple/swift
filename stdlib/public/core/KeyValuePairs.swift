@@ -125,6 +125,7 @@ extension KeyValuePairs: RandomAccessCollection {
   }
 }
 
+@_unavailableInEmbedded
 extension KeyValuePairs: CustomStringConvertible {
   /// A string that represents the contents of the dictionary.
   public var description: String {
@@ -132,6 +133,7 @@ extension KeyValuePairs: CustomStringConvertible {
   }
 }
 
+@_unavailableInEmbedded
 extension KeyValuePairs: CustomDebugStringConvertible {
   /// A string that represents the contents of the dictionary, suitable for
   /// debugging.

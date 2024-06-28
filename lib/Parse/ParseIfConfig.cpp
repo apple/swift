@@ -18,6 +18,7 @@
 
 #include "swift/AST/ASTVisitor.h"
 #include "swift/AST/DiagnosticSuppression.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/LangOptions.h"
 #include "swift/Basic/Version.h"
@@ -603,7 +604,8 @@ public:
       }
       ImportPath::Module::Builder builder(Ctx, Str, /*separator=*/'.',
                                           Arg->getStartLoc());
-      return Ctx.canImportModule(builder.get(), version, underlyingModule);
+      return Ctx.canImportModule(builder.get(), E->getLoc(), version,
+                                 underlyingModule);
     } else if (KindName == "hasFeature") {
       auto featureName = getDeclRefStr(Arg);
       return Ctx.LangOpts.hasFeature(featureName);
@@ -767,11 +769,12 @@ static Expr *findAnyLikelySimulatorEnvironmentTest(Expr *Condition) {
 
 /// Parse and populate a #if ... #endif directive.
 /// Delegate callback function to parse elements in the blocks.
-template<typename Result>
+template <typename Result>
 Result Parser::parseIfConfigRaw(
-    llvm::function_ref<void(SourceLoc clauseLoc, Expr *condition,
-                            bool isActive, IfConfigElementsRole role)>
-      parseElements,
+    IfConfigContext ifConfigContext,
+    llvm::function_ref<void(SourceLoc clauseLoc, Expr *condition, bool isActive,
+                            IfConfigElementsRole role)>
+        parseElements,
     llvm::function_ref<Result(SourceLoc endLoc, bool hadMissingEnd)> finish) {
   assert(Tok.is(tok::pound_if));
 
@@ -843,10 +846,16 @@ Result Parser::parseIfConfigRaw(
         // Error in the condition;
         isActive = false;
         isVersionCondition = false;
-      } else if (!foundActive && shouldEvaluate) {
+      } else if (!foundActive) {
         // Evaluate the condition only if we haven't found any active one and
         // we're not in parse-only mode.
-        isActive = evaluateIfConfigCondition(Condition, Context);
+        if (shouldEvaluate) {
+          isActive = evaluateIfConfigCondition(Condition, Context);
+        }
+        // Determine isVersionCondition regardless of whether we're active.
+        // This is necessary in some edge cases, e.g. where we're in a nested,
+        // inactive #if block, and we encounter an inactive `#if compiler` check,
+        // as we have to explicitly skip parsing in such edge cases.
         isVersionCondition = isVersionIfConfigCondition(Condition);
       }
     }
@@ -889,6 +898,24 @@ Result Parser::parseIfConfigRaw(
           ClauseLoc, Condition, isActive, IfConfigElementsRole::Skipped);
     }
 
+    // We ought to be at the end of the clause, diagnose if not and skip to
+    // the closing token. `#if` + `#endif` are considered stronger delimiters
+    // than `{` + `}`, so we can skip over those too.
+    if (Tok.isNot(tok::pound_elseif, tok::pound_else, tok::pound_endif,
+                  tok::eof)) {
+      if (Tok.is(tok::r_brace)) {
+        diagnose(Tok, diag::unexpected_rbrace_in_conditional_compilation_block);
+      } else if (ifConfigContext == IfConfigContext::PostfixExpr) {
+        diagnose(Tok, diag::expr_postfix_ifconfig_unexpectedtoken);
+      } else {
+        // We ought to never hit this case in practice, but fall back to a
+        // generic 'unexpected tokens' diagnostic if we weren't able to produce
+        // a better diagnostic during the parsing of the clause.
+        diagnose(Tok, diag::ifconfig_unexpectedtoken);
+      }
+      skipUntilConditionalBlockClose();
+    }
+
     // Record the clause range info in SourceFile.
     if (shouldEvaluate) {
       auto kind = isActive ? IfConfigClauseRangeInfo::ActiveClause
@@ -919,9 +946,11 @@ Result Parser::parseIfConfigRaw(
 /// Parse and populate a #if ... #endif directive.
 /// Delegate callback function to parse elements in the blocks.
 ParserResult<IfConfigDecl> Parser::parseIfConfig(
+    IfConfigContext ifConfigContext,
     llvm::function_ref<void(SmallVectorImpl<ASTNode> &, bool)> parseElements) {
   SmallVector<IfConfigClause, 4> clauses;
   return parseIfConfigRaw<ParserResult<IfConfigDecl>>(
+      ifConfigContext,
       [&](SourceLoc clauseLoc, Expr *condition, bool isActive,
           IfConfigElementsRole role) {
         SmallVector<ASTNode, 16> elements;
@@ -932,7 +961,8 @@ ParserResult<IfConfigDecl> Parser::parseIfConfig(
 
         clauses.emplace_back(
             clauseLoc, condition, Context.AllocateCopy(elements), isActive);
-      }, [&](SourceLoc endLoc, bool hadMissingEnd) {
+      },
+      [&](SourceLoc endLoc, bool hadMissingEnd) {
         auto *ICD = new (Context) IfConfigDecl(CurDeclContext,
                                                Context.AllocateCopy(clauses),
                                                endLoc, hadMissingEnd);
@@ -945,6 +975,7 @@ ParserStatus Parser::parseIfConfigDeclAttributes(
     PatternBindingInitializer *initContext) {
   ParserStatus status = makeParserSuccess();
   return parseIfConfigRaw<ParserStatus>(
+      IfConfigContext::DeclAttrs,
       [&](SourceLoc clauseLoc, Expr *condition, bool isActive,
           IfConfigElementsRole role) {
         if (isActive) {

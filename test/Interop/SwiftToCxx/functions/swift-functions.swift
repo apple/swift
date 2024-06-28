@@ -6,6 +6,10 @@ import CxxStdlib
 
 // RUN: %check-interop-cxx-header-in-clang(%t/functions.h)
 
+@_cdecl("cdeclFunction") public func cdeclFunction(_ x: CInt) {}
+
+// CHECK: SWIFT_EXTERN void cdeclFunction(int x) SWIFT_NOEXCEPT;
+
 // CHECK-LABEL: namespace Functions SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("Functions") {
 
 // CHECK-LABEL: namespace _impl {

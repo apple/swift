@@ -37,14 +37,13 @@ namespace options {
     ArgumentIsPath = (1 << 12),
     ModuleInterfaceOption = (1 << 13),
     SupplementaryOutput = (1 << 14),
-    SwiftAPIExtractOption = (1 << 15),
-    SwiftSymbolGraphExtractOption = (1 << 16),
-    SwiftAPIDigesterOption = (1 << 17),
-    NewDriverOnlyOption = (1 << 18),
-    ModuleInterfaceOptionIgnorable = (1 << 19),
-    ModuleInterfaceOptionIgnorablePrivate = (1 << 20),
-    ArgumentIsFileList = (1 << 21),
-    CacheInvariant = (1 << 22),
+    SwiftSymbolGraphExtractOption = (1 << 15),
+    SwiftAPIDigesterOption = (1 << 16),
+    NewDriverOnlyOption = (1 << 17),
+    ModuleInterfaceOptionIgnorable = (1 << 18),
+    ModuleInterfaceOptionIgnorablePrivate = (1 << 19),
+    ArgumentIsFileList = (1 << 20),
+    CacheInvariant = (1 << 21),
   };
 
   enum ID {

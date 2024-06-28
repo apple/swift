@@ -527,11 +527,11 @@ The \texttt{@inlinable} attribute was introduced in \IndexSwift{4.2}Swift 4.2~\c
 \IndexSource{abstract syntax tree}
 The Swift driver is now implemented in Swift, and lives in a separate repository from the rest of the compiler:
 \begin{quote}
-\url{https://github.com/apple/swift-driver}
+\url{https://github.com/swiftlang/swift-driver}
 \end{quote}
 The Swift frontend, standard library and runtime are found in the main repository:
 \begin{quote}
-\url{https://github.com/apple/swift}
+\url{https://github.com/swiftlang/swift}
 \end{quote}
 The major components of the Swift frontend live in their own subdirectories of the main repository. The entities modeling the abstract syntax tree are defined in \SourceFile{lib/AST/} and \SourceFile{include/swift/AST/}; among these, types and declarations are important for the purposes of this book, and will be covered in \ChapRef{types} and \ChapRef{decls}. The core of the SIL intermediate language is implemented in \SourceFile{lib/SIL/} and \SourceFile{include/swift/SIL/}.
 

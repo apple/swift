@@ -24,6 +24,7 @@
 #define SWIFT_LOWERING_RVALUE_H
 
 #include "ManagedValue.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/NullablePtr.h"
 #include "llvm/ADT/SmallVector.h"
 

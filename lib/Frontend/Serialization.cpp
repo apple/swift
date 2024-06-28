@@ -14,6 +14,7 @@
 #include "swift/APIDigester/ModuleAnalyzerNodes.h"
 #include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/AST/FileSystem.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Subsystems.h"
 #include "swift/SymbolGraphGen/SymbolGraphGen.h"
 #include "swift/SymbolGraphGen/SymbolGraphOptions.h"

@@ -19,6 +19,7 @@
 
 #include "swift/SILOptimizer/Utils/KeyPathProjector.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/InstructionUtils.h"
 

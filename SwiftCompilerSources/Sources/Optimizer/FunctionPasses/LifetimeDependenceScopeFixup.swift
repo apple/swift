@@ -31,6 +31,11 @@ private func log(prefix: Bool = true, _ message: @autoclosure () -> String) {
 let lifetimeDependenceScopeFixupPass = FunctionPass(
   name: "lifetime-dependence-scope-fixup")
 { (function: Function, context: FunctionPassContext) in
+#if os(Windows)
+  if !context.options.hasFeature(.NonescapableTypes) {
+    return
+  }
+#endif
   log(prefix: false, "\n--- Scope fixup for lifetime dependence in \(function.name)")
 
   let localReachabilityCache = LocalVariableReachabilityCache()

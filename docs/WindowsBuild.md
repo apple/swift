@@ -46,7 +46,7 @@ From the settings application, go to `Update & Security`.  In the `For developer
 ## Clone the repositories
 
 1. Clone `swift/main` branch of `apple/llvm-project` into the build workspace
-2. Clone `apple/swift-cmark`, `apple/swift`, `apple/swift-corelibs-libdispatch`, `apple/swift-corelibs-foundation`, `apple/swift-corelibs-xctest`, `apple/swift-tools-support-core`, `apple/swift-llbuild`, `apple/swift-argument-parser`, `apple/swift-driver`, `apple/swift-package-manager`, `JPSim/Yams`, `apple/indexstore-db` into the build workspace
+2. Clone `apple/swift-cmark`, `apple/swift`, `apple/swift-corelibs-libdispatch`, `apple/swift-corelibs-foundation`, `apple/swift-corelibs-xctest`, `apple/swift-tools-support-core`, `apple/swift-llbuild`, `apple/swift-argument-parser`, `apple/swift-driver`, `swiftlang/swift-package-manager`, `JPSim/Yams`, `swiftlang/indexstore-db` into the build workspace
 
 - Currently, other repositories in the Swift project have not been tested and may not be supported.
 
@@ -69,8 +69,8 @@ git clone -c core.symlinks=true https://github.com/apple/swift-llbuild swift-llb
 git clone https://github.com/JPSim/Yams Yams
 git clone https://github.com/apple/swift-driver swift-driver
 git clone https://github.com/apple/swift-argument-parser swift-argument-parser
-git clone -c core.autocrlf=input https://github.com/apple/swift-package-manager swift-package-manager
-git clone https://github.com/apple/indexstore-db indexstore-db
+git clone -c core.autocrlf=input https://github.com/swiftlang/swift-package-manager swift-package-manager
+git clone https://github.com/swiftlang/indexstore-db indexstore-db
 ```
 
 ## Dependencies (ICU, SQLite3, curl, libxml2 and zlib)

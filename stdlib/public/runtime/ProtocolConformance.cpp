@@ -340,8 +340,8 @@ ProtocolConformanceDescriptor::getWitnessTable(const Metadata *type) const {
         [&substitutions](unsigned depth, unsigned index) {
           return substitutions.getMetadata(depth, index).Ptr;
         },
-        [&substitutions](unsigned ordinal) {
-          return substitutions.getMetadataOrdinal(ordinal).Ptr;
+        [&substitutions](unsigned fullOrdinal, unsigned keyOrdinal) {
+          return substitutions.getMetadataKeyArgOrdinal(keyOrdinal).Ptr;
         },
         [&substitutions](const Metadata *type, unsigned index) {
           return substitutions.getWitnessTable(type, index);
@@ -1843,8 +1843,8 @@ checkInvertibleRequirements(const Metadata *type,
         [&substFn](unsigned depth, unsigned index) {
           return substFn.getMetadata(depth, index).Ptr;
         },
-        [&substFn](unsigned ordinal) {
-          return substFn.getMetadataOrdinal(ordinal).Ptr;
+        [&substFn](unsigned fullOrdinal, unsigned keyOrdinal) {
+          return substFn.getMetadataKeyArgOrdinal(keyOrdinal).Ptr;
         },
         [&substFn](const Metadata *type, unsigned index) {
           return substFn.getWitnessTable(type, index);
@@ -1886,6 +1886,7 @@ std::optional<TypeLookupError> swift::_checkGenericRequirements(
 
   // Now, check all of the generic arguments for invertible protocols.
   unsigned numGenericParams = genericParams.size();
+  unsigned keyIndex = 0;
   for (unsigned index = 0; index != numGenericParams; ++index) {
     // Non-key arguments don't need to be checked, because they are
     // aliased to another type.
@@ -1896,7 +1897,7 @@ std::optional<TypeLookupError> swift::_checkGenericRequirements(
     if (index < allSuppressed.size())
       suppressed = allSuppressed[index];
 
-    MetadataOrPack metadataOrPack(substGenericParamOrdinal(index));
+    MetadataOrPack metadataOrPack(substGenericParamOrdinal(index, keyIndex));
     switch (genericParams[index].getKind()) {
     case GenericParamKind::Type: {
       if (!metadataOrPack || metadataOrPack.isMetadataPack()) {
@@ -1937,6 +1938,7 @@ std::optional<TypeLookupError> swift::_checkGenericRequirements(
       return TYPE_LOOKUP_ERROR_FMT("unknown generic parameter kind %u",
                                    index);
     }
+    keyIndex++;
   }
 
   // Success!

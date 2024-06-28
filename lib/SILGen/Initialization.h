@@ -185,12 +185,15 @@ public:
   /// of last resort: it is generally better to split tuples or evaluate
   /// in-place when the initialization supports that.
   ///
-  /// If this is an *copy* of the rvalue into this initialization then isInit is
+  /// If this is a *copy* of the rvalue into this initialization then isInit is
   /// false.  If it is an *initialization* of the memory in the initialization,
   /// then isInit is true.
   virtual void copyOrInitValueInto(SILGenFunction &SGF, SILLocation loc,
                                    ManagedValue explodedElement,
                                    bool isInit) = 0;
+
+  /// Whether the storage owns what's stored or merely borrows it.
+  virtual bool isBorrow() { return false; }
 
   /// Whether to emit a debug value during initialization.
   void setEmitDebugValueOnInit(bool emit) { EmitDebugValueOnInit = emit; }
@@ -217,7 +220,7 @@ private:
 
 /// Abstract base class for single-buffer initializations.  These are
 /// initializations that have an addressable memory object to be stored into.
-class SingleBufferInitialization : public Initialization {
+class SingleBufferInitialization : virtual public Initialization {
   llvm::TinyPtrVector<CleanupHandle::AsPointer> SplitCleanups;
 public:
   SingleBufferInitialization() {}
@@ -262,7 +265,7 @@ public:
                                      SmallVectorImpl<InitializationPtr> &buf,
                        TinyPtrVector<CleanupHandle::AsPointer> &splitCleanups);
 };
-  
+
 /// This is an initialization for a specific address in memory.
 class KnownAddressInitialization : public SingleBufferInitialization {
   /// The physical address of the global.
@@ -285,7 +288,13 @@ public:
   void finishUninitialized(SILGenFunction &SGF) override {}
 };
 
-class TemporaryInitialization : public SingleBufferInitialization {
+class AnyTemporaryInitialization : virtual public Initialization {
+public:
+  virtual ManagedValue getManagedAddress() const = 0;
+};
+
+class TemporaryInitialization : public SingleBufferInitialization,
+                                public AnyTemporaryInitialization {
   SILValue Addr;
   CleanupHandle Cleanup;
 public:
@@ -312,10 +321,36 @@ public:
   /// Returns the cleanup corresponding to the value of the temporary.
   CleanupHandle getInitializedCleanup() const { return Cleanup; }
 
-  ManagedValue getManagedAddress() const  {
+  ManagedValue getManagedAddress() const override {
     return ManagedValue::forOwnedAddressRValue(getAddress(),
                                                getInitializedCleanup());
   }
+};
+
+class StoreBorrowInitialization final : public AnyTemporaryInitialization {
+  SILValue address;
+  ManagedValue storeBorrow;
+
+public:
+  StoreBorrowInitialization(SILValue address);
+
+  void copyOrInitValueInto(SILGenFunction &SGF, SILLocation loc,
+                           ManagedValue mv, bool isInit) override;
+
+  void finishInitialization(SILGenFunction &SGF) override {}
+
+  void finishUninitialized(SILGenFunction &SGF) override {}
+
+  bool isBorrow() override { return true; }
+
+  SILValue getAddress() const;
+
+  bool isInPlaceInitializationOfGlobal() const override {
+    // Can't store_borrow to a global.
+    return false;
+  }
+
+  ManagedValue getManagedAddress() const override;
 };
 
 /// An initialization which accumulates several other initializations

@@ -68,9 +68,37 @@ import Swift
 ///
 /// - SeeAlso: ``withThrowingDiscardingTaskGroup(returning:body:)
 @available(SwiftStdlib 5.9, *)
+@backDeployed(before: SwiftStdlib 6.0)
 @inlinable
-@_unsafeInheritExecutor
 public func withDiscardingTaskGroup<GroupResult>(
+  returning returnType: GroupResult.Type = GroupResult.self,
+  isolation: isolated (any Actor)? = #isolation,
+  body: (inout DiscardingTaskGroup) async -> GroupResult
+) async -> GroupResult {
+  #if compiler(>=5.5) && $BuiltinCreateTaskGroupWithFlags
+  let flags = taskGroupCreateFlags(
+    discardResults: true
+  )
+
+  let _group = Builtin.createTaskGroupWithFlags(flags, GroupResult.self)
+  var group = DiscardingTaskGroup(group: _group)
+  defer { Builtin.destroyTaskGroup(_group) }
+
+  let result = await body(&group)
+
+  try! await group.awaitAllRemainingTasks() // try!-safe, cannot throw since this is a non throwing group
+
+  return result
+  #else
+  fatalError("Swift compiler is incompatible with this SDK version")
+  #endif
+}
+
+@available(SwiftStdlib 5.9, *)
+@usableFromInline
+@_unsafeInheritExecutor // for ABI compatibility
+@_silgen_name("$ss23withDiscardingTaskGroup9returning4bodyxxm_xs0bcD0VzYaXEtYalF")
+internal func __abi_withDiscardingTaskGroup<GroupResult>(
   returning returnType: GroupResult.Type = GroupResult.self,
   body: (inout DiscardingTaskGroup) async -> GroupResult
 ) async -> GroupResult {
@@ -178,7 +206,7 @@ public struct DiscardingTaskGroup {
   #endif
   public mutating func addTask(
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async -> Void
+    operation: sending @escaping @isolated(any) () async -> Void
   ) {
 #if SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
     let flags = taskCreateFlags(
@@ -235,7 +263,7 @@ public struct DiscardingTaskGroup {
   #endif
   public mutating func addTaskUnlessCancelled(
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async -> Void
+    operation: sending @escaping @isolated(any) () async -> Void
   ) -> Bool {
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)
 
@@ -287,7 +315,7 @@ public struct DiscardingTaskGroup {
   @_alwaysEmitIntoClient
   @_allowFeatureSuppression(IsolatedAny)
   public mutating func addTask(
-    operation: __owned @Sendable @escaping @isolated(any) () async -> Void
+    operation: sending @escaping @isolated(any) () async -> Void
   ) {
     let flags = taskCreateFlags(
       priority: nil, isChildTask: true, copyTaskLocals: false,
@@ -332,7 +360,7 @@ public struct DiscardingTaskGroup {
   @_allowFeatureSuppression(IsolatedAny)
   @_alwaysEmitIntoClient
   public mutating func addTaskUnlessCancelled(
-    operation: __owned @Sendable @escaping @isolated(any) () async -> Void
+    operation: sending @escaping @isolated(any) () async -> Void
   ) -> Bool {
 #if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)
@@ -394,7 +422,7 @@ public struct DiscardingTaskGroup {
   #endif
   public mutating func addTask(
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping () async -> Void
+    operation: sending @escaping () async -> Void
   ) {
 #if SWIFT_STDLIB_TASK_TO_THREAD_MODEL_CONCURRENCY
     let flags = taskCreateFlags(
@@ -442,7 +470,7 @@ public struct DiscardingTaskGroup {
   #endif
   public mutating func addTaskUnlessCancelled(
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping () async -> Void
+    operation: sending @escaping () async -> Void
   ) -> Bool {
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)
 
@@ -485,7 +513,7 @@ public struct DiscardingTaskGroup {
 
   @_alwaysEmitIntoClient
   public mutating func addTask(
-    operation: __owned @Sendable @escaping () async -> Void
+    operation: sending @escaping () async -> Void
   ) {
     let flags = taskCreateFlags(
       priority: nil, isChildTask: true, copyTaskLocals: false,
@@ -521,7 +549,7 @@ public struct DiscardingTaskGroup {
 #endif
   @_alwaysEmitIntoClient
   public mutating func addTaskUnlessCancelled(
-    operation: __owned @Sendable @escaping () async -> Void
+    operation: sending @escaping () async -> Void
   ) -> Bool {
 #if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)
@@ -709,9 +737,46 @@ extension DiscardingTaskGroup: Sendable { }
 /// }
 /// ```
 @available(SwiftStdlib 5.9, *)
+@backDeployed(before: SwiftStdlib 6.0)
 @inlinable
-@_unsafeInheritExecutor
 public func withThrowingDiscardingTaskGroup<GroupResult>(
+    returning returnType: GroupResult.Type = GroupResult.self,
+    isolation: isolated (any Actor)? = #isolation,
+    body: (inout ThrowingDiscardingTaskGroup<Error>) async throws -> GroupResult
+) async throws -> GroupResult {
+  #if compiler(>=5.5) && $BuiltinCreateTaskGroupWithFlags
+  let flags = taskGroupCreateFlags(
+      discardResults: true
+  )
+
+  let _group = Builtin.createTaskGroupWithFlags(flags, GroupResult.self)
+  var group = ThrowingDiscardingTaskGroup<Error>(group: _group)
+  defer { Builtin.destroyTaskGroup(_group) }
+
+  let result: GroupResult
+  do {
+    result = try await body(&group)
+  } catch {
+    group.cancelAll()
+
+    try await group.awaitAllRemainingTasks(bodyError: error)
+
+    throw error
+  }
+
+  try await group.awaitAllRemainingTasks(bodyError: nil)
+
+  return result
+  #else
+  fatalError("Swift compiler is incompatible with this SDK version")
+  #endif
+}
+
+@available(SwiftStdlib 5.9, *)
+@usableFromInline
+@_unsafeInheritExecutor // for ABI compatibility
+@_silgen_name("$ss31withThrowingDiscardingTaskGroup9returning4bodyxxm_xs0bcdE0Vys5Error_pGzYaKXEtYaKlF")
+internal func __abi_withThrowingDiscardingTaskGroup<GroupResult>(
     returning returnType: GroupResult.Type = GroupResult.self,
     body: (inout ThrowingDiscardingTaskGroup<Error>) async throws -> GroupResult
 ) async throws -> GroupResult {
@@ -830,7 +895,7 @@ public struct ThrowingDiscardingTaskGroup<Failure: Error> {
   @_allowFeatureSuppression(IsolatedAny)
   public mutating func addTask(
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async throws -> Void
+    operation: sending @escaping @isolated(any) () async throws -> Void
   ) {
 #if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
     let flags = taskCreateFlags(
@@ -874,7 +939,7 @@ public struct ThrowingDiscardingTaskGroup<Failure: Error> {
   @_allowFeatureSuppression(IsolatedAny)
   public mutating func addTaskUnlessCancelled(
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async throws -> Void
+    operation: sending @escaping @isolated(any) () async throws -> Void
   ) -> Bool {
 #if compiler(>=5.5) && $BuiltinCreateAsyncTaskInGroup
     let canAdd = _taskGroupAddPendingTask(group: _group, unconditionally: false)

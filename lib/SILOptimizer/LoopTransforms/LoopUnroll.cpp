@@ -14,6 +14,7 @@
 
 #include "llvm/ADT/DepthFirstIterator.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/PatternMatch.h"
 #include "swift/SIL/SILCloner.h"
 #include "swift/SILOptimizer/Analysis/LoopAnalysis.h"

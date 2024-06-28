@@ -1,4 +1,3 @@
-// RUN: %target-typecheck-verify-swift -strict-concurrency=complete -disable-availability-checking -disable-region-based-isolation-with-strict-concurrency -verify-additional-prefix complete-
 // RUN: %target-typecheck-verify-swift -strict-concurrency=complete -disable-availability-checking
 
 // REQUIRES: concurrency
@@ -94,7 +93,11 @@ enum Wrong_NoncopyableOption<T> : Sendable { // expected-note {{consider making 
 }
 
 func takeAnySendable(_ s: any Sendable) {}
-func takeSomeSendable(_ s: some Sendable) {} // expected-note {{generic parameter 'some Sendable' has an implicit Copyable requirement}}
+func takeSomeSendable(_ s: some Sendable) {} // expected-note {{'some Sendable & Copyable' is implicit here}}
+
+protocol Munchable: ~Copyable {}
+struct Chips: ~Copyable, Sendable, Munchable {}
+func takeSomeMunchySendable(_ s: some Sendable & Munchable) {} // expected-note {{'some Sendable & Munchable & Copyable' is implicit here}}
 
 // expected-error@+1 {{return expression of type 'FileDescriptor' does not conform to 'Copyable'}}
 func mkSendable() -> Sendable { return FileDescriptor(id: 0) }
@@ -104,7 +107,8 @@ func tryToCastIt(_ fd: borrowing FileDescriptor) {
   let _: Sendable = fd // expected-error {{value of type 'FileDescriptor' does not conform to specified type 'Copyable'}}
 
   takeAnySendable(fd) // expected-error {{argument type 'FileDescriptor' does not conform to expected type 'Copyable'}}
-  takeSomeSendable(fd) // expected-error {{noncopyable type 'FileDescriptor' cannot be substituted for copyable generic parameter 'some Sendable' in 'takeSomeSendable'}}
+  takeSomeSendable(fd) // expected-error {{global function 'takeSomeSendable' requires that 'FileDescriptor' conform to 'Copyable'}}
+  takeSomeMunchySendable(Chips()) // expected-error {{global function 'takeSomeMunchySendable' requires that 'Chips' conform to 'Copyable'}}
 
   let _ = fd as Sendable // expected-error {{cannot convert value of type 'FileDescriptor' to type 'any Sendable' in coercion}}
 

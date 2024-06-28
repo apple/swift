@@ -16,6 +16,7 @@
 #include "Scope.h"
 #include "SILGenBuilder.h"
 #include "SILGenFunction.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace Lowering;

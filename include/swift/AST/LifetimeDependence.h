@@ -43,7 +43,7 @@ enum class LifetimeDependenceKind : uint8_t { Inherit = 0, Scope };
 
 class LifetimeDependenceSpecifier {
 public:
-  enum class SpecifierKind { Named, Ordered, Self };
+  enum class SpecifierKind { Named, Ordered, Self, Immortal };
 
 private:
   SourceLoc loc;
@@ -74,6 +74,11 @@ public:
   static LifetimeDependenceSpecifier getNamedLifetimeDependenceSpecifier(
       SourceLoc loc, ParsedLifetimeDependenceKind kind, Identifier name) {
     return {loc, SpecifierKind::Named, kind, name};
+  }
+
+  static LifetimeDependenceSpecifier
+  getImmortalLifetimeDependenceSpecifier(SourceLoc loc) {
+    return {loc, SpecifierKind::Immortal, {}, {}};
   }
 
   static LifetimeDependenceSpecifier getOrderedLifetimeDependenceSpecifier(
@@ -113,6 +118,8 @@ public:
       return "self";
     case SpecifierKind::Ordered:
       return std::to_string(value.Ordered.index);
+    case SpecifierKind::Immortal:
+      return "immortal";
     }
     llvm_unreachable("Invalid LifetimeDependenceSpecifier::SpecifierKind");
   }
@@ -134,6 +141,7 @@ public:
 class LifetimeDependenceInfo {
   IndexSubset *inheritLifetimeParamIndices;
   IndexSubset *scopeLifetimeParamIndices;
+  bool immortal;
 
   static LifetimeDependenceInfo getForParamIndex(AbstractFunctionDecl *afd,
                                                  unsigned index,
@@ -149,12 +157,15 @@ class LifetimeDependenceInfo {
 public:
   LifetimeDependenceInfo()
       : inheritLifetimeParamIndices(nullptr),
-        scopeLifetimeParamIndices(nullptr) {}
+        scopeLifetimeParamIndices(nullptr), immortal(false) {}
   LifetimeDependenceInfo(IndexSubset *inheritLifetimeParamIndices,
-                         IndexSubset *scopeLifetimeParamIndices)
+                         IndexSubset *scopeLifetimeParamIndices,
+                         bool isImmortal)
       : inheritLifetimeParamIndices(inheritLifetimeParamIndices),
-        scopeLifetimeParamIndices(scopeLifetimeParamIndices) {
-    assert(!empty());
+        scopeLifetimeParamIndices(scopeLifetimeParamIndices),
+        immortal(isImmortal) {
+    assert(isImmortal || inheritLifetimeParamIndices ||
+           scopeLifetimeParamIndices);
     assert(!inheritLifetimeParamIndices ||
            !inheritLifetimeParamIndices->isEmpty());
     assert(!scopeLifetimeParamIndices || !scopeLifetimeParamIndices->isEmpty());
@@ -163,9 +174,11 @@ public:
   operator bool() const { return !empty(); }
 
   bool empty() const {
-    return inheritLifetimeParamIndices == nullptr &&
+    return !immortal && inheritLifetimeParamIndices == nullptr &&
            scopeLifetimeParamIndices == nullptr;
   }
+
+  bool isImmortal() const { return immortal; }
 
   bool hasInheritLifetimeParamIndices() const {
     return inheritLifetimeParamIndices != nullptr;

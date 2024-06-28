@@ -107,6 +107,7 @@ extension ASTGenVisitor {
         .in,
         .inConstant,
         .inGuaranteed,
+        .inCXX,
         .inout,
         .inoutAliasable,
         .moveOnly,

@@ -298,7 +298,12 @@ enum DIUseKind {
   LoadForTypeOfSelf,
 
   /// This instruction is a value_metatype on the address of 'self'.
-  TypeOfSelf
+  TypeOfSelf,
+
+  /// This instruction is the builtin for flow-sensitive current isolation
+  /// within an actor initializer. It will be replaced with either a copy of
+  /// its argument (injected into an (any Actor)?) or nil.
+  FlowSensitiveSelfIsolation,
 };
 
 /// This struct represents a single classified access to the memory object

@@ -529,24 +529,24 @@ extension MutableCollection {
 @inlinable
 @_preInverseGenerics
 public func swap<T: ~Copyable>(_ a: inout T, _ b: inout T) {
-  // Semantically equivalent to (a, b) = (b, a).
-  // Microoptimized to avoid retain/release traffic.
-#if $BuiltinUnprotectedAddressOf
-  let p1 = Builtin.unprotectedAddressOf(&a)
-  let p2 = Builtin.unprotectedAddressOf(&b)
-#else
-  let p1 = Builtin.addressof(&a)
-  let p2 = Builtin.addressof(&b)
-#endif
-  _debugPrecondition(
-    p1 != p2,
-    "swapping a location with itself is not supported")
-
-  // Take from P1.
-  let tmp: T = Builtin.take(p1)
-  // Transfer P2 into P1.
-  Builtin.initialize(Builtin.take(p2) as T, p1)
-  // Initialize P2.
-  Builtin.initialize(tmp, p2)
+  let temp = consume a
+  a = consume b
+  b = consume temp
 }
 
+/// Replaces the value of a mutable value with the supplied new value,
+/// returning the original.
+///
+/// - Parameters:
+///   - item: A mutable binding.
+///   - newValue: The new value of `item`.
+/// - Returns: The original value of `item`.
+@_alwaysEmitIntoClient
+public func exchange<T: ~Copyable>(
+  _ item: inout T,
+  with newValue: consuming T
+) -> T {
+  let oldValue = consume item
+  item = consume newValue
+  return oldValue
+}

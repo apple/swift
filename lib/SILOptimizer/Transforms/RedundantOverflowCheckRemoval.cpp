@@ -15,6 +15,7 @@
 
 #define DEBUG_TYPE "remove-redundant-overflow-checks"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/Dominance.h"
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SILOptimizer/Analysis/Analysis.h"

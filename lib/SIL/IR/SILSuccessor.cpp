@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILSuccessor.h"
 #include "swift/SIL/SILBasicBlock.h"
 using namespace swift;

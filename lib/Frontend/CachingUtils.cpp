@@ -13,6 +13,7 @@
 #include "swift/Frontend/CachingUtils.h"
 
 #include "swift/AST/DiagnosticsFrontend.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/Frontend/CASOutputBackends.h"

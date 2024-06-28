@@ -456,6 +456,98 @@ extension Unsafe${Mutable}BufferPointer where Element: ~Copyable {
 
 }
 
+extension Unsafe${Mutable}BufferPointer where Element: ~Copyable {
+  /// Constructs a standalone buffer pointer over the items within the supplied
+  /// range of positions in the memory region addressed by this buffer pointer.
+  ///
+  /// The returned buffer's first item is always at index 0; unlike buffer
+  /// slices, extracted buffers do not generally share their indices with the
+  /// original buffer pointer.
+  ///
+  ///     withUnsafeTemporaryAllocation(of: Int.self, capacity: 5) { buffer in
+  ///       buffer.initialize(repeating: 0)
+  ///       // buffer contains [0, 0, 0, 0, 0]
+  ///       let part = buffer.extracting(2 ..< 4)
+  ///       part[0] = 1
+  ///       part[1] = 2
+  ///       // buffer now contains [0, 0, 1, 2, 0]
+  ///     }
+  ///
+  /// When `Element` is copyable, the `extracting` operation is equivalent to
+  /// slicing the buffer then rebasing the resulting buffer slice:
+  ///
+  ///     let a = buffer.extracting(i ..< j)
+  ///     let b = UnsafeBufferPointer(rebasing: buffer[i ..< j])
+  ///     // `a` and `b` are now holding the same buffer
+  ///
+  /// However, unlike slicing, the `extracting` operation remains available even
+  /// if `Element` happens to be noncopyable.
+  ///
+  /// - Parameter bounds: A valid range of indices within this buffer.
+  /// - Returns: A new buffer pointer over the items at `bounds`.
+  @_alwaysEmitIntoClient
+  public func extracting(_ bounds: Range<Int>) -> Self {
+    _precondition(bounds.lowerBound >= 0 && bounds.upperBound <= count,
+      "Index out of range")
+    guard let start = self.baseAddress else {
+      return Self(start: nil, count: 0)
+    }
+    return Self(start: start + bounds.lowerBound, count: bounds.count)
+  }
+
+  /// Constructs a standalone buffer pointer over the items within the supplied
+  /// range of positions in the memory region addressed by this buffer pointer.
+  ///
+  /// The returned buffer's first item is always at index 0; unlike buffer
+  /// slices, extracted buffers do not generally share their indices with the
+  /// original buffer pointer.
+  ///
+  ///     withUnsafeTemporaryAllocation(of: Int.self, capacity: 5) { buffer in
+  ///       buffer.initialize(repeating: 0)
+  ///       // buffer contains [0, 0, 0, 0, 0]
+  ///       let part = buffer.extracting(2...)
+  ///       part[0] = 1
+  ///       part[1] = 2
+  ///       // buffer now contains [0, 0, 1, 2, 0]
+  ///     }
+  ///
+  /// When `Element` is copyable, the `extracting` operation is equivalent to
+  /// slicing the buffer then rebasing the resulting buffer slice:
+  ///
+  ///     let a = buffer.extracting(i ..< j)
+  ///     let b = UnsafeBufferPointer(rebasing: buffer[i ..< j])
+  ///     // `a` and `b` are now holding the same buffer
+  ///
+  /// However, unlike slicing, the `extracting` operation remains available even
+  /// if `Element` happens to be noncopyable.
+  ///
+  /// - Parameter bounds: A valid range of indices within this buffer.
+  /// - Returns: A new buffer pointer over the items at `bounds`.
+  @_alwaysEmitIntoClient
+  public func extracting(_ bounds: some RangeExpression<Int>) -> Self {
+    extracting(bounds.relative(to: Range(uncheckedBounds: (0, count))))
+  }
+
+  /// Extracts and returns a copy of the entire buffer.
+  ///
+  /// When `Element` is copyable, the `extracting` operation is equivalent to
+  /// slicing the buffer then rebasing the resulting buffer slice:
+  ///
+  ///     let a = buffer
+  ///     let b = buffer.extracting(...)
+  ///     let c = UnsafeBufferPointer(rebasing: buffer[...])
+  ///     // `a`, `b` and `c` are now all referring to the same buffer
+  ///
+  /// Note that unlike slicing, the `extracting` operation remains available
+  /// even if `Element` happens to be noncopyable.
+  //
+  /// - Returns: The same buffer as `self`.
+  @_alwaysEmitIntoClient
+  public func extracting(_ bounds: UnboundedRange) -> Self {
+    self
+  }
+}
+
 @_disallowFeatureSuppression(NoncopyableGenerics)
 extension Unsafe${Mutable}BufferPointer {
   /// Accesses the element at the specified position.

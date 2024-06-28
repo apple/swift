@@ -25,6 +25,7 @@
 #include "MoveOnlyObjectCheckerUtils.h"
 #include "MoveOnlyUtils.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/BlotSetVector.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FrozenMultiMap.h"

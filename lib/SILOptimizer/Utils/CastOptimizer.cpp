@@ -21,6 +21,7 @@
 #include "swift/AST/GenericSignature.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/SubstitutionMap.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/DynamicCasts.h"
@@ -530,8 +531,8 @@ findBridgeToObjCFunc(SILOptFunctionBuilder &functionBuilder,
     bridgedFunc->setParentModule(
         resultDecl->getDeclContext()->getParentModule());
 
-  if (dynamicCast.getFunction()->isSerialized() &&
-      !bridgedFunc->hasValidLinkageForFragileRef())
+  if (dynamicCast.getFunction()->isAnySerialized() &&
+      !bridgedFunc->hasValidLinkageForFragileRef(dynamicCast.getFunction()->getSerializedKind()))
     return std::nullopt;
 
   if (bridgedFunc->getLoweredFunctionType()
@@ -692,6 +693,7 @@ CastOptimizer::optimizeBridgedSwiftToObjCCast(SILDynamicCastInst dynamicCast) {
   case ParameterConvention::Pack_Inout:
   case ParameterConvention::Direct_Owned:
   case ParameterConvention::Indirect_In:
+  case ParameterConvention::Indirect_In_CXX:
     // Currently this
     // cannot appear, because the _bridgeToObjectiveC protocol witness method
     // always receives the this pointer (= the source) as guaranteed.

@@ -35,7 +35,7 @@ extension TaskGroup {
   public mutating func addTask(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async -> ChildTaskResult
+    operation: sending @escaping @isolated(any) () async -> ChildTaskResult
   ) {
     guard let taskExecutor else {
       return self.addTask(priority: priority, operation: operation)
@@ -47,9 +47,6 @@ extension TaskGroup {
       addPendingGroupTaskUnconditionally: true,
       isDiscardingTask: false)
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -58,7 +55,7 @@ extension TaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -87,7 +84,7 @@ extension TaskGroup {
   public mutating func addTaskUnlessCancelled(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async -> ChildTaskResult
+    operation: sending @escaping @isolated(any) () async -> ChildTaskResult
   ) -> Bool {
     guard let taskExecutor else {
       return self.addTaskUnlessCancelled(priority: priority, operation: operation)
@@ -105,9 +102,6 @@ extension TaskGroup {
       addPendingGroupTaskUnconditionally: false,
       isDiscardingTask: false)
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -116,7 +110,7 @@ extension TaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -150,7 +144,7 @@ extension ThrowingTaskGroup {
   public mutating func addTask(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async throws -> ChildTaskResult
+    operation: sending @escaping @isolated(any) () async throws -> ChildTaskResult
   ) {
     guard let taskExecutor else {
       return self.addTask(priority: priority, operation: operation)
@@ -162,9 +156,6 @@ extension ThrowingTaskGroup {
       addPendingGroupTaskUnconditionally: true,
       isDiscardingTask: false)
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -173,7 +164,7 @@ extension ThrowingTaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -198,7 +189,7 @@ extension ThrowingTaskGroup {
   public mutating func addTaskUnlessCancelled(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async throws -> ChildTaskResult
+    operation: sending @escaping @isolated(any) () async throws -> ChildTaskResult
   ) -> Bool {
     guard let taskExecutor else {
       return self.addTaskUnlessCancelled(priority: priority, operation: operation)
@@ -216,9 +207,6 @@ extension ThrowingTaskGroup {
       addPendingGroupTaskUnconditionally: false,
       isDiscardingTask: false)
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -227,7 +215,7 @@ extension ThrowingTaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -261,7 +249,7 @@ extension DiscardingTaskGroup {
   public mutating func addTask(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async -> Void
+    operation: sending @escaping @isolated(any) () async -> Void
   ) {
     guard let taskExecutor else {
       return self.addTask(priority: priority, operation: operation)
@@ -273,9 +261,6 @@ extension DiscardingTaskGroup {
       addPendingGroupTaskUnconditionally: true,
       isDiscardingTask: true)
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -284,7 +269,7 @@ extension DiscardingTaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncDiscardingTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -314,7 +299,7 @@ extension DiscardingTaskGroup {
   public mutating func addTaskUnlessCancelled(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async -> Void
+    operation: sending @escaping @isolated(any) () async -> Void
   ) -> Bool {
     guard let taskExecutor else {
       return self.addTaskUnlessCancelled(priority: priority, operation: operation)
@@ -332,9 +317,6 @@ extension DiscardingTaskGroup {
       addPendingGroupTaskUnconditionally: false, isDiscardingTask: true
     )
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -343,7 +325,7 @@ extension DiscardingTaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncDiscardingTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -377,7 +359,7 @@ extension ThrowingDiscardingTaskGroup {
   public mutating func addTask(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async throws -> Void
+    operation: sending @escaping @isolated(any) () async throws -> Void
   ) {
     guard let taskExecutor else {
       return self.addTask(priority: priority, operation: operation)
@@ -389,9 +371,6 @@ extension ThrowingDiscardingTaskGroup {
       addPendingGroupTaskUnconditionally: true,
       isDiscardingTask: true)
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -400,7 +379,7 @@ extension ThrowingDiscardingTaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncDiscardingTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)
@@ -430,7 +409,7 @@ extension ThrowingDiscardingTaskGroup {
   public mutating func addTaskUnlessCancelled(
     executorPreference taskExecutor: (any TaskExecutor)?,
     priority: TaskPriority? = nil,
-    operation: __owned @Sendable @escaping @isolated(any) () async throws -> Void
+    operation: sending @escaping @isolated(any) () async throws -> Void
   ) -> Bool {
     guard let taskExecutor else {
       return self.addTaskUnlessCancelled(priority: priority, operation: operation)
@@ -448,9 +427,6 @@ extension ThrowingDiscardingTaskGroup {
       addPendingGroupTaskUnconditionally: false, isDiscardingTask: true
     )
 
-    let executorBuiltin: Builtin.Executor =
-      taskExecutor.asUnownedTaskExecutor().executor
-
     // Create the task in this group with an executor preference.
     #if $BuiltinCreateTask
     let builtinSerialExecutor =
@@ -459,7 +435,7 @@ extension ThrowingDiscardingTaskGroup {
     _ = Builtin.createTask(flags: flags,
                            initialSerialExecutor: builtinSerialExecutor,
                            taskGroup: _group,
-                           initialTaskExecutor: executorBuiltin,
+                           initialTaskExecutorConsuming: taskExecutor,
                            operation: operation)
     #else
     _ = Builtin.createAsyncDiscardingTaskInGroupWithExecutor(flags, _group, executorBuiltin, operation)

@@ -18,6 +18,7 @@
 
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 SourceRange RequirementRepr::getSourceRange() const {

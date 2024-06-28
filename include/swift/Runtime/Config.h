@@ -220,12 +220,6 @@ extern uintptr_t __COMPATIBILITY_LIBRARIES_CANNOT_CHECK_THE_IS_SWIFT_BIT_DIRECTL
 #define SWIFT_ASYNC_CONTEXT
 #endif
 
-#if __has_attribute(optnone)
-#define SWIFT_OPTNONE __attribute__((optnone))
-#else
-#define SWIFT_OPTNONE
-#endif
-
 // SWIFT_CC(swiftasync) is the Swift async calling convention.
 // We assume that it supports mandatory tail call elimination.
 #if __has_attribute(swiftasynccall)

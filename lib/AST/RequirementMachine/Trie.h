@@ -75,7 +75,7 @@ public:
   /// assertion further up the stack.
   template <typename Iter>
   std::optional<ValueType> insert(Iter begin, Iter end, ValueType value) {
-    assert(begin != end);
+    DEBUG_ASSERT(begin != end);
     auto *node = &Root;
 
     while (true) {
@@ -102,7 +102,7 @@ public:
   /// MatchKind::Shortest or MatchKind::Longest.
   template <typename Iter>
   std::optional<ValueType> find(Iter begin, Iter end) const {
-    assert(begin != end);
+    DEBUG_ASSERT(begin != end);
     auto *node = &Root;
 
     std::optional<ValueType> bestMatch = std::nullopt;
@@ -157,7 +157,7 @@ public:
   /// argument of type ValueType.
   template<typename Iter, typename Fn>
   void findAll(Iter begin, Iter end, Fn fn) const {
-    assert(begin != end);
+    DEBUG_ASSERT(begin != end);
     auto *node = &Root;
 
     while (true) {

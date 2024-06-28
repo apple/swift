@@ -287,6 +287,8 @@ private struct CollectedEffects {
   private mutating func addEffects<Arguments: Sequence>(ofFunctions callees: FunctionArray?,
                                                         withArguments arguments: Arguments)
                                    where Arguments.Element == (calleeArgumentIndex: Int, callerArgument: Value) {
+    // The argument summary for @in_cxx is insufficient in OSSA because the function body does not contain the
+    // destroy. But the call is still effectively a release from the caller's perspective.
     guard let callees = callees else {
       // We don't know which function(s) are called.
       globalEffects = .worstEffects

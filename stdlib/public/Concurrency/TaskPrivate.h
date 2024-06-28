@@ -791,7 +791,7 @@ struct AsyncTask::PrivateStorage {
     // elements are destroyed; in order to respect stack-discipline of
     // the task-local allocator.
     if (task->hasInitialTaskExecutorPreferenceRecord()) {
-    task->dropInitialTaskExecutorPreferenceRecord();
+      task->dropInitialTaskExecutorPreferenceRecord();
     }
 
     // Drain unlock the task and remove any overrides on thread as a

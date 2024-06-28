@@ -10,7 +10,7 @@ func suspend() async {}
 // Builtin.hopToActor should generate a mandatory hop_to_executor
 // before releasing the actor and reaching a suspend.
 //
-// CHECK-LABEL: sil private @$s14builtin_silgen11runDetachedyyFyyYaYbcfU_ : $@convention(thin) @Sendable @async @substituted <τ_0_0> (@guaranteed Optional<any Actor>) -> @out τ_0_0 for <()>
+// CHECK-LABEL: sil private @$s14builtin_silgen11runDetachedyyFyyYacfU_ : $@convention(thin) @async @substituted <τ_0_0> (@guaranteed Optional<any Actor>) -> @out τ_0_0 for <()> {
 // CHECK:   [[ACTOR:%.*]] = apply {{%.*}}({{%.*}}) : $@convention(method) (@thick MainActor.Type) -> @owned MainActor
 // CHECK:   hop_to_executor [mandatory] [[ACTOR]] : $MainActor
 // CHECK:   strong_release [[ACTOR]] : $MainActor

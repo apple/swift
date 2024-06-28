@@ -295,11 +295,13 @@ public:
     std::function<const void *(unsigned depth, unsigned index)>;
 
   /// Callback used to provide the substitution of a generic parameter
-  /// (described by the ordinal, or "flat index") to its metadata.
+  /// (described by the ordinal, or "flat index") to its metadata. The index may
+  /// be "full" or it may be only relative to key arguments. The call is
+  /// provided both indexes and may use the one it requires.
   ///
   /// The return type here is a lie; it's actually a MetadataOrPack.
   using SubstGenericParameterOrdinalFn =
-    std::function<const void *(unsigned ordinal)>;
+    std::function<const void *(unsigned fullOrdinal, unsigned keyOrdinal)>;
 
   /// Callback used to provide the substitution of a witness table based on
   /// its index into the enclosing generic environment.
@@ -460,7 +462,7 @@ public:
     const void * const *getGenericArgs() const { return genericArgs; }
 
     MetadataOrPack getMetadata(unsigned depth, unsigned index) const;
-    MetadataOrPack getMetadataOrdinal(unsigned ordinal) const;
+    MetadataOrPack getMetadataKeyArgOrdinal(unsigned ordinal) const;
     const WitnessTable *getWitnessTable(const Metadata *type,
                                         unsigned index) const;
   };

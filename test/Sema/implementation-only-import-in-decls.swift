@@ -11,15 +11,14 @@ import NormalLibrary
 @_implementationOnly import BADLibrary
 // expected-warning @-1 {{'@_implementationOnly' is deprecated, use 'internal import' instead}}
 
-public struct TestConformance: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
+public struct TestConformance: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
 
-@usableFromInline struct TestConformanceUFI: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
+@usableFromInline struct TestConformanceUFI: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
 
 struct TestConformanceOkay: BadProto {} // ok
 
-public class TestConformanceClass: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
-public enum TestConformanceEnum: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
-
+public class TestConformanceClass: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
+public enum TestConformanceEnum: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
 
 public struct TestGenericParams<T: BadProto> {} // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
 
@@ -75,11 +74,11 @@ public protocol TestAssocTypeWhereClause {
   associatedtype Assoc: Collection where Assoc.Element: BadProto // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
 }
 
-public enum TestRawType: IntLike { // expected-error {{cannot use struct 'IntLike' here; 'BADLibrary' has been imported as implementation-only}}
+public enum TestRawType: IntLike { // expected-error {{cannot use struct 'IntLike' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
   case x = 1
 }
 
-public class TestSubclass: BadClass { // expected-error {{cannot use class 'BadClass' here; 'BADLibrary' has been imported as implementation-only}}
+public class TestSubclass: BadClass { // expected-error {{cannot use class 'BadClass' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
 }
 
 public typealias TestUnderlying = BadStruct // expected-error {{cannot use struct 'BadStruct' here; 'BADLibrary' has been imported as implementation-only}}
@@ -121,7 +120,7 @@ extension Array where Element == BadStruct {
   subscript(okay _: Int) -> Int { 0 } // okay
 }
 
-extension Int: @retroactive BadProto {} // expected-error {{cannot use protocol 'BadProto' here; 'BADLibrary' has been imported as implementation-only}}
+extension Int: @retroactive BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; 'BADLibrary' has been imported as implementation-only}}
 struct TestExtensionConformanceOkay {}
 extension TestExtensionConformanceOkay: BadProto {} // okay
 

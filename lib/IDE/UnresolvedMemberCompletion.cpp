@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/IDE/UnresolvedMemberCompletion.h"
 #include "swift/IDE/CodeCompletion.h"
 #include "swift/IDE/CompletionLookup.h"
@@ -21,43 +22,27 @@ using namespace swift;
 using namespace swift::constraints;
 using namespace swift::ide;
 
-bool UnresolvedMemberTypeCheckCompletionCallback::Result::canBeMergedWith(
-    const Result &Other, DeclContext &DC) const {
-  if (!isConvertibleTo(ExpectedTy, Other.ExpectedTy, /*openArchetypes=*/true,
-                       DC) &&
-      !isConvertibleTo(Other.ExpectedTy, ExpectedTy, /*openArchetypes=*/true,
-                       DC)) {
+bool UnresolvedMemberTypeCheckCompletionCallback::Result::tryMerge(
+    const Result &Other, DeclContext *DC) {
+  auto expectedTy = tryMergeBaseTypeForCompletionLookup(ExpectedTy,
+                                                        Other.ExpectedTy, DC);
+  if (!expectedTy)
     return false;
-  }
-  return true;
-}
 
-void UnresolvedMemberTypeCheckCompletionCallback::Result::merge(
-    const Result &Other, DeclContext &DC) {
-  assert(canBeMergedWith(Other, DC));
-  if (!ExpectedTy->isEqual(Other.ExpectedTy) &&
-      isConvertibleTo(ExpectedTy, Other.ExpectedTy, /*openArchetypes=*/true,
-                      DC)) {
-    // ExpectedTy is more general than Other.ExpectedTy. Complete based on the
-    // more general type because it offers more completion options.
-    ExpectedTy = Other.ExpectedTy;
-  }
+  ExpectedTy = expectedTy;
 
   IsImpliedResult |= Other.IsImpliedResult;
   IsInAsyncContext |= Other.IsInAsyncContext;
+  return true;
 }
 
 void UnresolvedMemberTypeCheckCompletionCallback::addExprResult(
     const Result &Res) {
-  auto ExistingRes =
-      llvm::find_if(ExprResults, [&Res, DC = DC](const Result &ExistingResult) {
-        return ExistingResult.canBeMergedWith(Res, *DC);
-      });
-  if (ExistingRes != ExprResults.end()) {
-    ExistingRes->merge(Res, *DC);
-  } else {
-    ExprResults.push_back(Res);
+  for (auto idx : indices(ExprResults)) {
+    if (ExprResults[idx].tryMerge(Res, DC))
+      return;
   }
+  ExprResults.push_back(Res);
 }
 
 void UnresolvedMemberTypeCheckCompletionCallback::sawSolutionImpl(

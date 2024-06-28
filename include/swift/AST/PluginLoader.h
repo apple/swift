@@ -78,15 +78,14 @@ public:
   /// returns a nullptr.
   /// NOTE: This method is idempotent. If the plugin is already loaded, the same
   /// instance is simply returned.
-  llvm::Expected<LoadedLibraryPlugin *> loadLibraryPlugin(llvm::StringRef path);
+  llvm::Expected<CompilerPlugin *> getInProcessPlugins();
 
   /// Launch the specified executable plugin path resolving the path with the
   /// current VFS. If it fails to load the plugin, a diagnostic is emitted, and
   /// returns a nullptr.
   /// NOTE: This method is idempotent. If the plugin is already loaded, the same
   /// instance is simply returned.
-  llvm::Expected<LoadedExecutablePlugin *>
-  loadExecutablePlugin(llvm::StringRef path);
+  llvm::Expected<CompilerPlugin *> loadExecutablePlugin(llvm::StringRef path);
 
   /// Add the specified plugin associated with the module name to the dependency
   /// tracker if needed.

@@ -8,7 +8,7 @@ macro anonymousTypes(public: Bool, _: () -> String) = #externalMacro(module: "Ma
 
 // RUN: %target-swift-frontend -swift-version 5 -emit-ir -load-plugin-library %t/%target-library-name(MacroDefinition) -module-name MacroUser %S/Inputs/AnonTypes1.swift %S/Inputs/AnonTypes2.swift %s -o - -g | %FileCheck --check-prefix CHECK-IR %s
 
-// CHECK-IR: $s9MacroUser33{{.*}}14anonymousTypesfMf_4namefMu_
-// CHECK-IR-NOT: $s9MacroUser33{{.*}}14anonymousTypesfMf0_4namefMu_
-// CHECK-IR: $s9MacroUser33{{.*}}14anonymousTypesfMf_4namefMu_
-// CHECK-IR-NOT: $s9MacroUser33{{.*}}14anonymousTypesfMf0_4namefMu_
+// CHECK-IR: $s9MacroUser{{.*}}fMX{{.*}}_33{{.*}}14anonymousTypesfMf_4namefMu_
+// CHECK-IR-NOT: $s9MacroUser{{.*}}fMX{{.*}}_33{{.*}}14anonymousTypesfMf0_4namefMu_
+// CHECK-IR: $s9MacroUser{{.*}}fMX{{.*}}_33{{.*}}14anonymousTypesfMf_4namefMu_
+// CHECK-IR-NOT: $s9MacroUser{{.*}}fMX{{.*}}_33{{.*}}14anonymousTypesfMf0_4namefMu_

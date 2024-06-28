@@ -1,4 +1,4 @@
-// RUN: %target-swift-ide-test -batch-code-completion -source-filename %s -filecheck %raw-FileCheck -completion-output-dir %t -enable-experimental-concurrency
+// RUN: %batch-code-completion -enable-experimental-concurrency
 
 // REQUIRES: concurrency
 

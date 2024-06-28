@@ -12,6 +12,7 @@
 
 #include "swift/Parse/ParseVersion.h"
 #include "swift/AST/DiagnosticsParse.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/FormatVariadic.h"
 
 using namespace swift;

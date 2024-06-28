@@ -125,7 +125,7 @@ class TestConformanceWithStripping : InnerSendableTypes {
   }
 
   func test(withCallback name: String, handler: @escaping @MainActor ([String : Any], (any Error)?) -> Void) {
-    // expected-note@-1 {{candidate has non-matching type '(String, @escaping @MainActor ([String : Any], (any Error)?) -> Void) -> ()'}}
+    // expected-note@-1 {{candidate has non-matching type '(String, @escaping @MainActor @Sendable ([String : Any], (any Error)?) -> Void) -> ()'}}
   }
 }
 

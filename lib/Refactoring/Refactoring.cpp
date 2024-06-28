@@ -14,6 +14,7 @@
 #include "RefactoringActions.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/SourceFile.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/SourceManager.h"
 #include "swift/IDE/IDERequests.h"
 #include "swift/Parse/Lexer.h"

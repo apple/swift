@@ -16,6 +16,7 @@
 
 #include "swift/AST/TypeWalker.h"
 #include "swift/AST/TypeVisitor.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 

@@ -13,10 +13,36 @@
 #include "swift/AST/CaptureInfo.h"
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/Decl.h"
+#include "swift/AST/Expr.h"
 #include "swift/AST/GenericEnvironment.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace swift;
+
+CapturedValue::CapturedValue(Expr *Val, unsigned Flags)
+    : Value(Val, Flags), Loc(SourceLoc()) {
+  assert(isa<OpaqueValueExpr>(Val) || isa<PackElementExpr>(Val));
+}
+
+bool CapturedValue::isPackElement() const {
+  return isExpr() && isa<PackElementExpr>(getExpr());
+}
+bool CapturedValue::isOpaqueValue() const {
+  return isExpr() && isa<OpaqueValueExpr>(getExpr());
+}
+
+OpaqueValueExpr *CapturedValue::getOpaqueValue() const {
+  return dyn_cast_or_null<OpaqueValueExpr>(getExpr());
+}
+
+PackElementExpr *CapturedValue::getPackElement() const {
+  return dyn_cast_or_null<PackElementExpr>(getExpr());
+}
+
+Type CapturedValue::getPackElementType() const {
+  return getPackElement()->getType();
+}
 
 ArrayRef<CapturedValue>
 CaptureInfo::CaptureInfoStorage::getCaptures() const {
@@ -126,7 +152,18 @@ void CaptureInfo::print(raw_ostream &OS) const {
 
   interleave(getCaptures(),
              [&](const CapturedValue &capture) {
-               OS << capture.getDecl()->getBaseName();
+               if (capture.getDecl())
+                 OS << capture.getDecl()->getBaseName();
+               else if (capture.isPackElement()) {
+                 OS << "[pack element] ";
+                 capture.getPackElement()->dump(OS);
+               } else if (capture.isOpaqueValue()) {
+                 OS << "[opaque] ";
+                 capture.getOpaqueValue()->dump(OS);
+               } else {
+                 OS << "[unknown] ";
+                 assert(false);
+               }
 
                if (capture.isDirect())
                  OS << "<direct>";

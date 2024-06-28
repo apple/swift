@@ -1,4 +1,4 @@
-// RUN: %target-build-swift -swift-version 5 %s -enable-upcoming-feature RegionBasedIsolation -strict-concurrency=complete -enable-experimental-feature TransferringArgsAndResults -Xfrontend -verify
+// RUN: %target-build-swift -swift-version 5 %s -strict-concurrency=complete -Xfrontend -verify
 
 // REQUIRES: concurrency
 // REQUIRES: OS=macosx

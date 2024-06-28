@@ -1,4 +1,3 @@
-// RUN: %target-swift-frontend -emit-sil -strict-concurrency=complete -disable-availability-checking -verify -verify-additional-prefix complete- -verify-additional-prefix typechecker-only- -DTYPECHECKER_ONLY %s -o /dev/null -disable-region-based-isolation-with-strict-concurrency -enable-upcoming-feature GlobalActorIsolatedTypesUsability
 // RUN: %target-swift-frontend -emit-sil -strict-concurrency=complete -disable-availability-checking -verify -verify-additional-prefix tns-  %s -o /dev/null -enable-upcoming-feature GlobalActorIsolatedTypesUsability
 
 // This run validates that for specific test cases around closures, we properly
@@ -15,7 +14,7 @@
 ////////////////////////
 
 /// Classes are always non-sendable, so this is non-sendable
-class NonSendableKlass { // expected-complete-note 51{{}}
+class NonSendableKlass { // expected-complete-note 53{{}}
   // expected-typechecker-only-note @-1 3{{}}
   // expected-tns-note @-2 {{}}
   var field: NonSendableKlass? = nil
@@ -1688,6 +1687,19 @@ func initAccessorTests() {
       get { fatalError() }
       set { fatalError() }
     }
+
+    @MainActor
+    var third: NonSendableKlass
+    @MainActor
+    var fourth: NonSendableKlass? = nil {
+      @storageRestrictions(initializes: third)
+      init(initialValue)  {
+        third = initialValue!
+      }
+
+      get { fatalError() }
+      set { fatalError() }
+    }
   }
 }
 
@@ -1722,4 +1734,78 @@ func sendableGlobalActorIsolated() {
     // expected-complete-warning @-2 {{capture of 'x' with non-sendable type 'NonSendableKlass' in a `@Sendable` closure}}
   }
   print(x) // expected-tns-note {{access can happen concurrently}}
+}
+
+// We do not get an error here since we are transferring x both times to a main
+// actor isolated thing function. We used to emit an error when using region
+// isolation since we would trip on the store_borrow we used to materialize the
+// value.
+func testIndirectParameterSameIsolationNoError() async {
+  let x = NonSendableKlass()
+  await transferToMain(x) // expected-complete-warning {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
+  await transferToMain(x) // expected-complete-warning {{passing argument of non-sendable type 'NonSendableKlass' into main actor-isolated context may introduce data races}}
+}
+
+extension MyActor {
+  func testNonSendableCaptures(sc: NonSendableKlass) {
+    Task {
+      _ = self
+      _ = sc
+
+      Task { [sc,self] in
+        _ = self
+        _ = sc
+
+        Task { // expected-tns-warning {{value of non-Sendable type '@isolated(any) @async @callee_guaranteed @substituted <τ_0_0> () -> @out τ_0_0 for <()>' accessed after being transferred}}
+          _ = sc
+        }
+
+        Task { // expected-tns-note {{access can happen concurrently}}
+          _ = sc
+        }
+      }
+    }
+  }
+}
+
+public struct TimeoutError: Error, CustomStringConvertible {
+  public var description: String { "Timed out" }
+}
+
+// We used to not merge the isolation below correctly causing us to emit a crash
+// due to undefined behavior. Make sure we do not crash or emit an unhandled
+// pattern error.
+public func doNotCrashOrEmitUnhandledPatternErrors<T: Sendable>(
+  _ duration: Duration,
+  _ body: @escaping @Sendable () async throws -> T
+) async throws -> T {
+  try await withThrowingTaskGroup(of: T.self) { taskGroup in
+    taskGroup.addTask {
+      try await Task.sleep(for: duration)
+      throw TimeoutError()
+    }
+    taskGroup.addTask {
+      return try await body()
+    }
+    for try await value in taskGroup {
+      taskGroup.cancelAll()
+      return value
+    }
+    throw CancellationError()
+  }
+}
+
+/// The following makes sure that when we have a function like test2 with an
+/// assigned isolation that returns a Sendable value... we treat the value as
+/// actually Sendable. This occurs in this example via the result of the default
+/// parameter function for string.
+///
+/// We shouldn't emit any diagnostic here.
+actor FunctionWithSendableResultAndIsolationActor {
+    func foo() -> String {
+        return string()
+    }
+    func string(someCondition: Bool = false) -> String {
+        return ""
+    }
 }

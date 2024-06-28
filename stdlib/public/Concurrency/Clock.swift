@@ -77,7 +77,7 @@ extension Clock {
   }
 
   @available(SwiftStdlib 5.7, *)
-  @_unsafeInheritExecutor
+  @_unsafeInheritExecutor // for ABI compatibility
   @usableFromInline
   internal func measure(
     _ work: () async throws -> Void

@@ -17,7 +17,7 @@
 #ifndef SWIFT_SIL_SILBITFIELD_H
 #define SWIFT_SIL_SILBITFIELD_H
 
-#include "swift/Basic/Require.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILFunction.h"
 
 namespace swift {
@@ -56,12 +56,12 @@ public:
       parent(parent),
       function(function) {
     assert(size > 0 && "bit field size must be > 0");
-    require(endBit <= T::numCustomBits,
-            "too many/large bit fields allocated in function");
-    assert((!parent || bitfieldID > parent->bitfieldID) &&
+    ASSERT(endBit <= T::numCustomBits &&
+           "too many/large bit fields allocated in function");
+    ASSERT((!parent || bitfieldID > parent->bitfieldID) &&
            "BasicBlockBitfield indices are not in order");
-    require(function->currentBitfieldID < T::maxBitfieldID,
-            "currentBitfieldID overflow");
+    ASSERT(function->currentBitfieldID < T::maxBitfieldID &&
+           "currentBitfieldID overflow");
     ++function->currentBitfieldID;
   }
 

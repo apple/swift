@@ -35,6 +35,7 @@
 
 #include "RewriteLoop.h"
 #include "RewriteSystem.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/SmallVector.h"
 #include <utility>
 
@@ -64,7 +65,7 @@ bool RewriteStep::isInverseOf(const RewriteStep &other) const {
     return false;
   }
 
-  assert(EndOffset == other.EndOffset && "Bad whiskering?");
+  ASSERT(EndOffset == other.EndOffset && "Bad whiskering?");
   return true;
 }
 

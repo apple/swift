@@ -33,40 +33,40 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
 #include <stdint.h>
 #include <assert.h>
 
+#include "HeapObject.h"
 #include "swift/Basic/type_traits.h"
 #include "swift/Runtime/Atomic.h"
 #include "swift/Runtime/Config.h"
 #include "swift/Runtime/Debug.h"
 #include "swift/Runtime/Heap.h"
 
-
 /*
-  An object conceptually has three refcounts. These refcounts 
+  An object conceptually has three refcounts. These refcounts
   are stored either "inline" in the field following the isa
   or in a "side table entry" pointed to by the field following the isa.
-  
-  The strong RC counts strong references to the object. When the strong RC 
-  reaches zero the object is deinited, unowned reference reads become errors, 
+
+  The strong RC counts strong references to the object. When the strong RC
+  reaches zero the object is deinited, unowned reference reads become errors,
   and weak reference reads become nil. The strong RC is stored as an extra
   count: when the physical field is 0 the logical value is 1.
 
-  The unowned RC counts unowned references to the object. The unowned RC 
-  also has an extra +1 on behalf of the strong references; this +1 is 
-  decremented after deinit completes. When the unowned RC reaches zero 
+  The unowned RC counts unowned references to the object. The unowned RC
+  also has an extra +1 on behalf of the strong references; this +1 is
+  decremented after deinit completes. When the unowned RC reaches zero
   the object's allocation is freed.
 
-  The weak RC counts weak references to the object. The weak RC also has an 
-  extra +1 on behalf of the unowned references; this +1 is decremented 
-  after the object's allocation is freed. When the weak RC reaches zero 
+  The weak RC counts weak references to the object. The weak RC also has an
+  extra +1 on behalf of the unowned references; this +1 is decremented
+  after the object's allocation is freed. When the weak RC reaches zero
   the object's side table entry is freed.
 
   Objects initially start with no side table. They can gain a side table when:
-  * a weak reference is formed 
+  * a weak reference is formed
   and pending future implementation:
   * strong RC or unowned RC overflows (inline RCs will be small on 32-bit)
   * associated object storage is needed on an object
   * etc
-  Gaining a side table entry is a one-way operation; an object with a side 
+  Gaining a side table entry is a one-way operation; an object with a side
   table entry never loses it. This prevents some thread races.
 
   Strong and unowned variables point at the object.
@@ -92,7 +92,7 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
       atomic<SideTableRefCountBits> {
         strong RC + unowned RC + weak RC + flags
       }
-    }   
+    }
   }
 
   InlineRefCounts and SideTableRefCounts share some implementation
@@ -101,10 +101,10 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
   InlineRefCountBits and SideTableRefCountBits share some implementation
   via RefCountBitsT<bool>.
 
-  In general: The InlineRefCounts implementation tries to perform the 
-  operation inline. If the object has a side table it calls the 
-  HeapObjectSideTableEntry implementation which in turn calls the 
-  SideTableRefCounts implementation. 
+  In general: The InlineRefCounts implementation tries to perform the
+  operation inline. If the object has a side table it calls the
+  HeapObjectSideTableEntry implementation which in turn calls the
+  SideTableRefCounts implementation.
   Downside: this code is a bit twisted.
   Upside: this code has less duplication than it might otherwise
 
@@ -115,11 +115,11 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
   The object is alive.
   Object's refcounts are initialized as 1 strong, 1 unowned, 1 weak.
   No side table. No weak RC storage.
-  Strong variable operations work normally. 
+  Strong variable operations work normally.
   Unowned variable operations work normally.
   Weak variable load can't happen.
   Weak variable store adds the side table, becoming LIVE with side table.
-  When the strong RC reaches zero deinit() is called and the object 
+  When the strong RC reaches zero deinit() is called and the object
     becomes DEINITING.
 
   LIVE with side table
@@ -133,14 +133,14 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
   Unowned variable store works normally.
   Weak variable load can't happen.
   Weak variable store stores nil.
-  When deinit() completes, the generated code calls swift_deallocObject. 
-    swift_deallocObject calls canBeFreedNow() checking for the fast path 
-    of no weak or unowned references. 
-    If canBeFreedNow() the object is freed and it becomes DEAD. 
+  When deinit() completes, the generated code calls swift_deallocObject.
+    swift_deallocObject calls canBeFreedNow() checking for the fast path
+    of no weak or unowned references.
+    If canBeFreedNow() the object is freed and it becomes DEAD.
     Otherwise, it decrements the unowned RC and the object becomes DEINITED.
 
   DEINITING with side table
-  Weak variable load returns nil. 
+  Weak variable load returns nil.
   Weak variable store stores nil.
   canBeFreedNow() is always false, so it never transitions directly to DEAD.
   Everything else is the same as DEINITING.
@@ -156,7 +156,7 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
   DEINITED with side table
   Weak variable load returns nil.
   Weak variable store can't happen.
-  When the unowned RC reaches zero, the object is freed, the weak RC is 
+  When the unowned RC reaches zero, the object is freed, the weak RC is
     decremented, and the object becomes FREED.
   Everything else is the same as DEINITED.
 
@@ -169,7 +169,7 @@ typedef InlineRefCountsPlaceholder InlineRefCounts;
   Unowned variable operations can't happen.
   Weak variable load returns nil.
   Weak variable store can't happen.
-  When the weak RC reaches zero, the side table entry is freed and 
+  When the weak RC reaches zero, the side table entry is freed and
     the object becomes DEAD.
 
   DEAD

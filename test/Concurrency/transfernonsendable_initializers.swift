@@ -50,7 +50,13 @@ actor ActorWithSynchronousNonIsolatedInit {
     }
   }
 
+  init(ns: NonSendableKlass) async {
+    self.k = NonSendableKlass()
+    self.isolatedHelper(ns)
+  }
+
   nonisolated func helper(_ newK: NonSendableKlass) {}
+  func isolatedHelper(_ newK: NonSendableKlass) {}
 }
 
 func initActorWithSyncNonIsolatedInit() {

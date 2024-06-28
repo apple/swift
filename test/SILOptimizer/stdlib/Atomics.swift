@@ -4,6 +4,9 @@
 
 import Synchronization
 
+@_silgen_name("testInt")
+func testInt(_: Int)
+
 //===----------------------------------------------------------------------===//
 // Ensure that we don't destroy the atomic before operations
 //===----------------------------------------------------------------------===//
@@ -76,4 +79,39 @@ func localCompareExchange() -> (exchanged: Bool, original: Int) {
 func deadAtomic() {
   let _ = Atomic(0)
   let _ = Atomic<UnsafeRawPointer?>(nil)
+}
+
+//===----------------------------------------------------------------------===//
+// Closure Lifetime Fixup
+//===----------------------------------------------------------------------===//
+
+func nonescapingClosure(with body: () -> ()) {
+  body()
+}
+
+// CHECK-LABEL: sil {{.*}} @testNonescapingClosure {{.*}} {
+// CHECK:         {{%.*}} = alloc_stack [lexical] [var_decl] $Atomic<Int>, let, name "foo"
+// CHECK:         {{%.*}} = alloc_stack [lexical] [var_decl] $Atomic<Int>, let, name "bar"
+// CHECK:         builtin "atomicrmw_add_monotonic_Int[[PTR_SIZE]]"
+// CHECK:         builtin "atomicrmw_add_monotonic_Int[[PTR_SIZE]]"
+
+// Make sure there are no moves
+// CHECK-NOT:     alloc_stack $Atomic<Int>
+
+// Make sure we don't emit a partial application
+// CHECK-NOT:     partial_apply
+
+// CHECK-LABEL: } // end sil function 'testNonescapingClosure'
+@_silgen_name("testNonescapingClosure")
+func testNonescapingClosure() {
+  let foo = Atomic(0)
+  let bar = Atomic(1)
+
+  nonescapingClosure {
+    foo.wrappingAdd(1, ordering: .relaxed)
+    bar.wrappingAdd(1, ordering: .relaxed)
+  }
+
+  testInt(foo.load(ordering: .relaxed)) // OK
+  testInt(bar.load(ordering: .relaxed)) // OK
 }

@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -typecheck -verify -disable-availability-checking -strict-concurrency=complete -enable-experimental-feature IsolatedAny -enable-upcoming-feature InferSendableFromCaptures %s
+// RUN: %target-swift-frontend -typecheck -verify -disable-availability-checking -strict-concurrency=complete -enable-upcoming-feature InferSendableFromCaptures %s
 
 // REQUIRES: asserts
 

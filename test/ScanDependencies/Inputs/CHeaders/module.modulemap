@@ -11,6 +11,7 @@ module B {
 module C [system] {
   header "C.h"
   export *
+  link framework "nonSwiftyLibC"
 }
 
 module D {

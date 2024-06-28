@@ -22,6 +22,7 @@
 
 #define DEBUG_TYPE "sil-linear-lifetime-checker"
 #include "LinearLifetimeCheckerPrivate.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/BlotMapVector.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FrozenMultiMap.h"
@@ -90,6 +91,9 @@ struct State {
   /// The list of passed in consuming uses.
   ArrayRef<Operand *> consumingUses;
 
+  /// extend_lifetime uses.
+  ArrayRef<Operand *> extendLifetimeUses;
+
   /// The list of passed in non consuming uses.
   ArrayRef<Operand *> nonConsumingUses;
 
@@ -117,13 +121,16 @@ struct State {
         std::optional<function_ref<void(SILBasicBlock *)>> leakingBlockCallback,
         std::optional<function_ref<void(Operand *)>>
             nonConsumingUseOutsideLifetimeCallback,
-        ArrayRef<Operand *> consumingUses, ArrayRef<Operand *> nonConsumingUses)
+        ArrayRef<Operand *> consumingUses,
+        ArrayRef<Operand *> extendLifetimeUses,
+        ArrayRef<Operand *> nonConsumingUses)
       : value(value), beginInst(value->getDefiningInsertionPoint()),
         errorBuilder(errorBuilder), visitedBlocks(value->getFunction()),
         leakingBlockCallback(leakingBlockCallback),
         nonConsumingUseOutsideLifetimeCallback(
             nonConsumingUseOutsideLifetimeCallback),
-        consumingUses(consumingUses), nonConsumingUses(nonConsumingUses),
+        consumingUses(consumingUses), extendLifetimeUses(extendLifetimeUses),
+        nonConsumingUses(nonConsumingUses),
         blocksWithConsumingUses(value->getFunction()) {}
 
   State(SILBasicBlock *beginBlock,
@@ -131,18 +138,25 @@ struct State {
         std::optional<function_ref<void(SILBasicBlock *)>> leakingBlockCallback,
         std::optional<function_ref<void(Operand *)>>
             nonConsumingUseOutsideLifetimeCallback,
-        ArrayRef<Operand *> consumingUses, ArrayRef<Operand *> nonConsumingUses)
+        ArrayRef<Operand *> consumingUses,
+        ArrayRef<Operand *> extendLifetimeUses,
+        ArrayRef<Operand *> nonConsumingUses)
       : value(), beginInst(&*beginBlock->begin()), errorBuilder(errorBuilder),
         visitedBlocks(beginBlock->getParent()),
         leakingBlockCallback(leakingBlockCallback),
         nonConsumingUseOutsideLifetimeCallback(
             nonConsumingUseOutsideLifetimeCallback),
-        consumingUses(consumingUses), nonConsumingUses(nonConsumingUses),
+        consumingUses(consumingUses), extendLifetimeUses(extendLifetimeUses),
+        nonConsumingUses(nonConsumingUses),
         blocksWithConsumingUses(beginBlock->getParent()) {}
 
   SILBasicBlock *getBeginBlock() const { return beginInst->getParent(); }
 
   void initializeAllNonConsumingUses(ArrayRef<Operand *> nonConsumingUsers);
+  void initializeAllExtendLifetimeUses(
+      ArrayRef<Operand *> extendLifetimeUses,
+      SmallVectorImpl<std::pair<Operand *, SILBasicBlock *>>
+          &predsToAddToWorklist);
   void initializeAllConsumingUses(
       ArrayRef<Operand *> consumingUsers,
       SmallVectorImpl<std::pair<Operand *, SILBasicBlock *>>
@@ -244,6 +258,53 @@ void State::initializeAllNonConsumingUses(
 //===----------------------------------------------------------------------===//
 //                        Consuming Use Initialization
 //===----------------------------------------------------------------------===//
+
+void State::initializeAllExtendLifetimeUses(
+    ArrayRef<Operand *> extendLifetimeUses,
+    SmallVectorImpl<std::pair<Operand *, SILBasicBlock *>>
+        &predsToAddToWorklist) {
+  // TODO: Efficiency.
+  for (auto *use : extendLifetimeUses) {
+    auto *user = use->getUser();
+    auto *block = user->getParent();
+
+    auto iter = blocksWithNonConsumingUses.find(block);
+    if (!iter.has_value()) {
+      continue;
+    }
+
+    // Remove the block from `blocksWithNonConsumingUses` if all non-consuming
+    // uses within the block occur before `user`.
+    bool allBefore = true;
+    for (auto *nonConsumingUse : *iter) {
+      auto *nonConsumingUser = nonConsumingUse->getUser();
+      assert(nonConsumingUser != user);
+
+      bool sawNonConsumingUser = false;
+      for (auto *inst = user->getNextInstruction(); inst;
+           inst = inst->getNextInstruction()) {
+        if (inst == nonConsumingUser) {
+          sawNonConsumingUser = true;
+          break;
+        }
+      }
+      if (sawNonConsumingUser) {
+        allBefore = false;
+        break;
+      }
+    }
+    if (allBefore) {
+      blocksWithNonConsumingUses.erase(block);
+    }
+
+    // Add relevant predecessors to the worklist.
+    if (block == getBeginBlock())
+      continue;
+    for (auto *predecessor : block->getPredecessorBlocks()) {
+      predsToAddToWorklist.push_back({use, predecessor});
+    }
+  }
+}
 
 void State::initializeAllConsumingUses(
     ArrayRef<Operand *> consumingUses,
@@ -555,7 +616,7 @@ void State::checkDataflowEndState(DeadEndBlocks *deBlocks) {
 
 LinearLifetimeChecker::Error LinearLifetimeChecker::checkValueImpl(
     SILValue value, ArrayRef<Operand *> consumingUses,
-    ArrayRef<Operand *> nonConsumingUses, ErrorBuilder &errorBuilder,
+    ArrayRef<Operand *> regularUses, ErrorBuilder &errorBuilder,
     std::optional<function_ref<void(SILBasicBlock *)>> leakingBlockCallback,
     std::optional<function_ref<void(Operand *)>>
         nonConsumingUseOutsideLifetimeCallback) {
@@ -571,9 +632,19 @@ LinearLifetimeChecker::Error LinearLifetimeChecker::checkValueImpl(
   //        || deadEndBlocks.isDeadEnd(value->getParentBlock())) &&
   //       "Must have at least one consuming user?!");
 
+  SmallVector<Operand *, 32> nonConsumingUses;
+  SmallVector<Operand *, 32> extendLifetimeUses;
+  for (auto *use : regularUses) {
+    if (isa<ExtendLifetimeInst>(use->getUser())) {
+      extendLifetimeUses.push_back(use);
+    } else {
+      nonConsumingUses.push_back(use);
+    }
+  }
+
   State state(value, errorBuilder, leakingBlockCallback,
               nonConsumingUseOutsideLifetimeCallback, consumingUses,
-              nonConsumingUses);
+              extendLifetimeUses, nonConsumingUses);
 
   // First add our non-consuming uses and their blocks to the
   // blocksWithNonConsumingUses map. While we do this, if we have multiple uses
@@ -594,6 +665,9 @@ LinearLifetimeChecker::Error LinearLifetimeChecker::checkValueImpl(
   // predecessor.
   SmallVector<std::pair<Operand *, SILBasicBlock *>, 32> predsToAddToWorklist;
   state.initializeAllConsumingUses(consumingUses, predsToAddToWorklist);
+
+  state.initializeAllExtendLifetimeUses(extendLifetimeUses,
+                                        predsToAddToWorklist);
 
   // If we have a singular consuming use and it is in the same block as value's
   // def, we bail early. Any use-after-frees due to non-consuming uses would
@@ -630,6 +704,10 @@ LinearLifetimeChecker::Error LinearLifetimeChecker::checkValueImpl(
   // consuming users to the visited list since we do not want them to be added
   // to the successors to visit set.
   for (const auto &i : consumingUses) {
+    state.visitedBlocks.insert(i->getUser()->getParent());
+  }
+
+  for (const auto &i : extendLifetimeUses) {
     state.visitedBlocks.insert(i->getUser()->getParent());
   }
 

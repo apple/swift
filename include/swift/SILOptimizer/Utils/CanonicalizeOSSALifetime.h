@@ -180,6 +180,16 @@ public:
   SWIFT_ASSERT_ONLY_DECL(void dump() const LLVM_ATTRIBUTE_USED);
 };
 
+enum PruneDebugInsts_t : bool {
+  DontPruneDebugInsts = false,
+  PruneDebugInsts = true,
+};
+
+enum MaximizeLifetime_t : bool {
+  DontMaximizeLifetime = false,
+  MaximizeLifetime = true,
+};
+
 /// Canonicalize OSSA lifetimes.
 ///
 /// Allows the allocation of analysis state to be reused across calls to
@@ -221,11 +231,11 @@ public:
 private:
   /// If true, then debug_value instructions outside of non-debug
   /// liveness may be pruned during canonicalization.
-  bool pruneDebugMode;
+  const PruneDebugInsts_t pruneDebugMode;
 
   /// If true, lifetimes will not be shortened except when necessary to avoid
   /// copies.
-  bool maximizeLifetime;
+  const MaximizeLifetime_t maximizeLifetime;
 
   // If present, will be used to ensure that the lifetime is not shortened to
   // end inside an access scope which it previously enclosed.  (Note that ending
@@ -245,6 +255,9 @@ private:
 
   /// The SILValue to canonicalize.
   SILValue currentDef;
+
+  /// Instructions beyond which liveness is not extended by destroy uses.
+  ArrayRef<SILInstruction *> currentLexicalLifetimeEnds;
 
   /// Original points in the CFG where the current value's lifetime is consumed
   /// or destroyed.  Each block either contains a consuming instruction (e.g.
@@ -306,13 +319,15 @@ public:
   struct LivenessState {
     BitfieldRef<SSAPrunedLiveness>::StackState state;
 
-    LivenessState(CanonicalizeOSSALifetime &parent, SILValue def)
+    LivenessState(CanonicalizeOSSALifetime &parent, SILValue def,
+                  ArrayRef<SILInstruction *> lexicalLifetimeEnds)
         : state(parent.liveness, def->getFunction()) {
-      parent.initializeLiveness(def);
+      parent.initializeLiveness(def, lexicalLifetimeEnds);
     }
   };
 
-  CanonicalizeOSSALifetime(bool pruneDebugMode, bool maximizeLifetime,
+  CanonicalizeOSSALifetime(PruneDebugInsts_t pruneDebugMode,
+                           MaximizeLifetime_t maximizeLifetime,
                            SILFunction *function,
                            NonLocalAccessBlockAnalysis *accessBlockAnalysis,
                            DominanceInfo *domTree,
@@ -324,7 +339,8 @@ public:
 
   SILValue getCurrentDef() const { return currentDef; }
 
-  void initializeLiveness(SILValue def) {
+  void initializeLiveness(SILValue def,
+                          ArrayRef<SILInstruction *> lexicalLifetimeEnds) {
     assert(consumingBlocks.empty() && debugValues.empty());
     // Clear the cached analysis pointer just in case the client invalidates the
     // analysis, freeing its memory.
@@ -333,6 +349,7 @@ public:
     destroys.clear();
 
     currentDef = def;
+    currentLexicalLifetimeEnds = lexicalLifetimeEnds;
 
     if (maximizeLifetime || respectsDeinitBarriers()) {
       liveness->initializeDiscoveredBlocks(&discoveredBlocks);
@@ -347,8 +364,18 @@ public:
   }
 
   /// Top-Level API: rewrites copies and destroys within \p def's extended
-  /// lifetime. \p lifetime caches transient analysis state across multiple
-  /// calls.
+  /// lifetime.
+  ///
+  /// For lexical values, canonicalization respects deinit barriers, introducing
+  /// copies as needed to maintain lifetimes beyond final consuming uses to the
+  /// original lexical lifetime end.  When a lexical value is explicitly
+  /// consumed (via the `consume` keyword), however, the lifetime does not
+  /// extend to original destroys beyond that consume--the value must be dead
+  /// after the corresponding marker instructions (`move_value`); to support
+  /// this shortening, the marker instructions must be provided as \p
+  /// lexicalLifetimeEnds. When provided, deinit barriers will be respected
+  /// except to the extent doing so would result in the value being live after
+  /// the marker instructions.
   ///
   /// Return true if any change was made to \p def's extended lifetime. \p def
   /// itself will not be deleted and no instructions outside of \p def's
@@ -358,7 +385,8 @@ public:
   /// This only deletes instructions within \p def's extended lifetime. Use
   /// InstructionDeleter::cleanUpDeadInstructions() to recursively delete dead
   /// operands.
-  bool canonicalizeValueLifetime(SILValue def);
+  bool canonicalizeValueLifetime(
+      SILValue def, ArrayRef<SILInstruction *> lexicalLifetimeEnds = {});
 
   /// Compute the liveness information for \p def. But do not do any rewriting
   /// or computation of boundaries.
@@ -448,6 +476,10 @@ private:
   void extendLivenessToDeinitBarriers();
 
   void extendUnconsumedLiveness(PrunedLivenessBoundary const &boundary);
+  void visitExtendedUnconsumedBoundary(
+      ArrayRef<SILInstruction *> ends,
+      llvm::function_ref<void(SILInstruction *, PrunedLiveness::LifetimeEnding)>
+          visitor);
 
   void insertDestroysOnBoundary(PrunedLivenessBoundary const &boundary);
 

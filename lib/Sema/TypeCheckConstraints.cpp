@@ -27,6 +27,7 @@
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Statistic.h"
 #include "swift/IDE/TypeCheckCompletionCallback.h"
 #include "swift/Sema/ConstraintSystem.h"
@@ -2317,6 +2318,10 @@ static Expr *lookThroughBridgeFromObjCCall(ASTContext &ctx, Expr *expr) {
 /// underlying forced downcast expression.
 ForcedCheckedCastExpr *swift::findForcedDowncast(ASTContext &ctx, Expr *expr) {
   expr = expr->getSemanticsProvidingExpr();
+
+  // Look through a consume, just in case.
+  if (auto consume = dyn_cast<ConsumeExpr>(expr))
+    expr = consume->getSubExpr();
   
   // Simple case: forced checked cast.
   if (auto forced = dyn_cast<ForcedCheckedCastExpr>(expr)) {
@@ -2366,6 +2371,18 @@ ForcedCheckedCastExpr *swift::findForcedDowncast(ASTContext &ctx, Expr *expr) {
   }
 
   return nullptr;
+}
+
+bool swift::canAddExplicitConsume(ModuleDecl *module, Expr *expr) {
+  expr = expr->getSemanticsProvidingExpr();
+
+  // Is it already wrapped in a `consume`?
+  if (isa<ConsumeExpr>(expr))
+    return false;
+
+  // Is this expression valid to wrap inside a `consume`?
+  auto diags = findSyntacticErrorForConsume(module, SourceLoc(), expr);
+  return diags.empty();
 }
 
 void ConstraintSystem::forEachExpr(

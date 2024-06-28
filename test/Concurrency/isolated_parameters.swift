@@ -1,5 +1,6 @@
-// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete %s -emit-sil -o /dev/null -verify -verify-additional-prefix complete- -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete %s -emit-sil -o /dev/null -verify
+// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete %s -emit-sil -o /dev/null -verify -DALLOW_TYPECHECKER_ERRORS -verify-additional-prefix typechecker-
+
+// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete %s -emit-sil -o /dev/null -verify -verify-additional-prefix tns-
 
 // REQUIRES: asserts
 // REQUIRES: concurrency
@@ -7,7 +8,7 @@
 
 @available(SwiftStdlib 5.1, *)
 actor A {
-  func f() { } // expected-note 5{{calls to instance method 'f()' from outside of its actor context are implicitly asynchronous}}
+  func f() { } // expected-typechecker-note 5{{calls to instance method 'f()' from outside of its actor context are implicitly asynchronous}}
 }
 
 @available(SwiftStdlib 5.1, *)
@@ -15,18 +16,22 @@ extension Actor {
   func g() { }
 }
 
-@MainActor func mainActorFn() {} // expected-note {{calls to global function 'mainActorFn()' from outside of its actor context are implicitly asynchronous}}
+@MainActor func mainActorFn() {} // expected-typechecker-note {{calls to global function 'mainActorFn()' from outside of its actor context are implicitly asynchronous}}
+
+#if ALLOW_TYPECHECKER_ERRORS
 
 @available(SwiftStdlib 5.1, *)
 func testA<T: Actor>(
-  a: isolated A,  // expected-note{{previous 'isolated' parameter 'a'}}
-  b: isolated T,  // expected-warning{{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
-  c: isolated Int // expected-error {{'isolated' parameter type 'Int' does not conform to 'Actor' or 'DistributedActor'}}
+  a: isolated A,  // expected-typechecker-note {{previous 'isolated' parameter 'a'}}
+  b: isolated T,  // expected-typechecker-warning {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  c: isolated Int // expected-typechecker-error {{'isolated' parameter type 'Int' does not conform to 'Actor' or 'DistributedActor'}}
 ) {
   a.f()
   a.g()
   b.g()
 }
+
+#endif
 
 actor Other {
   func inc() {}
@@ -37,9 +42,13 @@ actor Counter {
   func pass(_ f: @Sendable  (Self) async -> Void) {}
 }
 
+#if ALLOW_TYPECHECKER_ERRORS
+
+// This is illegal at the SIL level so even though we could ignore this
+// note/warning, we will get a crash otherwise.
 @available(SwiftStdlib 5.1, *)
-// expected-note@+2 {{previous 'isolated' parameter 'a'}}
-// expected-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+// expected-typechecker-note@+2 {{previous 'isolated' parameter 'a'}}
+// expected-typechecker-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
 func testDoubleIsolatedParams(a: isolated Counter, b: isolated Other) async {
   a.inc()
   b.inc()
@@ -53,65 +62,79 @@ func taaaa() async {
   }
 }
 
+#endif
+
 @available(SwiftStdlib 5.1, *)
 typealias Fn = (isolated A) -> Void
 
 @available(SwiftStdlib 5.1, *)
 func globalFunc(_ a: A) { }
 
+#if ALLOW_TYPECHECKER_ERRORS
+
 @available(SwiftStdlib 5.1, *)
-func globalFuncIsolated(_: isolated A) { // expected-note{{calls to global function 'globalFuncIsolated' from outside of its actor context are implicitly asynchronous}}
-  let _: Int = globalFuncIsolated // expected-error{{cannot convert value of type '(isolated A) -> ()' to specified type 'Int'}}
-  let _: (A) -> Void = globalFuncIsolated // expected-error{{cannot convert value of type '(isolated A) -> ()' to specified type '(A) -> Void'}}
+func globalFuncIsolated(_: isolated A) { // expected-typechecker-note{{calls to global function 'globalFuncIsolated' from outside of its actor context are implicitly asynchronous}}
+  let _: Int = globalFuncIsolated // expected-typechecker-error{{cannot convert value of type '(isolated A) -> ()' to specified type 'Int'}}
+  let _: (A) -> Void = globalFuncIsolated // expected-typechecker-error{{cannot convert value of type '(isolated A) -> ()' to specified type '(A) -> Void'}}
   let _: Fn = globalFunc // okay
 }
 
 @available(SwiftStdlib 5.1, *)
-// expected-warning@+1 {{global function with 'isolated' parameter cannot have a global actor; this is an error in the Swift 6 language mode}}{{1-12=}}
+// expected-typechecker-warning@+1 {{global function with 'isolated' parameter cannot have a global actor; this is an error in the Swift 6 language mode}}{{1-12=}}
 @MainActor func testIsolatedParamCalls(a: isolated A, b: A) {
   globalFunc(a)
   globalFunc(b)
 
   globalFuncIsolated(a)
-  globalFuncIsolated(b) // expected-error{{call to actor-isolated global function 'globalFuncIsolated' in a synchronous actor-isolated context}}
+  globalFuncIsolated(b) // expected-typechecker-error{{call to actor-isolated global function 'globalFuncIsolated' in a synchronous actor-isolated context}}
 }
+
+#endif
 
 @available(SwiftStdlib 5.1, *)
 func testIsolatedParamCallsAsync(a: isolated A, b: A) async {
   globalFunc(a)
   globalFunc(b)
 
+  #if ALLOW_TYPECHECKER_ERRORS
   globalFuncIsolated(a)
-  globalFuncIsolated(b) // expected-error{{expression is 'async' but is not marked with 'await'}}
-  // expected-note@-1{{calls to global function 'globalFuncIsolated' from outside of its actor context are implicitly asynchronous}}
+  globalFuncIsolated(b) // expected-typechecker-error{{expression is 'async' but is not marked with 'await'}}
+  // expected-typechecker-note@-1{{calls to global function 'globalFuncIsolated' from outside of its actor context are implicitly asynchronous}}
   await globalFuncIsolated(b)
+  #endif
 }
 
 @available(SwiftStdlib 5.1, *)
 func testIsolatedParamCaptures(a: isolated A) async {
+#if ALLOW_TYPECHECKER_ERRORS
   let _ = { @MainActor in
-    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous main actor-isolated context}}
+    a.f() // expected-typechecker-error {{call to actor-isolated instance method 'f()' in a synchronous main actor-isolated context}}
   }
 
   let _: @MainActor () -> () = {
-    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous main actor-isolated context}}
+    a.f() // expected-typechecker-error {{call to actor-isolated instance method 'f()' in a synchronous main actor-isolated context}}
   }
+#endif
 
   let _ = {
     a.f()
   }
 
+#if ALLOW_TYPECHECKER_ERRORS
   let _ = { @Sendable in
-    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous nonisolated context}}
+    a.f() // expected-typechecker-error {{call to actor-isolated instance method 'f()' in a synchronous nonisolated context}}
   }
-
+#endif
 }
 
 actor MyActor {
-  func hello() {} // expected-note {{calls to instance method 'hello()' from outside of its actor context are implicitly asynchronous}}
+  func hello() {} // expected-typechecker-note {{calls to instance method 'hello()' from outside of its actor context are implicitly asynchronous}}
 }
 
-typealias MyFn = (isolated: Int) -> Void // expected-error {{function types cannot have argument labels; use '_' before 'isolated'}}
+// Compiler >= 5.3 is eneded to suppress the parser error
+#if compiler(>=5.3) && ALLOW_TYPECHECKER_ERRORS
+typealias MyFn = (isolated: Int) -> Void // expected-typechecker-error {{function types cannot have argument labels; use '_' before 'isolated'}}
+#endif
 typealias MyFnFixed = (_: isolated MyActor) -> Void
 
 func standalone(_: isolated MyActor) {}
@@ -143,38 +166,53 @@ struct S: P {
   func j(isolated: Int) -> Int { return isolated }
   func k(isolated y: Int) -> Int { return j(isolated: y) }
   func l(isolated _: Int) -> Int { return k(isolated: 0) }
-  func m(thing: MyActor) { thing.hello() } // expected-error {{call to actor-isolated instance method 'hello()' in a synchronous nonisolated context}}
+  #if ALLOW_TYPECHECKER_ERRORS
+  func m(thing: MyActor) { thing.hello() } // expected-typechecker-error {{call to actor-isolated instance method 'hello()' in a synchronous nonisolated context}}
+  #else
+  func m(thing: MyActor) { }
+  #endif
 }
 
 func checkConformer(_ s: S, _ p: any P, _ ma: MyActor) async {
   s.m(thing: ma)
   await p.m(thing: ma)
   // expected-complete-warning@-1 {{passing argument of non-sendable type 'any P' into actor-isolated context may introduce data races}}
+  // expected-tns-warning @-2 {{sending 'p' risks causing data races}}
+  // expected-tns-note @-3 {{sending task-isolated 'p' to actor-isolated instance method 'm(thing:)' risks causing data races between actor-isolated and task-isolated uses}}
 }
-
 
 // Redeclaration checking
 actor TestActor {
-  func test() { // expected-note{{'test()' previously declared here}}
+  func test() { // expected-typechecker-note{{'test()' previously declared here}}
   }
-  nonisolated func test() { // expected-error{{invalid redeclaration of 'test()'}}
+#if ALLOW_TYPECHECKER_ERRORS
+  nonisolated func test() { // expected-typechecker-error{{invalid redeclaration of 'test()'}}
   }
+#endif
 }
 
-func redecl(_: TestActor) { } // expected-note{{'redecl' previously declared here}}
-func redecl(_: isolated TestActor) { } // expected-error{{invalid redeclaration of 'redecl'}}
+#if ALLOW_TYPECHECKER_ERRORS
 
-func tuplify<Ts>(_ fn: (Ts) -> Void) {} // expected-note {{in call to function 'tuplify'}}
+func redecl(_: TestActor) { } // expected-typechecker-note{{'redecl' previously declared here}}
+func redecl(_: isolated TestActor) { } // expected-typechecker-error{{invalid redeclaration of 'redecl'}}
+
+#endif
+
+func tuplify<Ts>(_ fn: (Ts) -> Void) {} // expected-typechecker-note {{in call to function 'tuplify'}}
+
+#if ALLOW_TYPECHECKER_ERRORS
 
 @available(SwiftStdlib 5.1, *)
 func testTuplingIsolated(
-                         _ a: isolated A, // expected-note {{previous 'isolated' parameter 'a'}}
-                         _ b: isolated A  // expected-warning {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+                         _ a: isolated A, // expected-typechecker-note {{previous 'isolated' parameter 'a'}}
+                         _ b: isolated A  // expected-typechecker-warning {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
                         ) {
   tuplify(testTuplingIsolated)
-  // expected-error@-1 {{generic parameter 'Ts' could not be inferred}}
-  // expected-error@-2 {{cannot convert value of type '(isolated A, isolated A) -> ()' to expected argument type '(Ts) -> Void'}}
+  // expected-typechecker-error@-1 {{generic parameter 'Ts' could not be inferred}}
+  // expected-typechecker-error@-2 {{cannot convert value of type '(isolated A, isolated A) -> ()' to expected argument type '(Ts) -> Void'}}
 }
+
+#endif
 
 // Inference of "isolated" on closure parameters.
 @available(SwiftStdlib 5.1, *)
@@ -195,9 +233,10 @@ func testIsolatedClosureInference(one: A, two: A) async {
     a2.f()
   }
 
-  let f: (isolated A, isolated A) -> Void = // expected-warning {{function type cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
-      // expected-note@+2 {{previous 'isolated' parameter 'a1'}}
-      // expected-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+#if ALLOW_TYPECHECKER_ERRORS
+  let f: (isolated A, isolated A) -> Void = // expected-typechecker-warning {{function type cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+      // expected-typechecker-note@+2 {{previous 'isolated' parameter 'a1'}}
+      // expected-typechecker-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
       { (a1, a2) in
         a1.f()
         a2.f()
@@ -205,35 +244,42 @@ func testIsolatedClosureInference(one: A, two: A) async {
 
   await f(one, two)
 
-  let g: (isolated A, isolated A) -> Void = // expected-warning {{function type cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
-      // expected-note@+2 {{previous 'isolated' parameter '$0'}}
-      // expected-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  let g: (isolated A, isolated A) -> Void = // expected-typechecker-warning {{function type cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+      // expected-typechecker-note@+2 {{previous 'isolated' parameter '$0'}}
+      // expected-typechecker-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
       {
         $0.f()
         $1.f()
       }
 
   await g(one, two)
+  #endif
 }
+
+#if ALLOW_TYPECHECKER_ERRORS
 
 struct CheckIsolatedFunctionTypes {
-  // expected-warning@+2 {{function type cannot have global actor and 'isolated' parameter; this is an error in the Swift 6 language mode}}
-  // expected-warning@+1 {{function type cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  // expected-typechecker-warning@+2 {{function type cannot have global actor and 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  // expected-typechecker-warning@+1 {{function type cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
   func a(_ f: @MainActor @Sendable (isolated A, isolated A) -> ()) {}
 
-  // expected-note@+2 {{calls to parameter 'callback' from outside of its actor context are implicitly asynchronous}}
-  // expected-warning@+1 {{function type cannot have global actor and 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  // expected-typechecker-note@+2 {{calls to parameter 'callback' from outside of its actor context are implicitly asynchronous}}
+  // expected-typechecker-warning@+1 {{function type cannot have global actor and 'isolated' parameter; this is an error in the Swift 6 language mode}}
   @MainActor func update<R>(_ callback: @Sendable @escaping @MainActor (isolated A) -> R) -> R {
-    callback(A()) // expected-error {{call to actor-isolated parameter 'callback' in a synchronous main actor-isolated context}}
+    callback(A()) // expected-typechecker-error {{call to actor-isolated parameter 'callback' in a synchronous main actor-isolated context}}
   }
 }
+
+#endif
 
 @available(SwiftStdlib 5.1, *)
 func checkIsolatedAndGlobalClosures(_ a: A) {
   let _: @MainActor (isolated A) -> Void // expected-warning {{function type cannot have global actor and 'isolated' parameter; this is an error in the Swift 6 language mode}}
       = {
     $0.f()
-    mainActorFn() // expected-error {{call to main actor-isolated global function 'mainActorFn()' in a synchronous actor-isolated context}}
+    #if ALLOW_TYPECHECKER_ERRORS
+    mainActorFn() // expected-typechecker-error {{call to main actor-isolated global function 'mainActorFn()' in a synchronous actor-isolated context}}
+    #endif
   }
 
   let _: @MainActor (isolated A) -> Void // expected-warning {{function type cannot have global actor and 'isolated' parameter; this is an error in the Swift 6 language mode}}
@@ -242,13 +288,15 @@ func checkIsolatedAndGlobalClosures(_ a: A) {
     mainActorFn()
   }
 
-  let _ = { @MainActor (a: isolated A, // expected-warning {{closure with 'isolated' parameter 'a' cannot have a global actor; this is an error in the Swift 6 language mode}}{{13-24=}}
-                                       // expected-note@-1 {{previous 'isolated' parameter 'a'}}
-                        b: isolated A, // expected-warning {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+#if ALLOW_TYPECHECKER_ERRORS
+  let _ = { @MainActor (a: isolated A, // expected-typechecker-warning {{closure with 'isolated' parameter 'a' cannot have a global actor; this is an error in the Swift 6 language mode}}{{13-24=}}
+                                       // expected-typechecker-note@-1 {{previous 'isolated' parameter 'a'}}
+                        b: isolated A, // expected-typechecker-warning {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
                         c: isolated A) async in
     a.f()
     mainActorFn()
   }
+#endif
 }
 
 // "isolated" existential parameters.
@@ -260,19 +308,23 @@ protocol P2: Actor {
 func testExistentialIsolated(a: isolated P2, b: P2) async {
   a.m()
   await b.m()
-  b.m() // expected-error{{expression is 'async' but is not marked with 'await'}}
-  // expected-note@-1{{calls to instance method 'm()' from outside of its actor context are implicitly asynchronous}}
+  #if ALLOW_TYPECHECKER_ERRORS
+  b.m() // expected-typechecker-error{{expression is 'async' but is not marked with 'await'}}
+  // expected-typechecker-note@-1{{calls to instance method 'm()' from outside of its actor context are implicitly asynchronous}}
+  #endif
 }
 
 // "isolated" parameters of closures make the closure itself isolated.
 extension TestActor {
   func isolatedMethod() { }
-  // expected-note@-1{{calls to instance method 'isolatedMethod()' from outside of its actor context are implicitly asynchronous}}
+  // expected-typechecker-note@-1{{calls to instance method 'isolatedMethod()' from outside of its actor context are implicitly asynchronous}}
 
   // expected-warning@+1 {{instance method with 'isolated' parameter cannot be 'nonisolated'; this is an error in the Swift 6 language mode}}{{3-15=}}
   nonisolated func isolatedToParameter(_ other: isolated TestActor) {
+    #if ALLOW_TYPECHECKER_ERRORS
     isolatedMethod()
-    // expected-error@-1{{call to actor-isolated instance method 'isolatedMethod()' in a synchronous actor-isolated context}}
+    // expected-typechecker-error@-1{{call to actor-isolated instance method 'isolatedMethod()' in a synchronous actor-isolated context}}
+    #endif
 
     other.isolatedMethod()
   }
@@ -295,31 +347,37 @@ func isolatedClosures() {
   a.f()
 }
 
+#if ALLOW_TYPECHECKER_ERRORS
+
 @MainActor class MAClass {
 
-  // expected-note@+2 {{previous 'isolated' parameter 'a'}}
-  // expected-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  // expected-typechecker-note@+2 {{previous 'isolated' parameter 'a'}}
+  // expected-typechecker-warning@+1 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
   init(_ a: isolated A, _ b: isolated A) {
     // FIXME: wrong isolation. should be isolated to `a` only!
     a.f()
     b.f()
   }
 
-  // expected-note@+3 {{previous 'isolated' parameter 'a'}}
-  // expected-warning@+2 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
-  // expected-warning@+1 {{subscript with 'isolated' parameter cannot be 'nonisolated'; this is an error in the Swift 6 language mode}}{{3-15=}}
+  // expected-typechecker-note@+3 {{previous 'isolated' parameter 'a'}}
+  // expected-typechecker-warning@+2 {{cannot have more than one 'isolated' parameter; this is an error in the Swift 6 language mode}}
+  // expected-typechecker-warning@+1 {{subscript with 'isolated' parameter cannot be 'nonisolated'; this is an error in the Swift 6 language mode}}{{3-15=}}
   nonisolated subscript(_ a: isolated A, _ b: isolated A) -> Int {
     // FIXME: wrong isolation. should be isolated to `a`.
-    a.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous actor-isolated context}}
-    b.f() // expected-error {{call to actor-isolated instance method 'f()' in a synchronous actor-isolated context}}
+    #if ALLOW_TYPECHECKER_ERRORS
+    a.f() // expected-typechecker-error {{call to actor-isolated instance method 'f()' in a synchronous actor-isolated context}}
+    b.f() // expected-typechecker-error {{call to actor-isolated instance method 'f()' in a synchronous actor-isolated context}}
+    #endif
     return 0
   }
 
-  // expected-warning@+1 {{instance method with 'isolated' parameter cannot be 'nonisolated'; this is an error in the Swift 6 language mode}}{{3-15=}}
+  // expected-typechecker-warning@+1 {{instance method with 'isolated' parameter cannot be 'nonisolated'; this is an error in the Swift 6 language mode}}{{3-15=}}
   nonisolated func millionDollars(_ a: isolated A) {
     a.f()
   }
 }
+
+#endif
 
 // Test case for https://github.com/apple/swift/issues/62568
 func execute<ActorType: Actor>(
@@ -350,22 +408,25 @@ func getValues(
   }
 }
 
+#if ALLOW_TYPECHECKER_ERRORS
+
 func isolated_generic_bad_1<T>(_ t: isolated T) {}
-// expected-error@-1 {{'isolated' parameter type 'T' does not conform to 'Actor' or 'DistributedActor'}}
+// expected-typechecker-error@-1 {{'isolated' parameter type 'T' does not conform to 'Actor' or 'DistributedActor'}}
 func isolated_generic_bad_2<T: Equatable>(_ t: isolated T) {}
-// expected-error@-1 {{'isolated' parameter type 'T' does not conform to 'Actor' or 'DistributedActor'}}
+// expected-typechecker-error@-1 {{'isolated' parameter type 'T' does not conform to 'Actor' or 'DistributedActor'}}
 func isolated_generic_bad_3<T: AnyActor>(_ t: isolated T) {}
-// expected-error@-1 {{'isolated' parameter type 'T' does not conform to 'Actor' or 'DistributedActor'}}
-// expected-warning@-2 {{'AnyActor' is deprecated: Use 'any Actor' with 'DistributedActor.asLocalActor' instead}}
+// expected-typechecker-error@-1 {{'isolated' parameter type 'T' does not conform to 'Actor' or 'DistributedActor'}}
+// expected-typechecker-warning@-2 {{'AnyActor' is deprecated: Use 'any Actor' with 'DistributedActor.asLocalActor' instead}}
 
 func isolated_generic_bad_4<T>(_ t: isolated Array<T>) {}
-// expected-error@-1 {{'isolated' parameter type 'Array<T>' does not conform to 'Actor' or 'DistributedActor'}}
+// expected-typechecker-error@-1 {{'isolated' parameter type 'Array<T>' does not conform to 'Actor' or 'DistributedActor'}}
+
+#endif
 
 func isolated_generic_ok_1<T: Actor>(_ t: isolated T) {}
 
 
 class NotSendable {} // expected-complete-note 5 {{class 'NotSendable' does not conform to the 'Sendable' protocol}}
-// expected-note@-1 {{class 'NotSendable' does not conform to the 'Sendable' protocol}}
 
 func optionalIsolated(_ ns: NotSendable, to actor: isolated (any Actor)?) async {}
 func optionalIsolatedSync(_ ns: NotSendable, to actor: isolated (any Actor)?) {}
@@ -379,28 +440,36 @@ nonisolated func callFromNonisolated(ns: NotSendable) async {
 
   await optionalIsolated(ns, to: myActor)
   // expected-complete-warning@-1 {{passing argument of non-sendable type 'NotSendable' into actor-isolated context may introduce data races}}
+  // expected-tns-warning @-2 {{pattern that the region based isolation checker does not understand how to check. Please file a bug}}
 
+#if ALLOW_TYPECHECKER_ERRORS
   optionalIsolatedSync(ns, to: myActor)
-  // expected-error@-1 {{expression is 'async' but is not marked with 'await'}}
-  // expected-note@-2 {{calls to global function 'optionalIsolatedSync(_:to:)' from outside of its actor context are implicitly asynchronous}}
+  // expected-typechecker-error@-1 {{expression is 'async' but is not marked with 'await'}}
+  // expected-typechecker-note@-2 {{calls to global function 'optionalIsolatedSync(_:to:)' from outside of its actor context are implicitly asynchronous}}
   // expected-complete-warning@-3 {{passing argument of non-sendable type 'NotSendable' into actor-isolated context may introduce data races}}
+  #endif
 }
 
 @MainActor func callFromMainActor(ns: NotSendable) async {
   await optionalIsolated(ns, to: nil)
-  // expected-complete-warning@-1 {{passing argument of non-sendable type 'NotSendable' outside of main actor-isolated context may introduce data races}}
+  // expected-complete-warning @-1 {{passing argument of non-sendable type 'NotSendable' outside of main actor-isolated context may introduce data races}}
+  // expected-tns-warning @-2 {{sending 'ns' risks causing data races}}
+  // expected-tns-note @-3 {{sending main actor-isolated 'ns' to nonisolated global function 'optionalIsolated(_:to:)' risks causing data races between nonisolated and main actor-isolated uses}}
 
-  optionalIsolatedSync(ns, to: nil)
+  optionalIsolatedSync(ns, to: nil) // expected-tns-warning {{pattern that the region based isolation checker does not understand how to check. Please file a bug}}
 
   let myActor = A()
 
   await optionalIsolated(ns, to: myActor)
   // expected-complete-warning@-1 {{passing argument of non-sendable type 'NotSendable' into actor-isolated context may introduce data races}}
+  // expected-tns-warning @-2 {{pattern that the region based isolation checker does not understand how to check. Please file a bug}}
 
+#if ALLOW_TYPECHECKER_ERRORS
   optionalIsolatedSync(ns, to: myActor)
-  // expected-error@-1 {{expression is 'async' but is not marked with 'await'}}
-  // expected-note@-2 {{calls to global function 'optionalIsolatedSync(_:to:)' from outside of its actor context are implicitly asynchronous}}
+  // expected-typechecker-error@-1 {{expression is 'async' but is not marked with 'await'}}
+  // expected-typechecker-note@-2 {{calls to global function 'optionalIsolatedSync(_:to:)' from outside of its actor context are implicitly asynchronous}}
   // expected-complete-warning@-3 {{passing argument of non-sendable type 'NotSendable' into actor-isolated context may introduce data races}}
+#endif
 }
 
 // TODO: Consider making an actor's Self behave like in a struct, removing this special casing.
@@ -408,10 +477,12 @@ nonisolated func callFromNonisolated(ns: NotSendable) async {
 //       See: https://github.com/apple/swift/issues/70954 and rdar://121091417
 actor A2 {
   nonisolated func f1() async {
+#if ALLOW_TYPECHECKER_ERRORS
     await { (self: isolated Self) in }(self)
-    // expected-error@-1 {{cannot convert value of type 'A2' to expected argument type 'Self'}}
+    // expected-typechecker-error@-1 {{cannot convert value of type 'A2' to expected argument type 'Self'}}
     await { (self: isolated Self?) in }(self)
-    // expected-error@-1 {{cannot convert value of type 'A2' to expected argument type 'Self?'}}
+    // expected-typechecker-error@-1 {{cannot convert value of type 'A2' to expected argument type 'Self?'}}
+#endif
   }
   nonisolated func f2() async -> Self {
     await { (self: isolated Self) in }(self)
@@ -428,9 +499,9 @@ func testNonSendableCaptures(ns: NotSendable, a: isolated MyActor) {
 
   // FIXME: The `a` in the capture list and `isolated a` are the same,
   // but the actor isolation checker doesn't know that.
-  Task { [a] in
+  Task { [a] in // expected-tns-warning {{'a'-isolated value of type '() async -> ()' passed as a strongly transferred parameter}}
     _ = a
-    _ = ns // expected-warning {{capture of 'ns' with non-sendable type 'NotSendable' in a `@Sendable` closure}}
+    _ = ns
   }
 }
 
@@ -476,9 +547,13 @@ nonisolated func fromNonisolated(ns: NotSendable) async -> NotSendable {
   await pass(value: ns, isolation: nil)
 }
 
-func invalidIsolatedClosureParam<A: AnyActor> ( // expected-warning {{'AnyActor' is deprecated: Use 'any Actor' with 'DistributedActor.asLocalActor' instead}}
-  _: (isolated A) async throws -> Void // expected-error {{'isolated' parameter type 'A' does not conform to 'Actor' or 'DistributedActor'}}
+#if ALLOW_TYPECHECKER_ERRORS
+
+func invalidIsolatedClosureParam<A: AnyActor> ( // expected-typechecker-warning {{'AnyActor' is deprecated: Use 'any Actor' with 'DistributedActor.asLocalActor' instead}}
+  _: (isolated A) async throws -> Void // expected-typechecker-error {{'isolated' parameter type 'A' does not conform to 'Actor' or 'DistributedActor'}}
 ) {}
+
+#endif
 
 public func useDefaultIsolation(
   _ isolation: isolated (any Actor)? = #isolation

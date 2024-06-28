@@ -196,6 +196,11 @@ SUPPRESSIBLE_LANGUAGE_FEATURE(NoncopyableGenerics, 427, "Noncopyable generics")
 SUPPRESSIBLE_LANGUAGE_FEATURE(ConformanceSuppression, 426, "Suppressible inferred conformances")
 SUPPRESSIBLE_LANGUAGE_FEATURE(BitwiseCopyable2, 426, "BitwiseCopyable feature")
 LANGUAGE_FEATURE(BodyMacros, 415, "Function body macros")
+LANGUAGE_FEATURE(TransferringArgsAndResults, 430, "Transferring args and results")
+SUPPRESSIBLE_LANGUAGE_FEATURE(SendingArgsAndResults, 430, "Sending arg and results")
+LANGUAGE_FEATURE(BorrowingSwitch, 432, "Noncopyable type pattern matching")
+CONDITIONALLY_SUPPRESSIBLE_LANGUAGE_FEATURE(IsolatedAny, 431, "@isolated(any) function types")
+LANGUAGE_FEATURE(IsolatedAny2, 431, "@isolated(any) function types")
 
 // Swift 6
 UPCOMING_FEATURE(ConciseMagicFile, 274, 6)
@@ -213,9 +218,6 @@ UPCOMING_FEATURE(RegionBasedIsolation, 414, 6)
 UPCOMING_FEATURE(DynamicActorIsolation, 423, 6)
 UPCOMING_FEATURE(NonfrozenEnumExhaustivity, 192, 6)
 UPCOMING_FEATURE(GlobalActorIsolatedTypesUsability, 0434, 6)
-UPCOMING_FEATURE(BorrowingSwitch, 432, 6)
-UPCOMING_FEATURE(TransferringArgsAndResults, 430, 6)
-SUPPRESSIBLE_UPCOMING_FEATURE(SendingArgsAndResults, 430, 6)
 
 // Swift 7
 UPCOMING_FEATURE(ExistentialAny, 335, 7)
@@ -227,7 +229,7 @@ EXPERIMENTAL_FEATURE(FlowSensitiveConcurrencyCaptures, false)
 EXPERIMENTAL_FEATURE(CodeItemMacros, false)
 EXPERIMENTAL_FEATURE(PreambleMacros, false)
 EXPERIMENTAL_FEATURE(TupleConformances, false)
-EXPERIMENTAL_FEATURE(FullTypedThrows, true)
+EXPERIMENTAL_FEATURE(FullTypedThrows, false)
 
 // Whether to enable @_used and @_section attributes
 EXPERIMENTAL_FEATURE(SymbolLinkageMarkers, true)
@@ -373,14 +375,8 @@ EXPERIMENTAL_FEATURE(GroupActorErrors, true)
 // Enable explicit isolation of closures.
 EXPERIMENTAL_FEATURE(ClosureIsolation, true)
 
-// Enable isolated(any) attribute on function types.
-CONDITIONALLY_SUPPRESSIBLE_EXPERIMENTAL_FEATURE(IsolatedAny, true)
-
 // Whether lookup of members respects the enclosing file's imports.
 EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE(MemberImportVisibility, true)
-
-// Alias for IsolatedAny
-EXPERIMENTAL_FEATURE(IsolatedAny2, true)
 
 // Enable @implementation on extensions of ObjC classes.
 EXPERIMENTAL_FEATURE(ObjCImplementation, true)
@@ -398,6 +394,10 @@ EXPERIMENTAL_FEATURE(Sensitive, true)
 
 // Enable the stdlib @DebugDescription macro.
 EXPERIMENTAL_FEATURE(DebugDescriptionMacro, true)
+
+EXPERIMENTAL_FEATURE(ReinitializeConsumeInMultiBlockDefer, false)
+
+EXPERIMENTAL_FEATURE(SE427NoInferenceOnExtension, false)
 
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE

@@ -192,7 +192,7 @@ public struct AsyncStream<Element> {
     /// This can be called more than once and returns to the caller immediately
     /// without blocking for any awaiting consumption from the iteration.
     @discardableResult
-    public func yield(_ value: __owned Element) -> YieldResult {
+    public func yield(_ value: sending Element) -> YieldResult {
       storage.yield(value)
     }
 
@@ -422,11 +422,11 @@ extension AsyncStream.Continuation {
   /// blocking for any awaiting consumption from the iteration.
   @discardableResult
   public func yield(
-    with result: Result<Element, Never>
+    with result: __shared sending Result<Element, Never>
   ) -> YieldResult {
     switch result {
-      case .success(let val):
-        return storage.yield(val)
+    case .success(let val):
+      return storage.yield(val)
     }
   }
 
@@ -501,7 +501,7 @@ public struct AsyncStream<Element> {
     @discardableResult
     @available(SwiftStdlib 5.1, *)
     @available(*, unavailable, message: "Unavailable in task-to-thread concurrency model")
-    public func yield(_ value: __owned Element) -> YieldResult {
+    public func yield(_ value: sending Element) -> YieldResult {
       fatalError("Unavailable in task-to-thread concurrency model")
     }
     @available(SwiftStdlib 5.1, *)
@@ -571,7 +571,7 @@ extension AsyncStream.Continuation {
   @available(SwiftStdlib 5.1, *)
   @available(*, unavailable, message: "Unavailable in task-to-thread concurrency model")
   public func yield(
-    with result: Result<Element, Never>
+    with result: __shared sending Result<Element, Never>
   ) -> YieldResult {
     fatalError("Unavailable in task-to-thread concurrency model")
   }

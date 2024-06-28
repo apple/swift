@@ -14,6 +14,7 @@
 
 #include "swift/AST/ASTWalker.h"
 #include "swift/AST/Expr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/AddressWalker.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/InstructionUtils.h"
@@ -221,6 +222,15 @@ inferIsolationInfoForTempAllocStack(AllocStackInst *asi) {
 
   // Otherwise, lets see if we had a same block indirect result.
   if (state.sameBlockIndirectResultUses) {
+    // Check if this indirect result has a sending result. In such a case, we
+    // always return disconnected.
+    if (auto fas =
+            FullApplySite::isa(state.sameBlockIndirectResultUses->getUser())) {
+      if (fas.getSubstCalleeType()->hasSendingResult())
+        return SILIsolationInfo::getDisconnected(
+            false /*is unsafe non isolated*/);
+    }
+
     // If we do not have any writes in between the alloc stack and the
     // initializer, then we have a good target. Otherwise, we just return
     // AssignFresh.
@@ -338,6 +348,11 @@ inferIsolationInfoForTempAllocStack(AllocStackInst *asi) {
   // At this point, we know that we have a single indirect result use that
   // dominates all writes and other indirect result uses. We can say that our
   // alloc_stack temporary is that indirect result use's isolation.
+  if (auto fas = FullApplySite::isa(targetOperand->getUser())) {
+    if (fas.getSubstCalleeType()->hasSendingResult())
+      return SILIsolationInfo::getDisconnected(
+          false /*is unsafe non isolated*/);
+  }
   return SILIsolationInfo::get(targetOperand->getUser());
 }
 
@@ -348,21 +363,50 @@ SILIsolationInfo SILIsolationInfo::get(SILInstruction *inst) {
         return info;
     }
 
-    if (fas.hasSelfArgument()) {
-      auto &selfOp = fas.getSelfArgumentOperand();
-      CanType selfASTType = selfOp.get()->getType().getASTType();
+    if (auto *isolatedOp = fas.getIsolatedArgumentOperandOrNullPtr()) {
+      // First see if we have an enum inst.
+      if (auto *ei = dyn_cast<EnumInst>(isolatedOp->get())) {
+        if (ei->getElement()->getParentEnum()->isOptionalDecl()) {
+          // Pattern match from global actors being passed as isolated
+          // parameters. This gives us better type information. If we can
+          // pattern match... we should!
+          if (ei->hasOperand()) {
+            if (auto *ieri =
+                    dyn_cast<InitExistentialRefInst>(ei->getOperand())) {
+              CanType selfASTType = ieri->getFormalConcreteType();
+
+              if (auto *nomDecl = selfASTType->getAnyActor()) {
+                // The SILValue() parameter doesn't matter until we have
+                // isolation history.
+                if (nomDecl->isGlobalActor())
+                  return SILIsolationInfo::getGlobalActorIsolated(SILValue(),
+                                                                  nomDecl);
+              }
+            }
+          } else {
+            // In this case, we have a .none so we are attempting to use the
+            // global queue. In such a case, we need to not use the enum as our
+            // value and instead need to grab the isolation of our apply.
+            if (auto isolationInfo = get(fas.getCallee())) {
+              return isolationInfo;
+            }
+          }
+        }
+      }
+
+      // If we did not find an AST type, just see if we can find a value by
+      // looking through all optional types. This is conservatively correct.
+      CanType selfASTType = isolatedOp->get()->getType().getASTType();
       selfASTType =
           selfASTType->lookThroughAllOptionalTypes()->getCanonicalType();
 
-      if (fas.getArgumentParameterInfo(selfOp).hasOption(
-              SILParameterInfo::Isolated)) {
-        if (auto *nomDecl = selfASTType->getAnyActor()) {
-          // TODO: We really should be doing this based off of an Operand. Then
-          // we would get the SILValue() for the first element. Today this can
-          // only mess up isolation history.
-          return SILIsolationInfo::getActorInstanceIsolated(
-              SILValue(), selfOp.get(), nomDecl);
-        }
+      if (auto *nomDecl = selfASTType->getAnyActor()) {
+        // TODO: We really should be doing this based off of an Operand. Then
+        // we would get the SILValue() for the first element. Today this can
+        // only mess up isolation history.
+
+        return SILIsolationInfo::getActorInstanceIsolated(
+            SILValue(), isolatedOp->get(), nomDecl);
       }
     }
 
@@ -506,14 +550,16 @@ SILIsolationInfo SILIsolationInfo::get(SILInstruction *inst) {
       //
       auto *func = fri->getReferencedFunction();
       auto funcType = func->getLoweredFunctionType();
-      auto selfParam = funcType->getSelfInstanceType(
-          fri->getModule(), func->getTypeExpansionContext());
-      if (auto *nomDecl = selfParam->getNominalOrBoundGenericNominal()) {
-        auto isolation = swift::getActorIsolation(nomDecl);
-        if (isolation.isGlobalActor()) {
-          return SILIsolationInfo::getGlobalActorIsolated(
-                     fri, isolation.getGlobalActor())
+      if (funcType->hasSelfParam()) {
+        auto selfParam = funcType->getSelfInstanceType(
+            fri->getModule(), func->getTypeExpansionContext());
+        if (auto *nomDecl = selfParam->getNominalOrBoundGenericNominal()) {
+          auto isolation = swift::getActorIsolation(nomDecl);
+          if (isolation.isGlobalActor()) {
+            return SILIsolationInfo::getGlobalActorIsolated(
+                fri, isolation.getGlobalActor())
               .withUnsafeNonIsolated(true);
+          }
         }
       }
     }
@@ -781,26 +827,31 @@ SILIsolationInfo SILIsolationInfo::get(SILArgument *arg) {
     }
   }
 
-  // Otherwise, see if we have an allocator decl ref. If we do and we have an
-  // actor instance isolation, then we know that we are actively just calling
-  // the initializer. To just make region isolation work, treat this as
-  // disconnected so we can construct the actor value. Users cannot write
-  // allocator functions so we just need to worry about compiler generated
-  // code. In the case of a non-actor, we can only have an allocator that is
-  // global actor isolated, so we will never hit this code path.
+  // Otherwise, see if we need to handle this isolation computation specially
+  // due to information from the decl ref if we have one.
   if (auto declRef = fArg->getFunction()->getDeclRef()) {
+    // First check if we have an allocator decl ref. If we do and we have an
+    // actor instance isolation, then we know that we are actively just calling
+    // the initializer. To just make region isolation work, treat this as
+    // disconnected so we can construct the actor value. Users cannot write
+    // allocator functions so we just need to worry about compiler generated
+    // code. In the case of a non-actor, we can only have an allocator that is
+    // global actor isolated, so we will never hit this code path.
     if (declRef.kind == SILDeclRef::Kind::Allocator) {
       if (fArg->getFunction()->getActorIsolation().isActorInstanceIsolated()) {
         return SILIsolationInfo::getDisconnected(false /*nonisolated(unsafe)*/);
       }
     }
 
+    // Then see if we have an init accessor that is isolated to an actor
+    // instance, but for which we have not actually passed self. In such a case,
+    // we need to pass in a "fake" ActorInstance that users know is a sentinel
+    // for the self value.
     if (auto functionIsolation = fArg->getFunction()->getActorIsolation()) {
-      if (declRef.getDecl()) {
+      if (functionIsolation.isActorInstanceIsolated() && declRef.getDecl()) {
         if (auto *accessor =
                 dyn_cast_or_null<AccessorDecl>(declRef.getFuncDecl())) {
           if (accessor->isInitAccessor()) {
-            assert(functionIsolation.isActorInstanceIsolated());
             return SILIsolationInfo::getActorInstanceIsolated(
                 fArg, ActorInstance::getForActorAccessorInit(),
                 functionIsolation.getActor());
@@ -1058,6 +1109,30 @@ bool SILIsolationInfo::isNonSendableType(SILType type, SILFunction *fn) {
 
   // Otherwise, delegate to seeing if type conforms to the Sendable protocol.
   return !type.isSendable(fn);
+}
+
+//===----------------------------------------------------------------------===//
+//                            MARK: ActorInstance
+//===----------------------------------------------------------------------===//
+
+SILValue ActorInstance::lookThroughInsts(SILValue value) {
+  if (!value)
+    return value;
+
+  while (auto *svi = dyn_cast<SingleValueInstruction>(value)) {
+    if (isa<EndInitLetRefInst>(svi) || isa<CopyValueInst>(svi) ||
+        isa<MoveValueInst>(svi) || isa<ExplicitCopyValueInst>(svi) ||
+        isa<BeginBorrowInst>(svi) ||
+        isa<CopyableToMoveOnlyWrapperValueInst>(svi) ||
+        isa<MoveOnlyWrapperToCopyableValueInst>(svi)) {
+      value = lookThroughInsts(svi->getOperand(0));
+      continue;
+    }
+
+    break;
+  }
+
+  return value;
 }
 
 //===----------------------------------------------------------------------===//

@@ -6,7 +6,7 @@ swift-inspect uses the reflection APIs to introspect the live process.  It relie
 
 ### Building
 
-swift-inspect can be built using [swift-package-manager](https://github.com/apple/swift-package-manager).
+swift-inspect can be built using [swift-package-manager](https://github.com/swiftlang/swift-package-manager).
 
 ##### Windows
 

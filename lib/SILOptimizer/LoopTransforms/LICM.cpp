@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "sil-licm"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/Dominance.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/MemAccessUtils.h"

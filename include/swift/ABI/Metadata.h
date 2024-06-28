@@ -1235,7 +1235,7 @@ using ForeignClassMetadata = TargetForeignClassMetadata<InProcess>;
 /// The structure of metadata objects for foreign reference types.
 /// A foreign reference type is a non-Swift, non-Objective-C foreign type with
 /// reference semantics. Foreign reference types are pointers/reference to
-/// value types marked with the "import_as_ref" attribute.
+/// value types marked with the `swift_attr("import_reference")` attribute.
 ///
 /// Foreign reference types may have *custom* reference counting operations, or
 /// they may be immortal (and therefore trivial).

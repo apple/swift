@@ -78,7 +78,7 @@ class FixedBitSet {
   static size_t chunkIndex(ValueType i) {
     return size_t(i) / chunkSize;
   }
-  static size_t chunkMask(ValueType i) {
+  static ChunkType chunkMask(ValueType i) {
     return ChunkType(1) << (size_t(i) % chunkSize);
   }
 

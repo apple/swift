@@ -203,3 +203,14 @@ func switchLoopWithPartialApplyCaller() {
       print(error)
   }
 }
+
+private class Cl {
+  func foo<E: Error>(_ e: E.Type) throws(E) {
+  }
+}
+
+
+private func devirtualizeClassMethodWithTypedThrow<E: Error>(_ x: Cl, e: E.Type) {
+  try! x.foo(e)
+}
+

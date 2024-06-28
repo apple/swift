@@ -73,7 +73,7 @@ default:
 // Multiple cases per case block
 switch x { // expected-error {{switch must be exhaustive}} expected-note{{add a default clause}}
 case 0: // expected-error {{'case' label in a 'switch' must have at least one executable statement}} {{8-8= break}}
-case 1:
+case 1, case 2: // expected-error {{extraneous 'case' keyword in pattern}} {{9-14=}}
   x = 0
 }
 

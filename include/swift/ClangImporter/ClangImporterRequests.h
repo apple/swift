@@ -349,7 +349,7 @@ void simple_display(llvm::raw_ostream &out, CxxRecordSemanticsDescriptor desc);
 SourceLoc extractNearestSourceLoc(CxxRecordSemanticsDescriptor desc);
 
 /// What pattern does this C++ API fit? Uses attributes such as
-/// import_owned and import_as_reference to determine the pattern.
+/// import_owned and import_reference to determine the pattern.
 ///
 /// Do not evaluate this request before importing has started. For example, it
 /// is OK to invoke this request when importing a decl, but it is not OK to

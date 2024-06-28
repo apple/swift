@@ -14,6 +14,8 @@
     import Darwin
 #elseif canImport(Glibc)
     import Glibc
+#elseif canImport(Android)
+    import Android
 #endif
 
 @available(SwiftStdlib 5.1, *)

@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/Utils/BasicBlockOptUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
@@ -125,41 +126,47 @@ void BasicBlockCloner::updateSSAAfterCloning() {
       break;
     }
   }
-  if (!needsSSAUpdate)
-    return;
-
-  SILSSAUpdater ssaUpdater(&updateSSAPhis);
-  for (auto availValPair : availVals) {
-    auto inst = availValPair.first;
-    if (inst->use_empty())
-      continue;
-
-    SILValue newResult(availValPair.second);
-
-    SmallVector<UseWrapper, 16> useList;
-    // Collect the uses of the value.
-    for (auto *use : inst->getUses())
-      useList.push_back(UseWrapper(use));
-
-    ssaUpdater.initialize(inst->getFunction(), inst->getType(),
-                          inst->getOwnershipKind());
-    ssaUpdater.addAvailableValue(origBB, inst);
-    ssaUpdater.addAvailableValue(getNewBB(), newResult);
-
-    if (useList.empty())
-      continue;
-
-    // Update all the uses.
-    for (auto useWrapper : useList) {
-      Operand *use = useWrapper; // unwrap
-      SILInstruction *user = use->getUser();
-      assert(user && "Missing user");
-
-      // Ignore uses in the same basic block.
-      if (user->getParent() == origBB)
+  if (needsSSAUpdate) {
+    SILSSAUpdater ssaUpdater(&updateSSAPhis);
+    for (auto availValPair : availVals) {
+      auto inst = availValPair.first;
+      if (inst->use_empty())
         continue;
 
-      ssaUpdater.rewriteUse(*use);
+      SILValue newResult(availValPair.second);
+
+      SmallVector<UseWrapper, 16> useList;
+      // Collect the uses of the value.
+      for (auto *use : inst->getUses())
+        useList.push_back(UseWrapper(use));
+
+      ssaUpdater.initialize(inst->getFunction(), inst->getType(),
+                            inst->getOwnershipKind());
+      ssaUpdater.addAvailableValue(origBB, inst);
+      ssaUpdater.addAvailableValue(getNewBB(), newResult);
+
+      if (useList.empty())
+        continue;
+
+      // Update all the uses.
+      for (auto useWrapper : useList) {
+        Operand *use = useWrapper; // unwrap
+        SILInstruction *user = use->getUser();
+        assert(user && "Missing user");
+
+        // Ignore uses in the same basic block.
+        if (user->getParent() == origBB)
+          continue;
+
+        ssaUpdater.rewriteUse(*use);
+      }
+    }
+  }
+  for (SILBasicBlock *b : blocksWithNewPhiArgs) {
+    for (SILArgument *arg : b->getArguments()) {
+      if (arg->getOwnershipKind() == OwnershipKind::Guaranteed) {
+        updateSSAPhis.push_back(cast<SILPhiArgument>(arg));
+      }
     }
   }
   updateBorrowedFromPhis(pm, updateSSAPhis);

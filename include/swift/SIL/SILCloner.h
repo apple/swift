@@ -87,6 +87,10 @@ protected:
   /// blocks.
   llvm::DenseMap<SILBasicBlock*, SILBasicBlock*> BBMap;
 
+  /// Blocks, where edge-spitting may have "converted" terminator result
+  /// arguments to phi-arguments.
+  llvm::SmallVector<SILBasicBlock *> blocksWithNewPhiArgs;
+
 private:
   /// MARK: Private state hidden from CRTP extensions.
 
@@ -872,9 +876,15 @@ void SILCloner<ImplClass>::visitBlocksDepthFirst(SILBasicBlock *startBB) {
             && isa<BranchInst>(BB->getTerminator())) {
           continue;
         }
+        TermInst *term = BB->getTerminator();
+
+        // After edge-spitting, terminator result arguments become phi arguments.
+        if (!isa<BranchInst>(term))
+          blocksWithNewPhiArgs.push_back(BB->getSuccessors()[succIdx]);
+
         // This predecessor has multiple successors, so cloning it without
         // cloning its successors would create a critical edge.
-        splitEdge(BB->getTerminator(), succIdx, DomTree);
+        splitEdge(term, succIdx, DomTree);
         assert(!BBMap.count(BB->getSuccessors()[succIdx]));
       }
       // Map the successor to a new BB. Layout the cloned blocks in the order
@@ -3017,6 +3027,18 @@ void SILCloner<ImplClass>::visitEndLifetimeInst(EndLifetimeInst *Inst) {
   recordClonedInstruction(
       Inst, getBuilder().createEndLifetime(getOpLocation(Inst->getLoc()),
                                            getOpValue(Inst->getOperand())));
+}
+
+template <typename ImplClass>
+void SILCloner<ImplClass>::visitExtendLifetimeInst(ExtendLifetimeInst *Inst) {
+  getBuilder().setCurrentDebugScope(getOpScope(Inst->getDebugScope()));
+
+  if (!getBuilder().hasOwnership())
+    return;
+
+  recordClonedInstruction(
+      Inst, getBuilder().createExtendLifetime(getOpLocation(Inst->getLoc()),
+                                              getOpValue(Inst->getOperand())));
 }
 
 template <typename ImplClass>

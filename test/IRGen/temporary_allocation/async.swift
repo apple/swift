@@ -9,5 +9,5 @@ func f() async {
     blackHole(buffer.baseAddress)
   }
 }
-// CHECK: alloca [123 x i8], align 1
+
 // CHECK-NOT: swift_task_alloc

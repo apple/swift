@@ -1,5 +1,4 @@
-// RUN: %empty-directory(%t)
-// RUN: %target-swift-ide-test -batch-code-completion -source-filename %s -debug-forbid-typecheck-prefix FORBIDDEN -filecheck %raw-FileCheck -completion-output-dir %t
+// RUN: %batch-code-completion -debug-forbid-typecheck-prefix FORBIDDEN
 
 enum E {
   case e

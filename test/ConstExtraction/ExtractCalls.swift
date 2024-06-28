@@ -110,7 +110,24 @@ public struct Bat {
 // CHECK-NEXT:            {
 // CHECK-NEXT:              "label": "fuz",
 // CHECK-NEXT:              "type": "Swift.Int",
-// CHECK-NEXT:              "valueKind": "Runtime"
+// CHECK-NEXT:              "valueKind": "FunctionCall",
+// CHECK-NEXT:              "value": {
+// CHECK-NEXT:              "name": "adder",
+// CHECK-NEXT:              "arguments": [
+// CHECK-NEXT:                {
+// CHECK-NEXT:                  "label": "",
+// CHECK-NEXT:                  "type": "Swift.Int",
+// CHECK-NEXT:                   "valueKind": "RawLiteral",
+// CHECK-NEXT:                   "value": "2"
+// CHECK-NEXT:                 },
+// CHECK-NEXT:                 {
+// CHECK-NEXT:                   "label": "",
+// CHECK-NEXT:                   "type": "Swift.Int",
+// CHECK-NEXT:                   "valueKind": "RawLiteral",
+// CHECK-NEXT:                   "value": "3"
+// CHECK-NEXT:                 }
+// CHECK-NEXT:               ]
+// CHECK-NEXT:             }
 // CHECK-NEXT:            }
 // CHECK-NEXT:          ]
 // CHECK-NEXT:        }
@@ -123,7 +140,24 @@ public struct Bat {
 // CHECK-NEXT:        "isComputed": "false",
 // CHECK-NEXT:        "file": "{{.*}}test{{/|\\\\}}ConstExtraction{{/|\\\\}}ExtractCalls.swift",
 // CHECK-NEXT:        "line": 15,
-// CHECK-NEXT:        "valueKind": "Runtime"
+// CHECK-NEXT:         "valueKind": "FunctionCall",
+// CHECK-NEXT:         "value": {
+// CHECK-NEXT:           "name": "adder",
+// CHECK-NEXT:           "arguments": [
+// CHECK-NEXT:            {
+// CHECK-NEXT:               "label": "",
+// CHECK-NEXT:              "type": "Swift.Int",
+// CHECK-NEXT:               "valueKind": "RawLiteral",
+// CHECK-NEXT:               "value": "2"
+// CHECK-NEXT:             },
+// CHECK-NEXT:             {
+// CHECK-NEXT:               "label": "",
+// CHECK-NEXT:               "type": "Swift.Int",
+// CHECK-NEXT:               "valueKind": "RawLiteral",
+// CHECK-NEXT:               "value": "3"
+// CHECK-NEXT:             }
+// CHECK-NEXT:           ]
+// CHECK-NEXT:         }
 // CHECK-NEXT:      },
 // CHECK-NEXT:      {
 // CHECK-NEXT:        "label": "init4",

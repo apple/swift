@@ -17,6 +17,7 @@
 #include "swift/Sema/SyntacticElementTarget.h"
 #include "swift/AST/PropertyWrappers.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "TypeChecker.h"
 
 using namespace swift;
@@ -303,9 +304,15 @@ bool SyntacticElementTarget::contextualTypeIsOnlyAHint() const {
 
 void SyntacticElementTarget::markInvalid() const {
   class InvalidationWalker : public ASTWalker {
+    ASTContext &Ctx;
+
+  public:
+    InvalidationWalker(ASTContext &ctx) : Ctx(ctx) {}
+
     PreWalkResult<Expr *> walkToExprPre(Expr *E) override {
-      // TODO: We ought to fill in ErrorTypes for expressions here; ultimately
-      // type-checking should always produce typed AST.
+      if (!E->getType())
+        E->setType(ErrorType::get(Ctx));
+
       return Action::Continue(E);
     }
 
@@ -321,7 +328,7 @@ void SyntacticElementTarget::markInvalid() const {
       return Action::VisitNodeIf(isa<PatternBindingDecl>(D));
     }
   };
-  InvalidationWalker walker;
+  InvalidationWalker walker(getDeclContext()->getASTContext());
   walk(walker);
 }
 

@@ -25,6 +25,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "access-path-verification"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/MemAccessUtils.h"
 #include "swift/SIL/PrettyStackTrace.h"
 #include "swift/SIL/SILFunction.h"

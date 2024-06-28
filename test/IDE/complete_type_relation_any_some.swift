@@ -1,5 +1,4 @@
-// RUN: %empty-directory(%t)
-// RUN: %swift-ide-test -batch-code-completion -source-filename %s -filecheck %raw-FileCheck --completion-output-dir %t
+// RUN: %batch-code-completion
 
 protocol Shape {}
 

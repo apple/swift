@@ -762,3 +762,16 @@ struct S2<T> {
     // expected-note@-1 {{add explicit 'S2<T>.' to refer to mutable static property of 'S2<T>'}} {{5-5=S2<T>.}}
   }
 }
+
+// SR-3680, https://github.com/apple/swift/issues/46265
+protocol HasFoo {
+  var foo: String { get }
+}
+protocol CanSetFoo {
+  var foo: String { get set }
+}
+extension HasFoo where Self: CanSetFoo {
+  func bar() { // expected-note {{mark method 'mutating' to make 'self' mutable}}{{3-3=mutating }}
+    self.foo = "bar" // expected-error {{cannot assign to property: 'self' is immutable}}
+  }
+}

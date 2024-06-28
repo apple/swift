@@ -1305,7 +1305,9 @@ public:
   SourceLoc getStartLoc() const {
     if (UnknownAttrLoc.isValid())
       return UnknownAttrLoc;
-    return getLoc();
+    if (ItemIntroducerLoc.isValid())
+      return ItemIntroducerLoc;
+    return getBody()->getStartLoc();
   }
   SourceLoc getEndLoc() const { return getBody()->getEndLoc(); }
 

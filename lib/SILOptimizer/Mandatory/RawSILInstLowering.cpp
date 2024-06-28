@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "raw-sil-inst-lowering"
 #include "swift/AST/Decl.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILInstruction.h"
@@ -143,6 +144,7 @@ static void getAssignByWrapperArgsRecursively(SmallVectorImpl<SILValue> &args,
       forCleanup.createDestroyValue(loc, src);
       break;
     case SILArgumentConvention::Direct_Unowned:
+    case SILArgumentConvention::Indirect_In_CXX:
     case SILArgumentConvention::Indirect_In:
     case SILArgumentConvention::Direct_Owned:
       break;

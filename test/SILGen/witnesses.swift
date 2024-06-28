@@ -250,15 +250,14 @@ struct ConformsWithMoreGeneric : X, Y {
   // CHECK-LABEL: sil private [transparent] [thunk] [ossa] @$s9witnesses23ConformsWithMoreGenericVAA1XA2aDP7classes{{[_0-9a-zA-Z]*}}FTW :
   // CHECK:       bb0([[ARG0:%.*]] : @guaranteed $τ_0_0, [[ARG1:%.*]] : $*ConformsWithMoreGeneric):
   // CHECK-NEXT:    [[SELF_BOX:%.*]] = alloc_stack $τ_0_0
-  // CHECK-NEXT:    [[ARG0_COPY:%.*]] = copy_value [[ARG0]]
-  // CHECK-NEXT:    store [[ARG0_COPY]] to [init] [[SELF_BOX]] : $*τ_0_0
+  // CHECK-NEXT:    [[SELF_BOX_BORROW:%.*]] = store_borrow [[ARG0]] to [[SELF_BOX]]
   // CHECK-NEXT:    // function_ref witnesses.ConformsWithMoreGeneric.classes
   // CHECK-NEXT:    [[WITNESS_FN:%.*]] = function_ref @$s9witnesses23ConformsWithMoreGenericV7classes{{[_0-9a-zA-Z]*}}F : $@convention(method) <τ_0_0> (@in_guaranteed τ_0_0, @inout ConformsWithMoreGeneric) -> @out τ_0_0
   // CHECK-NEXT:    [[RESULT_BOX:%.*]] = alloc_stack $τ_0_0
-  // CHECK-NEXT:    [[RESULT:%.*]] = apply [[WITNESS_FN]]<τ_0_0>([[RESULT_BOX]], [[SELF_BOX]], %1) : $@convention(method) <τ_0_0> (@in_guaranteed τ_0_0, @inout ConformsWithMoreGeneric) -> @out τ_0_0
+  // CHECK-NEXT:    [[RESULT:%.*]] = apply [[WITNESS_FN]]<τ_0_0>([[RESULT_BOX]], [[SELF_BOX_BORROW]], %1) : $@convention(method) <τ_0_0> (@in_guaranteed τ_0_0, @inout ConformsWithMoreGeneric) -> @out τ_0_0
   // CHECK-NEXT:    [[RESULT:%.*]] = load [take] [[RESULT_BOX]] : $*τ_0_0
   // CHECK-NEXT:    dealloc_stack [[RESULT_BOX]] : $*τ_0_0
-  // CHECK-NEXT:    destroy_addr [[SELF_BOX]]
+  // CHECK-NEXT:    end_borrow [[SELF_BOX_BORROW]]
   // CHECK-NEXT:    dealloc_stack [[SELF_BOX]] : $*τ_0_0
   // CHECK-NEXT:    return [[RESULT]] : $τ_0_0
   // CHECK-NEXT:  }

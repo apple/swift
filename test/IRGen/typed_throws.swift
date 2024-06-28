@@ -9,8 +9,8 @@
 
 public enum MyBigError: Error {
   case epicFail
+  case evenBiggerFail
 }
-
 
 // CHECK-MANGLE: @"$s12typed_throws1XVAA1PAAWP" = hidden global [2 x ptr] [ptr @"$s12typed_throws1XVAA1PAAMc", ptr getelementptr inbounds (i8, ptr @"symbolic ySi_____YKc 12typed_throws10MyBigErrorO", {{i32|i64}} 1)]
 struct X: P {
@@ -52,7 +52,7 @@ func five() -> Int { 5 }
 
 func fiveOrBust() throws -> Int { 5 }
 
-func fiveOrTypedBust() throws(MyBigError) -> Int { 5 }
+func fiveOrTypedBust() throws(MyBigError) -> Int { throw MyBigError.epicFail }
 
 func reabstractAsNonthrowing() -> Int {
   passthroughCall(five)
@@ -69,7 +69,8 @@ func reabstractAsConcreteThrowing() throws -> Int {
 
 // CHECK-LABEL: define {{.*}} swiftcc void @"$sSi12typed_throws10MyBigErrorOIgdzo_SiACIegrzr_TR"(ptr noalias nocapture sret(%TSi) %0, ptr %1, ptr %2, ptr swiftself %3, ptr noalias nocapture swifterror dereferenceable(8) %4, ptr %5)
 // CHECK: call swiftcc {{i32|i64}} %1
-// CHECK: br i1 %8, label %typed.error.load, label %10
+// CHECK: [[CMP:%.*]] = icmp ne ptr {{%.*}}, null
+// CHECK: br i1 [[CMP]], label %typed.error.load
 
 
 struct S : Error { }

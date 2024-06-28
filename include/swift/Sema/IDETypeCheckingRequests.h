@@ -86,6 +86,7 @@ public:
 //----------------------------------------------------------------------------//
 enum class TypeRelation: uint8_t {
   ConvertTo,
+  SubtypeOf
 };
 
 struct TypePair {
@@ -153,6 +154,7 @@ struct TypeRelationCheckInput {
     switch(owner.Relation) {
 #define CASE(NAME) case TypeRelation::NAME: out << #NAME << " "; break;
     CASE(ConvertTo)
+    CASE(SubtypeOf)
 #undef CASE
     }
   }

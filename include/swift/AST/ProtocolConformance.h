@@ -681,7 +681,12 @@ public:
     assert(sourceKind != ConformanceEntryKind::PreMacroExpansion &&
            "cannot create conformance pre-macro-expansion");
     Bits.NormalProtocolConformance.SourceKind = unsigned(sourceKind);
-    ImplyingConformance = implyingConformance;
+    if (auto implying = implyingConformance) {
+      ImplyingConformance = implying;
+      PreconcurrencyLoc = implying->getPreconcurrencyLoc();
+      Bits.NormalProtocolConformance.IsPreconcurrency =
+          implying->isPreconcurrency();
+    }
   }
 
   /// Determine whether this conformance is lazily loaded.

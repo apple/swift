@@ -12,6 +12,7 @@ function(add_swift_parser_link_libraries target)
     foreach(macrolib ${SWIFT_MACRO_PLUGINS})
       add_dependencies(${target} ${macrolib})
     endforeach()
+    add_dependencies(${target} SwiftInProcPluginServer)
   endif()
 endfunction()
 
@@ -159,11 +160,6 @@ swift_create_post_build_symlink(swift-frontend
 
 swift_create_post_build_symlink(swift-frontend
   SOURCE "swift-frontend${CMAKE_EXECUTABLE_SUFFIX}"
-  DESTINATION "swift-api-extract${CMAKE_EXECUTABLE_SUFFIX}"
-  WORKING_DIRECTORY "${SWIFT_RUNTIME_OUTPUT_INTDIR}")
-
-swift_create_post_build_symlink(swift-frontend
-  SOURCE "swift-frontend${CMAKE_EXECUTABLE_SUFFIX}"
   DESTINATION "swift-autolink-extract${CMAKE_EXECUTABLE_SUFFIX}"
   WORKING_DIRECTORY "${SWIFT_RUNTIME_OUTPUT_INTDIR}")
 
@@ -190,9 +186,6 @@ swift_install_in_component(FILES "${SWIFT_RUNTIME_OUTPUT_INTDIR}/swiftc${CMAKE_E
                            DESTINATION "bin"
                            COMPONENT compiler)
 swift_install_in_component(FILES "${SWIFT_RUNTIME_OUTPUT_INTDIR}/swift-symbolgraph-extract${CMAKE_EXECUTABLE_SUFFIX}"
-                           DESTINATION "bin"
-                           COMPONENT compiler)
-swift_install_in_component(FILES "${SWIFT_RUNTIME_OUTPUT_INTDIR}/swift-api-extract${CMAKE_EXECUTABLE_SUFFIX}"
                            DESTINATION "bin"
                            COMPONENT compiler)
 swift_install_in_component(FILES "${SWIFT_RUNTIME_OUTPUT_INTDIR}/swift-api-digester${CMAKE_EXECUTABLE_SUFFIX}"

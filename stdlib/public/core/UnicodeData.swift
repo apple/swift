@@ -52,6 +52,10 @@ extension Unicode {
       UInt8(truncatingIfNeeded: rawValue >> 3)
     }
 
+    var canonicalCombiningClass: Unicode.CanonicalCombiningClass {
+      Unicode.CanonicalCombiningClass(rawValue: ccc)
+    }
+
     var isNFCQC: Bool {
       rawValue & 0x6 == 0
     }

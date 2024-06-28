@@ -27,7 +27,7 @@ extension /*class-Animal:def*/Animal {
 enum /*enum-Barcode:def*/Barcode {
 	case upc(Int, Int, Int, Int)
 	case /*case-qrCode:def*/qrCode(code: String)
-	case /*case-other:def*/<base>other</base>(<arglabel index=0></arglabel><param index=0></param>Int)
+	case /*case-other:def*/<base>other</base>(<callcombo index=0></callcombo>Int)
 	case /*case-another:def*/another
 }
 var barCode: /*enum-Barcode*/Barcode = /*enum-Barcode*/Barcode.upc(1, 1, 1, 1)

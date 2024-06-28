@@ -24,6 +24,7 @@
 #include "swift/AST/Type.h"
 #include "swift/AST/Types.h"
 #include "swift/Basic/Debug.h"
+#include "swift/Sema/Constraint.h"
 #include "swift/Sema/ConstraintLocator.h"
 #include "swift/Sema/FixBehavior.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -432,9 +433,6 @@ enum class FixKind : uint8_t {
   /// vs.`@OtherActor () -> Void`
   AllowGlobalActorMismatch,
 
-  /// Produce an error about a type that must be Copyable
-  MustBeCopyable,
-
   /// Allow 'each' applied to a non-pack type.
   AllowInvalidPackElement,
 
@@ -474,6 +472,17 @@ enum class FixKind : uint8_t {
   /// Ignore situations when key path subscript index gets passed an invalid
   /// type as an argument (something that is not a key path).
   IgnoreKeyPathSubscriptIndexMismatch,
+
+  /// Ignore the following situations:
+  ///
+  /// 1. Where we have a function that expects a function typed parameter
+  /// without a sendable parameter but is passed a function type with a sending
+  /// parameter.
+  ///
+  /// 2. Where we have a function that expects a function typed parameter with a
+  /// sending result, but is passed a function typed parameter without a sending
+  /// result.
+  AllowSendingMismatch,
 };
 
 class ConstraintFix {
@@ -2139,32 +2148,6 @@ public:
   }
 };
 
-class MustBeCopyable final : public ConstraintFix {
-  Type noncopyableTy;
-  NoncopyableMatchFailure failure;
-
-  MustBeCopyable(ConstraintSystem &cs,
-                 Type noncopyableTy,
-                 NoncopyableMatchFailure failure,
-                 ConstraintLocator *locator);
-
-public:
-  std::string getName() const override { return "remove move-only from type"; }
-
-  bool diagnose(const Solution &solution, bool asNote = false) const override;
-
-  bool diagnoseForAmbiguity(CommonFixesArray commonFixes) const override;
-
-  static MustBeCopyable *create(ConstraintSystem &cs,
-                             Type noncopyableTy,
-                             NoncopyableMatchFailure failure,
-                             ConstraintLocator *locator);
-
-  static bool classof(const ConstraintFix *fix) {
-    return fix->getKind() == FixKind::MustBeCopyable;
-  }
-};
-
 class AllowInvalidPackElement final : public ConstraintFix {
   Type packElementType;
 
@@ -2645,6 +2628,38 @@ public:
 
   static bool classof(const ConstraintFix *fix) {
     return fix->getKind() == FixKind::TreatEphemeralAsNonEphemeral;
+  }
+};
+
+/// Error if a user passes let f: (sending T) -> () as a (T) -> ().
+///
+/// This prevents data races since f assumes its parameter if the parameter is
+/// non-Sendable is safe to transfer onto other situations. The caller though
+/// that this is being sent to does not enforce that invariants within its body.
+class AllowSendingMismatch final : public ContextualMismatch {
+  AllowSendingMismatch(ConstraintSystem &cs, Type argType, Type paramType,
+                       ConstraintLocator *locator, FixBehavior fixBehavior)
+      : ContextualMismatch(cs, FixKind::AllowSendingMismatch, argType,
+                           paramType, locator, fixBehavior) {}
+
+public:
+  std::string getName() const override {
+    return "treat a function argument with sending parameters and results as a "
+           "function "
+           "argument without sending parameters and results";
+  }
+
+  bool diagnose(const Solution &solution, bool asNote = false) const override;
+
+  bool diagnoseForAmbiguity(CommonFixesArray commonFixes) const override {
+    return diagnose(*commonFixes.front().first);
+  }
+
+  static AllowSendingMismatch *create(ConstraintSystem &cs, Type srcType,
+                                      Type dstType, ConstraintLocator *locator);
+
+  static bool classof(const ConstraintFix *fix) {
+    return fix->getKind() == FixKind::AllowSendingMismatch;
   }
 };
 

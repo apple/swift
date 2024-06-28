@@ -649,3 +649,33 @@ Added: _$ss7UInt128V15Synchronization19AtomicRepresentableACMc
 
 // protocol witness table for Swift.UInt128 : Synchronization.AtomicRepresentable in Synchronization
 Added: _$ss7UInt128V15Synchronization19AtomicRepresentableACWP
+
+// Synchronization._MutexHandle.value.read : Synchronization._Cell<__C.os_unfair_lock_s>
+Added: _$s15Synchronization12_MutexHandleV5valueAA5_CellVySo16os_unfair_lock_sVGvr
+
+// type metadata accessor for Synchronization._MutexHandle
+Added: _$s15Synchronization12_MutexHandleVMa
+
+// nominal type descriptor for Synchronization._MutexHandle
+Added: _$s15Synchronization12_MutexHandleVMn
+
+// type metadata for Synchronization._MutexHandle
+Added: _$s15Synchronization12_MutexHandleVN
+
+// (extension in Synchronization):Synchronization.Mutex< where A: ~Swift.Copyable>.value.read : Synchronization._Cell<A>
+Added: _$s15Synchronization5MutexVAARi_zrlE5valueAA5_CellVyxGvr
+
+// (extension in Synchronization):Synchronization.Mutex< where A: ~Swift.Copyable>.handle.read : Synchronization._MutexHandle
+Added: _$s15Synchronization5MutexVAARi_zrlE6handleAA01_B6HandleVvr
+
+// type metadata accessor for Synchronization.Mutex
+Added: _$s15Synchronization5MutexVMa
+
+// nominal type descriptor for Synchronization.Mutex
+Added: _$s15Synchronization5MutexVMn
+
+// type metadata accessor for Synchronization._Cell
+Added: _$s15Synchronization5_CellVMa
+
+// nominal type descriptor for Synchronization._Cell
+Added: _$s15Synchronization5_CellVMn

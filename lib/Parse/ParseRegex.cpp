@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/DiagnosticsParse.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Bridging/ASTGen.h"
 #include "swift/Parse/Parser.h"
 

@@ -21,6 +21,7 @@
 #include "swift/AST/SemanticAttrs.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeMatcher.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
 #include "swift/Demangling/ManglingMacros.h"
@@ -770,6 +771,7 @@ void ReabstractionInfo::createSubstitutedAndSpecializedTypes() {
       continue;
 
     switch (PI.getConvention()) {
+    case ParameterConvention::Indirect_In_CXX:
     case ParameterConvention::Indirect_In:
     case ParameterConvention::Indirect_In_Guaranteed: {
       Conversions.set(IdxToInsert);
@@ -983,7 +985,7 @@ createSpecializedType(CanSILFunctionType SubstFTy, SILModule &M) const {
     // owned/guaranteed (except it's a trivial type).
     auto C = ParameterConvention::Direct_Unowned;
     if (!isTrivial) {
-      if (PI.isGuaranteed()) {
+      if (PI.isGuaranteedInCallee()) {
         C = ParameterConvention::Direct_Guaranteed;
       } else {
         C = ParameterConvention::Direct_Owned;
@@ -2265,7 +2267,7 @@ prepareCallArguments(ApplySite AI, SILBuilder &Builder,
       argConv = substConv.getSILArgumentConvention(ArgIdx);
     }
     SILValue Val;
-    if (!argConv.isGuaranteedConvention()) {
+    if (!argConv.isGuaranteedConventionInCaller()) {
       Val = Builder.emitLoadValueOperation(Loc, InputValue,
                                            LoadOwnershipQualifier::Take);
     } else {
@@ -2748,7 +2750,7 @@ ReabstractionThunkGenerator::convertReabstractionThunkArguments(
                                Builder.getTypeExpansionContext()));
       assert(ParamTy.isAddress());
       SILFunctionArgument *NewArg = addFunctionArgument(Thunk, ParamTy, specArg);
-      if (!NewArg->getArgumentConvention().isGuaranteedConvention()) {
+      if (!NewArg->getArgumentConvention().isGuaranteedConventionInCallee()) {
         SILValue argVal = Builder.emitLoadValueOperation(
             Loc, NewArg, LoadOwnershipQualifier::Take);
         Arguments.push_back(argVal);
@@ -3140,12 +3142,10 @@ void swift::trySpecializeApplyOfGeneric(
   // callee either.
   bool needSetLinkage = false;
   if (isMandatory) {
-    // pcmo TODO: remove F->isSerialiezd() and pass its kind to
-    // canBeInlinedIntoCaller instead.
-    if (F->isSerialized() && !RefF->canBeInlinedIntoCaller())
+    if (!RefF->canBeInlinedIntoCaller(F->getSerializedKind()))
       needSetLinkage = true;
   } else {
-    if (F->isSerialized() && !RefF->canBeInlinedIntoCaller())
+    if (!RefF->canBeInlinedIntoCaller(F->getSerializedKind()))
         return;
 
     if (shouldNotSpecialize(RefF, F))
@@ -3265,22 +3265,22 @@ void swift::trySpecializeApplyOfGeneric(
     return;
   }
 
-  // pcmo TODO: remove F->isSerialiezd() and pass its kind to
-  // canBeInlinedIntoCaller instead.
   if (needSetLinkage) {
-    assert(F->isSerialized() && !RefF->canBeInlinedIntoCaller());
+    assert(F->isAnySerialized() &&
+           !RefF->canBeInlinedIntoCaller(F->getSerializedKind()));
     // If called from a serialized function we cannot make the specialized function
     // shared and non-serialized. The only other option is to keep the original
     // function's linkage. It's not great, because it can prevent dead code
     // elimination - usually the original function is a public function.
     SpecializedF->setLinkage(RefF->getLinkage());
     SpecializedF->setSerializedKind(IsNotSerialized);
-  } else if (F->isSerialized() && !SpecializedF->canBeInlinedIntoCaller()) {
+  } else if (F->isAnySerialized() &&
+             !SpecializedF->canBeInlinedIntoCaller(F->getSerializedKind())) {
     // If the specialized function already exists as a "IsNotSerialized" function,
-    // but now it's called from a "IsSerialized" function, we need to mark it as
-    // IsSerialized.
-    SpecializedF->setSerializedKind(IsSerialized);
-    assert(SpecializedF->canBeInlinedIntoCaller());
+    // but now it's called from a serialized function, we need to mark it the
+    // same as its SerializedKind.
+    SpecializedF->setSerializedKind(F->getSerializedKind());
+    assert(SpecializedF->canBeInlinedIntoCaller(F->getSerializedKind()));
     
     // ... including all referenced shared functions.
     FuncBuilder.getModule().linkFunction(SpecializedF.getFunction(),

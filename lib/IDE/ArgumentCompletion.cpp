@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/IDE/ArgumentCompletion.h"
 #include "swift/IDE/CodeCompletion.h"
 #include "swift/IDE/CompletionLookup.h"
@@ -50,7 +51,8 @@ bool ArgumentTypeCheckCompletionCallback::addPossibleParams(
     const AnyFunctionType::Param *TypeParam = &ParamsToPass[Idx];
     bool Required = !Res.DeclParamIsOptional[Idx];
 
-    if (Res.FirstTrailingClosureIndex && Idx > *Res.FirstTrailingClosureIndex &&
+    if (Res.FirstTrailingClosureIndex &&
+        Res.ArgIdx > *Res.FirstTrailingClosureIndex &&
         !TypeParam->getPlainType()
              ->lookThroughAllOptionalTypes()
              ->is<AnyFunctionType>()) {

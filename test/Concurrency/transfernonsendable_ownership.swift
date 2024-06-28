@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-sil -strict-concurrency=complete -disable-availability-checking -verify -enable-upcoming-feature GlobalActorIsolatedTypesUsability -enable-experimental-feature TransferringArgsAndResults %s -o /dev/null
+// RUN: %target-swift-frontend -emit-sil -strict-concurrency=complete -disable-availability-checking -verify -enable-upcoming-feature GlobalActorIsolatedTypesUsability %s -o /dev/null
 
 // This test validates the behavior of transfer non sendable around ownership
 // constructs like non copyable types, consuming/borrowing parameters, and inout
@@ -105,3 +105,19 @@ func testInOutError(_ x: inout Klass) async {
   // expected-note @-1 {{sending global actor 'CustomActor'-isolated 'x' to main actor-isolated global function 'transferToMain'}}
   _ = consume x // expected-note {{consumed here}}
 } // expected-note {{used here}}
+
+actor ActorTestCase {
+  let k = Klass()
+
+  // TODO: This crashes the compiler since we attempt to hop_to_executor to the
+  // value that is materialized onto disk.
+  //
+  // consuming func test() async {
+  //   await transferToMain(k)
+  // }
+
+  borrowing func test2() async {
+    await transferToMain(k) // expected-warning {{sending 'self.k' risks causing data races}}
+    // expected-note @-1 {{sending 'self'-isolated 'self.k' to main actor-isolated global function 'transferToMain' risks causing data races between main actor-isolated and 'self'-isolated uses}}
+  }
+}

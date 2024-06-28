@@ -13,6 +13,7 @@
 #define DEBUG_TYPE "sil-abcopts"
 
 #include "swift/AST/Builtins.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/STLExtras.h"
 #include "swift/SIL/Dominance.h"
 #include "swift/SIL/InstructionUtils.h"

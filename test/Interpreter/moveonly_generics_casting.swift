@@ -136,7 +136,7 @@ enum Maybe<Wrapped: ~Copyable>: ~Copyable {
   case just(Wrapped)
   case nothing
 }
-extension Maybe: Copyable {}
+extension Maybe: Copyable where Wrapped: Copyable {}
 extension Maybe: CustomDebugStringConvertible {
   var debugDescription: String {
     "cast succeeded"

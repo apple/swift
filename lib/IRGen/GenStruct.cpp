@@ -23,6 +23,7 @@
 #include "swift/AST/SemanticAttrs.h"
 #include "swift/AST/SubstitutionMap.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/IRGen/Linking.h"
 #include "swift/SIL/SILFunctionBuilder.h"
 #include "swift/SIL/SILModule.h"
@@ -688,14 +689,7 @@ namespace {
         return;
       }
 
-      if (!destructor->isUserProvided() &&
-          !destructor->doesThisDeclarationHaveABody()) {
-        assert(!destructor->isDeleted() &&
-               "Swift cannot handle a type with no known destructor.");
-        // Make sure we define the destructor so we have something to call.
-        auto &sema = IGF.IGM.Context.getClangModuleLoader()->getClangSema();
-        sema.DefineImplicitDestructor(clang::SourceLocation(), destructor);
-      }
+      IGF.IGM.ensureImplicitCXXDestructorBodyIsDefined(destructor);
 
       clang::GlobalDecl destructorGlobalDecl(destructor, clang::Dtor_Complete);
       auto *destructorFnAddr =

@@ -23,6 +23,7 @@
 #include "SwitchBuilder.h"
 #include "swift/ABI/MetadataValues.h"
 #include "swift/AST/GenericEnvironment.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/TypeLowering.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/Support/Debug.h"

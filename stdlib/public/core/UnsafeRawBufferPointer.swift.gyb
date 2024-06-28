@@ -450,9 +450,6 @@ extension Unsafe${Mutable}RawBufferPointer {
   }
 
   @_alwaysEmitIntoClient
-  @available(swift, deprecated: 6, message:
-    "Use the BitwiseCopyable-constrained overload"
-  )
   public func loadUnaligned<T>(
     fromByteOffset offset: Int = 0,
     as type: T.Type

@@ -144,6 +144,7 @@
 
 #include "swift/AST/Decl.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "RequirementMachine.h"
 #include "RewriteSystem.h"
 #include "RewriteContext.h"
@@ -249,41 +250,10 @@ void RewriteContext::endTimer(StringRef name) {
 
 }
 
-const llvm::TinyPtrVector<const ProtocolDecl *> &
-RewriteContext::getInheritedProtocols(const ProtocolDecl *proto) {
-  auto found = AllInherited.find(proto);
-  if (found != AllInherited.end())
-    return found->second;
-
-  AllInherited.insert(std::make_pair(proto, TinyPtrVector<const ProtocolDecl *>()));
-
-  llvm::SmallDenseSet<const ProtocolDecl *, 4> visited;
-  llvm::TinyPtrVector<const ProtocolDecl *> protos;
-
-  for (auto *inheritedProto : proto->getInheritedProtocols()) {
-    if (!visited.insert(inheritedProto).second)
-      continue;
-
-    protos.push_back(inheritedProto);
-    const auto &allInherited = getInheritedProtocols(inheritedProto);
-
-    for (auto *otherProto : allInherited) {
-      if (!visited.insert(otherProto).second)
-        continue;
-
-      protos.push_back(otherProto);
-    }
-  }
-
-  auto &result = AllInherited[proto];
-  std::swap(protos, result);
-  return result;
-}
-
 int RewriteContext::compareProtocols(const ProtocolDecl *lhs,
                                      const ProtocolDecl *rhs) {
-  unsigned lhsSupport = getInheritedProtocols(lhs).size();
-  unsigned rhsSupport = getInheritedProtocols(rhs).size();
+  unsigned lhsSupport = lhs->getAllInheritedProtocols().size();
+  unsigned rhsSupport = rhs->getAllInheritedProtocols().size();
 
   if (lhsSupport != rhsSupport)
     return rhsSupport - lhsSupport;
@@ -358,7 +328,7 @@ void RewriteContext::installRequirementMachine(
 void RewriteContext::getProtocolComponentRec(
     const ProtocolDecl *proto,
     SmallVectorImpl<const ProtocolDecl *> &stack) {
-  assert(Protos.count(proto) == 0);
+  ASSERT(Protos.count(proto) == 0);
 
   // Initialize the next component index and push the entry
   // on the stack
@@ -374,7 +344,7 @@ void RewriteContext::getProtocolComponentRec(
 
   // Look at each successor.
   auto found = Dependencies.find(proto);
-  assert(found != Dependencies.end());
+  ASSERT(found != Dependencies.end());
 
   for (auto *depProto : found->second) {
     auto found = Protos.find(depProto);
@@ -383,7 +353,7 @@ void RewriteContext::getProtocolComponentRec(
       getProtocolComponentRec(depProto, stack);
 
       auto &entry = Protos[proto];
-      assert(Protos.count(depProto) != 0);
+      ASSERT(Protos.count(depProto) != 0);
       entry.LowLink = std::min(entry.LowLink, Protos[depProto].LowLink);
     } else if (found->second.OnStack) {
       // Successor is on the stack and hence in the current SCC.
@@ -404,7 +374,7 @@ void RewriteContext::getProtocolComponentRec(
       depProto = stack.back();
       stack.pop_back();
 
-      assert(Protos.count(depProto) != 0);
+      ASSERT(Protos.count(depProto) != 0);
       Protos[depProto].OnStack = false;
       Protos[depProto].ComponentID = id;
 
@@ -471,19 +441,19 @@ RewriteContext::getProtocolComponentImpl(const ProtocolDecl *proto) {
 
     SmallVector<const ProtocolDecl *, 3> stack;
     getProtocolComponentRec(proto, stack);
-    assert(stack.empty());
+    ASSERT(stack.empty());
 
     found = Protos.find(proto);
-    assert(found != Protos.end());
+    ASSERT(found != Protos.end());
 
     ProtectProtocolComponentRec = false;
   }
 
-  assert(Components.count(found->second.ComponentID) != 0);
+  CONDITIONAL_ASSERT(Components.count(found->second.ComponentID) != 0);
   auto &component = Components[found->second.ComponentID];
 
-  assert(std::find(component.Protos.begin(), component.Protos.end(), proto)
-         != component.Protos.end() && "Protocol is in the wrong SCC");
+  CONDITIONAL_ASSERT(std::find(component.Protos.begin(), component.Protos.end(), proto)
+                     != component.Protos.end() && "Protocol is in the wrong SCC");
   return component;
 }
 
@@ -516,7 +486,7 @@ void RewriteContext::finishComputingRequirementSignatures(
     const ProtocolDecl *proto) {
   auto &component = getProtocolComponentImpl(proto);
 
-  assert(component.ComputingRequirementSignatures &&
+  ASSERT(component.ComputingRequirementSignatures &&
          "Didn't call startComputingRequirementSignatures()");
   component.ComputedRequirementSignatures = true;
 }

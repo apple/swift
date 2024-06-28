@@ -19,6 +19,14 @@
 
 \chapter{Conformance Paths}\label{conformance paths}
 
+\ifWIP
+
+\begin{definition}
+Let $(V, E)$ be a directed graph. If $u,v\in V$, we say $v$ is \IndexDefinition{reachability relation}\emph{reachable} from $u$ if there is a path $p$ with $\Src(p)=u$ and $\Dst(p)=v$. Note that $v$ is always reachable from itself via the empty path $1_v$. If $v$ is reachable from $u$, it is not always the case that $u$ is reachable from $v$, precisely because the edges in a directed graph are directed.
+\end{definition}
+
+\fi
+
 \lettrine{W}{e now return} to tie up a loose end in \index{type substitution}type substitution. We encountered type substitution in \ChapRef{substmaps}, first in its most basic form, as a structural mapping of generic parameter types to the replacement types of a substitution map. The next level of detail appeared when we considered type substitution of the other kind of type parameter: the dependent member type. A substitution map can contain conformances in addition to replacement types, and \ChapRef{conformances} showed that under type substitution, a \index{dependent member type}dependent member type corresponds to a \index{type witness}type witness of a conformance. To find this conformance, we introduced the so-called local conformance lookup operation, but only defined it in the simplest case, where the conformance is directly stored in the substitution map. In this chapter, we show that the general case works by evaluating a \emph{conformance path}.
 
 \begin{listing}\captionabove{Example to motivate conformance paths}\label{conformance paths listing}
@@ -292,11 +300,9 @@ Let $G$ be a well-formed generic signature, and suppose that $G\vDash\SameReq{T}
 \begin{proof}
 We proceed by \index{induction}induction on the \index{type parameter length}length of $\texttt{T}^\prime$, building the desired same-type requirement by repeated application of the \IndexStep{SameDecl}\textsc{SameDecl} or \IndexStep{SameName}\textsc{SameName} derivation step.
 
-\smallskip
+\BaseCase When $\texttt{T}^\prime$ has the same length as \texttt{T}, they must in fact be identical, since the latter is a prefix of the former, and thus $\texttt{U}^\prime$ is also the same as \texttt{U}. We have the necessary derivation $G\vDash\SameReq{T}{U}$ by assumption.
 
-\index{base case}\emph{Base case:} When $\texttt{T}^\prime$ has the same length as \texttt{T}, they must in fact be identical, since the latter is a prefix of the former, and thus $\texttt{U}^\prime$ is also the same as \texttt{U}. We have the necessary derivation $G\vDash\SameReq{T}{U}$ by assumption.
-
-\index{inductive step}\emph{Inductive step:} We write $\texttt{T}^\prime$ as a dependent member type \texttt{$\texttt{T}^{\prime\prime}$.[P]A} or \texttt{$\texttt{T}^{\prime\prime}$.A}, with base type $\texttt{T}^{\prime\prime}$ and associated type~\texttt{A}. We have $G\vDash\texttt{T}^\prime$ by assumption, and so $G\vDash\texttt{T}^{\prime\prime}$ by \PropRef{prefix prop}. By the inductive hypothesis, we have a derivation $G\vDash\SameReq{$\texttt{T}^{\prime\prime}$}{$\texttt{U}^{\prime\prime}$}$.
+\InductiveStep We write $\texttt{T}^\prime$ as a dependent member type \texttt{$\texttt{T}^{\prime\prime}$.[P]A} or \texttt{$\texttt{T}^{\prime\prime}$.A}, with base type $\texttt{T}^{\prime\prime}$ and associated type~\texttt{A}. We have $G\vDash\texttt{T}^\prime$ by assumption, and so $G\vDash\texttt{T}^{\prime\prime}$ by \PropRef{prefix prop}. By the inductive hypothesis, we have a derivation $G\vDash\SameReq{$\texttt{T}^{\prime\prime}$}{$\texttt{U}^{\prime\prime}$}$.
 
 Note that $G\vDash\texttt{T}^\prime$ also implies that $G\vDash\ConfReq{$\texttt{T}^{\prime\prime}$}{P}$. If $\texttt{T}^\prime$ is \index{bound dependent member type}bound, we apply a \textsc{SameDecl} step to $\SameReq{$\texttt{T}^{\prime\prime}$}{$\texttt{U}^{\prime\prime}$}$ and $\ConfReq{$\texttt{T}^{\prime\prime}$}{P}$:
 \begin{gather*}
@@ -480,7 +486,7 @@ Note that this is a linear order, because in Step~6, \AlgRef{requirement order} 
 
 \paragraph{Enumeration.} The conformance path graph from our previous example has a finite set of vertices, but this is not true in general. However, it is true that each vertex only has finitely many \index{successor}successors, as there can only be finitely many associated conformance requirements. (This is also true in the \index{type parameter graph}type parameter graph, where successors are given by associated \emph{type} declarations). A graph with this property is said to be \index{locally finite graph}\emph{locally finite}. A locally finite graph only has finitely many paths of any fixed length $n\in\mathbb{N}$ (this can be shown by induction on path length). This implies that the conformance path order is \index{well-founded order}well-founded (by the same argument as \PropRef{well founded type order}). It follows that every equivalence class of conformance paths contains a reduced conformance path. Hence, enumerating conformance paths in increasing order performs a \index{breadth-first search}breadth-first search which visits every path, and always visits the reduced conformance paths first.
 
-\ThmRef{conformance paths theorem} provides a necessary termination condition for our search. This is actually also sufficient; the only other potential source of non-termination is the reduced type computation using the \Index{getReducedType()@\texttt{getReducedType()}}\texttt{getReducedType()} generic signature query, but the theory of rewrite systems will give us that guarantee in \SecRef{rewritesystemintro}. Thus, we can always find a conformance path in a finite number of steps. This exhaustive enumeration is relatively inefficient, but we can improve upon it with two modifications:
+\ThmRef{conformance paths theorem} provides a necessary \index{termination}termination condition for our search. This is actually also sufficient; the only other potential source of non-termination is the reduced type computation using the \IndexQuery{getReducedType}$\Query{getReducedType}{}$ generic signature query, but the theory of rewrite systems will give us that guarantee in \SecRef{rewritesystemintro}. Thus, we can always find a conformance path in a finite number of steps. This exhaustive enumeration is relatively inefficient, but we can improve upon it with two modifications:
 \begin{enumerate}
 \item While searching for a conformance path, we visit all preceding conformance paths. If we cache the result of simplifying each conformance path, we can reuse these results if a subsequent lookup requests an earlier conformance path, and avoid restarting the search.
 \item If we encounter a conformance path equivalent to one we've already seen, the new conformance path must not be reduced, since we visit paths in increasing order. Thus its successors are not reduced either, and do not need to be considered. This happened in our example when we encountered $p_{33}$ after already visiting $p_{22}$.
@@ -497,9 +503,9 @@ Putting everything together, we finally get an algorithm to find conformance pat
 Takes a generic signature $G$ and an abstract conformance $\ConfReq{T}{P}$ valid in $G$ as input. Outputs a conformance path for $\ConfReq{T}{P}$.
 
 \begin{enumerate}
-\item (Precondition) Using the \Index{requiresProtocol()@\texttt{requiresProtocol()}}\texttt{requiresProtocol()} generic signature query, check if $\ConfReq{T}{P}$ is a valid abstract conformance. If it is not valid, signal an error. This guarantees termination below.
+\item (Precondition) Check that \IndexQuery{requiresProtocol}$\Query{requiresProtocol}{G,\,\texttt{T},\,\texttt{P}}$. If this is not true, signal an error. This guarantees termination below.
 
-\item (Reduce) Replace \texttt{T} with its reduced type using the \Index{getReducedType()@\texttt{getReducedType()}}\texttt{getReducedType()} generic signature query, so that $\ConfReq{T}{P}$ is a reduced abstract conformance.
+\item (Reduce) Set \IndexQuery{getReducedType}$\texttt{T}\leftarrow\Query{getReducedType}{G,\,\texttt{T}}$.
 
 \item (Check) If the table contains an entry for $\ConfReq{T}{P}$, return the conformance path associated with this entry.
 
@@ -511,7 +517,7 @@ Takes a generic signature $G$ and an abstract conformance $\ConfReq{T}{P}$ valid
 
 \item (Simplify) Invoke \AlgRef{invertconformancepath} to simplify $c$ to an abstract conformance. Denote this abstract conformance by $\ConfReq{$\texttt{T}_c$}{$\texttt{P}_c$}$.
 
-\item (Reduce) Replace $\texttt{T}_c$ with its reduced type, to get a reduced abstract conformance.
+\item (Reduce) Set \IndexQuery{getReducedType}$\texttt{T}_c\leftarrow\Query{getReducedType}{G,\,\texttt{T}_c}$.
 
 \item (Check) If the table already contains an entry for $\ConfReq{$\texttt{T}_c$}{$\texttt{P}_c$}$, continue onto the next iteration of Step~5.
 
@@ -527,7 +533,7 @@ Takes a generic signature $G$ and an abstract conformance $\ConfReq{T}{P}$ valid
 \end{algorithm}
 
 \paragraph{Algorithmic complexity.}
-Despite the memoization performed above, \AlgRef{find conformance path algorithm} requires exponential time in the worst case. We can demonstrate this by constructing a generic signature with $2^{n-1}$ unique conformance paths of length $n$. Consider the protocol generic signature $G_\texttt{P}$ with the following protocol \texttt{P}:
+Despite the memoization performed above, \AlgRef{find conformance path algorithm} requires exponential time in the worst case. We can demonstrate this by constructing a generic signature with $2^{n-1}$ unique conformance paths of length $n$. Consider the protocol generic signature $\GP$ with the following protocol \texttt{P}:
 \begin{Verbatim}
 protocol P {
   associatedtype A: P
@@ -676,7 +682,7 @@ Assume an infinite directed graph satisfies two conditions:
 \item Every vertex has finitely many successors (such a graph is said to be locally finite).
 \item Every vertex is reachable by a path from a fixed finite set of root vertices.
 \end{enumerate}
-Then the graph must contain a \index{infinite path|see{ray}}\index{ray}\emph{ray}, or infinite path: an infinite sequence of distinct vertices, where each element is joined to the next by an edge.
+Then the graph must contain an infinite path: this is an infinite sequence of distinct vertices, where each element is joined to the next by an edge.
 \end{theorem}
 \begin{proof}
 To choose the first element of the sequence, note that there are only finitely many roots, but every vertex is reachable from at least one root by assumption, so at least one root must be the origin of infinitely many distinct paths. This root serves as the first element of our sequence. We can then always add another vertex to our sequence, as long as the last vertex is the origin of infinitely many distinct paths, not involving any vertex already in our sequence. However, as each vertex has finitely many successors, so at least one successor of the last vertex has the necessary property. We can iterate this construction arbitrarily in this manner, giving us the desired infinite sequence of vertices.
@@ -970,7 +976,7 @@ But, the only further simplification we can apply here is $\SelfAToN \otimes \Co
 \AssocType{[N]A} \otimes \bigl( \SelfAToN \otimes \ConfReq{S}{N} \bigr) \\
 \qquad {} = \AssocType{[N]A} \otimes \bigl( \ConfReq{F<\ttgp{0}{0}>}{N} \otimes \Sigma_\texttt{S} \bigr)
 \end{gather*}
-It appears that our attempt to evaluate $\texttt{\ttgp{0}{0}.[N]A}\otimes \Sigma_\texttt{F}\otimes\Sigma_\texttt{S}$ gets stuck in a loop. This exposes a hole in our theory, because it shows that local conformance lookup---and our type substitution operator ``$\otimes$''---are actually \index{partial function}\emph{partial} functions, which do not always have a well-defined result. Similarly, the substitution maps $\Sigma_\texttt{S}$ and $\Sigma_\texttt{F}$ do not have conformance evaluation graphs. (While for the most part this theoretical hole doesn't matter, in \SecRef{rewritesystemintro}, we will sketch out an alternative way of formalizing ``$\otimes$'' which avoids this difficulty.)
+It appears that our attempt to evaluate $\texttt{\ttgp{0}{0}.[N]A}\otimes \Sigma_\texttt{F}\otimes\Sigma_\texttt{S}$ gets stuck in a loop. This exposes a hole in our theory, because it shows that local conformance lookup---and our type substitution operator ``$\otimes$''---are actually \index{partial function}\emph{partial} functions, which do not always output a result. Similarly, the substitution maps $\Sigma_\texttt{S}$ and $\Sigma_\texttt{F}$ do not have conformance evaluation graphs. (While for the most part this theoretical hole doesn't matter, in \SecRef{rewritesystemintro}, we will sketch out an alternative way of formalizing ``$\otimes$'' which avoids this difficulty.)
 
 Indeed, at the time of writing, the compiler actually terminates with a stack overflow while attempting to perform this type substitution. In the future, the compiler should detect this situation and diagnose it, instead of crashing. A savvy compiler engineer will immediately suggest at least two possible approaches for doing so:
 \begin{enumerate}
@@ -1005,7 +1011,7 @@ Before we look at an informal proof of the undecidability of the halting problem
 
 We know Swift is Turing-complete, so we can prove the halting problem with an imagined Swift dialect having an introspection facility for function values: either giving their source code, syntax tree, machine code, or anything else. (This is not a real requirement though; with a bit of setup, the function type \texttt{() -> ()} appearing below could be replaced with \texttt{String}, or \texttt{Array<Int>}, or any other possible representation of a computable function.) We also require our functions to be deterministic, in the sense that every execution carries out the same series of steps, and they do not depend on any external input or output, other than the arguments given to the function itself.
 
-Now, we assume we have a magical function, that in a finite number of steps, can decide if some other function always halts---a \emph{termination checker}:
+Now, we assume we have a magical function, that in a finite number of steps, can decide if some other function always halts---a \index{termination}\index{termination checking@see{halting problem}}\emph{termination checker}:
 \begin{Verbatim}
 func halts(_ f: () -> ()) -> Bool {...}
 \end{Verbatim}
@@ -1025,7 +1031,7 @@ func naughty() {
 }
 \end{Verbatim}
 
-This function is naughty, because it leads to a contradiction. If \texttt{halts(naughty)} were to return true, then \texttt{naughty()} would run forever, thus \texttt{halts(naughty)} cannot be true. Correspondingly, if \texttt{halts(naughty)} were to return false, then \texttt{naughty()} would terminate, so \texttt{halts(naughty)} cannot be false. The only other possibility is that \texttt{halts(naughty)} runs forever without returning anything. But this cannot happen either, since we assumed that \texttt{halts()} itself makes its determination in a finite number of steps. Thus, no function \texttt{halts()} can exist with the behavior we specified---we say the halting problem is \index{undecidable problem}\emph{undecidable}.
+This function is naughty, because it leads to a contradiction. If \texttt{halts(naughty)} were to return true, then \texttt{naughty()} would run forever, thus \texttt{halts(naughty)} cannot be true. Correspondingly, if \texttt{halts(naughty)} were to return false, then \texttt{naughty()} would terminate, so \texttt{halts(naughty)} cannot be false. The only other possibility is that \texttt{halts(naughty)} runs forever without returning anything. But this cannot happen either, since we assumed that \texttt{halts()} itself makes its determination in a finite number of steps. Thus, no function \texttt{halts()} can exist with the behavior we specified---we say the halting problem is \index{undecidable problem!halting problem}\emph{undecidable}.
 
 To make this argument precise, some care must be taken in the formal construction of the ``fixed point'' \texttt{naughty()} function, on whose existence the whole argument hinges. The intuition here, though, is that in any sufficiently expressive formal system, we can always ``outwit'' any purported termination checking algorithm, no matter how sophisticated it may appear to be, by encoding the termination checker itself within our formalism, and acting on what it might do.
 
@@ -1168,7 +1174,7 @@ struct CC<T: P>: P {
 \newcommand{\AssocConfCP}{\AssocConf{Self.[P]C}{P}}
 \newcommand{\AssocConfTP}{\AssocConf{Self.[P]T}{P}}
 
-We only need one generic parameter type for the below, so let's write $\uptau$ in place of the generic parameter type $\ttgp{0}{0}$. We're going to define a series of substitution maps for the protocol generic signature $G_\texttt{P}$ (that is, \texttt{<$\uptau$ where $\uptau$:~P>}). The simplest is the \index{identity substitution map}identity substitution map, which we will denote in the below by the symbol $1$:
+We only need one generic parameter type for the below, so let's write $\uptau$ in place of the generic parameter type $\ttgp{0}{0}$. We're going to define a series of substitution maps for the protocol generic signature $\GP$ (that is, \texttt{<$\uptau$ where $\uptau$:~P>}). The simplest is the \index{identity substitution map}identity substitution map, which we will denote in the below by the symbol $1$:
 \[1 := \SubstMapC{\SubstType{$\uptau$}{$\uptau$}}{\SubstConf{$\uptau$}{$\uptau$}{P}}\]
 We will build up our tag system by considering how to perform each of these in turn:
 \begin{enumerate}
@@ -1215,7 +1221,7 @@ Now, we apply $\SigmaAA$ to the constituents of $\SigmaDel$, making use of the a
 \qquad {} = \AssocConf{Self.[P]Del}{P} \otimes \ConfAAP\\
 \qquad {} = \ConfTP
 \end{gather*}
-Notice that $\uptau$ and $\ConfTP$ are the constituents of the identity substitution map of $G_\texttt{P}$, which we said we denote by $1$; so we've shown that $\SigmaDel\otimes\SigmaAA=1$. The computation of $\SigmaDel\otimes\SigmaBB$ and $\SigmaDel\otimes\SigmaCC$ proceeds in an entirely analogous fashion. Hence, we have the following relationships:
+Notice that $\uptau$ and $\ConfTP$ are the constituents of the identity substitution map of $\GP$, which we said we denote by $1$; so we've shown that $\SigmaDel\otimes\SigmaAA=1$. The computation of $\SigmaDel\otimes\SigmaBB$ and $\SigmaDel\otimes\SigmaCC$ proceeds in an entirely analogous fashion. Hence, we have the following relationships:
 \begin{gather*}
 \SigmaDel\otimes\SigmaAA = 1\\
 \SigmaDel\otimes\SigmaBB = 1\\

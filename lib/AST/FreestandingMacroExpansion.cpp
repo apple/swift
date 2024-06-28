@@ -15,6 +15,7 @@
 #include "swift/AST/Decl.h"
 #include "swift/AST/Expr.h"
 #include "swift/AST/MacroDiscriminatorContext.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 

@@ -231,3 +231,8 @@ extension RawBufferView {
     return BufferView(ptr)
   }
 }
+
+func immortalConflict(immortal: UnsafeRawBufferPointer ) -> dependsOn(immortal) BufferView { // expected-error{{conflict between the parameter name and immortal keyword}}
+  return BufferView(immortal)
+}
+

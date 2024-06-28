@@ -183,7 +183,6 @@ REMARK(warn_implicit_string_processing_import_failed,none,
 REMARK(warn_implicit_backtracing_import_failed,none,
        "unable to perform implicit import of \"_Backtracing\" module: no such module found", ())
 
-ERROR(error_module_name_required,none, "-module-name is required", ())
 ERROR(error_bad_module_name,none,
       "module name \"%0\" is not a valid identifier"
       "%select{|; use -module-name flag to specify an alternate name}1",
@@ -481,6 +480,8 @@ ERROR(unknown_forced_module_loading_mode,none,
       (StringRef))
 ERROR(error_creating_remark_serializer,none,
       "error while creating remark serializer: '%0'", (StringRef))
+ERROR(invalid_can_import_module_version,none,
+      "invalid version passed to -module-can-import-version: '%0'", (StringRef))
 
 REMARK(interface_file_lock_failure,none,
       "building module interface without lock file", ())

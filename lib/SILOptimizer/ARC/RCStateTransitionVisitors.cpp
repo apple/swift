@@ -13,6 +13,7 @@
 #define DEBUG_TYPE "arc-sequence-opts"
 #include "RCStateTransitionVisitors.h"
 #include "ARCBBState.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/Analysis/ARCAnalysis.h"
 #include "swift/SILOptimizer/Analysis/RCIdentityAnalysis.h"
 #include "llvm/Support/Debug.h"

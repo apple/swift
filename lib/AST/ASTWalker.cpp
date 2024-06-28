@@ -58,6 +58,7 @@
 #include "swift/AST/GenericParamList.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/PrettyStackTrace.h"
+#include "swift/Basic/Assertions.h"
 using namespace swift;
 
 void ASTWalker::anchor() {}
@@ -194,11 +195,7 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
   }
 
   bool visitPatternBindingDecl(PatternBindingDecl *PBD) {
-    bool isPropertyWrapperBackingProperty = false;
-    if (auto singleVar = PBD->getSingleVar()) {
-      isPropertyWrapperBackingProperty =
-        singleVar->getOriginalWrappedProperty() != nullptr;
-    }
+    auto *singleVar = PBD->getSingleVar();
 
     for (auto idx : range(PBD->getNumPatternEntries())) {
       if (Pattern *Pat = doIt(PBD->getPattern(idx)))
@@ -206,10 +203,14 @@ class Traversal : public ASTVisitor<Traversal, Expr*, Stmt*,
       else
         return true;
 
-      if (!PBD->getInit(idx) || isPropertyWrapperBackingProperty)
+      if (!PBD->getInit(idx))
         continue;
 
-      if (PBD->isInitializerSubsumed(idx) &&
+      if (singleVar && singleVar->getOriginalWrappedProperty())
+        continue;
+
+      if (PBD->isInitializerSubsumed(idx) && singleVar &&
+          singleVar->getAttrs().hasAttribute<LazyAttr>() &&
           Walker.getLazyInitializerWalkingBehavior() !=
               LazyInitializerWalking::InPatternBinding) {
         break;
@@ -2345,10 +2346,6 @@ bool Traversal::visitSendingTypeRepr(SendingTypeRepr *T) {
 }
 
 bool Traversal::visitCompileTimeConstTypeRepr(CompileTimeConstTypeRepr *T) {
-  return doIt(T->getBase());
-}
-
-bool Traversal::visitResultDependsOnTypeRepr(ResultDependsOnTypeRepr *T) {
   return doIt(T->getBase());
 }
 

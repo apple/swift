@@ -14,6 +14,7 @@
 #include "swift/AST/DiagnosticsRefactoring.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/USRGeneration.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/StringExtras.h"
 #include "swift/Frontend/PrintingDiagnosticConsumer.h"
 #include "swift/IDE/IDEBridging.h"

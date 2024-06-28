@@ -16,6 +16,7 @@
 
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsDriver.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/LLVMInitialize.h"
 #include "swift/Basic/InitializeSwiftModules.h"
 #include "swift/Basic/PrettyStackTrace.h"
@@ -103,10 +104,6 @@ void *MainAddr);
 /// Run 'swift-api-digester'
 extern int swift_api_digester_main(ArrayRef<const char *> Args,
                                    const char *Argv0, void *MainAddr);
-
-/// Run 'swift-api-extract'
-extern int swift_api_extract_main(ArrayRef<const char *> Args,
-                                  const char *Argv0, void *MainAddr);
 
 /// Run 'swift-cache-tool'
 extern int swift_cache_tool_main(ArrayRef<const char *> Args, const char *Argv0,
@@ -397,10 +394,6 @@ static int run_driver(StringRef ExecName,
       argv[0], (void *)(intptr_t)getExecutablePath);
   case Driver::DriverKind::SymbolGraph:
       return swift_symbolgraph_extract_main(TheDriver.getArgsWithoutProgramNameAndDriverMode(argv), argv[0], (void *)(intptr_t)getExecutablePath);
-  case Driver::DriverKind::APIExtract:
-    return swift_api_extract_main(
-        TheDriver.getArgsWithoutProgramNameAndDriverMode(argv), argv[0],
-        (void *)(intptr_t)getExecutablePath);
   case Driver::DriverKind::APIDigester:
     return swift_api_digester_main(
         TheDriver.getArgsWithoutProgramNameAndDriverMode(argv), argv[0],

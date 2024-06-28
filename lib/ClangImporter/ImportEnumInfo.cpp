@@ -18,6 +18,7 @@
 #include "ClangAdapter.h"
 #include "ImportEnumInfo.h"
 #include "ImporterImpl.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/StringExtras.h"
 #include "swift/Parse/Lexer.h"
 #include "clang/AST/Attr.h"

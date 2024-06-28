@@ -12,6 +12,7 @@
 
 #include "swift/SIL/PrunedLiveness.h"
 #include "swift/AST/TypeExpansionContext.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
 #include "swift/SIL/BasicBlockUtils.h"
@@ -216,12 +217,12 @@ void PrunedLiveRange<LivenessWithDefs>::updateForUse(
 template <typename LivenessWithDefs>
 void PrunedLiveRange<LivenessWithDefs>::updateForUse(SILInstruction *user,
                                                      bool lifetimeEnding) {
-  updateForUse(user, LifetimeEnding(lifetimeEnding));
+  updateForUse(user, LifetimeEnding::forUse(lifetimeEnding));
 }
 
 template <typename LivenessWithDefs>
 void PrunedLiveRange<LivenessWithDefs>::extendToNonUse(SILInstruction *inst) {
-  updateForUse(inst, LifetimeEnding::NonUse());
+  updateForUse(inst, LifetimeEnding::Value::NonUse);
 }
 
 template <typename LivenessWithDefs>

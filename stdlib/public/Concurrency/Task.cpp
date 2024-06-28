@@ -192,6 +192,27 @@ FutureFragment::Status AsyncTask::waitFuture(AsyncTask *waitingTask,
   }
 }
 
+// Implemented in Swift because we need to obtain the user-defined flags on the executor ref.
+//
+// We could inline this with effort, though.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
+extern "C" SWIFT_CC(swift)
+TaskExecutorRef _task_taskExecutor_getTaskExecutorRef(
+    HeapObject *executor, const Metadata *selfType,
+    const TaskExecutorWitnessTable *wtable);
+#pragma clang diagnostic pop
+
+TaskExecutorRef
+InitialTaskExecutorOwnedPreferenceTaskOptionRecord::getExecutorRefFromUnownedTaskExecutor() const {
+  TaskExecutorRef executorRef = _task_taskExecutor_getTaskExecutorRef(
+      Identity,
+      /*selfType=*/swift_getObjectType(Identity),
+      /*wtable=*/WitnessTable);
+    return executorRef;
+}
+
+
 void NullaryContinuationJob::process(Job *_job) {
   auto *job = cast<NullaryContinuationJob>(_job);
 
@@ -652,6 +673,7 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
   // Collect the options we know about.
   SerialExecutorRef serialExecutor = SerialExecutorRef::generic();
   TaskExecutorRef taskExecutor = TaskExecutorRef::undefined();
+  bool taskExecutorIsOwned = false;
   TaskGroup *group = nullptr;
   AsyncLet *asyncLet = nullptr;
   bool hasAsyncLetResultBuffer = false;
@@ -663,10 +685,22 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
                           ->getExecutorRef();
       break;
 
-    case TaskOptionRecordKind::InitialTaskExecutor:
-      taskExecutor = cast<InitialTaskExecutorPreferenceTaskOptionRecord>(option)
+    case TaskOptionRecordKind::InitialTaskExecutorUnowned:
+      taskExecutor = cast<InitialTaskExecutorRefPreferenceTaskOptionRecord>(option)
                          ->getExecutorRef();
       jobFlags.task_setHasInitialTaskExecutorPreference(true);
+      taskExecutorIsOwned = false;
+      break;
+
+    case TaskOptionRecordKind::InitialTaskExecutorOwned:
+      #if SWIFT_CONCURRENCY_EMBEDDED
+      swift_unreachable("owned TaskExecutor cannot be used in embedded Swift");
+      #else
+      taskExecutor = cast<InitialTaskExecutorOwnedPreferenceTaskOptionRecord>(option)
+                         ->getExecutorRefFromUnownedTaskExecutor();
+      taskExecutorIsOwned = true;
+      jobFlags.task_setHasInitialTaskExecutorPreference(true);
+      #endif
       break;
 
     case TaskOptionRecordKind::TaskGroup:
@@ -729,17 +763,16 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
     assert(initialContextSize >= sizeof(FutureAsyncContext));
   }
 
-  // Add to the task group, if requested.
-  if (taskCreateFlags.addPendingGroupTaskUnconditionally()) {
-    assert(group && "Missing group");
-    swift_taskGroup_addPending(group, /*unconditionally=*/true);
-  }
-
-  AsyncTask *parent = nullptr;
   AsyncTask *currentTask = swift_task_getCurrent();
-  if (jobFlags.task_isChildTask()) {
-    parent = currentTask;
-    assert(parent != nullptr && "creating a child task with no active task");
+  AsyncTask *parent = jobFlags.task_isChildTask() ? currentTask : nullptr;
+
+  if (group) {
+    assert(parent && "a task created in a group must be a child task");
+    // Add to the task group, if requested.
+    if (taskCreateFlags.addPendingGroupTaskUnconditionally()) {
+      assert(group && "Missing group");
+      swift_taskGroup_addPending(group, /*unconditionally=*/true);
+    }
   }
 
   // Start with user specified priority at creation time (if any)
@@ -983,12 +1016,51 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
     // In a task group we would not have allowed the `add` to create a child anymore,
     // however better safe than sorry and `async let` are not expressed as task groups,
     // so they may have been spawned in any case still.
-    if (swift_task_isCancelled(parent) ||
-        (group && group->isCancelled()))
+    if ((group && group->isCancelled()) || swift_task_isCancelled(parent))
       swift_task_cancel(task);
 
-    // Initialize task locals with a link to the parent task.
-    task->_private().Local.initializeLinkParent(task, parent);
+    // Initialize task locals storage
+    bool taskLocalStorageInitialized = false;
+
+    // Inside a task group, we may have to perform some defensive copying,
+    // check if doing so is necessary, and initialize storage using partial
+    // defensive copies if necessary.
+    if (group) {
+      assert(parent && "a task created in a group must be a child task");
+      // We are a child task in a task group; and it may happen that we are calling
+      // addTask specifically in such shape:
+      //
+      //     $local.withValue(theValue) { addTask {} }
+      //
+      // If this is the case, we MUST copy `theValue` (and any other such directly
+      // wrapping the addTask value bindings), because those values will be popped
+      // when withValue returns - breaking our structured concurrency guarantees
+      // that we rely on for the "link directly to parent's task local Item".
+      //
+      // Values set outside the task group are not subject to this problem, as
+      // their structural lifetime guarantee is upheld by the group scope
+      // out-living any addTask created tasks.
+      auto ParentLocal = parent->_private().Local;
+      // If we were going to copy ALL values anyway, we don't need to
+      // perform this defensive partial copying. In practice, we currently
+      // do not have child tasks which force copying, but we could.
+      assert(!taskCreateFlags.copyTaskLocals() &&
+             "Currently we don't have child tasks which force copying task "
+             "locals; unexpected attempt to combine the two!");
+
+      if (auto taskLocalHeadLinkType = ParentLocal.peekHeadLinkType()) {
+        if (taskLocalHeadLinkType ==
+            swift::TaskLocal::NextLinkType::IsNextCreatedInTaskGroupBody) {
+          ParentLocal.copyToOnlyOnlyFromCurrentGroup(task);
+          taskLocalStorageInitialized = true;
+        }
+      }
+    }
+
+    if (!taskLocalStorageInitialized) {
+      // just initialize the storage normally
+      task->_private().Local.initializeLinkParent(task, parent);
+    }
   }
 
   // Configure the initial context.
@@ -1040,7 +1112,8 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
     // Implementation note: we must do this AFTER `swift_taskGroup_attachChild`
     // because the group takes a fast-path when attaching the child record.
     assert(jobFlags.task_hasInitialTaskExecutorPreference());
-    task->pushInitialTaskExecutorPreference(taskExecutor);
+    task->pushInitialTaskExecutorPreference(
+        taskExecutor, /*owned=*/taskExecutorIsOwned);
   }
 
   // If we're supposed to enqueue the task, do so now.
@@ -1050,7 +1123,7 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
 #endif
     swift_retain(task);
     task->flagAsAndEnqueueOnExecutor(
-        serialExecutor); // FIXME: pass the task executor explicitly?
+        serialExecutor);
   }
 
   return {task, initialContext};

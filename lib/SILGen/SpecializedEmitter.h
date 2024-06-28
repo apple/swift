@@ -20,6 +20,7 @@
 #include "swift/Basic/LLVM.h"
 #include "swift/AST/Identifier.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 
 namespace swift {
 class Expr;

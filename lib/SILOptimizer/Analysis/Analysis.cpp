@@ -14,6 +14,7 @@
 #include "swift/SILOptimizer/Analysis/Analysis.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/SILOptions.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"

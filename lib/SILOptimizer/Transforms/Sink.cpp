@@ -19,6 +19,7 @@
 
 #define DEBUG_TYPE "sink-instructions"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/Dominance.h"
 #include "swift/SIL/SILArgument.h"

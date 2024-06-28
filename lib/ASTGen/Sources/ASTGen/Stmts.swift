@@ -129,7 +129,7 @@ extension ASTGenVisitor {
       } else {
         let identifier = pat.boundName
         if identifier != nil {
-          // For `if let foo { }` Create an implicit `foo` expression as the initializer.
+          // For `if let foo { }` Create a `foo` expression as the initializer.
           let ref = BridgedDeclNameRef.createParsed(.createIdentifier(identifier))
           let loc = BridgedDeclNameLoc.createParsed(self.generateSourceLoc(node.pattern))
           initializer =
@@ -139,7 +139,6 @@ extension ASTGenVisitor {
               kind: .ordinary,
               loc: loc
             ).asExpr
-          initializer.setImplicit()
         } else {
           // FIXME: Implement.
           // For `if let foo.bar {`, diagnose and convert it to `if let _ =  foo.bar`

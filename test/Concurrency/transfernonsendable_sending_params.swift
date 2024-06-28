@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-sil -parse-as-library -disable-availability-checking -strict-concurrency=complete -enable-experimental-feature TransferringArgsAndResults -verify %s -o /dev/null -enable-upcoming-feature GlobalActorIsolatedTypesUsability
+// RUN: %target-swift-frontend -emit-sil -parse-as-library -disable-availability-checking -strict-concurrency=complete -verify %s -o /dev/null -enable-upcoming-feature GlobalActorIsolatedTypesUsability
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
@@ -358,20 +358,17 @@ func testTransferOtherParamTuple(_ x: sending Klass, y: (Klass, Klass)) async {
 func fakeInitOutside(operation: sending @escaping () async -> ()) {}
 
 func taskIsolatedOutsideError(_ x: @escaping @MainActor () async -> ()) {
-  fakeInitOutside(operation: x) // expected-warning {{sending 'x' risks causing data races}}
-  // expected-note @-1 {{task-isolated 'x' is passed as a 'sending' parameter; Uses in callee may race with later task-isolated uses}}
+  fakeInitOutside(operation: x) // okay; x is @Sendable
 }
 
 @MainActor func actorIsolatedOutsideError(_ x: @escaping @MainActor () async -> ()) {
-  fakeInitOutside(operation: x) // expected-warning {{sending 'x' risks causing data races}}
-  // expected-note @-1 {{main actor-isolated 'x' is passed as a 'sending' parameter; Uses in callee may race with later main actor-isolated uses}}
+  fakeInitOutside(operation: x) // okay; x is @Sendable
 }
 
 func taskIsolatedInsideError(_ x: @escaping @MainActor () async -> ()) {
   func fakeInit(operation: sending @escaping () async -> ()) {}
 
-  fakeInit(operation: x) // expected-warning {{sending 'x' risks causing data races}}
-  // expected-note @-1 {{task-isolated 'x' is passed as a 'sending' parameter; Uses in callee may race with later task-isolated uses}}
+  fakeInit(operation: x)  // okay; x is @Sendable
 }
 
 @MainActor func actorIsolatedInsideError(_ x: @escaping @MainActor () async -> ()) {
@@ -413,4 +410,11 @@ actor NonSendableInit {
     get { fatalError() }
     set { fatalError() }
   }
+}
+
+func testNoCrashWhenSendingNoEscapeClosure() async {
+  func test(_ x: sending () -> ()) async {}
+
+  let c = Klass()
+  await test { print(c) }
 }

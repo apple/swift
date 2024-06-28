@@ -1,5 +1,5 @@
-// RUN: %swift -emit-ir %s -enable-experimental-feature IsolatedAny -target x86_64-apple-macosx10.10 -disable-legacy-type-info -parse-stdlib | %FileCheck -DINT=i64 %s -check-prefixes=CHECK,CHECK-ACCESSOR
-// RUN: %swift -emit-ir %s -enable-experimental-feature IsolatedAny -target x86_64-unknown-linux-gnu -disable-legacy-type-info -parse-stdlib | %FileCheck -DINT=i64 %s -check-prefixes=CHECK,CHECK-DEMANGLE
+// RUN: %swift -emit-ir %s -target x86_64-apple-macosx10.10 -disable-legacy-type-info -parse-stdlib | %FileCheck -DINT=i64 %s -check-prefixes=CHECK,CHECK-ACCESSOR
+// RUN: %swift -emit-ir %s -target x86_64-unknown-linux-gnu -disable-legacy-type-info -parse-stdlib | %FileCheck -DINT=i64 %s -check-prefixes=CHECK,CHECK-DEMANGLE
 
 // REQUIRES: concurrency
 

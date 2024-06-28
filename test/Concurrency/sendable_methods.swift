@@ -42,6 +42,7 @@ struct InferredSendableS: P {
 
 enum InferredSendableE: P {
   case a, b
+  case c(Int)
   
   func f() { }
 }
@@ -59,6 +60,13 @@ struct GenericS<T> : P {
 
   func g() async { }
 }
+
+enum GenericE<T> {
+  case a
+  case b(T)
+}
+
+extension GenericE: Sendable where T: Sendable { }
 
 class NonSendable {
   func f() {}
@@ -263,5 +271,18 @@ do {
 
   func test(c: C) -> (any Sendable)? {
     true ? nil : c // Ok
+  }
+}
+
+func acceptSendableFunc<T, U>(_: @Sendable (T) -> U) { }
+
+acceptSendableFunc(InferredSendableE.c)
+acceptSendableFunc(GenericE<Int>.b)
+acceptSendableFunc(GenericE<NonSendable>.b)
+
+// Make sure pattern matching isn't affected by @Sendable on cases.
+func testPatternMatch(ge: [GenericE<Int>]) {
+  if case .b(let a) = ge.first {
+    _ = a
   }
 }

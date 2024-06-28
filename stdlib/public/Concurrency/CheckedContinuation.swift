@@ -159,7 +159,7 @@ public struct CheckedContinuation<T, E: Error>: Sendable {
   /// After `resume` enqueues the task, control immediately returns to
   /// the caller. The task continues executing when its executor is
   /// able to reschedule it.
-  public func resume(returning value: __owned T) {
+  public func resume(returning value: sending T) {
     if let c: UnsafeContinuation<T, E> = canary.takeContinuation() {
       c.resume(returning: value)
     } else {
@@ -206,7 +206,7 @@ extension CheckedContinuation {
   /// the caller. The task continues executing when its executor is
   /// able to reschedule it.
   @_alwaysEmitIntoClient
-  public func resume<Er: Error>(with result: Result<T, Er>) where E == Error {
+  public func resume<Er: Error>(with result: __shared sending Result<T, Er>) where E == Error {
     switch result {
       case .success(let val):
         self.resume(returning: val)
@@ -230,7 +230,7 @@ extension CheckedContinuation {
   /// the caller. The task continues executing when its executor is
   /// able to reschedule it.
   @_alwaysEmitIntoClient
-  public func resume(with result: Result<T, E>) {
+  public func resume(with result: __shared sending Result<T, E>) {
     switch result {
       case .success(let val):
         self.resume(returning: val)
@@ -291,9 +291,11 @@ public func withCheckedContinuation<T>(
   isolation: isolated (any Actor)? = #isolation,
   function: String = #function,
   _ body: (CheckedContinuation<T, Never>) -> Void
-) async -> T {
-  return await withUnsafeContinuation {
-    body(CheckedContinuation(continuation: $0, function: function))
+) async -> sending T {
+  return await Builtin.withUnsafeContinuation {
+    let unsafeContinuation = UnsafeContinuation<T, Never>($0)
+    return body(CheckedContinuation(continuation: unsafeContinuation,
+                                    function: function))
   }
 }
 
@@ -350,9 +352,11 @@ public func withCheckedThrowingContinuation<T>(
   isolation: isolated (any Actor)? = #isolation,
   function: String = #function,
   _ body: (CheckedContinuation<T, Error>) -> Void
-) async throws -> T {
-  return try await withUnsafeThrowingContinuation {
-    body(CheckedContinuation(continuation: $0, function: function))
+) async throws -> sending T {
+  return try await Builtin.withUnsafeThrowingContinuation {
+    let unsafeContinuation = UnsafeContinuation<T, Error>($0)
+    return body(CheckedContinuation(continuation: unsafeContinuation,
+                                    function: function))
   }
 }
 
@@ -393,7 +397,7 @@ internal func _createCheckedThrowingContinuation<T>(
 @_alwaysEmitIntoClient
 internal func _resumeCheckedContinuation<T>(
   _ continuation: CheckedContinuation<T, Never>,
-  _ value: __owned T
+  _ value: sending T
 ) {
   continuation.resume(returning: value)
 }
@@ -402,7 +406,7 @@ internal func _resumeCheckedContinuation<T>(
 @_alwaysEmitIntoClient
 internal func _resumeCheckedThrowingContinuation<T>(
   _ continuation: CheckedContinuation<T, Error>,
-  _ value: __owned T
+  _ value: sending T
 ) {
   continuation.resume(returning: value)
 }
@@ -411,7 +415,7 @@ internal func _resumeCheckedThrowingContinuation<T>(
 @_alwaysEmitIntoClient
 internal func _resumeCheckedThrowingContinuationWithError<T>(
   _ continuation: CheckedContinuation<T, Error>,
-  _ error: __owned Error
+  _ error: consuming Error
 ) {
   continuation.resume(throwing: error)
 }

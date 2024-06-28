@@ -18,15 +18,13 @@ sil_vtable A {}
 
 sil @create_error : $@convention(thin) () -> @owned A
 
-// CHECK: define{{.*}} swiftcc void @throw_error(ptr swiftself %0, ptr noalias nocapture swifterror dereferenceable({{.*}}) %1, ptr %2)
+// CHECK: define{{.*}} swiftcc { ptr, ptr } @throw_error(ptr swiftself %0, ptr noalias nocapture swifterror dereferenceable({{.*}}) %1)
 // CHECK:   [[ERR:%.*]] = call swiftcc ptr @create_error()
 // CHECK:   call ptr @swift_retain(ptr returned [[ERR]])
-// CHECK:   [[F1:%.*]] = getelementptr inbounds %T12typed_throws1SV, ptr %2, i32 0, i32 0
-// CHECK:   store ptr [[ERR]], ptr [[F1]]
-// CHECK:   [[F2:%.*]] = getelementptr inbounds %T12typed_throws1SV, ptr %2, i32 0, i32 1
-// CHECK:   store ptr [[ERR]], ptr [[F2]]
 // CHECK:   store ptr inttoptr (i64 1 to ptr), ptr %1
-// CHECK:   ret void
+// CHECK:   [[RET_v1:%.*]] = insertvalue { ptr, ptr } undef, ptr [[ERR]], 0
+// CHECK:   [[RET_v2:%.*]] = insertvalue { ptr, ptr } [[RET_v1]], ptr [[ERR]], 1
+// CHECK:   ret { ptr, ptr } [[RET_v2]]
 // CHECK: }
 
 sil @throw_error : $@convention(thin) () -> @error S {
@@ -49,27 +47,24 @@ sil @try_apply_helper : $@convention(thin) (@owned AnyObject) -> (@owned AnyObje
 // CHECK: entry:
 // CHECK:   %swifterror = alloca swifterror ptr
 // CHECK:   store ptr null, ptr %swifterror
-// CHECK:   %swifterror1 = alloca %T12typed_throws1SV
-// CHECK:   [[RES:%.*]] = call swiftcc ptr @try_apply_helper(ptr %0, ptr swiftself undef, ptr noalias nocapture swifterror dereferenceable({{.*}}) %swifterror, ptr %swifterror1)
+// CHECK:   [[RES:%.*]] = call swiftcc { ptr, ptr } @try_apply_helper(ptr %0, ptr swiftself undef, ptr noalias nocapture swifterror dereferenceable({{.*}}) %swifterror)
+// CHECK:   [[RES_0:%.*]] = extractvalue { ptr, ptr } [[RES]], 0
+// CHECK:   [[RES_1:%.*]] = extractvalue { ptr, ptr } [[RES]], 1
 // CHECK:   [[ERRFLAG:%.*]] = load ptr, ptr %swifterror
 // CHECK:   [[C:%.*]] = icmp ne ptr [[ERRFLAG]], null
 // CHECK:   br i1 [[C]], label %[[ERR_B:.*]], label %[[SUCC_B:[0-9]+]]
 
 // CHECK: [[ERR_B]]:
-// CHECK:   %swifterror1.x = getelementptr inbounds %T12typed_throws1SV, ptr %swifterror1, i32 0, i32 0
-// CHECK:   [[ERR_v1:%.*]] = load ptr, ptr %swifterror1.x
-// CHECK:   %swifterror1.y = getelementptr inbounds %T12typed_throws1SV, ptr %swifterror1, i32 0, i32 1
-// CHECK:   [[ERR_v2:%.*]] = load ptr, ptr %swifterror1.y
 // CHECK:   br label %[[ERR2_B:[0-9]+]]
 
 // CHECK: [[SUCC_B]]:
-// CHECK:   [[R:%.*]] = phi ptr [ [[RES]], %entry ]
+// CHECK:   [[R:%.*]] = phi ptr [ [[RES_0]], %entry ]
 // CHECK:   call void @swift_{{.*}}elease(ptr [[R]])
 // CHECK:   br label %[[RET_B:[0-9]+]]
 
 // CHECK: [[ERR2_B]]:
-// CHECK:   [[E1:%.*]] = phi ptr [ [[ERR_v1]], %[[ERR_B]] ]
-// CHECK:   [[E2:%.*]] = phi ptr [ [[ERR_v2]], %[[ERR_B]] ]
+// CHECK:   [[E1:%.*]] = phi ptr [ [[RES_0]], %[[ERR_B]] ]
+// CHECK:   [[E2:%.*]] = phi ptr [ [[RES_1]], %[[ERR_B]] ]
 // CHECK:   store ptr null, ptr %swifterror
 // CHECK:   call void @swift_release(ptr [[E1]])
 // CHECK:   call void @swift_release(ptr [[E2]])
@@ -210,9 +205,9 @@ bb6:
   return %7 : $()
 }
 
-// CHECK: define{{.*}} internal swiftcc ptr @"$s16try_apply_helperTA"(ptr swiftself %0, ptr noalias nocapture swifterror dereferenceable({{.*}}) %1, ptr %2)
-// CHECK:   tail call swiftcc ptr @try_apply_helper(ptr {{.*}}, ptr swiftself undef, ptr noalias nocapture swifterror dereferenceable({{.*}}) %1, ptr %2)
-// CHECK:   ret ptr
+// CHECK: define{{.*}} internal swiftcc { ptr, ptr } @"$s16try_apply_helperTA"(ptr swiftself %0, ptr noalias nocapture swifterror dereferenceable({{.*}}) %1)
+// CHECK:   tail call swiftcc { ptr, ptr } @try_apply_helper(ptr {{.*}}, ptr swiftself undef, ptr noalias nocapture swifterror dereferenceable({{.*}}) %1)
+// CHECK:   ret { ptr, ptr }
 
 sil @partial_apply_test : $@convention(thin) (@owned AnyObject) -> @owned @callee_guaranteed () ->(@owned AnyObject, @error S) {
 entry(%0: $AnyObject):
@@ -235,8 +230,7 @@ entry(%0: $AnyObject):
 // CHECK:entry:
 // CHECK:  %swifterror = alloca swifterror ptr
 // CHECK:  store ptr null, ptr %swifterror
-// CHECK:  %swifterror1 = alloca %T12typed_throws1SV
-// CHECK:  call swiftcc ptr %0(ptr swiftself %1, ptr noalias nocapture swifterror dereferenceable({{[0-9]+}}) %swifterror, ptr %swifterror1)
+// CHECK:  call swiftcc { ptr, ptr } %0(ptr swiftself %1, ptr noalias nocapture swifterror dereferenceable({{[0-9]+}}) %swifterror)
 
 sil @apply_closure : $@convention(thin) (@guaranteed @callee_guaranteed () -> (@owned AnyObject, @error S)) -> () {
 entry(%0 : $@callee_guaranteed () ->(@owned AnyObject, @error S)):

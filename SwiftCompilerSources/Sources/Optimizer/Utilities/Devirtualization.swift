@@ -33,7 +33,11 @@ private func devirtualize(destroy: some DevirtualizableDestroy, _ context: some 
   if !type.isMoveOnly {
     return true
   }
-  precondition(type.isNominal, "non-copyable non-nominal types not supported, yet")
+
+  if !type.isNominal {
+    // E.g. a non-copyable generic function parameter
+    return true
+  }
 
   let result: Bool
   if type.nominal.hasValueDeinit && !destroy.shouldDropDeinit {

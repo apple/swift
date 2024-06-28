@@ -517,14 +517,14 @@ BUILTIN_SIL_OPERATION(ApplyDerivative, "applyDerivative", Special)
 /// applyTranspose
 BUILTIN_SIL_OPERATION(ApplyTranspose, "applyTranspose", Special)
 
-/// withUnsafeContinuation<T> : (Builtin.RawUnsafeContinuation -> ()) async -> T
+/// withUnsafeContinuation<T> : (Builtin.RawUnsafeContinuation -> ()) async -> sending T
 ///
 /// Unsafely capture the current continuation and pass it to the given
 /// function value. Returns a value of type T when the continuation is
 /// resumed.
 BUILTIN_SIL_OPERATION(WithUnsafeContinuation, "withUnsafeContinuation", Special)
 
-/// withUnsafeThrowingContinuation<T> : (Builtin.RawUnsafeContinuation -> ()) async throws -> T
+/// withUnsafeThrowingContinuation<T> : (Builtin.RawUnsafeContinuation -> ()) async throws -> sending T
 ///
 /// Unsafely capture the current continuation and pass it to the given
 /// function value. Returns a value of type T or throws an error when
@@ -899,6 +899,25 @@ BUILTIN_MISC_OPERATION(StartAsyncLetWithLocalBuffer, "startAsyncLetWithLocalBuff
 /// This is only supported under the task-to-thread concurrency model.
 BUILTIN_MISC_OPERATION(TaskRunInline, "taskRunInline", "", Special)
 
+/// flowSensitiveSelfIsolation<T: Actor>(_ actor: T) -> (any Actor)?
+///
+/// Used only in actor initializers, this builtin lowers to either 'actor'
+/// (wrapped in an optional) or 'nil' depending on whether 'self' has been
+/// initialized at this point. 'actor' is always an alias for the 'self'
+/// being initialized.
+BUILTIN_MISC_OPERATION(FlowSensitiveSelfIsolation, "flowSensitiveSelfIsolation", "", Special)
+
+/// flowSensitiveDistributedSelfIsolation<T: DistributedActor>(
+///   _ actor: T
+/// ) -> (any Actor)?
+///
+/// Used only in distributed actor initializers, this builtin lowers to either
+/// 'actor.asLocalActor' or 'nil' depending on whether 'self' has been
+/// initialized at this point. 'actor' is always an alias for the 'self'
+/// being initialized.
+BUILTIN_MISC_OPERATION(FlowSensitiveDistributedSelfIsolation,
+                       "flowSensitiveDistributedSelfIsolation", "", Special)
+
 /// endAsyncLet(): (Builtin.RawPointer) -> Void
 ///
 /// DEPRECATED. The swift_asyncLet_finish intrinsic and endAsyncLetLifetime
@@ -940,7 +959,7 @@ BUILTIN_MISC_OPERATION(UnprotectedAddressOfBorrowOpaque, "unprotectedAddressOfBo
 ///               initialSerialExecutor: (Builtin.Executor)? = nil,
 ///               taskGroup: Builtin.RawPointer? = nil,
 ///               initialTaskExecutor: (Builtin.Executor)? = nil,
-///               operation: @escaping () async throws -> T)
+///               operation: sending @escaping () async throws -> T)
 ///  -> Builtin.NativeObject, Builtin.RawPointer)
 ///
 /// Create a new task.
@@ -950,7 +969,7 @@ BUILTIN_SIL_OPERATION(CreateTask, "createTask", Special)
 ///                      initialSerialExecutor: (Builtin.Executor)? = nil,
 ///                      taskGroup: Builtin.RawPointer? = nil,
 ///                      initialTaskExecutor: (Builtin.Executor)? = nil,
-///                      operation: @escaping () async throws -> ())
+///                      operation: sending @escaping () async throws -> ())
 ///  -> (Builtin.NativeObject, Builtin.RawPointer)
 ///
 /// Create a new discarding task.
@@ -958,7 +977,7 @@ BUILTIN_SIL_OPERATION(CreateDiscardingTask, "createDiscardingTask", Special)
 
 /// createAsyncTask(): (
 ///     Int,                            // task-creation flags
-///     @escaping () async throws -> T  // function
+///     sending @escaping () async throws -> T  // function
 /// ) -> Builtin.NativeObject
 ///
 /// Legacy spelling of:
@@ -969,7 +988,7 @@ BUILTIN_MISC_OPERATION_WITH_SILGEN(CreateAsyncTask,
 /// createAsyncTaskInGroup(): (
 ///     Int,                            // flags
 ///     Builtin.RawPointer,             // group
-///     @escaping () async throws -> T  // function
+///     sending @escaping () async throws -> T  // function
 /// ) -> Builtin.NativeObject
 ///
 /// Legacy spelling of:
@@ -980,7 +999,7 @@ BUILTIN_SIL_OPERATION(CreateAsyncTaskInGroup,
 /// createAsyncDiscardingTaskInGroup(): (
 ///     Int,                               // flags
 ///     Builtin.RawPointer,                // group
-///     @escaping () async throws -> Void  // function
+///     sending @escaping () async throws -> Void  // function
 /// ) -> Builtin.NativeObject
 ///
 /// Legacy spelling of:
@@ -991,7 +1010,7 @@ BUILTIN_SIL_OPERATION(CreateAsyncDiscardingTaskInGroup,
 /// createAsyncTaskWithExecutor(): (
 ///     Int,                            // flags
 ///     Builtin.Executor,               // executor
-///     @escaping () async throws -> T  // function
+///     sending @escaping () async throws -> T  // function
 /// ) -> Builtin.NativeObject
 ///
 /// Legacy spelling of:
@@ -1003,7 +1022,7 @@ BUILTIN_SIL_OPERATION(CreateAsyncTaskWithExecutor,
 ///     Int,                            // flags
 ///     Builtin.RawPointer,             // group
 ///     Builtin.Executor,               // executor
-///     @escaping () async throws -> T  // function
+///     sending @escaping () async throws -> T  // function
 /// ) -> Builtin.NativeObject
 ///
 /// Legacy spelling of:
@@ -1015,7 +1034,7 @@ BUILTIN_SIL_OPERATION(CreateAsyncTaskInGroupWithExecutor,
 ///     Int,                               // flags
 ///     Builtin.RawPointer,                // group
 ///     Builtin.Executor,                  // executor
-///     @escaping () async throws -> Void  // function
+///     sending @escaping () async throws -> Void  // function
 /// ) -> Builtin.NativeObject
 ///
 /// Legacy spelling of:

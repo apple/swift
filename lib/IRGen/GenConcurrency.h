@@ -104,7 +104,8 @@ std::pair<llvm::Value *, llvm::Value *>
 emitTaskCreate(IRGenFunction &IGF, llvm::Value *flags,
                OptionalExplosion &initialExecutor,
                OptionalExplosion &taskGroup,
-               OptionalExplosion &taskExecutor,
+               OptionalExplosion &taskExecutorUnowned,
+               OptionalExplosion &taskExecutorExistential,
                Explosion &taskFunction,
                SubstitutionMap subs);
 

@@ -332,3 +332,18 @@ bb0(%0 : @guaranteed $Klass):
   %9999 = tuple()
   return %9999 : $()
 }
+
+// CHECK-LABEL: sil [ossa] @test_extend_lifetime : {{.*}} {
+// CHECK:       bb0([[K:%[^,]+]] :
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         extend_lifetime [[K]]
+// CHECK:         br [[LOOP]]
+// CHECK-LABEL: } // end sil function 'test_extend_lifetime'
+sil [ossa] @test_extend_lifetime : $@convention(thin) (@owned Klass) -> () {
+entry(%k : @owned $Klass):
+  br bb1
+bb1:
+  extend_lifetime %k : $Klass
+  br bb1
+}

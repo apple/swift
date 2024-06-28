@@ -28,6 +28,7 @@
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 
@@ -508,6 +509,10 @@ template <class Impl>
 class EffectsHandlingWalker : public ASTWalker {
   Impl &asImpl() { return *static_cast<Impl*>(this); }
 public:
+  LazyInitializerWalking getLazyInitializerWalkingBehavior() override {
+    return LazyInitializerWalking::InAccessor;
+  }
+
   /// Only look at the expansions for effects checking.
   MacroWalking getMacroWalkingBehavior() const override {
     return MacroWalking::Expansion;
@@ -939,7 +944,7 @@ public:
                                   ConditionalEffectKind conditionalKind,
                                   PotentialEffectReason reason) {
     Classification result;
-    if (!thrownError || isNeverThrownError(thrownError))
+    if (isNeverThrownError(thrownError))
       return result;
 
     assert(!thrownError->hasError());
@@ -1251,6 +1256,7 @@ public:
     Classification classification;
     PotentialEffectReason reason = PotentialEffectReason::forPropertyAccess();
     ConcreteDeclRef declRef = E->getDeclRef();
+
     if (auto getter = getEffectfulGetOnlyAccessor(declRef)) {
       reason = getKindOfEffectfulProp(declRef);
       classification = Classification::forDeclRef(
@@ -1283,7 +1289,7 @@ public:
     thrownValue = removeErasureToExistentialError(thrownValue);
 
     Type thrownType = thrownValue->getType();
-    if (!thrownType)
+    if (!thrownType || thrownType->hasError())
       return Classification::forInvalidCode();
 
     // FIXME: Add a potential effect reason for a throw site.
@@ -2018,7 +2024,7 @@ private:
   /// Given the type of an argument, try to determine if it contains
   /// a throws/async function in a way that is permitted to cause a
   /// rethrows/reasync function to throw/async.
-  static Classification 
+  static Classification
   classifyArgumentByType(Type paramType, SubstitutionMap subs,
                          ConditionalEffectKind conditional,
                          PotentialEffectReason reason, EffectKind kind) {
@@ -2084,6 +2090,9 @@ public:
     /// The initializer for a global variable.
     GlobalVarInitializer,
 
+    /// The initializer for a `lazy` variable.
+    LazyVarInitializer,
+
     /// The initializer for an enum element.
     EnumElementInitializer,
 
@@ -2099,8 +2108,12 @@ public:
 
 private:
   static Context getContextForPatternBinding(PatternBindingDecl *pbd) {
+    auto *var = pbd->getSingleVar();
+
     if (!pbd->isStatic() && pbd->getDeclContext()->isTypeContext()) {
       return Context(Kind::IVarInitializer, pbd->getDeclContext());
+    } else if (var && var->getAttrs().hasAttribute<LazyAttr>()) {
+      return Context(Kind::LazyVarInitializer, pbd->getDeclContext());
     } else {
       return Context(Kind::GlobalVarInitializer, pbd->getDeclContext());
     }
@@ -2518,6 +2531,7 @@ public:
 
     case Kind::EnumElementInitializer:
     case Kind::GlobalVarInitializer:
+    case Kind::LazyVarInitializer:
     case Kind::IVarInitializer:
     case Kind::DefaultArgument:
     case Kind::PropertyWrapper:
@@ -2554,6 +2568,7 @@ public:
 
     case Kind::EnumElementInitializer:
     case Kind::GlobalVarInitializer:
+    case Kind::LazyVarInitializer:
     case Kind::IVarInitializer:
     case Kind::DefaultArgument:
     case Kind::PropertyWrapper:
@@ -2580,6 +2595,7 @@ public:
 
     case Kind::EnumElementInitializer:
     case Kind::GlobalVarInitializer:
+    case Kind::LazyVarInitializer:
     case Kind::IVarInitializer:
     case Kind::DefaultArgument:
     case Kind::PropertyWrapper:
@@ -2663,12 +2679,20 @@ public:
   }
 
   /// providing a \c kind helps tailor the emitted message.
-  void
-  diagnoseUnhandledAsyncSite(DiagnosticEngine &Diags, ASTNode node,
+  void diagnoseUnhandledAsyncSite(DiagnosticEngine &Diags, ASTNode node,
                              std::optional<PotentialEffectReason> maybeReason,
                              bool forAwait = false) {
-    if (node.isImplicit())
+    if (node.isImplicit()) {
+      // The reason we return early on implicit nodes is that sometimes we
+      // inject implicit closures, e.g. in 'async let' and we'd end up
+      // "double reporting" some errors, with no great way to make sure the
+      // "more specific diagnostic" is emitted. So instead, we avoid emitting
+      // about implicit code.
+      //
+      // Some synthesized code, like macros, are NOT marked implicit, so we will
+      // report about errors in them properly.
       return;
+    }
 
     switch (getKind()) {
     case Kind::PotentiallyHandled: {
@@ -2681,6 +2705,7 @@ public:
 
     case Kind::EnumElementInitializer:
     case Kind::GlobalVarInitializer:
+    case Kind::LazyVarInitializer:
     case Kind::IVarInitializer:
     case Kind::DefaultArgument:
     case Kind::PropertyWrapper:
@@ -2691,6 +2716,7 @@ public:
       return;
     }
   }
+
 };
 
 /// A class to walk over a local context and validate the correctness
@@ -2723,13 +2749,13 @@ class CheckEffectsCoverage : public EffectsHandlingWalker<CheckEffectsCoverage> 
 
       /// Do we have a throw site using 'try' in this context?
       HasTryThrowSite = 0x10,
-      
+
       /// Are we in the context of an 'await'?
       IsAsyncCovered = 0x20,
-      
+
       /// Do we have any calls to 'async' functions in this context?
       HasAnyAsyncSite = 0x40,
-      
+
       /// Do we have any 'await's in this context?
       HasAnyAwait = 0x80,
 
@@ -3010,9 +3036,24 @@ class CheckEffectsCoverage : public EffectsHandlingWalker<CheckEffectsCoverage> 
   Type getCaughtErrorTypeAt(SourceLoc loc) {
     auto dc = CurContext.getDeclContext();
     auto module = dc->getParentModule();
+
+    // Autoclosures can't be found via ASTScope lookup.
+    if (CurContext.isAutoClosure()) {
+      auto *closure = dyn_cast<AutoClosureExpr>(CurContext.getDeclContext());
+      if (auto type = closure->getEffectiveThrownType())
+        return *type;
+
+      // Otherwise, the closure does not throw.
+      return Ctx.getNeverType();
+    }
+
     if (CatchNode catchNode = ASTScope::lookupCatchNode(module, loc)) {
       if (auto caughtType = catchNode.getThrownErrorTypeInContext(Ctx))
         return *caughtType;
+
+      // If a catch node returns null for its thrown error type, we're
+      // in a non-throwing context.
+      return Ctx.getNeverType();
     }
 
     // Fall back to the error existential.
@@ -3293,7 +3334,7 @@ private:
           CEC.Flags.set(ContextFlags::HasAnyThrowSite);
         return Action::Continue(E);
       }
-      
+
       PostWalkResult<Stmt *> walkToStmtPost(Stmt *S) override {
         if (isa<ThrowStmt>(S))
           CEC.Flags.set(ContextFlags::HasAnyThrowSite);
@@ -3305,7 +3346,7 @@ private:
     for (auto &clause : ICD->getClauses()) {
       // Active clauses are handled by the normal AST walk.
       if (clause.isActive) continue;
-      
+
       for (auto elt : clause.Elements)
         elt.walk(ConservativeThrowChecker(*this));
     }

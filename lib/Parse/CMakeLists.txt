@@ -29,26 +29,10 @@ target_link_libraries(swiftParse PRIVATE
 if (SWIFT_BUILD_SWIFT_SYNTAX)
   target_link_libraries(swiftParse
     PRIVATE
-    SwiftBasicFormat
-    SwiftParser
-    SwiftParserDiagnostics
-    SwiftDiagnostics
-    SwiftSyntax
-    SwiftOperators
-    SwiftSyntaxBuilder
-    SwiftSyntaxMacros
     swiftASTGen
   )
 
   add_dependencies(swiftParse
-    SwiftBasicFormat
-    SwiftParser
-    SwiftParserDiagnostics
-    SwiftDiagnostics
-    SwiftSyntax
-    SwiftOperators
-    SwiftSyntaxBuilder
-    SwiftSyntaxMacros
     swiftASTGen
   )
 endif()

@@ -3,11 +3,11 @@
 
 // RUN: %target-swift-frontend -typecheck %t/use-cxx-types.swift -typecheck -module-name UseCxxTy -emit-clang-header-path %t/UseCxxTy.h -I %t -enable-experimental-cxx-interop -clang-header-expose-decls=all-public -disable-availability-checking
 
-// RUN: %FileCheck %s < %t/UseCxxTy.h
+// RUN: %FileCheck %s --input-file %t/UseCxxTy.h
 
 // RUN: %target-swift-frontend -typecheck %t/use-cxx-types.swift -typecheck -module-name UseCxxTy -emit-clang-header-path %t/UseCxxTyExposeOnly.h -I %t -enable-experimental-cxx-interop -clang-header-expose-decls=has-expose-attr -disable-availability-checking
 
-// RUN: %FileCheck %s < %t/UseCxxTyExposeOnly.h
+// RUN: %FileCheck %s --input-file %t/UseCxxTyExposeOnly.h
 
 // FIXME: remove once https://github.com/apple/swift/pull/60971 lands.
 // RUN: echo "#include \"header.h\"" > %t/full-cxx-swift-cxx-bridging.h
@@ -91,6 +91,9 @@ using anonStructInNS = struct { float row; };
 
 }
 
+enum class SimpleScopedEnum { x = 0, y = 2 };
+typedef SimpleScopedEnum SimpleScopedEnumTypedef;
+
 //--- module.modulemap
 module CxxTest {
     header "header.h"
@@ -131,6 +134,16 @@ public func retNonTrivialTypeAlias() -> ns.TypeAlias {
 }
 
 @_expose(Cxx)
+public func retSimpleScopedEnum() -> SimpleScopedEnum {
+  return .x
+}
+
+@_expose(Cxx)
+public func retSimpleScopedEnumTypedef() -> SimpleScopedEnumTypedef {
+  return .x
+}
+
+@_expose(Cxx)
 public func retSimpleTypedef() -> SimpleTypedef {
     return SimpleTypedef()
 }
@@ -150,6 +163,10 @@ public func takeImmortalTemplate(_ x: ns.ImmortalCInt) {
 
 @_expose(Cxx)
 public func takeNonTrivial2(_ x: ns.NonTrivialTemplateTrivial) {
+}
+
+@_expose(Cxx)
+public func takeSimpleScopedEnum(_ x: SimpleScopedEnum) {
 }
 
 @_expose(Cxx)
@@ -275,6 +292,12 @@ public struct Strct {
 
 // CHECK: ns::NonTrivialTemplate<ns::TrivialinNS> retNonTrivialTypeAlias() noexcept SWIFT_SYMBOL({{.*}}) SWIFT_WARN_UNUSED_RESULT {
 
+// CHECK: SimpleScopedEnum retSimpleScopedEnum() noexcept SWIFT_SYMBOL({{.*}}) SWIFT_WARN_UNUSED_RESULT {
+
+// FIXME: Would we prefer to print these with the typedef names?
+// CHECK: SimpleScopedEnum retSimpleScopedEnumTypedef() noexcept SWIFT_SYMBOL({{.*}}) SWIFT_WARN_UNUSED_RESULT {
+// CHECK: int32_t retSimpleTypedef() noexcept SWIFT_SYMBOL({{.*}}) SWIFT_WARN_UNUSED_RESULT {
+
 // CHECK: SWIFT_INLINE_THUNK Trivial retTrivial() noexcept SWIFT_SYMBOL({{.*}}) SWIFT_WARN_UNUSED_RESULT {
 // CHECK-NEXT: alignas(alignof(Trivial)) char storage[sizeof(Trivial)];
 // CHECK-NEXT: auto * _Nonnull storageObjectPtr = reinterpret_cast<Trivial *>(storage);
@@ -293,6 +316,8 @@ public struct Strct {
 // CHECK: SWIFT_INLINE_THUNK void takeNonTrivial2(const ns::NonTrivialTemplate<ns::TrivialinNS>& x) noexcept SWIFT_SYMBOL({{.*}}) {
 // CHECK-NEXT:   _impl::$s8UseCxxTy15takeNonTrivial2yySo2nsO0037NonTrivialTemplateTrivialinNS_CsGGkdcVF(swift::_impl::getOpaquePointer(x));
 // CHECK-NEXT: }
+
+// CHECK: SWIFT_INLINE_THUNK void takeSimpleScopedEnum(const SimpleScopedEnum& x) noexcept SWIFT_SYMBOL({{.*}}) {
 
 // CHECK: SWIFT_INLINE_THUNK void takeTrivial(const Trivial& x) noexcept SWIFT_SYMBOL({{.*}}) {
 // CHECK-NEXT:   _impl::$s8UseCxxTy11takeTrivialyySo0E0VF(_impl::swift_interop_passDirect_UseCxxTy_uint32_t_0_4(reinterpret_cast<const char *>(swift::_impl::getOpaquePointer(x))));

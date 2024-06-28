@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -target %target-cpu-apple-macos14.0 %s -emit-sil -o /dev/null -verify
+// RUN: %target-swift-frontend -target %target-cpu-apple-macos14.0 %s -emit-sil -o /dev/null -verify -swift-version 6
 
 // REQUIRES: concurrency, OS=macosx
 
@@ -15,4 +15,21 @@ func f<S: AsyncSequence>(s: S) async throws {
   }
 }
 
+// Make sure we don't complain about crossing a concurrency boundary here.
+@MainActor
+class Store<Action: Sendable> {
+    private func intercept(_ action: Action) async throws {
+        await withTaskGroup(of: Optional<Action>.self) { group in
+            for await case let nextAction? in group {
+                _ = nextAction
+            }
+        }
 
+        try await withThrowingTaskGroup(of: Optional<Action>.self) { group in
+            for try await case let nextAction? in group {
+                _ = nextAction
+            }
+        }
+
+    }
+}

@@ -1,0 +1,243 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift Atomics open source project
+//
+// Copyright (c) 2023-2024 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
+import Builtin
+
+% from SwiftAtomics import *
+
+% for U in ["", "U"]:
+%  for bits in atomicBits:
+%  intType = U + "Int" + bits
+%  intStorage = "_Atomic" + bits + "BitStorage"
+
+//===----------------------------------------------------------------------===//
+// ${intType} AtomicRepresentable conformance
+//===----------------------------------------------------------------------===//
+
+%  if bits != "":
+%   # Assume that everyone has word-sized atomics, but check for the rest
+#if _hasAtomicBitWidth(_${bits})
+%  end
+
+@available(SwiftStdlib 6.0, *)
+extension ${intType}: AtomicRepresentable {
+  /// The storage representation type that `Self` encodes to and decodes from
+  /// which is a suitable type when used in atomic operations.
+%   if intType == "Int" or intType == "UInt":
+#if _pointerBitWidth(_64)
+  @available(SwiftStdlib 6.0, *)
+  public typealias AtomicRepresentation = _Atomic64BitStorage
+#elseif _pointerBitWidth(_32)
+  @available(SwiftStdlib 6.0, *)
+  public typealias AtomicRepresentation = _Atomic32BitStorage
+#else
+#error("Unsupported platform")
+#endif
+%   else:
+  @available(SwiftStdlib 6.0, *)
+  public typealias AtomicRepresentation = ${intStorage}
+%   end
+
+  /// Destroys a value of `Self` and prepares an `AtomicRepresentation` storage
+  /// type to be used for atomic operations.
+  ///
+  /// - Note: This is not an atomic operation. This simply encodes the logical
+  ///   type `Self` into its storage representation suitable for atomic
+  ///   operations, `AtomicRepresentation`.
+  ///
+  /// - Parameter value: A valid instance of `Self` that's about to be destroyed
+  ///   to encode an instance of its `AtomicRepresentation`.
+  /// - Returns: The newly encoded `AtomicRepresentation` storage.
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public static func encodeAtomicRepresentation(
+    _ value: borrowing ${intType}
+  ) -> AtomicRepresentation {
+    AtomicRepresentation(value._value)
+  }
+
+  /// Recovers the logical atomic type `Self` by destroying some
+  /// `AtomicRepresentation` storage instance returned from an atomic operation.
+  ///
+  /// - Note: This is not an atomic operation. This simply decodes the storage
+  ///   representation used in atomic operations back into the logical type for
+  ///   normal use, `Self`.
+  ///
+  /// - Parameter storage: The storage representation for `Self` that's used
+  ///   within atomic operations.
+  /// - Returns: The newly decoded logical type `Self`.
+  @available(SwiftStdlib 6.0, *)
+  @_alwaysEmitIntoClient
+  @_transparent
+  public static func decodeAtomicRepresentation(
+    _ representation: consuming AtomicRepresentation
+  ) -> ${intType} {
+    ${intType}(representation._storage)
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// ${intType} atomic operations
+//===----------------------------------------------------------------------===//
+
+@available(SwiftStdlib 6.0, *)
+extension Atomic where Value == ${intType} {
+% for (name, builtinName, op, doc) in integerOperations:
+  /// Perform an atomic ${doc} operation and return the old and new value,
+  /// applying the specified memory ordering.
+  ///
+%   if "Wrapping" in name:
+  /// - Note: This operation silently wraps around on overflow, like the
+  ///   `${op}` operator does on `${intType}` values.
+  ///
+%   end
+  /// - Parameter operand: An integer value.
+  /// - Parameter ordering: The memory ordering to apply on this operation.
+  /// - Returns: A tuple containing the original value before the operation and
+  ///   the new value after the operation.
+  @available(SwiftStdlib 6.0, *)
+  @discardableResult
+  @_semantics("atomics.requires_constant_orderings")
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func ${lowerFirst(name)}(
+    _ operand: ${intType},
+    ordering: AtomicUpdateOrdering
+  ) -> (oldValue: ${intType}, newValue: ${intType}) {
+    let original = switch ordering {
+%   for (nameOrder, _, _, llvmOrder, _) in updateOrderings:
+    case .${nameOrder}:
+%     if intType == "Int" or intType == "UInt":
+#if _pointerBitWidth(_64)
+      Builtin.atomicrmw_${atomicOperationName(intType, builtinName)}_${llvmOrder}_Int64(
+        _rawAddress,
+        operand._value
+      )
+#elseif _pointerBitWidth(_32)
+      Builtin.atomicrmw_${atomicOperationName(intType, builtinName)}_${llvmOrder}_Int32(
+        _rawAddress,
+        operand._value
+      )
+#else
+#error("Unsupported platform")
+#endif
+%     else:
+      Builtin.atomicrmw_${atomicOperationName(intType, builtinName)}_${llvmOrder}_Int${bits}(
+        _rawAddress,
+        operand._value
+      )
+%     end
+%   end
+
+    default:
+      Builtin.unreachable()
+    }
+
+    return (
+      oldValue: ${intType}(original),
+%   if name == "Min":
+      newValue: Swift.min(${intType}(original), operand)
+%   elif name == "Max":
+      newValue: Swift.max(${intType}(original), operand)
+%   else:
+      newValue: ${intType}(original) ${op} operand
+%   end
+    )
+  }
+% end
+
+  /// Perform an atomic add operation and return the old and new value,
+  /// applying the specified memory ordering.
+  ///
+  /// - Note: This operation checks for overflow at runtime and will trap if an
+  ///   overflow does occur. In `-Ounchecked` builds, overflow checking is not
+  ///   performed.
+  ///
+  /// - Parameter operand: An integer value.
+  /// - Parameter ordering: The memory ordering to apply on this operation.
+  /// - Returns: A tuple containing the original value before the operation and
+  ///   the new value after the operation.
+  @available(SwiftStdlib 6.0, *)
+  @discardableResult
+  @_semantics("atomics.requires_constant_orderings")
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func add(
+    _ operand: ${intType},
+    ordering: AtomicUpdateOrdering
+  ) -> (oldValue: ${intType}, newValue: ${intType}) {
+    var result = (
+      exchanged: false,
+      original: load(ordering: .relaxed)
+    )
+    var new: ${intType}
+
+    repeat {
+      new = result.original + operand
+
+      result = weakCompareExchange(
+        expected: result.original,
+        desired: new,
+        ordering: ordering
+      )
+    } while !result.exchanged
+
+    return (oldValue: result.original, newValue: new)
+  }
+
+  /// Perform an atomic subtract operation and return the old and new value,
+  /// applying the specified memory ordering.
+  ///
+  /// - Note: This operation checks for overflow at runtime and will trap if an
+  ///   overflow does occur. In `-Ounchecked` builds, overflow checking is not
+  ///   performed.
+  ///
+  /// - Parameter operand: An integer value.
+  /// - Parameter ordering: The memory ordering to apply on this operation.
+  /// - Returns: A tuple containing the original value before the operation and
+  ///   the new value after the operation.
+  @available(SwiftStdlib 6.0, *)
+  @discardableResult
+  @_semantics("atomics.requires_constant_orderings")
+  @_alwaysEmitIntoClient
+  @_transparent
+  public func subtract(
+    _ operand: ${intType},
+    ordering: AtomicUpdateOrdering
+  ) -> (oldValue: ${intType}, newValue: ${intType}) {
+    var result = (
+      exchanged: false,
+      original: load(ordering: .relaxed)
+    )
+    var new: ${intType}
+
+    repeat {
+      new = result.original - operand
+
+      result = weakCompareExchange(
+        expected: result.original,
+        desired: new,
+        ordering: ordering
+      )
+    } while !result.exchanged
+
+    return (oldValue: result.original, newValue: new)
+  }
+}
+
+%  if bits != "":
+#endif // _hasAtomicBitWidth
+%  end
+
+% end
+% end

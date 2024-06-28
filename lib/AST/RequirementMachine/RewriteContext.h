@@ -51,10 +51,6 @@ class RewriteContext final {
   /// Folding set for uniquing terms.
   llvm::FoldingSet<Term::Storage> Terms;
 
-  /// Cache for transitive closure of inherited protocols.
-  llvm::DenseMap<const ProtocolDecl *,
-                 llvm::TinyPtrVector<const ProtocolDecl *>> AllInherited;
-
   /// Requirement machines built from generic signatures.
   llvm::DenseMap<GenericSignature, RequirementMachine *> Machines;
 
@@ -162,9 +158,6 @@ public:
   /// Reduction order on protocols.
   ///
   //////////////////////////////////////////////////////////////////////////////
-
-  const llvm::TinyPtrVector<const ProtocolDecl *> &
-  getInheritedProtocols(const ProtocolDecl *proto);
 
   int compareProtocols(const ProtocolDecl *lhs,
                        const ProtocolDecl *rhs);

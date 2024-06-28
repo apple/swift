@@ -71,7 +71,7 @@ void SourceLoader::collectVisibleTopLevelModuleNames(
   // TODO: Implement?
 }
 
-bool SourceLoader::canImportModule(ImportPath::Module path,
+bool SourceLoader::canImportModule(ImportPath::Module path, SourceLoc loc,
                                    ModuleVersionInfo *versionInfo,
                                    bool isTestableDependencyLookup) {
   // FIXME: Swift submodules?

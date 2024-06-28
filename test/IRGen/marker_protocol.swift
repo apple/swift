@@ -14,7 +14,7 @@ extension Int: P { }
 extension Array: P where Element: P { }
 
 // No mention of the marker protocol for runtime type instantiation.
-// CHECK-LABEL: @"$sSS_yptMD" =
+// CHECK-LABEL: @"$sSS_15marker_protocol1P_ptMD" =
 // CHECK-SAME: @"symbolic SS_ypt"
 
 // CHECK-LABEL: @"$s15marker_protocol1QMp" = {{(dllexport |protected )?}}constant
@@ -47,7 +47,7 @@ struct HasMarkers {
 
 // Note: no mention of marker protocols when forming a dictionary.
 // CHECK-LABEL: define{{.*}}@"$s15marker_protocol0A12InDictionaryypyF"
-// CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName({{.*}} @"$sSS_yptMD")
+// CHECK: call ptr @__swift_instantiateConcreteTypeFromMangledName({{.*}} @"$sSS_15marker_protocol1P_ptMD")
 public func markerInDictionary() -> Any {
   let dict: [String: P] = ["answer" : 42]
   return dict
@@ -92,7 +92,7 @@ let v1 = (any C & P).self
 let v2 = C.self
 
 // CHECK-LABEL: define hidden swiftcc void @"$s15marker_protocol23testProtocolCompositionyyF"()
-// CHECK: [[V1:%.*]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s15marker_protocol1CCMD")
+// CHECK: [[V1:%.*]] = call ptr @__swift_instantiateConcreteTypeFromMangledName(ptr @"$s15marker_protocol1P_AA1CCXcMD")
 // CHECK: [[V2:%.*]] = load ptr, ptr @"$s15marker_protocol2v2AA1CCmvp"
 func testProtocolComposition() {
   print(v1 == v2)

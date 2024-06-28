@@ -5,6 +5,7 @@
 // RUN: %lldb-moduleimport-test %t/constrained_existentials -type-from-mangled=%t/input | %FileCheck %s --match-full-lines
 
 func blackHole(_: Any...) {}
+func blackHole_noncopyable(_: consuming any ~Copyable) {}
 
 protocol BaseProto<A, B> {
   associatedtype A
@@ -42,4 +43,17 @@ do {
   let e2: (any DerivedProto<Int, String>).Type = (any DerivedProto<Int, String>).self
 
   blackHole(e0, e1, e2)
+}
+
+protocol NCProto: ~Copyable {}
+struct NC: ~Copyable {}
+struct GenNC<T: ~Copyable>: ~Copyable, NCProto {}
+
+do {
+  let e0: any NCProto & ~Copyable = GenNC<NC>()
+  let e1: any NCProto & ~Copyable = GenNC<String>()
+
+  // FIXME: breaks the MoveChecker (rdar://129885532)
+//   blackHole_noncopyable(consume e0)
+//   blackHole_noncopyable(consume e1)
 }

@@ -13,7 +13,6 @@ set(driver_sources_and_options
                 swift_cache_tool_main.cpp
                 swift_indent_main.cpp
                 swift_symbolgraph_extract_main.cpp
-                swift_api_extract_main.cpp
                 swift_parse_test_main.cpp)
 
 set(driver_common_libs
@@ -29,6 +28,17 @@ add_swift_host_library(swiftDriverTool STATIC
 target_link_libraries(swiftDriverTool
                       PUBLIC
                       ${driver_common_libs})
+
+if (SWIFT_BUILD_SWIFT_SYNTAX)
+  target_link_libraries(swiftDriverTool
+    PRIVATE
+    swiftASTGen
+  )
+
+  add_dependencies(swiftDriverTool
+    swiftASTGen
+  )
+endif()
 
 # If building as part of clang, make sure the headers are installed.
 if(NOT SWIFT_BUILT_STANDALONE)

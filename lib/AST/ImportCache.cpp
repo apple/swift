@@ -21,6 +21,7 @@
 #include "swift/AST/FileUnit.h"
 #include "swift/AST/ImportCache.h"
 #include "swift/AST/Module.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace namelookup;

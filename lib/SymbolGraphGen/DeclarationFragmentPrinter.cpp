@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/USRGeneration.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Parse/Token.h"
 #include "DeclarationFragmentPrinter.h"
 #include "SymbolGraphASTWalker.h"
@@ -189,9 +190,17 @@ void DeclarationFragmentPrinter::printAbridgedType(const GenericTypeDecl *TD,
       case DeclKind::Protocol:
         printText(getTokenText(tok::kw_protocol));
         break;
-      case DeclKind::Class:
-        printText(getTokenText(tok::kw_class));
-        break;
+      case DeclKind::Class: {
+        auto *refDecl = cast<ClassDecl>(TD);
+        if (refDecl->isExplicitDistributedActor()) {
+          printText("distributed actor");
+        } else if (refDecl->isExplicitActor()) {
+          printText("actor");
+        } else {
+          printText(getTokenText(tok::kw_class));
+        }
+      break;
+      }
       case DeclKind::TypeAlias:
         printText(getTokenText(tok::kw_typealias));
         break;

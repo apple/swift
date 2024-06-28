@@ -7,4 +7,10 @@ struct InternalStruct {}
 extension [Int: InternalStruct]: Sendable {}
 
 // CHECK: @available(*, unavailable)
-// CHECK: extension Swift.Dictionary : Swift.Copyable, Swift.Escapable, Swift.Sendable where Key : _ConstraintThatIsNotPartOfTheAPIOfThisLibrary {}
+// CHECK-NEXT: extension Swift.Dictionary : Swift.Copyable where Key : _ConstraintThatIsNotPartOfTheAPIOfThisLibrary {}
+
+// CHECK: @available(*, unavailable)
+// CHECK-NEXT: extension Swift.Dictionary : Swift.Escapable where Key : _ConstraintThatIsNotPartOfTheAPIOfThisLibrary {}
+
+// CHECK: @available(*, unavailable)
+// CHECK-NEXT: extension Swift.Dictionary : Swift.Sendable where Key : _ConstraintThatIsNotPartOfTheAPIOfThisLibrary {}

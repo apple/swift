@@ -350,7 +350,6 @@ extension BridgedAttributedTypeSpecifier {
     case .__owned: self = .legacyOwned
     case ._const: self = .const
     case .isolated: self = .isolated
-    case ._resultDependsOn: self = .resultDependsOn
     default: return nil
     }
   }

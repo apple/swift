@@ -13,6 +13,7 @@
 #define DEBUG_TYPE "mandatory-inlining"
 #include "swift/AST/DiagnosticEngine.h"
 #include "swift/AST/DiagnosticsSIL.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/BlotSetVector.h"
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/InstructionUtils.h"
@@ -112,6 +113,7 @@ static  bool fixupReferenceCounts(
     bool hasOwnership = f->hasOwnership();
 
     switch (convention) {
+    case ParameterConvention::Indirect_In_CXX:
     case ParameterConvention::Indirect_In:
       llvm_unreachable("Missing indirect copy");
 
@@ -753,11 +755,9 @@ getCalleeFunction(SILFunction *F, FullApplySite AI, bool &IsThick,
   if (CalleeFunction->empty())
     return nullptr;
 
-  // pcmo TODO: remove F->isSerialiezd() and pass its kind to
-  // canBeInlinedIntoCaller instead.
-  if (F->isSerialized() &&
-      !CalleeFunction->canBeInlinedIntoCaller()) {
-    if (!CalleeFunction->hasValidLinkageForFragileRef()) {
+  if (!CalleeFunction->canBeInlinedIntoCaller(F->getSerializedKind())) {
+    if (F->isAnySerialized() &&
+        !CalleeFunction->hasValidLinkageForFragileRef(F->getSerializedKind())) {
       llvm::errs() << "caller: " << F->getName() << "\n";
       llvm::errs() << "callee: " << CalleeFunction->getName() << "\n";
       llvm_unreachable("Should never be inlining a resilient function into "

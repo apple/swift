@@ -21,6 +21,7 @@
 
 #define DEBUG_TYPE "fso-argument-explosion-transform"
 #include "FunctionSignatureOpts.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace swift;

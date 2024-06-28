@@ -109,6 +109,7 @@
 // MISSING_OPTION_G_ERROR: error: option '-debug-info-format={{.*}}' is missing a required argument (-g)
 
 // RUN: %swift_driver -### -g -dwarf-version=3 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_3 %s
+// DWARF_VERSION_5: -dwarf-version=5
 // DWARF_VERSION_4: -dwarf-version=4
 // DWARF_VERSION_3: -dwarf-version=3
 // DWARF_VERSION_2: -dwarf-version=2
@@ -134,6 +135,17 @@
 // RUN: %swiftc_driver -### -g -target arm64-apple-tvos17.0 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_4 %s
 // RUN: %swift_driver -### -g -target arm64_32-apple-watchos10.0 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_4 %s
 // RUN: %swiftc_driver -### -g -target arm64_32-apple-watchos10.0 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_4 %s
+
+// RUN: %swift_driver -### -g -target x86_64-apple-macosx15 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swiftc_driver -### -g -target x86_64-apple-macosx15 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swift_driver -### -g -target arm64-apple-ios18.0 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swiftc_driver -### -g -target arm64-apple-ios18.0 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swift_driver -### -g -target arm64-apple-ios18.0-macabi %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swiftc_driver -### -g -target arm64-apple-ios18.0-macabi %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swift_driver -### -g -target arm64-apple-tvos18 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swiftc_driver -### -g -target arm64-apple-tvos18 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swift_driver -### -g -target arm64_32-apple-watchos11 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
+// RUN: %swiftc_driver -### -g -target arm64_32-apple-watchos11 %s 2>&1 | %FileCheck -check-prefix DWARF_VERSION_5 %s
 
 // RUN: not %swift_driver -gline-tables-only -debug-info-format=codeview %s 2>&1 | %FileCheck -check-prefix BAD_DEBUG_LEVEL_ERROR %s
 // RUN: not %swift_driver -gdwarf-types -debug-info-format=codeview %s 2>&1 | %FileCheck -check-prefix BAD_DEBUG_LEVEL_ERROR %s

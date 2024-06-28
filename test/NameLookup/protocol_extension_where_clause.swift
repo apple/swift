@@ -29,3 +29,14 @@ extension P1 where Self: A {
 extension P1 where Self: A, B: Hashable {
   func h(_: Set<B>) {}
 }
+
+// This is also terrible and we should ban it
+public protocol P3 {
+  associatedtype A
+}
+
+public protocol P4: P3 where A == B {}
+
+extension P4 {
+  public typealias B = String
+}

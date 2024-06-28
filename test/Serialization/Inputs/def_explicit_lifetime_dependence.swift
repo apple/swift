@@ -68,3 +68,16 @@ public struct Wrapper : ~Escapable {
     }
   }
 }
+
+public enum FakeOptional<Wrapped: ~Escapable>: ~Escapable {
+  case none, some(Wrapped)
+}
+
+extension FakeOptional: Escapable where Wrapped: Escapable {}
+
+extension FakeOptional where Wrapped: ~Escapable {
+  public init(_ nilLiteral: ()) -> dependsOn(immortal) Self {
+    self = .none
+  }
+}
+

@@ -2,28 +2,43 @@
 
 \begin{document}
 
-\chapter{Mathematics Summary}\label{math summary}
+\chapter{Mathematical Conventions}\label{math summary}
 
-The Greek alphabet is sometimes used for variable names and other notation. This book only needs a handful of Greek letters: lowercase $\alpha$~(alpha), $\beta$~(beta), $\gamma$~(gamma), $\varepsilon$~(epsilon), $\pi$~(pi), $\sigma$~(sigma), $\uptau$~(tau) and $\varphi$~(phi); and uppercase $\Sigma$ (sigma).
+The more formal sections in this book are written in ``Euclidean style'', where the text is further subdivided into elements of the below kinds. All elements are numbered consecutively within a single chapter, except for algorithms which use a letter:
+\begin{itemize}
+\item A \textbf{Definition} introduces terminology or notation.
+\item An \textbf{Example} shows how this terminology and notation arises in practice.
+\item A \textbf{Proposition} states a logical consequence of one or more definitions.
+\item A \textbf{Lemma} is an  intermediate proposition in service of proving another theorem.
+\item A \textbf{Theorem} is a ``deeper'' proposition which is more profound in some sense.
+\item A \textbf{Corollary} is an immediate consequence of an earlier theorem.
+\item An \textbf{Algorithm} is a step-by-step description of a computable function, defined in terms of inputs and outputs.
+\end{itemize}
 
-The ``='' operator means two existing things are equivalent. The ``:='' operator defines the new thing on the left in terms of the existing thing on the right.
+A handful of Greek letters are used for variable names and other notation: lowercase $\alpha$~(alpha), $\beta$~(beta), $\gamma$~(gamma), $\varepsilon$~(epsilon), $\eta$~(eta), $\pi$~(pi), $\sigma$~(sigma), $\uptau$~(tau), $\varphi$~(phi); and uppercase $\Sigma$ (sigma). The ``='' operator means two existing things are identical or equivalent; ``$\neq$'' means they are not. The ``:='' operator \emph{defines} the new thing on the left as a combination of existing things on the right. The ``$\leftarrow$'' operator denotes an imperative assignment statement in an algorithm.
+
+\section*{Sets}
 
 \IndexDefinition{set}
 \IndexDefinition{natural numbers}
 \IndexDefinition{integers}
 \IndexDefinition{empty set}
-A \emph{set} is a collection of elements without regard to order or duplicates. Sets can be finite or infinite. A finite set can be specified by listing its elements in any order, for example $\{a,\,b,\,c\}$. The empty set \index{$\varnothing$}\index{$\varnothing$!z@\igobble|seealso{empty set}}$\varnothing$ is the unique set with no elements. The set of \emph{natural numbers} \index{$\mathbb{N}$}\index{$\mathbb{N}$!z@\igobble|seealso{natural numbers}}$\mathbb{N}:=\{0,\,1,\,2,\,\ldots\}$ is the infinite set with zero and its \index{successor}successors. The set of \emph{integers} \index{$\mathbb{Z}$}\index{$\mathbb{N}$!z@\igobble|seealso{integers}}$\mathbb{Z}$ also contains the negative whole numbers.
+A \emph{set} is a collection of elements without regard to order or duplicates. Sets can be finite or infinite. A finite set can be specified by listing its elements in any order, for example $\{a,\,b,\,c\}$. The empty set \index{$\varnothing$}\index{$\varnothing$!z@\igobble|seealso{empty set}}$\varnothing$ is the unique set with no elements. The set of \emph{natural numbers} \index{$\mathbb{N}$}\index{$\mathbb{N}$!z@\igobble|seealso{natural numbers}}$\mathbb{N}:=\{0,\,1,\,2,\,\ldots\}$ is the infinite set containing zero and all of its \index{successor}successors. The set of \emph{integers} \index{$\mathbb{Z}$}\index{$\mathbb{Z}$!z@\igobble|seealso{integers}}$\mathbb{Z}:=\{\ldots,\,-2,\,-1,\,0,\,1,\,2,\,\ldots\}$ also contains the negative whole numbers.
 
-The notation \index{$\in$}\index{$\in$!z@\igobble|seealso{set}}$x\in S$ means ``$x$ is an element of a set $S$,'' and \index{$\notin$}$x\notin S$ is its negation, which is ``$x$ is \emph{not} an element of $S$.'' Properties of sets can be stated using \emph{existential} quantification (``there exists (at least one) $x\in S$ such that $x$ has this property\ldots'') or \emph{universal} quantification (``for all $x\in S$, the following property is true of $x$\ldots'').
+The notation \index{$\in$}\index{$\in$!z@\igobble|seealso{set}}$x\in S$ means ``$x$ is an element of a set $S$,'' and \index{$\notin$}$x\notin S$ is its negation. Properties of sets can be defined using \emph{existential} quantification (``there exists (at least one) $x\in S$ such that $x$ has this property\ldots'') or \emph{universal} quantification (``for all $x\in S$, the following property is true of $x$\ldots'').
 
 \IndexDefinition{subset}%
 \IndexDefinition{proper subset}%
-A set $X$ is a \emph{subset} of another set $Y$, written as \index{$\subseteq$}\index{$\subseteq$!z@\igobble|seealso{subset}}$X\subseteq Y$, if for all $x\in X$, it is also true that $x\in Y$. If $X\subseteq Y$ and $Y\subseteq X$, then $X=Y$. If $X\subseteq Y$ and $X\neq Y$, then $X$ is a \emph{proper} subset of $Y$, written as \index{$\subsetneq$}\index{$\subsetneq$!z@\igobble|seealso{proper subset}}$X\subsetneq Y$. The \IndexDefinition{union}\emph{union} \index{$\cup$}\index{$\cup$!z@\igobble|seealso{union}}$X\cup Y$ is the set of all elements belonging to either $X$ or $Y$. The \IndexDefinition{intersection}\emph{intersection} \index{$\cap$}\index{$\cap$!z@\igobble|seealso{intersection}}$X\cap Y$ is the set of all elements belonging to both $X$ and $Y$. The \IndexDefinition{set difference}\emph{difference} \index{$\setminus$}\index{$\setminus$!z@\igobble|seealso{set difference}}$X\setminus Y$ is the set of all elements of $X$ not also in $Y$.
+A set $X$ is a \emph{subset} of another set $Y$, written as \index{$\subseteq$}\index{$\subseteq$!z@\igobble|seealso{subset}}$X\subseteq Y$, if for all $x\in X$, it is also true that $x\in Y$. If $X\subseteq Y$ and $Y\subseteq X$, then the two sets have the same elements, so they're equal; $X=Y$.
+
+If $X\subseteq Y$ and $X\neq Y$, then $X$ is a \emph{proper} subset of $Y$, written as \index{$\subsetneq$}\index{$\subsetneq$!z@\igobble|seealso{proper subset}}$X\subsetneq Y$. The \IndexDefinition{union}\emph{union} \index{$\cup$}\index{$\cup$!z@\igobble|seealso{union}}$X\cup Y$ is the set of all elements belonging to either $X$ or $Y$. The \IndexDefinition{intersection}\emph{intersection} \index{$\cap$}\index{$\cap$!z@\igobble|seealso{intersection}}$X\cap Y$ is the set of all elements belonging to both $X$ and $Y$. The \IndexDefinition{set difference}\emph{difference} \index{$\setminus$}\index{$\setminus$!z@\igobble|seealso{set difference}}$X\setminus Y$ is the set of all elements of $X$ not also in $Y$.
 
 \IndexDefinition{Cartesian product}
 \IndexDefinition{ordered pair}
 \IndexDefinition{ordered tuple}
 The \emph{Cartesian product} of two sets $X$ and $Y$, denoted \index{$\times$}\index{$\times$!z@\igobble|seealso{Cartesian product}}$X\times Y$, is the set of all \emph{ordered pairs} $(x,y)$ where $x\in X$, $y\in Y$. Note that the ordered pair $(x,y)$ is not the same as the set $\{x,y\}$, because $(x,y)\neq(y,x)$. The Cartesian product construction generalizes to any finite number of sets, to give \emph{ordered tuples} or \emph{sequences}.
+
+\section*{Functions}
 
 \IndexDefinition{binary operation}
 \IndexDefinition{homomorphism}
@@ -35,27 +50,17 @@ A function $f\colon X\times Y\rightarrow Z$ defined on the Cartesian product can
 
 The \emph{cardinality} of a finite set $S$, denoted $|S|$, is the number of elements in $S$. The notation $|x|$ sometimes denotes certain other functions taking values in $\mathbb{N}$, such as the length of a sequence; this will always be explicitly defined when needed.
 
-The more formal sections in this book are written in ``Euclidean style'', where the text is further subdivided into numbered statements of the below kinds:
-\begin{itemize}
-\item A \textbf{Definition} introduces terminology or notation.
-\item An \textbf{Example} shows how this terminology and notation arises in practice.
-\item A \textbf{Proposition} states a logical consequence of one or more definitions.
-\item A \textbf{Lemma} is an  intermediate proposition in service of proving another theorem.
-\item A \textbf{Theorem} is a ``deeper'' proposition which is more profound in some sense.
-\item A \textbf{Corollary} is an immediate consequence of an earlier theorem.
-\item An \textbf{Algorithm} is a step-by-step description of a computable function, defined in terms of inputs and outputs.
-\end{itemize}
+\section*{More}
 
-The mathematical concepts we introduce along the way:
 \begin{itemize}
 \item Formal systems (\SecRef{derived req}).
 \item Equivalence relations (\SecRef{type params}, \SecRef{rewrite graph}).
 \item Partial and linear orders (\SecRef{reduced types}, \SecRef{rewritesystemintro}, \SecRef{reduction order}).
-\item Proof by induction (\SecRef{generic signature validity}).
+\item Category theory (\SecRef{submapcomposition}).
 \item Directed graphs (\SecRef{type parameter graph}, \SecRef{finding conformance paths}, \SecRef{recursive conformances}, \SecRef{protocol component}).
+\item Proof by induction (\SecRef{generic signature validity}).
 \item Computability theory (\SecRef{tag systems}, \SecRef{word problem}).
 \item Finitely-presented monoids and string rewriting (\ChapRef{monoids}, \ChapRef{completion}).
-\item Category theory is briefly mentioned (\SecRef{submapcomposition}).
 \end{itemize}
 
 \end{document}

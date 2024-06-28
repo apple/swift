@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-sil -swift-version 6 -disable-availability-checking -verify %s -o /dev/null -parse-as-library -enable-experimental-feature TransferringArgsAndResults
+// RUN: %target-swift-frontend -emit-sil -swift-version 6 -disable-availability-checking -verify %s -o /dev/null -parse-as-library
 
 // READ THIS: This test is testing specifically behavior around global actor
 // isolated types that are nonsendable. This is a bit of a corner case so we use

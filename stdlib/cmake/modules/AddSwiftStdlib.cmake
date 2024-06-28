@@ -554,13 +554,16 @@ function(_add_target_variant_link_flags)
     list(APPEND link_libraries "dl" "log")
     # We need to add the math library, which is linked implicitly by libc++
     list(APPEND result "-lm")
-    if(NOT "${SWIFT_ANDROID_NDK_PATH}" STREQUAL "")
-      if("${SWIFT_ANDROID_NDK_PATH}" MATCHES "r26")
-        file(GLOB RESOURCE_DIR ${SWIFT_SDK_ANDROID_ARCH_${LFLAGS_ARCH}_PATH}/../lib/clang/*)
-      else()
-        file(GLOB RESOURCE_DIR ${SWIFT_SDK_ANDROID_ARCH_${LFLAGS_ARCH}_PATH}/../lib64/clang/*)
+    if(NOT CMAKE_HOST_SYSTEM MATCHES Windows)
+      # The Android resource dir is specified from build.ps1 on windows.
+      if(NOT "${SWIFT_ANDROID_NDK_PATH}" STREQUAL "")
+        if("${SWIFT_ANDROID_NDK_PATH}" MATCHES "r26")
+          file(GLOB RESOURCE_DIR ${SWIFT_SDK_ANDROID_ARCH_${LFLAGS_ARCH}_PATH}/../lib/clang/*)
+        else()
+          file(GLOB RESOURCE_DIR ${SWIFT_SDK_ANDROID_ARCH_${LFLAGS_ARCH}_PATH}/../lib64/clang/*)
+        endif()
+        list(APPEND result "-resource-dir=${RESOURCE_DIR}")
       endif()
-      list(APPEND result "-resource-dir=${RESOURCE_DIR}")
     endif()
 
     # link against the custom C++ library
@@ -594,6 +597,11 @@ function(_add_target_variant_link_flags)
     else()
       list(APPEND result "-fuse-ld=${linker}")
     endif()
+  endif()
+
+  # Enable build-ids on non-Windows non-Darwin platforms
+  if(SWIFT_SDK_${LFLAGS_SDK}_USE_BUILD_ID)
+    list(APPEND result "-Wl,--build-id=sha1")
   endif()
 
   # Enable dead stripping. Portions of this logic were copied from llvm's
@@ -1757,6 +1765,9 @@ endfunction()
 # SWIFT_MODULE_DEPENDS_WASI
 #   Swift modules this library depends on when built for WASI.
 #
+# SWIFT_MODULE_DEPENDS_ANDROID
+#   Swift modules this library depends on when built for Android.
+#
 # FRAMEWORK_DEPENDS
 #   System frameworks this library depends on.
 #
@@ -1823,6 +1834,45 @@ endfunction()
 #   Presence of a build flavor requires SWIFT_MODULE_DEPENDS_MACCATALYST to be
 #   defined and have values.
 #
+# SWIFT_SOURCES_DEPENDS_MACOS
+#   Sources that are built when this library is being built for macOS
+#
+# SWIFT_SOURCES_DEPENDS_IOS
+#   Sources that are built when this library is being built for iOS
+#
+# SWIFT_SOURCES_DEPENDS_TVOS
+#   Sources that are built when this library is being built for tvOS
+#
+# SWIFT_SOURCES_DEPENDS_WATCHOS
+#   Sources that are built when this library is being built for watchOS
+#
+# SWIFT_SOURCES_DEPENDS_VISIONOS
+#   Sources that are built when this library is being built for visionOS
+#
+# SWIFT_SOURCES_DEPENDS_FREESTANDING
+#   Sources that are built when this library is being built for freestanding
+#
+# SWIFT_SOURCES_DEPENDS_FREEBSD
+#   Sources that are built when this library is being built for FreeBSD
+#
+# SWIFT_SOURCES_DEPENDS_OPENBSD
+#   Sources that are built when this library is being built for OpenBSD
+#
+# SWIFT_SOURCES_DEPENDS_LINUX
+#   Sources that are built when this library is being built for Linux
+#
+# SWIFT_SOURCES_DEPENDS_CYGWIN
+#   Sources that are built when this library is being built for Cygwin
+#
+# SWIFT_SOURCES_DEPENDS_HAIKU
+#   Sources that are built when this library is being built for Haiku
+#
+# SWIFT_SOURCES_DEPENDS_WASI
+#   Sources that are built when this library is being built for WASI
+#
+# SWIFT_SOURCES_DEPENDS_WINDOWS
+#   Sources that are built when this library is being built for Windows
+#
 # source1 ...
 #   Sources to add into this library.
 function(add_swift_target_library name)
@@ -1880,6 +1930,7 @@ function(add_swift_target_library name)
         SWIFT_COMPILE_FLAGS_XROS
         SWIFT_COMPILE_FLAGS_LINUX
         SWIFT_MODULE_DEPENDS
+        SWIFT_MODULE_DEPENDS_ANDROID
         SWIFT_MODULE_DEPENDS_CYGWIN
         SWIFT_MODULE_DEPENDS_FREEBSD
         SWIFT_MODULE_DEPENDS_FREESTANDING
@@ -1898,7 +1949,20 @@ function(add_swift_target_library name)
         TARGET_SDKS
         SWIFT_COMPILE_FLAGS_MACCATALYST
         SWIFT_MODULE_DEPENDS_MACCATALYST
-        SWIFT_MODULE_DEPENDS_MACCATALYST_UNZIPPERED)
+        SWIFT_MODULE_DEPENDS_MACCATALYST_UNZIPPERED
+        SWIFT_SOURCES_DEPENDS_MACOS
+        SWIFT_SOURCES_DEPENDS_IOS
+        SWIFT_SOURCES_DEPENDS_TVOS
+        SWIFT_SOURCES_DEPENDS_WATCHOS
+        SWIFT_SOURCES_DEPENDS_VISIONOS
+        SWIFT_SOURCES_DEPENDS_FREESTANDING
+        SWIFT_SOURCES_DEPENDS_FREEBSD
+        SWIFT_SOURCES_DEPENDS_OPENBSD
+        SWIFT_SOURCES_DEPENDS_LINUX
+        SWIFT_SOURCES_DEPENDS_CYGWIN
+        SWIFT_SOURCES_DEPENDS_HAIKU
+        SWIFT_SOURCES_DEPENDS_WASI
+        SWIFT_SOURCES_DEPENDS_WINDOWS)
 
   cmake_parse_arguments(SWIFTLIB
                         "${SWIFTLIB_options}"
@@ -2094,12 +2158,15 @@ function(add_swift_target_library name)
     elseif(sdk STREQUAL "OPENBSD")
       list(APPEND swiftlib_module_depends_flattened
            ${SWIFTLIB_SWIFT_MODULE_DEPENDS_OPENBSD})
-    elseif(sdk STREQUAL "LINUX" OR sdk STREQUAL "ANDROID")
+    elseif(sdk STREQUAL "LINUX")
       list(APPEND swiftlib_module_depends_flattened
            ${SWIFTLIB_SWIFT_MODULE_DEPENDS_LINUX})
     elseif(sdk STREQUAL "LINUX_STATIC")
       list(APPEND swiftlib_module_depends_flattened
           ${SWIFTLIB_SWIFT_MODULE_DEPENDS_LINUX_STATIC})
+    elseif(sdk STREQUAL "ANDROID")
+      list(APPEND swiftlib_module_depends_flattened
+           ${SWIFTLIB_SWIFT_MODULE_DEPENDS_ANDROID})
     elseif(sdk STREQUAL "CYGWIN")
       list(APPEND swiftlib_module_depends_flattened
            ${SWIFTLIB_SWIFT_MODULE_DEPENDS_CYGWIN})
@@ -2167,6 +2234,36 @@ function(add_swift_target_library name)
     if(sdk STREQUAL "IOS_SIMULATOR" AND name STREQUAL "swiftMediaPlayer")
       # message("DISABLING AUTOLINK FOR swiftMediaPlayer")
       list(APPEND swiftlib_link_flags_all "-Xlinker" "-ignore_auto_link")
+    endif()
+
+    # Append SDK specific sources to the full list of sources
+    set(sources ${SWIFTLIB_SOURCES})
+    if(sdk STREQUAL "OSX")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_MACOS})
+    elseif(sdk STREQUAL "IOS" OR sdk STREQUAL "IOS_SIMULATOR")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_IOS})
+    elseif(sdk STREQUAL "TVOS" OR sdk STREQUAL "TVOS_SIMULATOR")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_TVOS})
+    elseif(sdk STREQUAL "WATCHOS" OR sdk STREQUAL "WATCHOS_SIMULATOR")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_WATCHOS})
+    elseif(sdk STREQUAL "XROS" OR sdk STREQUAL "XROS_SIMULATOR")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_VISIONOS})
+    elseif(sdk STREQUAL "FREESTANDING")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_FREESTANDING})
+    elseif(sdk STREQUAL "FREEBSD")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_FREEBSD})
+    elseif(sdk STREQUAL "OPENBSD")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_OPENBSD})
+    elseif(sdk STREQUAL "LINUX" OR sdk STREQUAL "ANDROID")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_LINUX})
+    elseif(sdk STREQUAL "CYGWIN")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_CYGWIN})
+    elseif(sdk STREQUAL "HAIKU")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_HAIKU})
+    elseif(sdk STREQUAL "WASI")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_WASI})
+    elseif(sdk STREQUAL "WINDOWS")
+      list(APPEND sources ${SWIFTLIB_SWIFT_SOURCES_DEPENDS_WINDOWS})
     endif()
 
     # We unconditionally removed "-z,defs" from CMAKE_SHARED_LINKER_FLAGS in
@@ -2373,7 +2470,7 @@ function(add_swift_target_library name)
         ${SWIFTLIB_NO_LINK_NAME_keyword}
         ${SWIFTLIB_OBJECT_LIBRARY_keyword}
         ${SWIFTLIB_INSTALL_WITH_SHARED_keyword}
-        ${SWIFTLIB_SOURCES}
+        ${sources}
         MODULE_TARGETS ${module_variant_names}
         SDK ${sdk}
         ARCHITECTURE ${arch}
@@ -2923,6 +3020,7 @@ function(add_swift_target_executable name)
     DEPENDS
     LINK_LIBRARIES
     SWIFT_MODULE_DEPENDS
+    SWIFT_MODULE_DEPENDS_ANDROID
     SWIFT_MODULE_DEPENDS_CYGWIN
     SWIFT_MODULE_DEPENDS_FREEBSD
     SWIFT_MODULE_DEPENDS_FREESTANDING
@@ -3036,12 +3134,15 @@ function(add_swift_target_executable name)
     elseif(sdk STREQUAL "OPENBSD")
       list(APPEND swiftexe_module_depends_flattened
         ${SWIFTEXE_TARGET_SWIFT_MODULE_DEPENDS_OPENBSD})
-    elseif(sdk STREQUAL "LINUX" OR sdk STREQUAL "ANDROID")
+    elseif(sdk STREQUAL "LINUX")
       list(APPEND swiftexe_module_depends_flattened
         ${SWIFTEXE_TARGET_SWIFT_MODULE_DEPENDS_LINUX})
     elseif(sdk STREQUAL "LINUX_STATIC")
       list(APPEND swiftexe_module_depends_flattened
         ${SWIFTEXE_TARGET_SWIFT_MODULE_DEPENDS_LINUX_STATIC})
+    elseif(sdk STREQUAL "ANDROID")
+      list(APPEND swiftexe_module_depends_flattened
+        ${SWIFTEXE_TARGET_SWIFT_MODULE_DEPENDS_ANDROID})
     elseif(sdk STREQUAL "CYGWIN")
       list(APPEND swiftexe_module_depends_flattened
         ${SWIFTEXE_TARGET_SWIFT_MODULE_DEPENDS_CYGWIN})
@@ -3139,9 +3240,14 @@ function(add_swift_target_executable name)
       # it tries to build swift-backtrace it fails because *the compiler*
       # refers to a libswiftCore.so that can't be found.
 
+      if(SWIFTEXE_TARGET_NOSWIFTRT)
+        set(NOSWIFTRT_KEYWORD "NOSWIFTRT")
+      else()
+        set(NOSWIFTRT_KEYWORD "")
+      endif()
       _add_swift_target_executable_single(
           ${VARIANT_NAME}
-          ${SWIFTEXE_TARGET_NOSWIFTRT_keyword}
+          ${NOSWIFTRT_KEYWORD}
           ${SWIFTEXE_TARGET_SOURCES}
           DEPENDS
             ${SWIFTEXE_TARGET_DEPENDS_with_suffix}

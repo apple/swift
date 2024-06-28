@@ -20,6 +20,7 @@
 #include "swift/AST/Evaluator.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/TypeID.h"
 #include "swift/ConstExtract/ConstExtractRequests.h"
 #include "swift/Subsystems.h"
@@ -286,13 +287,25 @@ static std::shared_ptr<CompileTimeValue> extractCompileTimeValue(Expr *expr) {
 
     case ExprKind::Call: {
       auto callExpr = cast<CallExpr>(expr);
-      if (callExpr->getFn()->getKind() == ExprKind::ConstructorRefCall) {
+      auto functionKind = callExpr->getFn()->getKind();
+
+      if (functionKind == ExprKind::DeclRef) {
+        auto declRefExpr = cast<DeclRefExpr>(callExpr->getFn());
+        auto caseName =
+            declRefExpr->getDecl()->getName().getBaseIdentifier().str().str();
+
+        std::vector<FunctionParameter> parameters =
+            extractFunctionArguments(callExpr->getArgs());
+        return std::make_shared<FunctionCallValue>(caseName, parameters);
+      }
+
+      if (functionKind == ExprKind::ConstructorRefCall) {
         std::vector<FunctionParameter> parameters =
             extractFunctionArguments(callExpr->getArgs());
         return std::make_shared<InitCallValue>(callExpr->getType(), parameters);
       }
 
-      if (callExpr->getFn()->getKind() == ExprKind::DotSyntaxCall) {
+      if (functionKind == ExprKind::DotSyntaxCall) {
         auto dotSyntaxCallExpr = cast<DotSyntaxCallExpr>(callExpr->getFn());
         auto fn = dotSyntaxCallExpr->getFn();
         if (fn->getKind() == ExprKind::DeclRef) {
@@ -406,6 +419,38 @@ static std::shared_ptr<CompileTimeValue> extractCompileTimeValue(Expr *expr) {
     case ExprKind::InjectIntoOptional: {
       auto injectIntoOptionalExpr = cast<InjectIntoOptionalExpr>(expr);
       return extractCompileTimeValue(injectIntoOptionalExpr->getSubExpr());
+    }
+
+    case ExprKind::Load: {
+      auto loadExpr = cast<LoadExpr>(expr);
+      return extractCompileTimeValue(loadExpr->getSubExpr());
+    }
+
+    case ExprKind::MemberRef: {
+      auto memberExpr = cast<MemberRefExpr>(expr);
+      if (isa<TypeExpr>(memberExpr->getBase())) {
+        auto baseTypeExpr = cast<TypeExpr>(memberExpr->getBase());
+        auto label = memberExpr->getDecl().getDecl()->getBaseIdentifier().str();
+        return std::make_shared<MemberReferenceValue>(
+            baseTypeExpr->getInstanceType(), label.str());
+      }
+      break;
+    }
+
+    case ExprKind::InterpolatedStringLiteral: {
+      auto interpolatedStringExpr = cast<InterpolatedStringLiteralExpr>(expr);
+      auto tapExpr = interpolatedStringExpr->getAppendingExpr();
+      auto &Ctx = tapExpr->getVar()->getASTContext();
+
+      std::vector<std::shared_ptr<CompileTimeValue>> segments;
+      interpolatedStringExpr->forEachSegment(
+          Ctx, [&](bool isInterpolation, CallExpr *segment) -> void {
+            auto arg = segment->getArgs()->get(0);
+            auto expr = arg.getExpr();
+            segments.push_back(extractCompileTimeValue(expr));
+          });
+
+      return std::make_shared<InterpolatedStringLiteralValue>(segments);
     }
 
     default: {
@@ -571,6 +616,13 @@ gatherConstValuesForModule(const std::unordered_set<std::string> &Protocols,
   NominalTypeConformanceCollector ConformanceCollector(Protocols,
                                                        ConformanceDecls);
   Module->walk(ConformanceCollector);
+  // Visit macro expanded extensions
+  for (auto *FU : Module->getFiles())
+    if (auto *synthesizedSF = FU->getSynthesizedFile())
+      for (auto D : synthesizedSF->getTopLevelDecls())
+        if (isa<ExtensionDecl>(D))
+          D->walk(ConformanceCollector);
+
   for (auto *CD : ConformanceDecls)
     Result.emplace_back(evaluateOrDefault(CD->getASTContext().evaluator,
                                           ConstantValueInfoRequest{CD, Module},
@@ -725,23 +777,69 @@ void writeValue(llvm::json::OStream &JSON,
     break;
   }
 
-  case CompileTimeValue::KeyPath: {
-      auto keyPathValue = cast<KeyPathValue>(value);
-      JSON.attribute("valueKind", "KeyPath");
-      JSON.attributeObject("value", [&]() {
-        JSON.attribute("path", keyPathValue->getPath());
-        JSON.attribute("rootType", toFullyQualifiedTypeNameString(keyPathValue->getRootType()));
-        JSON.attributeArray("components", [&] {
-          auto components = keyPathValue->getComponents();
-          for (auto c : components) {
+  case CompileTimeValue::ValueKind::KeyPath: {
+    auto keyPathValue = cast<KeyPathValue>(value);
+    JSON.attribute("valueKind", "KeyPath");
+    JSON.attributeObject("value", [&]() {
+      JSON.attribute("path", keyPathValue->getPath());
+      JSON.attribute("rootType", toFullyQualifiedTypeNameString(
+                                     keyPathValue->getRootType()));
+      JSON.attributeArray("components", [&] {
+        auto components = keyPathValue->getComponents();
+        for (auto c : components) {
+          JSON.object([&] {
+            JSON.attribute("label", c.Label);
+            JSON.attribute("type", toFullyQualifiedTypeNameString(c.Type));
+          });
+        }
+      });
+    });
+    break;
+  }
+
+  case CompileTimeValue::ValueKind::FunctionCall: {
+    auto functionCallValue = cast<FunctionCallValue>(value);
+    JSON.attribute("valueKind", "FunctionCall");
+    JSON.attributeObject("value", [&]() {
+      JSON.attribute("name", functionCallValue->getIdentifier());
+      if (functionCallValue->getParameters().has_value()) {
+        auto params = functionCallValue->getParameters().value();
+        JSON.attributeArray("arguments", [&] {
+          for (auto FP : params) {
             JSON.object([&] {
-              JSON.attribute("label", c.Label);
-              JSON.attribute("type", toFullyQualifiedTypeNameString(c.Type));
+              JSON.attribute("label", FP.Label);
+              JSON.attribute("type", toFullyQualifiedTypeNameString(FP.Type));
+              writeValue(JSON, FP.Value);
             });
           }
         });
+      }
+    });
+    break;
+  }
+
+  case CompileTimeValue::ValueKind::MemberReference: {
+    auto memberReferenceValue = cast<MemberReferenceValue>(value);
+    JSON.attribute("valueKind", "MemberReference");
+    JSON.attributeObject("value", [&]() {
+      JSON.attribute("baseType", toFullyQualifiedTypeNameString(
+                                     memberReferenceValue->getBaseType()));
+      JSON.attribute("memberLabel", memberReferenceValue->getMemberLabel());
+    });
+    break;
+  }
+  case CompileTimeValue::ValueKind::InterpolatedString: {
+    auto interpolatedStringValue = cast<InterpolatedStringLiteralValue>(value);
+    JSON.attribute("valueKind", "InterpolatedStringLiteral");
+    JSON.attributeObject("value", [&]() {
+      JSON.attributeArray("segments", [&] {
+        auto segments = interpolatedStringValue->getSegments();
+        for (auto s : segments) {
+          JSON.object([&] { writeValue(JSON, s); });
+        }
       });
-      break;
+    });
+    break;
   }
 
   case CompileTimeValue::ValueKind::Runtime: {
@@ -983,12 +1081,13 @@ void writeProperties(llvm::json::OStream &JSON,
 void writeConformances(llvm::json::OStream &JSON,
                        const NominalTypeDecl &NomTypeDecl) {
   JSON.attributeArray("conformances", [&] {
-    for (auto *Protocol : NomTypeDecl.getAllProtocols()) {
+    for (auto *Conformance : NomTypeDecl.getAllConformances()) {
+      auto Proto = Conformance->getProtocol();
       // FIXME(noncopyable_generics): Should these be included?
-      if (Protocol->getInvertibleProtocolKind())
+      if (Proto->getInvertibleProtocolKind())
         continue;
 
-      JSON.value(toFullyQualifiedProtocolNameString(*Protocol));
+      JSON.value(toFullyQualifiedProtocolNameString(*Proto));
     }
   });
 }

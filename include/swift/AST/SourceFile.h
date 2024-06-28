@@ -435,10 +435,6 @@ public:
   void setImportUsedPreconcurrency(
       AttributedImport<ImportedModule> import);
 
-  /// True if the highest access level of the declarations referencing
-  /// this import in signature or inlinable code is internal or less.
-  bool isMaxAccessLevelUsingImportInternal(AttributedImport<ImportedModule> import) const;
-
   /// Return the highest access level of the declarations referencing
   /// this import in signature or inlinable code.
   AccessLevel

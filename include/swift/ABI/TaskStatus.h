@@ -20,6 +20,7 @@
 #ifndef SWIFT_ABI_TASKSTATUS_H
 #define SWIFT_ABI_TASKSTATUS_H
 
+#include "swift/Basic/OptionSet.h"
 #include "swift/ABI/MetadataValues.h"
 #include "swift/ABI/Task.h"
 #include "swift/ABI/Executor.h"
@@ -285,14 +286,34 @@ public:
 /// innermost preference takes priority.
 class TaskExecutorPreferenceStatusRecord : public TaskStatusRecord {
 private:
+  enum class Flags : uint8_t {
+    /// The executor was retained during this task's creation,
+    /// and therefore must be released when this task completes.
+    ///
+    /// The only tasks which need to manually retain/release the task executor
+    /// are those which cannot structurally guarantee its lifetime. E.g. an async
+    /// let does not need to do so, because it structurally always will end
+    /// before/// we leave the scope in which it was defined -- and such scope
+    /// must have been keeping alive the executor.
+    HasRetainedExecutor = 1 << 0
+  };
+  OptionSet<Flags> flags;
   const TaskExecutorRef Preferred;
 
 public:
-  TaskExecutorPreferenceStatusRecord(TaskExecutorRef executor)
+  TaskExecutorPreferenceStatusRecord(TaskExecutorRef executor, bool retainedExecutor)
       : TaskStatusRecord(TaskStatusRecordKind::TaskExecutorPreference),
-        Preferred(executor) {}
+        Preferred(executor) {
+    if (retainedExecutor) {
+      flags = Flags::HasRetainedExecutor;
+    }
+  }
 
   TaskExecutorRef getPreferredExecutor() { return Preferred; }
+
+  bool hasRetainedExecutor() const {
+    return flags.contains(Flags::HasRetainedExecutor);
+  }
 
   static bool classof(const TaskStatusRecord *record) {
     return record->getKind() == TaskStatusRecordKind::TaskExecutorPreference;

@@ -55,12 +55,12 @@ public struct _Toys {
 public struct ExplicitHello<T: ~Copyable>: ~Copyable {
   let thing: T
 }
-extension ExplicitHello: Copyable {}
+extension ExplicitHello: Copyable where T: Copyable {}
 
 public struct Hello<T: ~Copyable>: ~Copyable, ~Escapable where T: ~Escapable {}
 
-extension Hello: Escapable where T: ~Copyable {}
-extension Hello: Copyable where T: ~Escapable {}
+extension Hello: Escapable where T: Escapable {}
+extension Hello: Copyable where T: Copyable {}
 
 public protocol TestAssocTypes {
   associatedtype A: ~Copyable, _NoCopyP = Int
@@ -94,11 +94,11 @@ public struct Outer<A: ~Copyable>: ~Copyable {
   public struct InnerVariation2<D: ~Escapable>: ~Copyable, ~Escapable {}
 }
 
-extension Outer: Copyable {}
-extension Outer.InnerStruct: Copyable {}
+extension Outer: Copyable where A: Copyable {}
+extension Outer.InnerStruct: Copyable where C: Copyable, A: Copyable {}
 
-extension Outer.InnerVariation1: Copyable {}
-extension Outer.InnerVariation2: Escapable where A: ~Copyable {}
+extension Outer.InnerVariation1: Copyable where A: Copyable, D: Copyable & Escapable {}
+extension Outer.InnerVariation2: Escapable where A: Escapable, D: Escapable {}
 
 extension Outer.InnerStruct {
     public func hello<T: ~Escapable>(_ t: T) {}
@@ -137,3 +137,8 @@ public struct Generic<T: Publik & ~Copyable> : (P & ~Copyable) {}
 public struct VeryNested: (P & (Q & ~Copyable & Publik) & (P & ~Copyable)) {}
 public struct Twice: P & ~Copyable, Q & ~Copyable {}
 public struct RegularTwice: ~Copyable, ~Copyable {}
+
+// coverage for rdar://130179698
+public struct Continuation<T: ~Copyable, E: Error> {
+  public func resume(returning value: consuming T) where E == Never {}
+}

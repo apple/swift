@@ -28,6 +28,8 @@
 #include "swift/SIL/SILDeclRef.h"
 #include "swift/SIL/SILLinkage.h"
 #include "swift/SIL/SILPrintContext.h"
+#include "swift/SIL/SILUndef.h"
+#include "llvm/ADT/MapVector.h"
 
 namespace swift {
 
@@ -337,12 +339,8 @@ private:
 
   PerformanceConstraints perfConstraints = PerformanceConstraints::None;
 
-  /// This is the set of undef values we've created, for uniquing purposes.
-  ///
-  /// We use a SmallDenseMap since in most functions, we will have only one type
-  /// of undef if we have any at all. In that case, by staying small we avoid
-  /// needing a heap allocation.
-  llvm::SmallDenseMap<SILType, SILUndef *, 1> undefValues;
+  /// The undefs of each type in the function.
+  llvm::SmallMapVector<SILType, SILUndef *, 1> undefValues;
 
   /// This is the number of uses of this SILFunction inside the SIL.
   /// It does not include references from debug scopes.
@@ -463,8 +461,6 @@ private:
   /// If true, the function returns a non-escapable value without any
   /// lifetime-dependence on an argument.
   unsigned HasUnsafeNonEscapableResult : 1;
-
-  unsigned HasResultDependsOnSelf : 1;
 
   /// True, if this function or a caller (transitively) has a performance
   /// constraint.
@@ -758,11 +754,6 @@ public:
     HasUnsafeNonEscapableResult = value;
   }
 
-  bool hasResultDependsOnSelf() const { return HasResultDependsOnSelf; }
-
-  void setHasResultDependsOnSelf(bool flag = true) {
-    HasResultDependsOnSelf = flag;
-  }
   /// Returns true if this is a reabstraction thunk of escaping function type
   /// whose single argument is a potentially non-escaping closure. i.e. the
   /// thunks' function argument may itself have @inout_aliasable parameters.
@@ -820,7 +811,7 @@ public:
   // callee.
   bool hasOwnedParameters() const {
     for (auto &ParamInfo : getLoweredFunctionType()->getParameters()) {
-      if (ParamInfo.isConsumed())
+      if (ParamInfo.isConsumedInCallee())
         return true;
     }
     return false;
@@ -874,10 +865,8 @@ public:
   void setLinkage(SILLinkage linkage) { Linkage = unsigned(linkage); }
 
 ///   Checks if this (callee) function body can be inlined into the caller
-///   by comparing their SerializedKind_t values.
+///   by comparing their `SerializedKind_t` values.
 ///
-///   If the \p assumeFragileCaller is true, the caller must be serialized,
-///   in which case the callee needs to be serialized also to be inlined.
 ///   If both callee and caller are `not_serialized`, the callee can be inlined
 ///   into the caller during SIL inlining passes even if it (and the caller)
 ///   might contain private symbols. If this callee is `serialized_for_pkg`,
@@ -894,21 +883,13 @@ public:
 ///  ```
 ///
 /// \p callerSerializedKind The caller's SerializedKind.
-/// \p assumeFragileCaller True if the call site of this function already
-///                        knows that the caller is serialized.
-  bool canBeInlinedIntoCaller(
-      std::optional<SerializedKind_t> callerSerializedKind = std::nullopt,
-      bool assumeFragileCaller = true) const;
+  bool canBeInlinedIntoCaller(SerializedKind_t callerSerializedKind) const;
 
   /// Returns true if this function can be referenced from a fragile function
   /// body.
   /// \p callerSerializedKind The caller's SerializedKind. Used to be passed to
   ///                         \c canBeInlinedIntoCaller.
-  /// \p assumeFragileCaller Default to true since this function must be called
-  //                         if the caller is [serialized].
-  bool hasValidLinkageForFragileRef(
-      std::optional<SerializedKind_t> callerSerializedKind = std::nullopt,
-      bool assumeFragileCaller = true) const;
+  bool hasValidLinkageForFragileRef(SerializedKind_t callerSerializedKind) const;
 
   /// Get's the effective linkage which is used to derive the llvm linkage.
   /// Usually this is the same as getLinkage(), except in one case: if this
@@ -1165,11 +1146,9 @@ public:
   bool isSerialized() const {
     return SerializedKind_t(SerializedKind) == IsSerialized;
   }
-  bool isSerializedForPackage() const {
-    return SerializedKind_t(SerializedKind) == IsSerializedForPackage;
-  }
-  bool isNotSerialized() const {
-    return SerializedKind_t(SerializedKind) == IsNotSerialized;
+  bool isAnySerialized() const {
+    return SerializedKind_t(SerializedKind) == IsSerialized ||
+           SerializedKind_t(SerializedKind) == IsSerializedForPackage;
   }
 
   /// Get this function's serialized attribute.
@@ -1654,6 +1633,10 @@ public:
   Lifetime getLifetime(VarDecl *decl, SILType ty) {
     return ty.getLifetime(*this).getLifetimeForAnnotatedValue(
         decl->getLifetimeAnnotation());
+  }
+
+  ArrayRef<std::pair<SILType, SILUndef *>> getUndefValues() {
+    return {undefValues.begin(), undefValues.end()};
   }
 
   /// verify - Run the SIL verifier to make sure that the SILFunction follows

@@ -24,6 +24,7 @@
 #include "swift/AST/Types.h"
 #include "swift/AST/PrettyStackTrace.h"
 #include "swift/AST/RawComment.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Markup/Markup.h"
 #include <queue>
 

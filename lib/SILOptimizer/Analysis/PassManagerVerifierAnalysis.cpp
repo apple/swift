@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "sil-passmanager-verifier-analysis"
 #include "swift/SILOptimizer/Analysis/PassManagerVerifierAnalysis.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILModule.h"
 #include "llvm/Support/CommandLine.h"
 

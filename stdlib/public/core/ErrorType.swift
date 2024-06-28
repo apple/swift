@@ -195,7 +195,7 @@ func _willThrowTypedImpl<E: Error>(_ error: E)
 @_alwaysEmitIntoClient
 @_silgen_name("swift_willThrowTyped")
 public func _willThrowTyped<E: Error>(_ error: E) {
-  if #available(macOS 9999, iOS 9999, watchOS 9999, tvOS 9999, visionOS 9999, *) {
+  if #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) {
     _willThrowTypedImpl(error)
   }
 }

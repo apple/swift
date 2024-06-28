@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -transfer-non-sendable -enable-upcoming-feature RegionBasedIsolation -enable-upcoming-feature TransferringArgsAndResults -strict-concurrency=complete %s -o /dev/null -verify
+// RUN: %target-sil-opt -transfer-non-sendable -strict-concurrency=complete %s -o /dev/null -verify
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
@@ -375,3 +375,24 @@ bb0(%0 : @guaranteed $Self):
   return %9999 : $()
 }
 
+sil @closureForCheckedContinuation : $@convention(thin) <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()
+sil @withCheckedContinuation : $@convention(thin) @async <τ_0_0> (@sil_isolated @guaranteed Optional<any Actor>, @guaranteed @noescape @callee_guaranteed <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()) -> @sil_sending @out τ_0_0
+
+// We shouldn't emit any error here due to sil_sending.
+sil [ossa] @sending_result_from_callee : $@convention(thin) @async () -> () {
+bb0:
+  %0 = alloc_stack $NonSendableKlass
+  %1 = function_ref @closureForCheckedContinuation : $@convention(thin) <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()
+  %1a = thin_to_thick_function %1 : $@convention(thin) <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()  to $@noescape @callee_guaranteed <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()
+  %2 = enum $Optional<any Actor>, #Optional.none!enumelt
+  %3 = function_ref @withCheckedContinuation : $@convention(thin) @async <τ_0_0> (@sil_isolated @guaranteed Optional<any Actor>, @guaranteed @noescape @callee_guaranteed <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()) -> @sil_sending @out τ_0_0
+  apply [caller_isolation=nonisolated] [callee_isolation=global_actor] %3<NonSendableKlass>(%0, %2, %1a) : $@convention(thin) @async <τ_0_0> (@sil_isolated @guaranteed Optional<any Actor>, @guaranteed @noescape @callee_guaranteed <τ_0_0> (@in_guaranteed CheckedContinuation<τ_0_0, Never>) -> ()) -> @sil_sending @out τ_0_0
+
+  %f = function_ref @transferIndirect : $@convention(thin) @async <τ_0_0> (@in_guaranteed τ_0_0) -> ()
+  apply [caller_isolation=nonisolated] [callee_isolation=actor_instance] %f<NonSendableKlass>(%0) : $@convention(thin) @async <τ_0_0> (@in_guaranteed τ_0_0) -> ()
+
+  destroy_addr %0 : $*NonSendableKlass
+  dealloc_stack %0 : $*NonSendableKlass
+  %9999 = tuple ()
+  return %9999 : $()
+}

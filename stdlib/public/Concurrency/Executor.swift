@@ -38,6 +38,76 @@ public protocol Executor: AnyObject, Sendable {
 }
 
 /// A service that executes jobs.
+///
+/// ### Custom Actor Executors
+/// By default, all actor types execute tasks on a shared global concurrent pool.
+/// The global pool does not guarantee any thread (or dispatch queue) affinity,
+/// so actors are free to use different threads as they execute tasks.
+///
+/// > The runtime may perform various optimizations to minimize un-necessary
+/// > thread switching.
+///
+/// Sometimes it is important to be able to customize the execution behavior
+///  of an actor. For example, when an actor is known to perform heavy blocking
+/// operations (such as IO), and we would like to keep this work *off* the global
+/// shared pool, as blocking it may prevent other actors from being responsive.
+///
+/// You can implement a custom executor, by conforming a type to the
+/// ``SerialExecutor`` protocol, and implementing the ``enqueue(_:)`` method.
+///
+/// Once implemented, you can configure an actor to use such executor by
+/// implementing the actor's ``Actor/unownedExecutor`` computed property.
+/// For example, you could accept an executor in the actor's initializer,
+/// store it as a variable (in order to retain it for the duration of the
+/// actor's lifetime), and return it from the `unownedExecutor` computed
+/// property like this:
+///
+/// ```
+/// actor MyActor {
+///   let myExecutor: MyExecutor
+///
+///   // accepts an executor to run this actor on.
+///   init(executor: MyExecutor) {
+///     self.myExecutor = executor
+///   }
+///
+///   nonisolated var unownedExecutor: UnownedSerialExecutor {
+///     self.myExecutor.asUnownedSerialExecutor()
+///   }
+/// }
+/// ```
+///
+/// It is also possible to use a form of shared executor, either created as a
+/// global or static property, which you can then re-use for every MyActor
+/// instance:
+///
+/// ```
+/// actor MyActor {
+///   // Serial executor reused by *all* instances of MyActor!
+///   static let sharedMyActorsExecutor = MyExecutor() // implements SerialExecutor
+///
+///
+///   nonisolated var unownedExecutor: UnownedSerialExecutor {
+///     Self.sharedMyActorsExecutor.asUnownedSerialExecutor()
+///   }
+/// }
+/// ```
+///
+/// In the example above, *all* "MyActor" instances would be using the same
+/// serial executor, which would result in only one of such actors ever being
+/// run at the same time. This may be useful if some of your code has some
+/// "specific thread" requirement when interoperating with non-Swift runtimes
+/// for example.
+///
+/// Since the ``UnownedSerialExecutor`` returned by the `unownedExecutor`
+/// property *does not* retain the executor, you must make sure the lifetime of
+/// it extends beyond the lifetime of any actor or task using it, as otherwise
+/// it may attempt to enqueue work on a released executor object, causing a crash.
+/// The executor returned by unownedExecutor *must* always be the same object,
+/// and returning different executors can lead to unexpected behavior.
+///
+/// Alternatively, you can also use existing serial executor implementations,
+/// such as Dispatch's `DispatchSerialQueue` or others.
 @available(SwiftStdlib 5.1, *)
 public protocol SerialExecutor: Executor {
   // This requirement is repeated here as a non-override so that we
@@ -428,8 +498,9 @@ internal func _task_serialExecutor_getExecutorRef<E>(_ executor: E) -> Builtin.E
 /// The obtained executor ref will have all the user-defined flags set on the executor.
 @_unavailableInEmbedded
 @available(SwiftStdlib 6.0, *)
-@_silgen_name("_task_executor_getTaskExecutorRef")
-internal func _task_executor_getTaskExecutorRef(_ taskExecutor: any TaskExecutor) -> Builtin.Executor {
+@_silgen_name("_task_taskExecutor_getTaskExecutorRef")
+internal func _task_taskExecutor_getTaskExecutorRef<E>(_ taskExecutor: E) -> Builtin.Executor
+    where E: TaskExecutor {
   return taskExecutor.asUnownedTaskExecutor().executor
 }
 

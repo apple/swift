@@ -19,6 +19,7 @@
 #include "swift/AST/GenericParamList.h"
 #include "swift/AST/SourceFile.h" // only for isMacroSignatureFile
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Nullability.h"
 #include "swift/Parse/IDEInspectionCallbacks.h"
 #include "swift/Parse/Lexer.h"
@@ -51,10 +52,6 @@ Parser::ParsedTypeAttributeList::applyAttributesToType(Parser &p,
 
   if (ConstLoc.isValid()) {
     ty = new (p.Context) CompileTimeConstTypeRepr(ty, ConstLoc);
-  }
-
-  if (ResultDependsOnLoc.isValid()) {
-    ty = new (p.Context) ResultDependsOnTypeRepr(ty, ResultDependsOnLoc);
   }
 
   if (TransferringLoc.isValid()) {
@@ -1206,6 +1203,11 @@ ParserResult<TypeRepr> Parser::parseTypeTupleBody() {
     }
     Backtracking.reset();
 
+    // Try complete the start of a parameter type since the user may be writing
+    // this as a function type.
+    if (tryCompleteFunctionParamTypeBeginning())
+      return makeParserCodeCompletionStatus();
+
     // Parse the type annotation.
     auto type = parseType(diag::expected_type);
     if (type.hasCodeCompletion())
@@ -1554,6 +1556,8 @@ bool Parser::canParseType() {
   } else if (Tok.isContextualKeyword("any")) {
     consumeToken();
   } else if (Tok.isContextualKeyword("each")) {
+    consumeToken();
+  } else if (Tok.isContextualKeyword("sending")) {
     consumeToken();
   }
 

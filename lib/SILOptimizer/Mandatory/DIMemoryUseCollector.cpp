@@ -14,6 +14,7 @@
 
 #include "DIMemoryUseCollector.h"
 #include "swift/AST/Expr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILArgument.h"
@@ -984,6 +985,7 @@ void ElementUseCollector::collectUses(SILValue Pointer, unsigned BaseEltNo) {
         llvm_unreachable("address value passed to indirect parameter");
 
       // If this is an in-parameter, it is like a load.
+      case ParameterConvention::Indirect_In_CXX:
       case ParameterConvention::Indirect_In:
       case ParameterConvention::Indirect_In_Guaranteed:
         addElementUses(BaseEltNo, PointeeType, User, DIUseKind::IndirectIn);
@@ -1707,6 +1709,19 @@ void ElementUseCollector::collectClassSelfUses(
         continue;
 
       Kind = DIUseKind::Escape;
+    }
+
+    // Track flow-sensitive 'self' isolation builtins separately, because they
+    // aren't really uses of 'self' until after DI, once we've decided whether
+    // they have a fully-formed 'self' to use.
+    if (auto builtin = dyn_cast<BuiltinInst>(User)) {
+      if (auto builtinKind = builtin->getBuiltinKind()) {
+        if (*builtinKind == BuiltinValueKind::FlowSensitiveSelfIsolation ||
+            *builtinKind ==
+              BuiltinValueKind::FlowSensitiveDistributedSelfIsolation) {
+          Kind = DIUseKind::FlowSensitiveSelfIsolation;
+        }
+      }
     }
 
     trackUse(DIMemoryUse(User, Kind, 0, TheMemory.getNumElements()));

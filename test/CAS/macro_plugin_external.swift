@@ -5,6 +5,7 @@
 
 // RUN: %empty-directory(%t)
 // RUN: %empty-directory(%t/plugins)
+// RUN: split-file %s %t
 //
 //== Build the plugin library
 // RUN: %host-build-swift \
@@ -15,9 +16,17 @@
 // RUN:   %S/../Macros/Inputs/syntax_macro_definitions.swift \
 // RUN:   -g -no-toolchain-stdlib-rpath
 
+/// No macro plugin when macro not used.
 // RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-serialized -module-name MyApp -module-cache-path %t/clang-module-cache -O \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import \
-// RUN:   %s -o %t/deps.json -swift-version 5 -cache-compile-job -cas-path %t/cas -external-plugin-path %t/plugins#%swift-plugin-server
+// RUN:   %t/nomacro.swift -o %t/deps1.json -swift-version 5 -cache-compile-job -cas-path %t/cas -external-plugin-path %t/plugins#%swift-plugin-server
+// RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps1.json MyApp casFSRootID > %t/no_macro_fs.casid
+// RUN: llvm-cas -cas %t/cas -ls-tree-recursive @%t/no_macro_fs.casid | %FileCheck %s --check-prefix=NO-MACRO
+// NO-MACRO-NOT: MacroDefinition
+
+// RUN: %target-swift-frontend -scan-dependencies -module-load-mode prefer-serialized -module-name MyApp -module-cache-path %t/clang-module-cache -O \
+// RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import \
+// RUN:   %t/macro.swift -o %t/deps.json -swift-version 5 -cache-compile-job -cas-path %t/cas -external-plugin-path %t/plugins#%swift-plugin-server
 
 // RUN: %S/Inputs/SwiftDepsExtractor.py %t/deps.json MyApp casFSRootID > %t/fs.casid
 // RUN: llvm-cas -cas %t/cas -ls-tree-recursive @%t/fs.casid | %FileCheck %s --check-prefix=FS
@@ -37,8 +46,12 @@
 // RUN:   -external-plugin-path %t/plugins/#%swift-plugin-server \
 // RUN:   -disable-implicit-string-processing-module-import -disable-implicit-concurrency-module-import \
 // RUN:   -module-name MyApp -explicit-swift-module-map-file @%t/map.casid \
-// RUN:   %s @%t/MyApp.cmd
+// RUN:   %t/macro.swift @%t/MyApp.cmd
 
+//--- nomacro.swift
+func test() {}
+
+//--- macro.swift
 @attached(extension, conformances: P, names: named(requirement))
 macro DelegatedConformance() = #externalMacro(module: "MacroDefinition", type: "DelegatedConformanceViaExtensionMacro")
 

@@ -263,12 +263,6 @@ SWIFT_RUNTIME_STDLIB_SPI bool concurrencyEnableCooperativeQueues() {
       SWIFT_DEBUG_CONCURRENCY_ENABLE_COOPERATIVE_QUEUES();
 }
 
-
-SWIFT_RUNTIME_STDLIB_SPI bool concurrencyEnableJobDispatchIntegration() {
-  return runtime::environment::
-      SWIFT_ENABLE_ASYNC_JOB_DISPATCH_INTEGRATION();
-}
-
 SWIFT_RUNTIME_STDLIB_SPI bool concurrencyValidateUncheckedContinuations() {
   return runtime::environment::SWIFT_DEBUG_VALIDATE_UNCHECKED_CONTINUATIONS();
 }

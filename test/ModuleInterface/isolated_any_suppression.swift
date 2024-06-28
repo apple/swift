@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 
-// RUN: %target-swift-frontend -swift-version 5 -enable-library-evolution -module-name isolated_any -emit-module -o %t/isolated_any.swiftmodule -emit-module-interface-path -  -enable-experimental-feature IsolatedAny %s | %FileCheck %s
-// RUN: %target-swift-frontend -swift-version 5 -enable-library-evolution -module-name isolated_any -emit-module -o %t/isolated_any.swiftmodule -emit-module-interface-path -  -enable-experimental-feature IsolatedAny2 %s | %FileCheck %s
+// RUN: %target-swift-frontend -swift-version 5 -enable-library-evolution -module-name isolated_any -emit-module -o %t/isolated_any.swiftmodule -emit-module-interface-path - %s | %FileCheck %s
+// RUN: %target-swift-frontend -swift-version 5 -enable-library-evolution -module-name isolated_any -emit-module -o %t/isolated_any.swiftmodule -emit-module-interface-path - %s | %FileCheck %s
 
 // CHECK:      #if compiler(>=5.3) && $IsolatedAny
 // CHECK-NEXT: {{^}}public func test1(fn: @isolated(any) @Sendable () -> ())

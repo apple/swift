@@ -19,6 +19,7 @@
 #include "swift/AST/ModuleLoader.h"
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/FileTypes.h"
 #include "swift/Basic/PrettyStackTrace.h"
 #include "swift/ClangImporter/ClangImporter.h"
@@ -31,6 +32,7 @@
 #include "llvm/CAS/CachingOnDiskFileSystem.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Threading.h"
+#include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include <algorithm>
 
@@ -325,9 +327,10 @@ ModuleDependencyScanner::getModuleDependencies(ModuleDependencyID moduleID,
   }
 
   // Resolve cross-import overlays.
-  discoverCrossImportOverlayDependencies(
-      moduleID.ModuleName, allModules.getArrayRef().slice(1), cache,
-      [&](ModuleDependencyID id) { allModules.insert(id); });
+  if (ScanCompilerInvocation.getLangOptions().EnableCrossImportOverlays)
+    discoverCrossImportOverlayDependencies(
+        moduleID.ModuleName, allModules.getArrayRef().slice(1), cache,
+        [&](ModuleDependencyID id) { allModules.insert(id); });
 
   return allModules.takeVector();
 }
@@ -464,15 +467,26 @@ ModuleDependencyScanner::getMainModuleDependencyInfo(ModuleDecl *mainModule) {
                                         &ScanASTContext.SourceMgr);
     }
 
-    // Add all the successful canImport checks from the ASTContext as part of
-    // the dependency since only mainModule can have `canImport` check. This
-    // needs to happen after visiting all the top-level decls from all
+    // Pass all the successful canImport checks from the ASTContext as part of
+    // build command to main module to ensure frontend gets the same result.
+    // This needs to happen after visiting all the top-level decls from all
     // SourceFiles.
-    for (auto &Module :
-         mainModule->getASTContext().getSuccessfulCanImportCheckNames())
-      mainDependencies.addModuleImport(Module.first(),
-                                       &alreadyAddedModules);
-  }
+    auto buildArgs = mainDependencies.getCommandline();
+    mainModule->getASTContext().forEachCanImportVersionCheck(
+        [&](StringRef moduleName, const llvm::VersionTuple &Version,
+            const llvm::VersionTuple &UnderlyingVersion) {
+          if (Version.empty() && UnderlyingVersion.empty()) {
+            buildArgs.push_back("-module-can-import");
+            buildArgs.push_back(moduleName.str());
+          } else {
+            buildArgs.push_back("-module-can-import-version");
+            buildArgs.push_back(moduleName.str());
+            buildArgs.push_back(Version.getAsString());
+            buildArgs.push_back(UnderlyingVersion.getAsString());
+          }
+        });
+    mainDependencies.updateCommandLine(buildArgs);
+  }    
 
   return mainDependencies;
 }

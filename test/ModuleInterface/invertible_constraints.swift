@@ -26,14 +26,14 @@ public protocol P: ~Copyable {
 public struct X<T: ~Copyable>: ~Copyable { }
 
 // CHECK: #if compiler(>=5.3) && $NoncopyableGenerics
-// CHECK:      extension Test.X : Swift.Copyable {
+// CHECK:      extension Test.X : Swift.Copyable where T : Swift.Copyable {
 // CHECK-NEXT:   func f()
 // CHECK:      }
 // CHECK: #else
 // CHECK:      extension Test.X {
 // CHECK-NEXT:   func f()
 // CHECK:      }
-extension X: Copyable {
+extension X: Copyable where T: Copyable {
   public func f() { }
 }
 

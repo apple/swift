@@ -507,20 +507,15 @@ func testExistentials1(_ p1: P1, b: Bool, i: Int64) {
   p1.f1()
 
   // CHECK: [[POPENED:%[0-9]+]] = open_existential_addr immutable_access [[P]] : $*any P1 to $*@opened([[UUID:".*"]], any P1) Self
-  // CHECK: copy_addr [[POPENED]] to [init] [[POPENED_COPY:%.*]] :
   // CHECK: [[GETTER:%[0-9]+]] = function_ref @$s19protocol_extensions2P1PAAEySbs5Int64Vcig
-  // CHECK: apply [[GETTER]]<@opened([[UUID]], any P1) Self>([[I]], [[POPENED_COPY]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (Int64, @in_guaranteed τ_0_0) -> Bool
+  // CHECK: apply [[GETTER]]<@opened([[UUID]], any P1) Self>([[I]], [[POPENED]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (Int64, @in_guaranteed τ_0_0) -> Bool
   // CHECK: store{{.*}} : $*Bool
-  // CHECK: destroy_addr [[POPENED_COPY]]
-  // CHECK: dealloc_stack [[POPENED_COPY]]
   var b2 = p1[i]
 
   // CHECK: [[POPENED:%[0-9]+]] = open_existential_addr immutable_access [[P]] : $*any P1 to $*@opened([[UUID:".*"]], any P1) Self
-  // CHECK: copy_addr [[POPENED]] to [init] [[POPENED_COPY:%.*]] :
   // CHECK: [[GETTER:%[0-9]+]] = function_ref @$s19protocol_extensions2P1PAAE4propSbvg
-  // CHECK: apply [[GETTER]]<@opened([[UUID]], any P1) Self>([[POPENED_COPY]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (@in_guaranteed τ_0_0) -> Bool
+  // CHECK: apply [[GETTER]]<@opened([[UUID]], any P1) Self>([[POPENED]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (@in_guaranteed τ_0_0) -> Bool
   // CHECK: store{{.*}} : $*Bool
-  // CHECK: dealloc_stack [[POPENED_COPY]]
   var b3 = p1.prop
 }
 
@@ -541,15 +536,13 @@ func testExistentials2(_ p1: P1) {
 // CHECK: bb0([[P:%[0-9]+]] : $*any P1):
 func testExistentialsGetters(_ p1: P1) {
   // CHECK: [[POPENED:%[0-9]+]] = open_existential_addr immutable_access [[P]] : $*any P1 to $*@opened([[UUID:".*"]], any P1) Self
-  // CHECK: copy_addr [[POPENED]] to [init] [[POPENED_COPY:%.*]] :
   // CHECK: [[FN:%[0-9]+]] = function_ref @$s19protocol_extensions2P1PAAE5prop2Sbvg
-  // CHECK: [[B:%[0-9]+]] = apply [[FN]]<@opened([[UUID]], any P1) Self>([[POPENED_COPY]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (@in_guaranteed τ_0_0) -> Bool
+  // CHECK: [[B:%[0-9]+]] = apply [[FN]]<@opened([[UUID]], any P1) Self>([[POPENED]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (@in_guaranteed τ_0_0) -> Bool
   let b: Bool = p1.prop2
 
   // CHECK: [[POPENED:%[0-9]+]] = open_existential_addr immutable_access [[P]] : $*any P1 to $*@opened([[UUID:".*"]], any P1) Self
-  // CHECK: copy_addr [[POPENED]] to [init] [[POPENED_COPY:%.*]] :
   // CHECK: [[GETTER:%[0-9]+]] = function_ref @$s19protocol_extensions2P1PAAEyS2bcig
-  // CHECK: apply [[GETTER]]<@opened([[UUID]], any P1) Self>([[B]], [[POPENED_COPY]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (Bool, @in_guaranteed τ_0_0) -> Bool
+  // CHECK: apply [[GETTER]]<@opened([[UUID]], any P1) Self>([[B]], [[POPENED]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (Bool, @in_guaranteed τ_0_0) -> Bool
   let b2: Bool = p1[b]
 }
 
@@ -597,10 +590,8 @@ func testLogicalExistentialSetters(_ hasAP1: HasAP1, _ b: Bool) {
   // CHECK-NEXT: copy_addr [[HASP1]] to [init] [[PBHASP1]] : $*HasAP1
   // CHECK: [[WRITE:%.*]] = begin_access [modify] [unknown] [[PBHASP1]]
   // CHECK: [[P1_COPY:%[0-9]+]] = alloc_stack $any P1
-  // CHECK-NEXT: [[HASP1_COPY:%[0-9]+]] = alloc_stack $HasAP1
-  // CHECK-NEXT: copy_addr [[WRITE]] to [init] [[HASP1_COPY]] : $*HasAP1
   // CHECK: [[SOMEP1_GETTER:%[0-9]+]] = function_ref @$s19protocol_extensions6HasAP1V6someP1AA0F0_pvg : $@convention(method) (@in_guaranteed HasAP1) -> @out any P1
-  // CHECK: [[RESULT:%[0-9]+]] = apply [[SOMEP1_GETTER]]([[P1_COPY]], [[HASP1_COPY]]) : $@convention(method) (@in_guaranteed HasAP1) -> @out any P1
+  // CHECK: [[RESULT:%[0-9]+]] = apply [[SOMEP1_GETTER]]([[P1_COPY]], [[WRITE]]) : $@convention(method) (@in_guaranteed HasAP1) -> @out any P1
   // CHECK: [[P1_OPENED:%[0-9]+]] = open_existential_addr mutable_access [[P1_COPY]] : $*any P1 to $*@opened([[UUID:".*"]], any P1) Self
   // CHECK: [[PROP2_SETTER:%[0-9]+]] = function_ref @$s19protocol_extensions2P1PAAE5prop2Sbvs : $@convention(method) <τ_0_0 where τ_0_0 : P1> (Bool, @inout τ_0_0) -> ()
   // CHECK: apply [[PROP2_SETTER]]<@opened([[UUID]], any P1) Self>([[B]], [[P1_OPENED]]) : $@convention(method) <τ_0_0 where τ_0_0 : P1> (Bool, @inout τ_0_0) -> ()

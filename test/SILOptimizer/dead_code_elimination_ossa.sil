@@ -13,6 +13,9 @@ typealias Int1 = Builtin.Int1
 
 class C {}
 
+sil @getC : $@convention(thin) () -> @owned C
+sil @barrier : $@convention(thin) () -> ()
+
 struct CAndBit {
     var c: C
     var bit: Int1
@@ -467,4 +470,21 @@ bb6:
 bb3:
   %22 = tuple ()
   return %22 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @dont_delete_move_value_lexical : {{.*}} {
+// CHECK:         [[LEXICAL:%[^,]+]] = move_value [lexical]
+// CHECK:         [[DUMMY:%[^,]+]] = function_ref @dummy
+// CHECK:         apply [[DUMMY]]()
+// CHECK:         destroy_value [[LEXICAL]]
+// CHECK-LABEL: } // end sil function 'dont_delete_move_value_lexical'
+sil [ossa] @dont_delete_move_value_lexical : $@convention(thin) () -> () {
+  %getC = function_ref @getC : $@convention(thin) () -> @owned C
+  %c = apply %getC() : $@convention(thin) () -> @owned C
+  %m = move_value [lexical] %c : $C
+  %dummy = function_ref @dummy : $@convention(thin) () -> ()
+  apply %dummy() : $@convention(thin) () -> ()
+  destroy_value %m : $C
+  %retval = tuple ()
+  return %retval : $()
 }

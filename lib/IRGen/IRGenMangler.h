@@ -706,9 +706,6 @@ protected:
                          llvm::function_ref<void ()> body);
 
   std::string mangleTypeSymbol(Type type, const char *Op) {
-    llvm::SaveAndRestore<bool> savedAllowMarkerProtocols(AllowMarkerProtocols,
-                                                         false);
-
     beginMangling();
     appendType(type, nullptr);
     appendOperator(Op);

@@ -34,6 +34,7 @@
 
 #include "swift/AST/GenericEnvironment.h"
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILFunction.h"
 #include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
@@ -734,7 +735,7 @@ SILValue EagerDispatch::emitArgumentConversion(
     // loadable on the caller's side?
     auto argConv = substConv.getSILArgumentConvention(ArgIdx);
     SILValue Val;
-    if (!argConv.isGuaranteedConvention()) {
+    if (!argConv.isGuaranteedConventionInCaller()) {
       Val = Builder.emitLoadValueOperation(Loc, CastArg,
                                            LoadOwnershipQualifier::Take);
     } else {

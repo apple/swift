@@ -28,6 +28,7 @@
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeWalker.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "llvm/ADT/SmallPtrSet.h"
 using namespace swift;
@@ -39,17 +40,18 @@ class FindCapturedVars : public ASTWalker {
   SmallVector<CapturedValue, 4> Captures;
   llvm::SmallDenseMap<ValueDecl*, unsigned, 4> captureEntryNumber;
 
-  /// We track the pack expansion expressions in ForEachStmts, because
-  /// their local generics remain in scope until the end of the statement.
-  llvm::DenseSet<PackExpansionExpr *> ForEachPatternSequences;
+  /// Opened element environments introduced by `for ... in repeat`
+  /// statements.
+  llvm::SetVector<GenericEnvironment *> VisitingForEachEnv;
 
-  /// A stack of pack element environments we're currently walking into.
-  /// A reference to an element archetype defined by one of these is not
-  /// a capture.
-  llvm::SetVector<GenericEnvironment *> VisitingEnvironments;
+  /// Opened element environments introduced by `repeat` expressions.
+  llvm::SetVector<GenericEnvironment *> VisitingPackExpansionEnv;
 
-  /// A set of pack element environments we've encountered that were not
+  /// A set of local generic environments we've encountered that were not
   /// in the above stack; those are the captures.
+  ///
+  /// Once we can capture opened existentials, opened existential environments
+  /// can go here too.
   llvm::SetVector<GenericEnvironment *> CapturedEnvironments;
 
   SourceLoc GenericParamCaptureLoc;
@@ -167,7 +169,8 @@ public:
         // outside the body of the current closure.
         if (auto *element = t->getAs<ElementArchetypeType>()) {
           auto *env = element->getGenericEnvironment();
-          if (VisitingEnvironments.count(env) == 0)
+          if (VisitingForEachEnv.count(env) == 0 &&
+              VisitingPackExpansionEnv.count(env) == 0)
             CapturedEnvironments.insert(env);
         }
 
@@ -201,7 +204,11 @@ public:
   /// if invalid.
   void addCapture(CapturedValue capture) {
     auto VD = capture.getDecl();
-    
+    if (!VD) {
+      Captures.push_back(capture);
+      return;
+    }
+
     if (auto var = dyn_cast<VarDecl>(VD)) {
       // `async let` variables cannot currently be captured.
       if (var->isAsyncLet()) {
@@ -243,6 +250,24 @@ public:
 
   MacroWalking getMacroWalkingBehavior() const override {
     return MacroWalking::Expansion;
+  }
+
+  PreWalkResult<Expr *> walkToPackElementExpr(PackElementExpr *PEE) {
+    // A pack element reference expression like `each t` or `each f()`
+    // expands within the innermost pack expansion expression. If there
+    // isn't one, it's from an outer function, so we record the capture.
+    if (!VisitingPackExpansionEnv.empty())
+      return Action::Continue(PEE);
+
+    unsigned Flags = 0;
+
+    // If the closure is noescape, then we can capture the pack element
+    // as noescape.
+    if (NoEscape)
+      Flags |= CapturedValue::IsNoEscape;
+
+    addCapture(CapturedValue(PEE, Flags));
+    return Action::SkipChildren(PEE);
   }
 
   PreWalkResult<Expr *> walkToDeclRefExpr(DeclRefExpr *DRE) {
@@ -378,7 +403,14 @@ public:
   void propagateCaptures(CaptureInfo captureInfo, SourceLoc loc) {
     for (auto capture : captureInfo.getCaptures()) {
       // If the decl was captured from us, it isn't captured *by* us.
-      if (capture.getDecl()->getDeclContext() == CurDC)
+      if (capture.getDecl() &&
+          capture.getDecl()->getDeclContext() == CurDC)
+        continue;
+
+      // If the inner closure is nested in a PackExpansionExpr, it's
+      // PackElementExpr captures are not our captures.
+      if (capture.getPackElement() &&
+          !VisitingPackExpansionEnv.empty())
         continue;
 
       // Compute adjusted flags.
@@ -393,7 +425,7 @@ public:
       if (!NoEscape)
         Flags &= ~CapturedValue::IsNoEscape;
 
-      addCapture(CapturedValue(capture.getDecl(), Flags, capture.getLoc()));
+      addCapture(capture.mergeFlags(Flags));
     }
 
     if (!HasGenericParamCaptures) {
@@ -609,6 +641,9 @@ public:
     if (auto *DRE = dyn_cast<DeclRefExpr>(E))
       return walkToDeclRefExpr(DRE);
 
+    if (auto *PEE = dyn_cast<PackElementExpr>(E))
+      return walkToPackElementExpr(PEE);
+
     // Look into lazy initializers.
     if (auto *LIE = dyn_cast<LazyInitializerExpr>(E)) {
       LIE->getSubExpr()->walk(*this);
@@ -644,8 +679,8 @@ public:
 
     if (auto expansion = dyn_cast<PackExpansionExpr>(E)) {
       if (auto *env = expansion->getGenericEnvironment()) {
-        assert(VisitingEnvironments.count(env) == 0);
-        VisitingEnvironments.insert(env);
+        assert(VisitingPackExpansionEnv.count(env) == 0);
+        VisitingPackExpansionEnv.insert(env);
       }
     }
 
@@ -655,13 +690,10 @@ public:
   PostWalkResult<Expr *> walkToExprPost(Expr *E) override {
     if (auto expansion = dyn_cast<PackExpansionExpr>(E)) {
       if (auto *env = expansion->getGenericEnvironment()) {
-        assert(env == VisitingEnvironments.back());
+        assert(env == VisitingPackExpansionEnv.back());
         (void) env;
 
-        // If this is the pack expansion of a for .. in loop, the generic
-        // environment remains in scope until the end of the loop.
-        if (ForEachPatternSequences.count(expansion) == 0)
-          VisitingEnvironments.pop_back();
+        VisitingPackExpansionEnv.pop_back();
       }
     }
 
@@ -675,8 +707,8 @@ public:
         if (auto *env = expansion->getGenericEnvironment()) {
           // Remember this generic environment, so that it remains on the
           // visited stack until the end of the for .. in loop.
-          assert(ForEachPatternSequences.count(expansion) == 0);
-          ForEachPatternSequences.insert(expansion);
+          assert(VisitingForEachEnv.count(env) == 0);
+          VisitingForEachEnv.insert(env);
         }
       }
     }
@@ -689,13 +721,10 @@ public:
       if (auto *expansion =
               dyn_cast<PackExpansionExpr>(forEachStmt->getParsedSequence())) {
         if (auto *env = expansion->getGenericEnvironment()) {
-          assert(ForEachPatternSequences.count(expansion) != 0);
-          ForEachPatternSequences.erase(expansion);
-
-          // Clean up the generic environment bound by the for loop.
-          assert(env == VisitingEnvironments.back());
-          VisitingEnvironments.pop_back();
+          assert(VisitingForEachEnv.back() == env);
           (void) env;
+
+          VisitingForEachEnv.pop_back();
         }
       }
     }

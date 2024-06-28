@@ -21,7 +21,7 @@ public enum Optional<T: ~Copyable>: ~Copyable {
   case none
 }
 
-extension Optional: Copyable {}
+extension Optional: Copyable where T: Copyable {}
 
 public func wrapping<T: ~Copyable>(_ t: consuming T) -> T? {
   return .some(t)

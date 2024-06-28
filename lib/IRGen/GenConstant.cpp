@@ -29,6 +29,7 @@
 #include "ConstantBuilder.h"
 #include "DebugTypeInfo.h"
 #include "swift/IRGen/Linking.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Range.h"
 #include "swift/SIL/SILModule.h"
 #include "llvm/Support/BLAKE3.h"

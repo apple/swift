@@ -42,6 +42,9 @@ public:
   NativeConventionSchema &operator=(const NativeConventionSchema&) = delete;
 
   bool requiresIndirect() const { return RequiresIndirect; }
+  bool shouldReturnTypedErrorIndirectly() const {
+    return requiresIndirect() || Lowering.shouldReturnTypedErrorIndirectly();
+  }
   bool empty() const { return Lowering.empty(); }
 
   llvm::Type *getExpandedType(IRGenModule &IGM) const;

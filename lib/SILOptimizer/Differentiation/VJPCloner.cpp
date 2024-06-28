@@ -18,6 +18,7 @@
 #define DEBUG_TYPE "differentiation"
 
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 
 #include "swift/SILOptimizer/Differentiation/VJPCloner.h"
 #include "swift/SILOptimizer/Analysis/DifferentiableActivityAnalysis.h"
@@ -1157,6 +1158,7 @@ SILFunction *VJPCloner::Implementation::createEmptyPullback() {
     case ParameterConvention::Indirect_Inout:
     case ParameterConvention::Indirect_In_Guaranteed:
     case ParameterConvention::Indirect_InoutAliasable:
+    case ParameterConvention::Indirect_In_CXX:
       conv = ResultConvention::Indirect;
       break;
     case ParameterConvention::Pack_Guaranteed:

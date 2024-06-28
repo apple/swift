@@ -12,6 +12,7 @@
 
 #include "swift/IDETool/CompilerInvocation.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Driver/FrontendUtil.h"
 #include "swift/Frontend/Frontend.h"
 #include "clang/AST/DeclObjC.h"
@@ -256,8 +257,6 @@ bool ide::initCompilerInvocation(
                                      std::to_string(sessionTimestamp - 1));
     ImporterOpts.ExtraArgs.push_back(
         "-fmodules-validate-once-per-build-session");
-
-    SearchPathOpts.DisableModulesValidateSystemDependencies = true;
   }
 
   // Disable expensive SIL options to reduce time spent in SILGen.

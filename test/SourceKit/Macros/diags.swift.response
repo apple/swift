@@ -5,9 +5,9 @@
       key.original_location: {
         key.offset: 1,
         key.length: 17,
-        key.buffer_name: "@__swiftmacro_9MacroUser3fooyyF9stringifyfMf_.swift"
+        key.buffer_name: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX12_10_9stringifyfMf_.swift"
       },
-      key.buffer_name: "@__swiftmacro_9MacroUser3fooyyF9stringifyfMf_11coerceToIntfMf_.swift"
+      key.buffer_name: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX12_10_9stringifyfMf_11coerceToIntfMf_.swift"
     },
     {
       key.buffer_text: "(#coerceToInt(\"c\"), #\"#coerceToInt(\"c\")\"#)",
@@ -16,7 +16,7 @@
         key.length: 29,
         key.buffer_name: diags.swift
       },
-      key.buffer_name: "@__swiftmacro_9MacroUser3fooyyF9stringifyfMf_.swift"
+      key.buffer_name: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX12_10_9stringifyfMf_.swift"
     },
     {
       key.buffer_text: "\"b\" as Int",
@@ -25,7 +25,7 @@
         key.length: 17,
         key.buffer_name: diags.swift
       },
-      key.buffer_name: "@__swiftmacro_9MacroUser3fooyyF11coerceToIntfMf0_.swift"
+      key.buffer_name: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX11_10_11coerceToIntfMf0_.swift"
     },
     {
       key.buffer_text: "\"a\" as Int",
@@ -34,7 +34,7 @@
         key.length: 17,
         key.buffer_name: diags.swift
       },
-      key.buffer_name: "@__swiftmacro_9MacroUser3fooyyF11coerceToIntfMf_.swift"
+      key.buffer_name: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX10_10_11coerceToIntfMf_.swift"
     },
     {
       key.buffer_text: "import Swift\n\nprecedencegroup MyPrecedence {\n}\n\n@attached(member) macro myMacro()\n\nextension Int {\n}\n\n@main\nstruct MyMain {\n  static func main() {\n  }\n}\n\ntypealias Array = Void\n\ntypealias Dictionary = Void\n\ntypealias BooleanLiteralType = Void\n\ntypealias ExtendedGraphemeClusterType = Void\n\ntypealias FloatLiteralType = Void\n\ntypealias IntegerLiteralType = Void\n\ntypealias StringLiteralType = Void\n\ntypealias UnicodeScalarType = Void\n\ntypealias _ColorLiteralType = Void\n\ntypealias _ImageLiteralType = Void\n\ntypealias _FileReferenceLiteralType = Void",
@@ -59,7 +59,7 @@
     {
       key.line: 1,
       key.column: 1,
-      key.filepath: "@__swiftmacro_9MacroUser3fooyyF9stringifyfMf_11coerceToIntfMf_.swift",
+      key.filepath: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX12_10_9stringifyfMf_11coerceToIntfMf_.swift",
       key.severity: source.diagnostic.severity.error,
       key.id: "cannot_convert_coerce",
       key.description: "cannot convert value of type 'String' to type 'Int' in coercion",
@@ -73,7 +73,7 @@
         {
           key.line: 1,
           key.column: 2,
-          key.filepath: "@__swiftmacro_9MacroUser3fooyyF9stringifyfMf_.swift",
+          key.filepath: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX12_10_9stringifyfMf_.swift",
           key.severity: source.diagnostic.severity.note,
           key.id: "in_macro_expansion",
           key.description: "in expansion of macro 'coerceToInt' here",
@@ -103,7 +103,7 @@
     {
       key.line: 1,
       key.column: 1,
-      key.filepath: "@__swiftmacro_9MacroUser3fooyyF11coerceToIntfMf0_.swift",
+      key.filepath: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX11_10_11coerceToIntfMf0_.swift",
       key.severity: source.diagnostic.severity.error,
       key.id: "cannot_convert_coerce",
       key.description: "cannot convert value of type 'String' to type 'Int' in coercion",
@@ -133,7 +133,7 @@
     {
       key.line: 1,
       key.column: 1,
-      key.filepath: "@__swiftmacro_9MacroUser3fooyyF11coerceToIntfMf_.swift",
+      key.filepath: "@__swiftmacro_9MacroUser0016diagsswift_eCJAcfMX10_10_11coerceToIntfMf_.swift",
       key.severity: source.diagnostic.severity.error,
       key.id: "cannot_convert_coerce",
       key.description: "cannot convert value of type 'String' to type 'Int' in coercion",

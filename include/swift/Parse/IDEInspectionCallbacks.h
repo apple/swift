@@ -178,6 +178,12 @@ public:
   /// #keyPath argument have been parsed yet.
   virtual void completeExprKeyPath(KeyPathExpr *KPE, SourceLoc DotLoc) {};
 
+  /// Complete the beginning of the type for a parameter of a
+  /// func/subscript/closure, or the type for a parameter in a function type.
+  /// For the latter, we cannot know for sure whether the user is trying to
+  /// write a function type, so will complete for e.g `let x: (#^COMPLETE^#`.
+  virtual void completeTypePossibleFunctionParamBeginning() {}
+
   /// Complete the beginning of the type of result of func/var/let/subscript.
   virtual void completeTypeDeclResultBeginning() {};
 

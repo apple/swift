@@ -18,6 +18,7 @@
 #include "TypeChecker.h"
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/TypeWalker.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Sema/ConstraintGraph.h"
 #include "swift/Sema/ConstraintSystem.h"
@@ -2064,9 +2065,20 @@ Constraint *ConstraintSystem::getUnboundBindOverloadDisjunction(
 
 // Performance hack: if there are two generic overloads, and one is
 // more specialized than the other, prefer the more-specialized one.
-static Constraint *tryOptimizeGenericDisjunction(
-                                          DeclContext *dc,
-                                          ArrayRef<Constraint *> constraints) {
+static Constraint *
+tryOptimizeGenericDisjunction(ConstraintSystem &cs, Constraint *disjunction,
+                              ArrayRef<Constraint *> constraints) {
+  auto *dc = cs.DC;
+
+  // If we're solving for code completion, and have a child completion token,
+  // skip this optimization since the completion token being a placeholder can
+  // allow us to prefer an unhelpful disjunction choice.
+  if (cs.isForCodeCompletion()) {
+    auto anchor = disjunction->getLocator()->getAnchor();
+    if (cs.containsIDEInspectionTarget(cs.includingParentApply(anchor)))
+      return nullptr;
+  }
+
   llvm::SmallVector<Constraint *, 4> choices;
   for (auto *choice : constraints) {
     if (choices.size() > 2)
@@ -2311,7 +2323,7 @@ void DisjunctionChoiceProducer::partitionDisjunction(
     SmallVectorImpl<unsigned> &PartitionBeginning) {
   // Apply a special-case rule for favoring one generic function over
   // another.
-  if (auto favored = tryOptimizeGenericDisjunction(CS.DC, Choices)) {
+  if (auto favored = tryOptimizeGenericDisjunction(CS, Disjunction, Choices)) {
     CS.favorConstraint(favored);
   }
 

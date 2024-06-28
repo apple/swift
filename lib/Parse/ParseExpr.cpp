@@ -18,6 +18,7 @@
 #include "swift/AST/Attr.h"
 #include "swift/AST/DiagnosticsParse.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/EditorPlaceholder.h"
 #include "swift/Basic/StringExtras.h"
@@ -371,6 +372,23 @@ done:
   // If we saw no operators, don't build a sequence.
   if (SequencedExprs.size() == 1)
     return makeParserResult(SequenceStatus, SequencedExprs[0]);
+
+  // If the left-most sequence expr is a 'try', hoist it up to turn
+  // '(try x) + y' into 'try (x + y)'. This is necessary to do in the
+  // parser because 'try' nodes are represented in the ASTScope tree
+  // to look up catch nodes. The scope tree must be syntactic because
+  // it's constructed before sequence folding happens during preCheckExpr.
+  // Otherwise, catch node lookup would find the incorrect catch node for
+  // 'try x + y' at the source location for 'y'.
+  //
+  // 'try' has restrictions for where it can appear within a sequence
+  // expr. This is still diagnosed in TypeChecker::foldSequence.
+  if (auto *tryEval = dyn_cast<AnyTryExpr>(SequencedExprs[0])) {
+    SequencedExprs[0] = tryEval->getSubExpr();
+    auto *sequence = SequenceExpr::create(Context, SequencedExprs);
+    tryEval->setSubExpr(sequence);
+    return makeParserResult(SequenceStatus, tryEval);
+  }
 
   return makeParserResult(SequenceStatus,
                           SequenceExpr::create(Context, SequencedExprs));
@@ -1461,8 +1479,9 @@ Parser::parseExprPostfixSuffix(ParserResult<Expr> Result, bool isExprBasic,
       }
 
       llvm::SmallPtrSet<Expr *, 4> exprsWithBindOptional;
-      auto ICD =
-          parseIfConfig([&](SmallVectorImpl<ASTNode> &elements, bool isActive) {
+      auto ICD = parseIfConfig(
+          IfConfigContext::PostfixExpr,
+          [&](SmallVectorImpl<ASTNode> &elements, bool isActive) {
             // Although we know the '#if' body starts with period,
             // '#elseif'/'#else' bodies might start with invalid tokens.
             if (isAtStartOfPostfixExprSuffix() || Tok.is(tok::pound_if)) {
@@ -1473,13 +1492,6 @@ Parser::parseExprPostfixSuffix(ParserResult<Expr> Result, bool isExprBasic,
               if (exprHasBindOptional)
                 exprsWithBindOptional.insert(expr.get());
               elements.push_back(expr.get());
-            }
-
-            // Don't allow any character other than the postfix expression.
-            if (!Tok.isAny(tok::pound_elseif, tok::pound_else, tok::pound_endif,
-                           tok::eof)) {
-              diagnose(Tok, diag::expr_postfix_ifconfig_unexpectedtoken);
-              skipUntilConditionalBlockClose();
             }
           });
       if (ICD.isNull())

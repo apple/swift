@@ -5735,8 +5735,10 @@ DictionaryTestSuite.test("BulkLoadingInitializer.Unique") {
       _unsafeUninitializedCapacity: c,
       allowingDuplicates: false
     ) { keys, values in
-      let k = keys.baseAddress!
-      let v = values.baseAddress!
+      guard let k = keys.baseAddress, let v = values.baseAddress else {
+        return 0
+      }
+
       for i in 0 ..< c {
         (k + i).initialize(to: TestKeyTy(i))
         (v + i).initialize(to: TestEquatableValueTy(i))
@@ -5762,8 +5764,10 @@ DictionaryTestSuite.test("BulkLoadingInitializer.Nonunique") {
       _unsafeUninitializedCapacity: c,
       allowingDuplicates: true
     ) { keys, values in
-      let k = keys.baseAddress!
-      let v = values.baseAddress!
+      guard let k = keys.baseAddress, let v = values.baseAddress else {
+        return 0
+      }
+
       for i in 0 ..< c {
         (k + i).initialize(to: TestKeyTy(i / 2))
         (v + i).initialize(to: TestEquatableValueTy(i / 2))

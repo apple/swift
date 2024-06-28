@@ -16,6 +16,7 @@
 #include "Scope.h"
 #include "swift/AST/ASTMangler.h"
 #include "swift/AST/GenericSignature.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/FormalLinkage.h"
 
 using namespace swift;
@@ -42,8 +43,8 @@ SILGlobalVariable *SILGenModule::getSILGlobalVariable(VarDecl *gDecl,
 
   // Get the linkage for SILGlobalVariable.
   FormalLinkage formalLinkage;
-  if (gDecl->isResilient() &&
-      !gDecl->getModuleContext()->serializePackageEnabled())
+  // sil_global linkage should be kept private if its decl is resilient.
+  if (gDecl->isResilient())
     formalLinkage = FormalLinkage::Private;
   else
     formalLinkage = getDeclLinkage(gDecl);

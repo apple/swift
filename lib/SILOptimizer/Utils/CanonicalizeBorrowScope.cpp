@@ -22,6 +22,7 @@
 
 #define DEBUG_TYPE "copy-propagation"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/Utils/CanonicalizeBorrowScope.h"
 #include "swift/Basic/Defer.h"
 #include "swift/SIL/InstructionUtils.h"

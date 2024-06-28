@@ -1,6 +1,6 @@
-// RUN: %target-swift-frontend -strict-concurrency=targeted -disable-availability-checking %s -o /dev/null -verify -emit-sil
-// RUN: %target-swift-frontend -strict-concurrency=strict -disable-availability-checking %s -o /dev/null -verify -emit-sil
-// RUN: %target-swift-frontend -strict-concurrency=strict -disable-availability-checking %s -o /dev/null -verify -emit-sil -enable-upcoming-feature RegionBasedIsolation
+// RUN: %target-swift-frontend -strict-concurrency=targeted -disable-availability-checking %s -o /dev/null -verify -emit-sil  -DALLOW_TYPECHECKER_ERRORS -verify-additional-prefix typechecker-
+// RUN: %target-swift-frontend -strict-concurrency=complete -disable-availability-checking %s -o /dev/null -verify -emit-sil -DALLOW_TYPECHECKER_ERRORS -verify-additional-prefix typechecker-
+// RUN: %target-swift-frontend -strict-concurrency=complete -disable-availability-checking %s -o /dev/null -verify -emit-sil -verify-additional-prefix tns-
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
@@ -51,21 +51,25 @@ func buyVegetables(shoppingList: [String]) async throws -> [Vegetable] {
 func test_unsafeContinuations() async {
   // the closure should not allow async operations;
   // after all: if you have async code, just call it directly, without the unsafe continuation
-  let _: String = withUnsafeContinuation { continuation in // expected-error{{cannot pass function of type '(UnsafeContinuation<String, Never>) async -> Void' to parameter expecting synchronous function type}}
-    let s = await someAsyncFunc() // expected-note {{'async' inferred from asynchronous operation used here}}
+#if ALLOW_TYPECHECKER_ERRORS
+  let _: String = withUnsafeContinuation { continuation in // expected-typechecker-error{{cannot pass function of type '(UnsafeContinuation<String, Never>) async -> Void' to parameter expecting synchronous function type}}
+    let s = await someAsyncFunc() // expected-typechecker-note {{'async' inferred from asynchronous operation used here}}
     continuation.resume(returning: s)
   }
+#endif
 
   let _: String = await withUnsafeContinuation { continuation in
     continuation.resume(returning: "")
   }
 
   // rdar://76475495 - suppress warnings for invalid expressions
+#if ALLOW_TYPECHECKER_ERRORS
   func test_invalid_async_no_warnings() async -> Int {
 	  return await withUnsafeContinuation {
-		  $0.resume(throwing: 1) // expected-error {{cannot convert value of type 'Int' to expected argument type 'Never'}}
+		  $0.resume(throwing: 1) // expected-typechecker-error {{cannot convert value of type 'Int' to expected argument type 'Never'}}
 	  }
   }
+#endif
 }
 
 @available(SwiftStdlib 5.1, *)
@@ -130,13 +134,15 @@ func test_detached_throwing() async -> String {
   } catch {
     print("caught: \(error)")
   }
+
+  return ""
 }
 
 // ==== Detached Tasks with inout Params---------------------------------------
 @available(SwiftStdlib 5.1, *)
-func printOrderNumber(n: inout Int) async {
-  Task.detached {
-      n+=1 //expected-error {{mutable capture of 'inout' parameter 'n' is not allowed in concurrently-executing code}}
-      print(n) //expected-error {{mutable capture of 'inout' parameter 'n' is not allowed in concurrently-executing code}}
+func printOrderNumber(n: inout Int) async { // expected-tns-note {{parameter 'n' is declared 'inout'}}
+  Task.detached { // expected-tns-error {{escaping closure captures 'inout' parameter 'n'}}
+      n+=1 // expected-tns-note {{captured here}}
+      print(n) // expected-tns-note {{captured here}}
   }
 }

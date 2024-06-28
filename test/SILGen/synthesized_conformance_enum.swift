@@ -56,6 +56,7 @@ extension Enum: Codable where T: Codable {}
 
 extension NoValues: CaseIterable {}
 // CHECK-LABEL: // static NoValues.allCases.getter
+// CHECK-NEXT: // Isolation: nonisolated
 // CHECK-NEXT: sil hidden [ossa] @$s28synthesized_conformance_enum8NoValuesO8allCasesSayACGvgZ : $@convention(method) (@thin NoValues.Type) -> @owned Array<NoValues> {
 
 extension NoValues: Codable {}

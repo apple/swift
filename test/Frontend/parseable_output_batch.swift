@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: touch %t/test.swift
 // RUN: echo 'func foo() {}' > %t/test.swift
-// RUN: %target-swift-frontend -primary-file %s -primary-file %t/test.swift -o %t.out -o test.tmp.out -module-name parseable_output_batch -emit-module -emit-module-path %t.swiftmodule -module-name test -emit-module -emit-module-path test.tmp.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -c -primary-file %s -primary-file %t/test.swift -o %t.out -o test.tmp.out -module-name parseable_output_batch -emit-module -emit-module-path %t.swiftmodule -module-name test -emit-module -emit-module-path test.tmp.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
 
 // Despite only one frontend invocation, two compile jobs are "begin" and "finish", using quasi-PIDs, on per-primary and its outputs.
 

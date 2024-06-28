@@ -18,6 +18,7 @@
 #include "swift/AST/Attr.h"
 #include "swift/AST/Decl.h"
 #include "swift/AST/FileUnit.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Version.h"
 #include "swift/Parse/IDEInspectionCallbacks.h"
@@ -369,12 +370,14 @@ ParserStatus Parser::parseBraceItems(SmallVectorImpl<ASTNode> &Entries,
     PreviousHadSemi = false;
     if (Tok.is(tok::pound_if) && !isStartOfSwiftDecl()) {
       auto IfConfigResult = parseIfConfig(
-        [&](SmallVectorImpl<ASTNode> &Elements, bool IsActive) {
-          parseBraceItems(Elements, Kind, IsActive
-                            ? BraceItemListKind::ActiveConditionalBlock
-                            : BraceItemListKind::InactiveConditionalBlock,
-                          IsFollowingGuard);
-        });
+          IfConfigContext::BraceItems,
+          [&](SmallVectorImpl<ASTNode> &Elements, bool IsActive) {
+            parseBraceItems(Elements, Kind,
+                            IsActive
+                                ? BraceItemListKind::ActiveConditionalBlock
+                                : BraceItemListKind::InactiveConditionalBlock,
+                            IsFollowingGuard);
+          });
       if (IfConfigResult.hasCodeCompletion() && isIDEInspectionFirstPass()) {
         consumeDecl(BeginParserPosition, IsTopLevel);
         return IfConfigResult;
@@ -1793,8 +1796,12 @@ Parser::parseStmtConditionElement(SmallVectorImpl<StmtConditionElement> &result,
     auto declRefExpr = new (Context) UnresolvedDeclRefExpr(bindingName,
                                                            DeclRefKind::Ordinary,
                                                            loc);
-    
-    declRefExpr->setImplicit();
+    // We do NOT mark this declRefExpr as implicit because that'd avoid
+    // reporting errors if it were used in a synchronous context in
+    // 'diagnoseUnhandledAsyncSite'. There may be other ways to resolve the
+    // reporting issue that we could explore in the future.
+    //
+    // Even though implicit, the ast node has correct source location.
     Init = makeParserResult(declRefExpr);
   } else if (BindingKindStr != "case") {
     // If the pattern is present but isn't an identifier, the user wrote
@@ -2568,10 +2575,11 @@ Parser::parseStmtCases(SmallVectorImpl<ASTNode> &cases, bool IsActive) {
     } else if (Tok.is(tok::pound_if)) {
       // '#if' in 'case' position can enclose one or more 'case' or 'default'
       // clauses.
-      auto IfConfigResult = parseIfConfig(
-        [&](SmallVectorImpl<ASTNode> &Elements, bool IsActive) {
-          parseStmtCases(Elements, IsActive);
-        });
+      auto IfConfigResult =
+          parseIfConfig(IfConfigContext::SwitchStmt,
+                        [&](SmallVectorImpl<ASTNode> &Elements, bool IsActive) {
+                          parseStmtCases(Elements, IsActive);
+                        });
       Status |= IfConfigResult;
       if (auto ICD = IfConfigResult.getPtrOrNull()) {
         cases.emplace_back(ICD);
@@ -2633,6 +2641,12 @@ static ParserStatus parseStmtCase(Parser &P, SourceLoc &CaseLoc,
       isFirst = false;
       if (!P.consumeIf(tok::comma))
         break;
+
+      if (P.Tok.is(tok::kw_case)) {
+        P.diagnose(P.Tok, diag::extra_case_keyword)
+          .fixItRemove(SourceRange(P.Tok.getLoc()));
+        P.consumeToken(tok::kw_case);
+      }
     }
   }
 

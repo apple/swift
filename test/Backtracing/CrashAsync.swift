@@ -51,8 +51,8 @@ struct CrashAsync {
 // CHECK-NEXT:  6 [async]          0x{{[0-9a-f]+}} {{_?}}$s10CrashAsyncAAV4mainyyYaFZ{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/CrashAsync.swift:37
 // CHECK-NEXT:  7 [async] [system] 0x{{[0-9a-f]+}} {{_?}}$s10CrashAsyncAAV5$mainyyYaFZ{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/<compiler-generated>
 // CHECK-NEXT:  8 [async] [system] 0x{{[0-9a-f]+}} {{_?}}async_Main{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/<compiler-generated>
-// CHECK-NEXT:  9 [async] [thunk]  0x{{[0-9a-f]+}} {{_?}}$sIetH_yts5Error_pIeghHrzo_TR{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/<compiler-generated>
-// CHECK-NEXT: 10 [async] [thunk]  0x{{[0-9a-f]+}} {{_?}}$sIetH_yts5Error_pIeghHrzo_TRTA{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/<compiler-generated>
+// CHECK-NEXT:  9 [async] [thunk]  0x{{[0-9a-f]+}} {{_?}}$sIetH_yts5Error_pIegHrzo_TR{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/<compiler-generated>
+// CHECK-NEXT: 10 [async] [thunk]  0x{{[0-9a-f]+}} {{_?}}$sIetH_yts5Error_pIegHrzo_TRTA{{TQ0_| \+ [0-9]+}} in CrashAsync at {{.*}}/<compiler-generated>
 // CHECK-NEXT: 11 [async] [system] 0x{{[0-9a-f]+}} {{_?}}_ZL23completeTaskWithClosurePN5swift12AsyncContextEPNS_10SwiftErrorE in libswift_Concurrency.{{dylib|so}}
 
 // FRIENDLY: *** Program crashed: Bad pointer dereference at 0x{{0+}}4 ***

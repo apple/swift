@@ -219,6 +219,8 @@ module WinSDK [system] {
       export *
 
       link "xaudio2.lib"
+
+      requires cplusplus
     }
 
     // XInput 1.4 (Windows 10, XBox) is newer than the XInput 9.1.0 which was

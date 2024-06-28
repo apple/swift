@@ -138,12 +138,24 @@ RUNTIME_VERSION(
   PLATFORM(xrOS, (1, 0, 0))
 )
 
+END_MAJOR_VERSION(5)
+
+MAJOR_VERSION(6)
+
 RUNTIME_VERSION(
-  (5, 11),
+  (6, 0),
+  PLATFORM(macOS,   (15, 0, 0))
+  PLATFORM(iOS,     (18, 0, 0))
+  PLATFORM(watchOS, (11, 0, 0))
+  PLATFORM(xrOS, (2, 0, 0))
+)
+
+RUNTIME_VERSION(
+  (6, 1),
   FUTURE
 )
 
-END_MAJOR_VERSION(5)
+END_MAJOR_VERSION(6)
 
 // .......................................................................... //
 

@@ -12,6 +12,7 @@
 
 #include "SwitchEnumBuilder.h"
 #include "SILGenFunction.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILLocation.h"
 
 using namespace swift;

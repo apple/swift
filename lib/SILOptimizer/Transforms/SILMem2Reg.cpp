@@ -21,6 +21,7 @@
 #define DEBUG_TYPE "sil-mem2reg"
 
 #include "swift/AST/DiagnosticsSIL.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/GraphNodeWorklist.h"
 #include "swift/Basic/TaggedUnion.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
@@ -2071,7 +2072,7 @@ void MemoryToRegisters::canonicalizeValueLifetimes(
     }
   }
   CanonicalizeOSSALifetime canonicalizer(
-      /*pruneDebug=*/true, /*maximizeLifetime=*/!f.shouldOptimize(), &f,
+      PruneDebugInsts, MaximizeLifetime_t(!f.shouldOptimize()), &f,
       accessBlockAnalysis, domInfo, calleeAnalysis, deleter);
   for (auto value : owned) {
     if (isa<SILUndef>(value) || value->isMarkedAsDeleted())

@@ -44,6 +44,7 @@
 #include "swift/AST/TypeMatcher.h"
 #include "swift/AST/Types.h"
 #include "swift/AST/TypeCheckRequests.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
 #include "swift/ClangImporter/ClangModule.h"
@@ -2425,7 +2426,9 @@ AssociatedTypeInference::computeFailureTypeWitness(
   // it.
   for (const auto &witness : valueWitnesses) {
     if (isAsyncIteratorProtocolNext(witness.first)) {
-      if (auto witnessFunc = dyn_cast<AbstractFunctionDecl>(witness.second)) {
+      // We use a dyn_cast_or_null since we can get a nullptr here if we fail to
+      // match a witness. In such a case, we should just fail here.
+      if (auto witnessFunc = dyn_cast_or_null<AbstractFunctionDecl>(witness.second)) {
         auto thrownError = witnessFunc->getEffectiveThrownErrorType();
 
         // If it doesn't throw, Failure == Never.
@@ -2486,9 +2489,8 @@ AssociatedTypeInference::computeDefaultTypeWitness(
 }
 
 static std::pair<Type, TypeDecl *>
-deriveTypeWitness(DeclContext *DC,
-                  NominalTypeDecl *TypeDecl,
-                  AssociatedTypeDecl *AssocType) {
+deriveTypeWitness(const NormalProtocolConformance *Conformance,
+                  NominalTypeDecl *TypeDecl, AssociatedTypeDecl *AssocType) {
   auto *protocol = cast<ProtocolDecl>(AssocType->getDeclContext());
 
   auto knownKind = protocol->getKnownProtocolKind();
@@ -2496,10 +2498,7 @@ deriveTypeWitness(DeclContext *DC,
   if (!knownKind)
     return std::make_pair(nullptr, nullptr);
 
-  auto Decl = DC->getInnermostDeclarationDeclContext();
-
-  DerivedConformance derived(TypeDecl->getASTContext(), Decl, TypeDecl,
-                             protocol);
+  DerivedConformance derived(Conformance, TypeDecl, protocol);
   switch (*knownKind) {
   case KnownProtocolKind::RawRepresentable:
     return std::make_pair(derived.deriveRawRepresentable(AssocType), nullptr);
@@ -2533,7 +2532,7 @@ AssociatedTypeInference::computeDerivedTypeWitness(
     return std::make_pair(Type(), nullptr);
 
   // Try to derive the type witness.
-  auto result = deriveTypeWitness(dc, derivingTypeDecl, assocType);
+  auto result = deriveTypeWitness(conformance, derivingTypeDecl, assocType);
   if (!result.first)
     return std::make_pair(Type(), nullptr);
 
@@ -2645,6 +2644,8 @@ bool AssociatedTypeInference::simplifyCurrentTypeWitnesses() {
     anyChanged = false;
     anyUnsubstituted = false;
 
+  LLVM_DEBUG(llvm::dbgs() << "Simplifying type witnesses -- iteration " << iterations << "\n");
+
     if (++iterations > 100) {
       llvm::errs() << "Too many iterations in simplifyCurrentTypeWitnesses()\n";
 
@@ -2679,6 +2680,10 @@ bool AssociatedTypeInference::simplifyCurrentTypeWitnesses() {
       auto typeWitness = known->first;
       if (!typeWitness->hasTypeParameter())
         continue;
+
+      LLVM_DEBUG(llvm::dbgs() << "Attempting to simplify witness for "
+                              << assocType->getName()
+                              << ": " << typeWitness << "\n";);
 
       auto simplified = typeWitness.transformRec(
         [&](TypeBase *type) -> std::optional<Type> {
@@ -2808,10 +2813,16 @@ AssociatedTypeInference::getSubstOptionsWithCurrentTypeWitnesses() {
         return nullptr;
       }
 
-      Type type = self->typeWitnesses.begin(assocType)->first;
+      auto found = self->typeWitnesses.begin(assocType);
+      if (found == self->typeWitnesses.end()) {
+        // Invalid code.
+        return ErrorType::get(thisProto->getASTContext()).getPointer();
+      }
+
+      Type type = found->first;
       if (type->hasTypeParameter()) {
         // Not fully substituted yet.
-        return ErrorType::get(type->getASTContext()).getPointer();
+        return ErrorType::get(thisProto->getASTContext()).getPointer();
       }
 
       return type->mapTypeOutOfContext().getPointer();

@@ -16,6 +16,7 @@
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/Requirement.h"
 #include "swift/AST/Type.h"
+#include "swift/Basic/Assertions.h"
 
 namespace swift {
 
@@ -84,14 +85,14 @@ private:
 
 public:
   Requirement getRequirement() const {
-    assert(kind != Kind::InvalidInverseOuterSubject &&
+    ASSERT(kind != Kind::InvalidInverseOuterSubject &&
            kind != Kind::InvalidInverseSubject &&
            kind != Kind::ConflictingInverseRequirement);
     return requirement;
   }
 
   InverseRequirement getInverse() const {
-    assert(kind == Kind::InvalidInverseOuterSubject ||
+    ASSERT(kind == Kind::InvalidInverseOuterSubject ||
            kind == Kind::InvalidInverseSubject ||
            kind == Kind::ConflictingInverseRequirement);
     return inverse;

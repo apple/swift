@@ -1,12 +1,11 @@
-// RUN: %target-typecheck-verify-swift \
-// RUN:   -parse-stdlib -module-name Swift
-
-// NOTE: -parse-stdlib is a transitional workaround and should not be required.
+// RUN: %target-typecheck-verify-swift -disable-availability-checking
 
 @_moveOnly // expected-error {{'@_moveOnly' attribute is only valid on structs or enums}}
 class KlassLegacy {}
 
 class KlassModern: ~Copyable {} // expected-error {{classes cannot be '~Copyable'}}
+
+actor FamousPerson: ~Copyable {} // expected-error{{actors cannot be '~Copyable'}}
 
 class Konditional<T: ~Copyable> {}
 

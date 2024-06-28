@@ -40,6 +40,7 @@
 #include "swift/AST/SynthesizedFileUnit.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeVisitor.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/FileSystem.h"
 #include "swift/Basic/LLVMExtras.h"
@@ -834,11 +835,11 @@ void Serializer::writeBlockInfoBlock() {
   BLOCK_RECORD(control_block, MODULE_NAME);
   BLOCK_RECORD(control_block, TARGET);
   BLOCK_RECORD(control_block, SDK_NAME);
-  BLOCK_RECORD(control_block, SDK_VERSION);
   BLOCK_RECORD(control_block, REVISION);
-  BLOCK_RECORD(control_block, CHANNEL);
   BLOCK_RECORD(control_block, IS_OSSA);
   BLOCK_RECORD(control_block, ALLOWABLE_CLIENT_NAME);
+  BLOCK_RECORD(control_block, CHANNEL);
+  BLOCK_RECORD(control_block, SDK_VERSION);
 
   BLOCK(OPTIONS_BLOCK);
   BLOCK_RECORD(options_block, SDK_PATH);
@@ -2579,7 +2580,7 @@ void Serializer::writeLifetimeDependenceInfo(
 
   auto abbrCode = DeclTypeAbbrCodes[LifetimeDependenceLayout::Code];
   LifetimeDependenceLayout::emitRecord(
-      Out, ScratchRecord, abbrCode,
+      Out, ScratchRecord, abbrCode, lifetimeDependenceInfo.isImmortal(),
       lifetimeDependenceInfo.hasInheritLifetimeParamIndices(),
       lifetimeDependenceInfo.hasScopeLifetimeParamIndices(), paramIndices);
 }
@@ -3350,7 +3351,7 @@ class Serializer::DeclSerializer : public DeclVisitor<DeclSerializer> {
       
       RawLayoutDeclAttrLayout::emitRecord(
         S.Out, S.ScratchRecord, abbrCode, attr->isImplicit(),
-        typeID, rawSize, rawAlign);
+        typeID, rawSize, rawAlign, attr->shouldMoveAsLikeType());
     }
     }
   }
@@ -5185,6 +5186,7 @@ static uint8_t getRawStableParameterConvention(swift::ParameterConvention pc) {
   SIMPLE_CASE(ParameterConvention, Indirect_In_Guaranteed)
   SIMPLE_CASE(ParameterConvention, Indirect_Inout)
   SIMPLE_CASE(ParameterConvention, Indirect_InoutAliasable)
+  SIMPLE_CASE(ParameterConvention, Indirect_In_CXX)
   SIMPLE_CASE(ParameterConvention, Direct_Owned)
   SIMPLE_CASE(ParameterConvention, Direct_Unowned)
   SIMPLE_CASE(ParameterConvention, Direct_Guaranteed)
@@ -5583,8 +5585,7 @@ public:
           S.addTypeRef(param.getPlainType()), paramFlags.isVariadic(),
           paramFlags.isAutoClosure(), paramFlags.isNonEphemeral(), rawOwnership,
           paramFlags.isIsolated(), paramFlags.isNoDerivative(),
-          paramFlags.isCompileTimeConst(), paramFlags.hasResultDependsOn(),
-          paramFlags.isSending());
+          paramFlags.isCompileTimeConst(), paramFlags.isSending());
     }
   }
 

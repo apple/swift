@@ -561,7 +561,7 @@ public struct SideEffects : CustomStringConvertible, NoReflectionChildren {
           result.memory = SideEffects.Memory()
         }
 
-      case .indirectInout, .indirectInoutAliasable:
+      case .indirectInout, .indirectInoutAliasable, .indirectInCXX:
         break
       }
       return result

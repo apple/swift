@@ -107,13 +107,6 @@ public:
     return Decl.get<const clang::TypedefNameDecl *>();
   }
 };
-
-/// Determine whether this typedef is a CF type.
-bool isCFTypeDecl(const clang::TypedefNameDecl *Decl);
-
-/// Determine the imported CF type for the given typedef-name, or the empty
-/// string if this is not an imported CF type name.
-llvm::StringRef getCFTypeName(const clang::TypedefNameDecl *decl);
 }
 }
 

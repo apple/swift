@@ -192,6 +192,109 @@ bb3(%outer : @guaranteed $C, %inner : @guaranteed $C):
   return %99 : $()
 }
 
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_incomplete_linear: linear-liveness
+// CHECK-LABEL: sil [ossa] @testLoopConditional_incomplete_linear : {{.*}} {
+// CHECK:       [[ENTRY:bb[0-9]+]]([[C:%[^,]+]] :
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[C]]
+// CHECK-LABEL: } // end sil function 'testLoopConditional_incomplete_linear'
+// CHECK:       Linear liveness: [[C]]
+// CHECK:       [[ENTRY]]: LiveOut
+// CHECK:       [[EXIT]]: LiveWithin
+// CHECK:       lifetime-ending user:   destroy_value [[C]]
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK:       boundary edge: [[HEADER]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_incomplete_linear: linear-liveness
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_incomplete_linear: linear_liveness_swift
+// CHECK:       Linear liveness: [[C]]
+// CHECK:       Live blocks:
+// CHECK:       begin:      cond_br undef, [[HEADER]], [[EXIT]]
+// CHECK:       ends:       destroy_value [[C]]
+// CHECK:       exits:      br [[LOOP]]
+// CHECK:       interiors:
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK:       boundary edge:
+// CHECK-NEXT:  [[HEADER]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_incomplete_linear: linear_liveness_swift
+sil [ossa] @testLoopConditional_incomplete_linear : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "linear-liveness %c"
+  specify_test "linear_liveness_swift %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_complete_linear: linear-liveness
+// CHECK-LABEL: sil [ossa] @testLoopConditional_complete_linear : {{.*}} {
+// CHECK:       [[ENTRY:bb[0-9]+]]([[C:%[^,]+]] :
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         extend_lifetime [[C]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[C]]
+// CHECK-LABEL: } // end sil function 'testLoopConditional_complete_linear'
+// CHECK:       Linear liveness: [[C]]
+// CHECK:       [[ENTRY]]: LiveOut
+// CHECK:       [[EXIT]]: LiveWithin
+// CHECK:       [[LOOP]]: LiveOut
+// CHECK:       [[HEADER]]: LiveOut
+// CHECK:       lifetime-ending user:   destroy_value [[C]]
+// CHECK:       regular user:   extend_lifetime [[C]]
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_complete_linear: linear-liveness
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_complete_linear: linear_liveness_swift
+// CHECK:       Linear liveness: [[C]]
+// CHECK:       Live blocks:
+// CHECK:       begin:      cond_br undef, [[HEADER]], [[EXIT]]
+// CHECK:       ends:       destroy_value [[C]]
+// CHECK:       interiors:   extend_lifetime [[C]]
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_complete_linear: linear_liveness_swift
+sil [ossa] @testLoopConditional_complete_linear : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "linear-liveness %c"
+  specify_test "linear_liveness_swift %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  extend_lifetime %c : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
 // =============================================================================
 // visitInnerAdjacentPhis
 // =============================================================================
@@ -346,6 +449,123 @@ bb0(%0 : @owned $NCInt):
   destroy_value %nd : $NCInt
   %99 = tuple()
   return %99 : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_incomplete_interior: interior-liveness
+// CHECK-LABEL: sil [ossa] @testLoopConditional_incomplete_interior : {{.*}} {
+// CHECK:       [[ENTRY:bb[0-9]+]]([[C:%[^,]+]] :
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[C]]
+// CHECK-LABEL: } // end sil function 'testLoopConditional_incomplete_interior'
+// CHECK:       Interior liveness: [[C]]
+// CHECK:       Inner scope:   [[B]] = begin_borrow [[C]]
+// CHECK:       [[ENTRY]]: LiveOut
+// CHECK:       [[EXIT]]: LiveWithin
+// CHECK:       [[LOOP]]: LiveOut
+// CHECK:       [[HEADER]]: LiveOut
+// CHECK:       lifetime-ending user:   destroy_value [[C]]
+// CHECK:       regular user:   end_borrow [[B]]
+// CHECK:       Complete liveness
+// CHECK:       Unenclosed phis {
+// CHECK-NEXT:  }
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_incomplete_interior: interior-liveness
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_incomplete_interior: interior_liveness_swift
+// CHECK:       Interior liveness: [[C]]
+// CHECK:       begin:      cond_br undef, [[HEADER]], [[EXIT]]
+// CHECK:       ends:       destroy_value [[C]]
+// CHECK:       exits:
+// CHECK:       interiors:  end_borrow [[B]]
+// CHECK:       Unenclosed phis {
+// CHECK-NEXT:  }
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_incomplete_interior: interior_liveness_swift
+sil [ossa] @testLoopConditional_incomplete_interior : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "interior-liveness %c"
+  specify_test "interior_liveness_swift %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_complete_interior: interior-liveness
+// CHECK-LABEL: sil [ossa] @testLoopConditional_complete_interior : {{.*}} {
+// CHECK:     [[ENTRY:bb[0-9]+]]([[C:%[^,]+]] :
+// CHECK:       cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:     [[HEADER]]:
+// CHECK:       br [[LOOP:bb[0-9]+]]
+// CHECK:     [[LOOP]]:
+// CHECK:       [[B:%[^,]+]] = begin_borrow [[C]] : $C
+// CHECK:       end_borrow [[B]] : $C
+// CHECK:       extend_lifetime [[C]] : $C
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[C]] : $C
+// CHECK-LABEL: } // end sil function 'testLoopConditional_complete_interior'
+// CHECK:       Interior liveness: [[C]]
+// CHECK:       Inner scope:   [[B]] = begin_borrow [[C]]
+// CHECK:       [[ENTRY]]: LiveOut
+// CHECK:       [[EXIT]]: LiveWithin
+// CHECK:       [[LOOP]]: LiveOut
+// CHECK:       [[HEADER]]: LiveOut
+// CHECK:       lifetime-ending user:   destroy_value [[C]]
+// CHECK:       regular user:   extend_lifetime [[C]]
+// CHECK:       regular user:   end_borrow [[B]]
+// CHECK:       Complete liveness
+// CHECK:       Unenclosed phis {
+// CHECK-NEXT:  }
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_complete_interior: interior-liveness
+
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_complete_interior: interior_liveness_swift
+// CHECK:       Interior liveness: [[C]]
+// CHECK:       begin:      cond_br undef, [[HEADER]], [[EXIT]]
+// CHECK:       ends:       destroy_value [[C]]
+// CHECK:       exits:
+// CHECK:       interiors:  extend_lifetime [[C]]
+// CHECK:                   end_borrow [[B]]
+// CHECK:       Unenclosed phis {
+// CHECK-NEXT:  }
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_complete_interior: interior_liveness_swift
+sil [ossa] @testLoopConditional_complete_interior : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "interior-liveness %c"
+  specify_test "interior_liveness_swift %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  extend_lifetime %c : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
 }
 
 // =============================================================================
@@ -1171,4 +1391,86 @@ bb3(%phi : @owned $C, %reborrow : @guaranteed $C):
   destroy_value %phi : $C
   %99 = tuple()
   return %99 : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_incomplete_extended: extended-liveness
+// CHECK-LABEL: sil [ossa] @testLoopConditional_incomplete_extended : {{.*}} {
+// CHECK:       [[ENTRY:bb[0-9]+]]([[C:%[^,]+]] :
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[C]]
+// CHECK-LABEL: } // end sil function 'testLoopConditional_incomplete_extended'
+// CHECK:       Extended liveness: [[C]]
+// CHECK:       [[ENTRY]]: LiveOut
+// CHECK:       [[EXIT]]: LiveWithin
+// CHECK:       lifetime-ending user:   destroy_value [[C]]
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK:       boundary edge: [[HEADER]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_incomplete_extended: extended-liveness
+sil [ossa] @testLoopConditional_incomplete_extended : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "extended-liveness %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
+}
+
+// CHECK-LABEL: begin running test {{.*}} on testLoopConditional_complete_extended: extended-liveness
+// CHECK-LABEL: sil [ossa] @testLoopConditional_complete_extended : {{.*}} {
+// CHECK:       [[ENTRY:bb[0-9]+]]([[C:%[^,]+]] :
+// CHECK:         cond_br undef, [[HEADER:bb[0-9]+]], [[EXIT:bb[0-9]+]]
+// CHECK:       [[HEADER]]:
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         [[B:%[^,]+]] = begin_borrow [[C]]
+// CHECK:         end_borrow [[B]]
+// CHECK:         extend_lifetime [[C]]
+// CHECK:         br [[LOOP]]
+// CHECK:       [[EXIT]]:
+// CHECK:         destroy_value [[C]]
+// CHECK-LABEL: } // end sil function 'testLoopConditional_complete_extended'
+// CHECK:       Extended liveness: [[C]]
+// CHECK:       [[ENTRY]]: LiveOut
+// CHECK:       [[EXIT]]: LiveWithin
+// CHECK:       [[LOOP]]: LiveOut
+// CHECK:       [[HEADER]]: LiveOut
+// CHECK:       lifetime-ending user:   destroy_value [[C]]
+// CHECK:       regular user:   extend_lifetime [[C]]
+// CHECK:       last user:   destroy_value [[C]]
+// CHECK-LABEL: end running test {{.*}} on testLoopConditional_complete_extended: extended-liveness
+sil [ossa] @testLoopConditional_complete_extended : $@convention(thin) (@owned C) -> () {
+entry(%c : @owned $C):
+  specify_test "extended-liveness %c"
+  cond_br undef, header, exit
+
+header:
+  br loop
+
+loop:
+  %b = begin_borrow %c : $C
+  end_borrow %b : $C
+  extend_lifetime %c : $C
+  br loop
+
+exit:
+  destroy_value %c : $C
+  %retval = tuple ()
+  return %retval : $()
 }

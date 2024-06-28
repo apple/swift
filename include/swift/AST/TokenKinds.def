@@ -145,7 +145,6 @@ DECL_KEYWORD(extension)
 DECL_KEYWORD(func)
 DECL_KEYWORD(import)
 DECL_KEYWORD(init)
-DECL_KEYWORD(inout)
 DECL_KEYWORD(let)
 DECL_KEYWORD(operator)
 DECL_KEYWORD(precedencegroup)
@@ -259,8 +258,9 @@ MISC(string_interpolation_anchor)
 MISC(kw_yield)
 MISC(kw_discard)
 MISC(kw_then)
+SWIFT_KEYWORD(inout)
 
-// The following tokens are irrelevant for swiftSyntax and thus only declared 
+// The following tokens are irrelevant for swiftSyntax and thus only declared
 // in this .def file
 
 SIL_KEYWORD(undef)

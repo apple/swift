@@ -826,21 +826,6 @@ void checkConformancesInContext(IterableDeclContext *idc);
 /// Check that the type of the given property conforms to NSCopying.
 ProtocolConformanceRef checkConformanceToNSCopying(VarDecl *var);
 
-/// Derive an implicit declaration to satisfy a requirement of a derived
-/// protocol conformance.
-///
-/// \param DC           The declaration context where the conformance was
-///                     defined, either the type itself or an extension
-/// \param TypeDecl     The type for which the requirement is being derived.
-/// \param Requirement  The protocol requirement.
-///
-/// \returns nullptr if the derivation failed, or the derived declaration
-///          if it succeeded. If successful, the derived declaration is added
-///          to TypeDecl's body.
-ValueDecl *deriveProtocolRequirement(DeclContext *DC,
-                                     NominalTypeDecl *TypeDecl,
-                                     ValueDecl *Requirement);
-
 /// \name Name lookup
 ///
 /// Routines that perform name lookup.

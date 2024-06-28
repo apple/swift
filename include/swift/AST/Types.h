@@ -2226,9 +2226,8 @@ class ParameterTypeFlags {
     NoDerivative = 1 << 6,
     Isolated = 1 << 7,
     CompileTimeConst = 1 << 8,
-    ResultDependsOn = 1 << 9,
-    Sending = 1 << 10,
-    NumBits = 11
+    Sending = 1 << 9,
+    NumBits = 10
   };
   OptionSet<ParameterFlags> value;
   static_assert(NumBits <= 8*sizeof(OptionSet<ParameterFlags>), "overflowed");
@@ -2243,14 +2242,12 @@ public:
 
   ParameterTypeFlags(bool variadic, bool autoclosure, bool nonEphemeral,
                      ParamSpecifier specifier, bool isolated, bool noDerivative,
-                     bool compileTimeConst, bool hasResultDependsOn,
-                     bool isSending)
+                     bool compileTimeConst, bool isSending)
       : value((variadic ? Variadic : 0) | (autoclosure ? AutoClosure : 0) |
               (nonEphemeral ? NonEphemeral : 0) |
               uint8_t(specifier) << SpecifierShift | (isolated ? Isolated : 0) |
               (noDerivative ? NoDerivative : 0) |
               (compileTimeConst ? CompileTimeConst : 0) |
-              (hasResultDependsOn ? ResultDependsOn : 0) |
               (isSending ? Sending : 0)) {}
 
   /// Create one from what's present in the parameter type
@@ -2258,7 +2255,7 @@ public:
   fromParameterType(Type paramTy, bool isVariadic, bool isAutoClosure,
                     bool isNonEphemeral, ParamSpecifier ownership,
                     bool isolated, bool isNoDerivative, bool compileTimeConst,
-                    bool hasResultDependsOn, bool isSending);
+                    bool isSending);
 
   bool isNone() const { return !value; }
   bool isVariadic() const { return value.contains(Variadic); }
@@ -2270,7 +2267,6 @@ public:
   bool isIsolated() const { return value.contains(Isolated); }
   bool isCompileTimeConst() const { return value.contains(CompileTimeConst); }
   bool isNoDerivative() const { return value.contains(NoDerivative); }
-  bool hasResultDependsOn() const { return value.contains(ResultDependsOn); }
   bool isSending() const { return value.contains(Sending); }
 
   /// Get the spelling of the parameter specifier used on the parameter.
@@ -2433,7 +2429,6 @@ public:
                               /*nonEphemeral*/ false, getOwnershipSpecifier(),
                               /*isolated*/ false, /*noDerivative*/ false,
                               /*compileTimeConst*/ false,
-                              /*hasResultDependsOn*/ false,
                               /*is transferring*/ false);
   }
 
@@ -3237,6 +3232,9 @@ public:
     /// Whether the parameter is 'isolated'.
     bool isIsolated() const { return Flags.isIsolated(); }
 
+    /// Whether or not the parameter is 'sending'.
+    bool isSending() const { return Flags.isSending(); }
+
     /// Whether the parameter is 'isCompileTimeConst'.
     bool isCompileTimeConst() const { return Flags.isCompileTimeConst(); }
 
@@ -3834,6 +3832,7 @@ struct ParameterListInfo {
   SmallBitVector implicitSelfCapture;
   SmallBitVector inheritActorContext;
   SmallBitVector variadicGenerics;
+  SmallBitVector isPassedToSending;
 
 public:
   ParameterListInfo() { }
@@ -3864,6 +3863,9 @@ public:
   bool anyContextualInfo() const;
 
   bool isVariadicGenericParameter(unsigned paramIdx) const;
+
+  /// Returns true if this is a sending parameter.
+  bool isPassedToSendingParameter(unsigned paramIdx) const;
 
   /// Retrieve the number of non-defaulted parameters.
   unsigned numNonDefaultedParameters() const {
@@ -4066,6 +4068,12 @@ enum class ParameterConvention : uint8_t {
   /// convention used by mutable captures in @noescape closures.
   Indirect_InoutAliasable,
 
+  /// This argument is passed indirectly, i.e. by directly passing the address
+  /// of an object in memory. The callee may modify, but does not destroy the
+  /// object. This corresponds to the parameter-passing convention of the
+  /// Itanium C++ ABI, which is used ubiquitously on non-Windows targets.
+  Indirect_In_CXX,
+
   /// This argument is passed directly.  Its type is non-trivial, and the callee
   /// is responsible for destroying it.
   Direct_Owned,
@@ -4106,6 +4114,7 @@ inline bool isIndirectFormalParameter(ParameterConvention conv) {
   case ParameterConvention::Indirect_In:
   case ParameterConvention::Indirect_Inout:
   case ParameterConvention::Indirect_InoutAliasable:
+  case ParameterConvention::Indirect_In_CXX:
   case ParameterConvention::Indirect_In_Guaranteed:
     return true;
 
@@ -4119,13 +4128,16 @@ inline bool isIndirectFormalParameter(ParameterConvention conv) {
   }
   llvm_unreachable("covered switch isn't covered?!");
 }
-inline bool isConsumedParameter(ParameterConvention conv) {
+
+template <bool InCallee>
+bool isConsumedParameter(ParameterConvention conv) {
   switch (conv) {
   case ParameterConvention::Indirect_In:
   case ParameterConvention::Direct_Owned:
   case ParameterConvention::Pack_Owned:
     return true;
-
+  case ParameterConvention::Indirect_In_CXX:
+    return !InCallee;
   case ParameterConvention::Indirect_Inout:
   case ParameterConvention::Indirect_InoutAliasable:
   case ParameterConvention::Direct_Unowned:
@@ -4138,16 +4150,26 @@ inline bool isConsumedParameter(ParameterConvention conv) {
   llvm_unreachable("bad convention kind");
 }
 
+inline bool isConsumedParameterInCallee(ParameterConvention conv) {
+  return isConsumedParameter<true>(conv);
+}
+
+inline bool isConsumedParameterInCaller(ParameterConvention conv) {
+  return isConsumedParameter<false>(conv);
+}
+
 /// Returns true if conv is a guaranteed parameter. This may look unnecessary
 /// but this will allow code to generalize to handle Indirect_Guaranteed
 /// parameters when they are added.
-inline bool isGuaranteedParameter(ParameterConvention conv) {
+template <bool InCallee>
+bool isGuaranteedParameter(ParameterConvention conv) {
   switch (conv) {
   case ParameterConvention::Direct_Guaranteed:
   case ParameterConvention::Indirect_In_Guaranteed:
   case ParameterConvention::Pack_Guaranteed:
     return true;
-
+  case ParameterConvention::Indirect_In_CXX:
+    return InCallee;
   case ParameterConvention::Indirect_Inout:
   case ParameterConvention::Indirect_InoutAliasable:
   case ParameterConvention::Indirect_In:
@@ -4158,12 +4180,21 @@ inline bool isGuaranteedParameter(ParameterConvention conv) {
     return false;
   }
   llvm_unreachable("bad convention kind");
+}
+
+inline bool isGuaranteedParameterInCallee(ParameterConvention conv) {
+  return isGuaranteedParameter<true>(conv);
+}
+
+inline bool isGuaranteedParameterInCaller(ParameterConvention conv) {
+  return isGuaranteedParameter<false>(conv);
 }
 
 inline bool isMutatingParameter(ParameterConvention conv) {
   switch (conv) {
   case ParameterConvention::Indirect_Inout:
   case ParameterConvention::Indirect_InoutAliasable:
+  case ParameterConvention::Indirect_In_CXX:
   case ParameterConvention::Pack_Inout:
     return true;
 
@@ -4190,6 +4221,7 @@ inline bool isPackParameter(ParameterConvention conv) {
   case ParameterConvention::Indirect_In_Guaranteed:
   case ParameterConvention::Indirect_Inout:
   case ParameterConvention::Indirect_InoutAliasable:
+  case ParameterConvention::Indirect_In_CXX:
   case ParameterConvention::Indirect_In:
   case ParameterConvention::Direct_Guaranteed:
   case ParameterConvention::Direct_Unowned:
@@ -4270,6 +4302,10 @@ public:
     return getConvention() == ParameterConvention::Indirect_In;
   }
 
+  bool isIndirectInCXX() const {
+    return getConvention() == ParameterConvention::Indirect_In_CXX;
+  }
+
   bool isIndirectInOut() const {
     return getConvention() == ParameterConvention::Indirect_Inout;
   }
@@ -4287,14 +4323,22 @@ public:
 
   /// True if this parameter is consumed by the callee, either
   /// indirectly or directly.
-  bool isConsumed() const {
-    return isConsumedParameter(getConvention());
+  bool isConsumedInCallee() const {
+    return isConsumedParameterInCallee(getConvention());
+  }
+
+  bool isConsumedInCaller() const {
+    return isConsumedParameterInCaller(getConvention());
   }
 
   /// Returns true if this parameter is guaranteed, either indirectly or
   /// directly.
-  bool isGuaranteed() const {
-    return isGuaranteedParameter(getConvention());
+  bool isGuaranteedInCallee() const {
+    return isGuaranteedParameterInCallee(getConvention());
+  }
+
+  bool isGuaranteedInCaller() const {
+    return isGuaranteedParameterInCaller(getConvention());
   }
 
   bool hasOption(Flag flag) const { return options.contains(flag); }
@@ -7771,7 +7815,7 @@ inline TupleTypeElt TupleTypeElt::getWithType(Type T) const {
 inline ParameterTypeFlags ParameterTypeFlags::fromParameterType(
     Type paramTy, bool isVariadic, bool isAutoClosure, bool isNonEphemeral,
     ParamSpecifier ownership, bool isolated, bool isNoDerivative,
-    bool compileTimeConst, bool hasResultDependsOn, bool isSending) {
+    bool compileTimeConst, bool isSending) {
   // FIXME(Remove InOut): The last caller that needs this is argument
   // decomposition.  Start by enabling the assertion there and fixing up those
   // callers, then remove this, then remove
@@ -7781,9 +7825,8 @@ inline ParameterTypeFlags ParameterTypeFlags::fromParameterType(
            ownership == ParamSpecifier::InOut);
     ownership = ParamSpecifier::InOut;
   }
-  return {isVariadic,       isAutoClosure,      isNonEphemeral,
-          ownership,        isolated,           isNoDerivative,
-          compileTimeConst, hasResultDependsOn, isSending};
+  return {isVariadic, isAutoClosure,  isNonEphemeral,   ownership,
+          isolated,   isNoDerivative, compileTimeConst, isSending};
 }
 
 inline const Type *BoundGenericType::getTrailingObjectsPointer() const {

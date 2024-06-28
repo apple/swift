@@ -1550,7 +1550,6 @@ enum ENUM_EXTENSIBILITY_ATTR(open) BridgedAttributedTypeSpecifier : size_t {
   BridgedAttributedTypeSpecifierLegacyOwned,
   BridgedAttributedTypeSpecifierConst,
   BridgedAttributedTypeSpecifierIsolated,
-  BridgedAttributedTypeSpecifierResultDependsOn,
   BridgedAttributedTypeSpecifierTransferring,
   BridgedAttributedTypeSpecifierSending,
 };
@@ -1862,9 +1861,6 @@ void Plugin_setCapability(PluginHandle handle,
 
 /// Get a capability data set by \c Plugin_setCapability .
 PluginCapabilityPtr _Nullable Plugin_getCapability(PluginHandle handle);
-
-/// Get the executable file path of the plugin.
-const char *Plugin_getExecutableFilePath(PluginHandle handle);
 
 /// Lock the plugin. Clients should lock it during sending and recving the
 /// response.

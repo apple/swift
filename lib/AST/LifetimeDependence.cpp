@@ -18,6 +18,7 @@
 #include "swift/AST/ParameterList.h"
 #include "swift/AST/Type.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 
 namespace swift {
@@ -110,10 +111,12 @@ LifetimeDependenceInfo LifetimeDependenceInfo::getForParamIndex(
   auto indexSubset = IndexSubset::get(ctx, capacity, {index});
   if (kind == LifetimeDependenceKind::Scope) {
     return LifetimeDependenceInfo{/*inheritLifetimeParamIndices*/ nullptr,
-                                  /*scopeLifetimeParamIndices*/ indexSubset};
+                                  /*scopeLifetimeParamIndices*/ indexSubset,
+                                  /*isImmortal*/ false};
   }
   return LifetimeDependenceInfo{/*inheritLifetimeParamIndices*/ indexSubset,
-                                /*scopeLifetimeParamIndices*/ nullptr};
+                                /*scopeLifetimeParamIndices*/ nullptr,
+                                /*isImmortal*/ false};
 }
 
 void LifetimeDependenceInfo::getConcatenatedData(
@@ -246,6 +249,18 @@ LifetimeDependenceInfo::fromTypeRepr(AbstractFunctionDecl *afd) {
 
   for (auto specifier : lifetimeDependentRepr->getLifetimeDependencies()) {
     switch (specifier.getSpecifierKind()) {
+    case LifetimeDependenceSpecifier::SpecifierKind::Immortal: {
+      auto immortalParam =
+          std::find_if(afd->getParameters()->begin(), afd->getParameters()->end(), [](ParamDecl *param) {
+            return strcmp(param->getName().get(), "immortal") == 0;
+          });
+      if (immortalParam != afd->getParameters()->end()) {
+        diags.diagnose(*immortalParam,
+                       diag::lifetime_dependence_immortal_conflict_name);
+      }
+
+      return LifetimeDependenceInfo(nullptr, nullptr, /*isImmortal*/ true);
+    }
     case LifetimeDependenceSpecifier::SpecifierKind::Named: {
       bool foundParamName = false;
       unsigned paramIndex = 0;
@@ -315,7 +330,8 @@ LifetimeDependenceInfo::fromTypeRepr(AbstractFunctionDecl *afd) {
           : nullptr,
       scopeLifetimeParamIndices.any()
           ? IndexSubset::get(ctx, scopeLifetimeParamIndices)
-          : nullptr);
+          : nullptr,
+      /*isImmortal*/ false);
 }
 
 // This utility is similar to its overloaded version that builds the
@@ -338,7 +354,7 @@ std::optional<LifetimeDependenceInfo> LifetimeDependenceInfo::fromTypeRepr(
     auto kind = specifier.getParsedLifetimeDependenceKind();
 
     if (kind == ParsedLifetimeDependenceKind::Scope &&
-        (!isGuaranteedParameter(paramConvention) &&
+        (!isGuaranteedParameterInCallee(paramConvention) &&
          !isMutatingParameter(paramConvention))) {
       diags.diagnose(loc, diag::lifetime_dependence_cannot_use_kind, "_scope",
                      getStringForParameterConvention(paramConvention));
@@ -360,18 +376,29 @@ std::optional<LifetimeDependenceInfo> LifetimeDependenceInfo::fromTypeRepr(
   };
 
   for (auto specifier : lifetimeDependentRepr->getLifetimeDependencies()) {
-    assert(specifier.getSpecifierKind() ==
-           LifetimeDependenceSpecifier::SpecifierKind::Ordered);
-    auto index = specifier.getIndex();
-    if (index > capacity) {
-      diags.diagnose(specifier.getLoc(),
-                     diag::lifetime_dependence_invalid_param_index, index);
-      return std::nullopt;
+    switch (specifier.getSpecifierKind()) {
+    case LifetimeDependenceSpecifier::SpecifierKind::Ordered: {
+      auto index = specifier.getIndex();
+      if (index > capacity) {
+        diags.diagnose(specifier.getLoc(),
+                       diag::lifetime_dependence_invalid_param_index, index);
+        return std::nullopt;
+      }
+      auto param = params[index];
+      auto paramConvention = param.getConvention();
+      if (updateLifetimeDependenceInfo(specifier, index, paramConvention)) {
+        return std::nullopt;
+      }
+      break;
     }
-    auto param = params[index];
-    auto paramConvention = param.getConvention();
-    if (updateLifetimeDependenceInfo(specifier, index, paramConvention)) {
-      return std::nullopt;
+    case LifetimeDependenceSpecifier::SpecifierKind::Immortal: {
+      return LifetimeDependenceInfo(/*inheritLifetimeParamIndices*/ nullptr,
+                                    /*scopeLifetimeParamIndices*/ nullptr,
+                                    /*isImmortal*/ true);
+    }
+    default:
+      llvm_unreachable("SIL can only have ordered or immortal lifetime "
+                       "dependence specifier kind");
     }
   }
 
@@ -381,7 +408,8 @@ std::optional<LifetimeDependenceInfo> LifetimeDependenceInfo::fromTypeRepr(
           : nullptr,
       scopeLifetimeParamIndices.any()
           ? IndexSubset::get(ctx, scopeLifetimeParamIndices)
-          : nullptr);
+          : nullptr,
+      /*isImmortal*/ false);
 }
 
 std::optional<LifetimeDependenceInfo>
@@ -508,18 +536,6 @@ LifetimeDependenceInfo::get(AbstractFunctionDecl *afd) {
     return LifetimeDependenceInfo::fromTypeRepr(afd);
   }
   return LifetimeDependenceInfo::infer(afd);
-}
-
-LifetimeDependenceInfo
-LifetimeDependenceInfo::get(ASTContext &ctx,
-                            const SmallBitVector &inheritLifetimeIndices,
-                            const SmallBitVector &scopeLifetimeIndices) {
-  return LifetimeDependenceInfo{
-      inheritLifetimeIndices.any()
-          ? IndexSubset::get(ctx, inheritLifetimeIndices)
-          : nullptr,
-      scopeLifetimeIndices.any() ? IndexSubset::get(ctx, scopeLifetimeIndices)
-                                 : nullptr};
 }
 
 std::optional<LifetimeDependenceKind>

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/SIL/OwnershipLiveness.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Debug.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/LLVM.h"
@@ -38,6 +39,10 @@ struct LinearLivenessVisitor :
     linearLiveness(linearLiveness){}
 
   bool handleUsePoint(Operand *use, UseLifetimeConstraint useConstraint) {
+    if (!linearLiveness.includeExtensions &&
+        isa<ExtendLifetimeInst>(use->getUser())) {
+      return true;
+    }
     linearLiveness.liveness.updateForUse(
       use->getUser(), useConstraint == UseLifetimeConstraint::LifetimeEnding);
     return true;
@@ -71,7 +76,9 @@ struct LinearLivenessVisitor :
   }
 };
 
-LinearLiveness::LinearLiveness(SILValue def): OSSALiveness(def) {
+LinearLiveness::LinearLiveness(SILValue def,
+                               IncludeExtensions_t includeExtensions)
+    : OSSALiveness(def), includeExtensions(includeExtensions) {
   if (def->getOwnershipKind() != OwnershipKind::Owned) {
     BorrowedValue borrowedValue(def);
     assert(borrowedValue && borrowedValue.isLocalScope());
@@ -118,7 +125,7 @@ struct InteriorLivenessVisitor :
 
   bool handleUsePoint(Operand *use, UseLifetimeConstraint useConstraint) {
     interiorLiveness.liveness.updateForUse(
-      use->getUser(), useConstraint == UseLifetimeConstraint::LifetimeEnding);
+        use->getUser(), useConstraint == UseLifetimeConstraint::LifetimeEnding);
     return true;
   }
 
@@ -302,7 +309,7 @@ struct ExtendedLinearLivenessVisitor
 
   bool handleUsePoint(Operand *use, UseLifetimeConstraint useConstraint) {
     extendedLiveness.liveness.updateForUse(
-      use->getUser(), useConstraint == UseLifetimeConstraint::LifetimeEnding);
+        use->getUser(), useConstraint == UseLifetimeConstraint::LifetimeEnding);
     return true;
   }
 

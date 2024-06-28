@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "sil-access-summary-analysis"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SILOptimizer/Analysis/AccessSummaryAnalysis.h"
@@ -242,8 +243,15 @@ static bool hasExpectedUsesOfNoEscapePartialApply(Operand *partialApplyUse) {
     // destroy_value %storage : $@callee_owned () -> ()
     return true;
   default:
-    return false;
+    break;
   }
+  if (auto *startAsyncLet = dyn_cast<BuiltinInst>(user)) {
+    if (startAsyncLet->getBuiltinKind() ==
+        BuiltinValueKind::StartAsyncLetWithLocalBuffer) {
+      return true;
+    }
+  }
+  return false;
 }
 #endif
 

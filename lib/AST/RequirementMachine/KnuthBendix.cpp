@@ -29,6 +29,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Range.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -341,9 +342,9 @@ RewriteSystem::computeCriticalPair(ArrayRef<Symbol>::const_iterator from,
 std::pair<CompletionResult, unsigned>
 RewriteSystem::performKnuthBendix(unsigned maxRuleCount,
                                   unsigned maxRuleLength) {
-  assert(Initialized);
-  assert(!Minimized);
-  assert(!Frozen);
+  ASSERT(Initialized);
+  ASSERT(!Minimized);
+  ASSERT(!Frozen);
 
   // Complete might already be set, if we're re-running completion after
   // adding new rules in the property map's concrete type unification procedure.
@@ -442,7 +443,7 @@ RewriteSystem::performKnuthBendix(unsigned maxRuleCount,
       }
     }
 
-    assert(ruleCount == Rules.size());
+    ASSERT(ruleCount == Rules.size());
 
     simplifyLeftHandSides();
 

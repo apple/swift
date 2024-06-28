@@ -27,6 +27,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/SourceFile.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"
 #include "swift/Sema/Concurrency.h"
 

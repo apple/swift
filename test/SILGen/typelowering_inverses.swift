@@ -15,14 +15,14 @@ enum RudeEnum<T: ~Copyable>: Copyable {
 
 struct CondCopyableStruct<T: ~Copyable>: ~Copyable {}
 
-extension CondCopyableStruct: Copyable {}
+extension CondCopyableStruct: Copyable where T: Copyable {}
 
 enum CondCopyableEnum<T: ~Copyable>: ~Copyable {
   case some(T)
   case none
 }
 
-extension CondCopyableEnum: Copyable {}
+extension CondCopyableEnum: Copyable where T: Copyable {}
 
 protocol NoEscapeP: ~Escapable {}
 
@@ -39,14 +39,14 @@ enum TooRudeEnum<T: ~Escapable>: Escapable {
 
 struct CondEscapableStruct<T: ~Escapable>: ~Escapable {}
 
-extension CondEscapableStruct: Escapable {}
+extension CondEscapableStruct: Escapable where T: Escapable {}
 
 enum CondEscapableEnum<T: ~Escapable>: ~Escapable {
   case some(T)
   case none
 }
 
-extension CondEscapableEnum: Escapable {}
+extension CondEscapableEnum: Escapable where T: Escapable {}
 
 // MARK: ensure certain conditionally Copyable types are treated as trivial (no ownership in func signature).
 
@@ -142,18 +142,18 @@ struct MyStruct<T: ~Copyable & ~Escapable>: ~Copyable & ~Escapable {
     var x: T
 }
 
-extension MyStruct: Copyable where T: Copyable & ~Escapable {}
+extension MyStruct: Copyable where T: Copyable {}
 
-extension MyStruct: Escapable where T: Escapable & ~Copyable {}
+extension MyStruct: Escapable where T: Escapable {}
 
 enum MyEnum<T: ~Copyable & ~Escapable>: ~Copyable & ~Escapable {
     case x(T)
     case knoll
 }
 
-extension MyEnum: Copyable where T: Copyable & ~Escapable {}
+extension MyEnum: Copyable where T: Copyable {}
 
-extension MyEnum: Escapable where T: Escapable & ~Copyable {}
+extension MyEnum: Escapable where T: Escapable {}
 
 enum Trivial {
     case a, b, c

@@ -13,6 +13,7 @@
 #include "swift/SILOptimizer/Utils/Existential.h"
 #include "swift/AST/Module.h"
 #include "swift/AST/ProtocolConformance.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/BasicBlockUtils.h"
 #include "swift/SIL/InstructionUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"

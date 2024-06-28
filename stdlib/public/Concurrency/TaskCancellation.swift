@@ -67,10 +67,26 @@ import Swift
 /// as resuming a continuation, may acquire these same internal locks.
 /// Therefore, if a cancellation handler must acquire a lock, other code should
 /// not cancel tasks or resume continuations while holding that lock.
-@_unsafeInheritExecutor // the operation runs on the same executor as we start out with
 @available(SwiftStdlib 5.1, *)
-@backDeployed(before: SwiftStdlib 5.8)
+@backDeployed(before: SwiftStdlib 6.0)
 public func withTaskCancellationHandler<T>(
+  operation: () async throws -> T,
+  onCancel handler: @Sendable () -> Void,
+  isolation: isolated (any Actor)? = #isolation
+) async rethrows -> T {
+  // unconditionally add the cancellation record to the task.
+  // if the task was already cancelled, it will be executed right away.
+  let record = _taskAddCancellationHandler(handler: handler)
+  defer { _taskRemoveCancellationHandler(record: record) }
+
+  return try await operation()
+}
+
+@_unsafeInheritExecutor // ABI compatibility with Swift 5.1
+@available(SwiftStdlib 5.1, *)
+@usableFromInline
+@_silgen_name("$ss27withTaskCancellationHandler9operation8onCancelxxyYaKXE_yyYbXEtYaKlF")
+internal func __abi_withTaskCancellationHandler<T>(
   operation: () async throws -> T,
   onCancel handler: @Sendable () -> Void
 ) async rethrows -> T {

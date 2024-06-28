@@ -135,6 +135,9 @@ toolchain as a one-off, there are a couple of differences:
 - Before running `update-checkout`, double-check that `swift` is the only
   repository inside the `swift-project` directory. Otherwise,
   `update-checkout` may not clone the necessary dependencies.
+- Running `update-checkout` may fail if the `git-lfs` dependency is not
+  installed. This may report as an error related to `icu`. A workaround is
+  passing `--skip-repository icu` to `update-checkout`.
 
 ## Installing dependencies
 
@@ -262,7 +265,7 @@ Build the toolchain with optimizations, debuginfo, and assertions, using Ninja:
 - macOS:
   ```sh
   utils/build-script --skip-build-benchmarks \
-    --skip-ios --skip-watchos --skip-tvos --swift-darwin-supported-archs "$(uname -m)" \
+    --skip-ios --skip-watchos --skip-tvos --skip-xros --swift-darwin-supported-archs "$(uname -m)" \
     --sccache --release-debuginfo --swift-disable-dead-stripping \
     --bootstrapping=hosttools
   ```

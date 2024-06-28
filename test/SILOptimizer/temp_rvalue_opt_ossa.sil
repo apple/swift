@@ -1804,6 +1804,19 @@ entry(%instance : @guaranteed $OtherClass):
   return %retval : $()
 }
 
+// CHECK-LABEL: sil [ossa] @copy_addr__lexical_alloc_stack_temporary_in_guaranteed_function_arg : {{.*}} {
+// CHECK-NOT:     alloc_stack
+// CHECK-LABEL: } // end sil function 'copy_addr__lexical_alloc_stack_temporary_in_guaranteed_function_arg'
+sil [ossa] @copy_addr__lexical_alloc_stack_temporary_in_guaranteed_function_arg : $@convention(thin) (@in_guaranteed Klass) -> () {
+entry(%instance : $*Klass):
+  %addr = alloc_stack [lexical] $Klass
+  copy_addr %instance to [init] %addr : $*Klass
+  destroy_addr %addr : $*Klass
+  dealloc_stack %addr : $*Klass
+  %retval = tuple ()
+  return %retval : $()
+}
+
 // Lexical alloc_stacks can't be eliminated even if their source is a function
 // argument if that function argument is inout.
 // CHECK-LABEL: sil [ossa] @copy_addr__lexical_alloc_stack_temporary__inout_function_arg : {{.*}} {

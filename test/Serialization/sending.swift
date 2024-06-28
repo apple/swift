@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
-// RUN: %target-swift-frontend -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation -enable-upcoming-feature TransferringArgsAndResults -module-name transferring_test -emit-module -o %t/transferring_test.swiftmodule %S/Inputs/sending.swift
-// RUN: %target-swift-frontend -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation -enable-upcoming-feature TransferringArgsAndResults -module-name transferring -emit-sil -I %t %s | %FileCheck %s
-// RUN: %target-sil-opt -strict-concurrency=complete -module-name transferring_test -enable-upcoming-feature RegionBasedIsolation -enable-upcoming-feature TransferringArgsAndResults %t/transferring_test.swiftmodule | %FileCheck -check-prefix=AST %s
+// RUN: %target-swift-frontend -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation -module-name transferring_test -emit-module -o %t/transferring_test.swiftmodule %S/Inputs/sending.swift
+// RUN: %target-swift-frontend -strict-concurrency=complete -enable-upcoming-feature RegionBasedIsolation -module-name transferring -emit-sil -I %t %s | %FileCheck %s
+// RUN: %target-sil-opt -strict-concurrency=complete -module-name transferring_test -enable-upcoming-feature RegionBasedIsolation %t/transferring_test.swiftmodule | %FileCheck -check-prefix=AST %s
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
@@ -49,9 +49,8 @@ func main() {
   }
 }
 
-
-// CHECK: sil @$s17transferring_test0B12TransferringyS2SnYuYTF : $@convention(thin) (@sil_sending @owned String) -> @sil_sending @owned String
-// CHECK: sil @$s17transferring_test0B7SendingyS2SnYuYTF : $@convention(thin) (@sil_sending @owned String) -> @sil_sending @owned String
+// CHECK: sil @$s17transferring_test0B12TransferringyS2SnF : $@convention(thin) (@sil_sending @owned String) -> @sil_sending @owned String
+// CHECK: sil @$s17transferring_test0B7SendingyS2SnF : $@convention(thin) (@sil_sending @owned String) -> @sil_sending @owned String
 // CHECK: sil @$s17transferring_test0B16TransferringFuncyyySSnYuXEF : $@convention(thin) (@guaranteed @noescape @callee_guaranteed (@sil_sending @owned String) -> ()) -> ()
 // CHECK: sil @$s17transferring_test0B11SendingFuncyyySSnYuXEF : $@convention(thin) (@guaranteed @noescape @callee_guaranteed (@sil_sending @owned String) -> ()) -> ()
 // CHECK: sil @$s17transferring_test0B22TransferringResultFuncyySSyYTXEF : $@convention(thin) (@guaranteed @noescape @callee_guaranteed () -> @sil_sending @owned String) -> ()

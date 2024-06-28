@@ -220,3 +220,8 @@ struct SomeType {
 macro multipleFreestandingRoles<T>(_: T) -> Void = #externalMacro(module: "A", type: "B")
 // expected-warning@-1{{external macro implementation type}}
 // expected-error@-2{{macro can only have a single freestanding role}}
+
+@_documentation(visibility: private)
+@attached(peer)
+macro Foo() = #externalMacro(module: "ThisMacroModuleDoesNotExist", type: "ThisMacroTypeDoesNotExist")
+// expected-warning@-1{{external macro implementation type}}

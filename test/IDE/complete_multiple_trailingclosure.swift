@@ -18,6 +18,40 @@ func testGlobalFunc() {
 // GLOBALFUNC_AFTERLABEL-NOT: Begin completions
 }
 
+struct S {
+  func member() {}
+}
+func globalFunc2(x: Int = 0, _ fn: () -> Void) -> S {}
+func globalFunc3(x: Int, _ fn: () -> Void) -> S {}
+
+func testNonFuncArg() {
+  do {
+    // Don't complete for a non-function default argument.
+    globalFunc2 {} #^GLOBALFUNC2^#
+    // GLOBALFUNC2:     Begin completions, 2 items
+    // GLOBALFUNC2-DAG: Decl[InstanceMethod]/CurrNominal:   .member()[#Void#]; name=member()
+    // GLOBALFUNC2-DAG: Keyword[self]/CurrNominal: .self[#S#]; name=self
+
+    globalFunc2 {}
+      .#^GLOBALFUNC2_DOT^#
+    // GLOBALFUNC2_DOT:     Begin completions, 2 items
+    // GLOBALFUNC2_DOT-DAG: Decl[InstanceMethod]/CurrNominal:   member()[#Void#]; name=member()
+    // GLOBALFUNC2_DOT-DAG: Keyword[self]/CurrNominal: self[#S#]; name=self
+  }
+  do {
+    globalFunc3 {} #^GLOBALFUNC3^#
+    // GLOBALFUNC3:     Begin completions, 2 items
+    // GLOBALFUNC3-DAG: Decl[InstanceMethod]/CurrNominal:   .member()[#Void#]; name=member()
+    // GLOBALFUNC3-DAG: Keyword[self]/CurrNominal: .self[#S#]; name=self
+    
+    globalFunc3 {}
+      .#^GLOBALFUNC3_DOT^#
+    // GLOBALFUNC3_DOT:     Begin completions, 2 items
+    // GLOBALFUNC3_DOT-DAG: Decl[InstanceMethod]/CurrNominal:   member()[#Void#]; name=member()
+    // GLOBALFUNC3_DOT-DAG: Keyword[self]/CurrNominal: self[#S#]; name=self
+  }
+}
+
 struct SimpleEnum {
   case foo, bar
 
@@ -99,6 +133,17 @@ func testOptionalInit() {
 // INIT_OPTIONAL_NEWLINE-DAG: Decl[Struct]/CurrModule:            MyStruct[#MyStruct#]; name=MyStruct
 }
 
+func testOptionalInitDot() {
+  // When there's a dot, we don't complete for the closure argument.
+  TestStruct2 {
+    2
+  }
+  .#^INIT_OPTIONAL_DOT^#
+  // INIT_OPTIONAL_DOT:     Begin completions, 2 items
+  // INIT_OPTIONAL_DOT-DAG: Keyword[self]/CurrNominal:          self[#TestStruct2#]; name=self
+  // INIT_OPTIONAL_DOT-DAG: Decl[InstanceMethod]/CurrNominal:   testStructMethod()[#Void#]; name=testStructMethod()
+}
+
 struct TestStruct3 {
   init(fn1: () -> Int, fn2: () -> String, fn3: () -> String) {}
   func testStructMethod() {}
@@ -171,10 +216,9 @@ func testFallbackPostfix() {
   let _ = MyStruct4 {
     1
   } #^INIT_FALLBACK_1^#
-// INIT_FALLBACK_1: Begin completions, 3 items
+// INIT_FALLBACK_1: Begin completions, 2 items
 // INIT_FALLBACK_1-DAG: Keyword[self]/CurrNominal:          .self[#MyStruct4<Int>#]; name=self
 // INIT_FALLBACK_1-DAG: Decl[InstanceMethod]/CurrNominal/TypeRelation[Invalid]: .testStructMethod()[#Void#]; name=testStructMethod()
-// INIT_FALLBACK_1-DAG: Pattern/Local/Flair[ArgLabels]:     {#arg1: Int#}[#Int#]; name=arg1:
   let _ = MyStruct4(name: "test") {
     ""
   } arg3: {

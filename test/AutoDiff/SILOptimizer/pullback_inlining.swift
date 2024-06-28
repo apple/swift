@@ -9,6 +9,8 @@
 import _Differentiation
 #if canImport(Glibc)
 import Glibc
+#elseif canImport(Android)
+import Android
 #else
 import Foundation
 #endif

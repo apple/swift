@@ -23,6 +23,7 @@
 #include "swift/AST/PackConformance.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/CanTypeVisitor.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 using namespace Lowering;
@@ -298,7 +299,8 @@ public:
   }
 
   SILResultInfo substInterface(SILResultInfo orig) {
-    return SILResultInfo(visit(orig.getInterfaceType()), orig.getConvention());
+    return SILResultInfo(visit(orig.getInterfaceType()), orig.getConvention(),
+                         orig.getOptions());
   }
 
   SILYieldInfo substInterface(SILYieldInfo orig) {

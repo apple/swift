@@ -761,3 +761,10 @@ do {
     (repeat takesAutoclosure(each t)) // Ok
   }
 }
+
+// Crash-on-invalid - rdar://110711746
+func butt<T>(x: T) {}
+
+func rump<each T>(x: repeat each T) {
+  let x = (repeat { butt(each x) }()) // expected-error {{missing argument label 'x:' in call}}
+}

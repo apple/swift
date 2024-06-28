@@ -15,6 +15,7 @@
 #ifndef SWIFT_HISTOGRAM_H
 #define SWIFT_HISTOGRAM_H
 
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
@@ -68,7 +69,7 @@ public:
   /// Start. The value is allowed to be greater than or equal to Start + Size,
   /// in which case it's counted in the OverflowBucket.
   void add(unsigned value) {
-    assert(value >= Start);
+    ASSERT(value >= Start);
     value -= Start;
     if (value >= Size)
       ++OverflowBucket;

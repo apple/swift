@@ -17,6 +17,7 @@
 #include "swift/AST/IRGenOptions.h"
 #include "swift/AST/ProtocolAssociations.h"
 #include "swift/AST/ProtocolConformance.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Platform.h"
 #include "swift/Demangling/ManglingMacros.h"
 #include "swift/Demangling/Demangle.h"
@@ -185,6 +186,9 @@ IRGenMangler::mangleTypeForFlatUniqueTypeRef(CanGenericSignature sig,
   // just don't allow actual symbolic references anywhere in the
   // mangled name.
   configureForSymbolicMangling();
+
+  llvm::SaveAndRestore<bool> savedAllowMarkerProtocols(
+      AllowMarkerProtocols, false);
 
   // We don't make the substitution adjustments above because they're
   // target-specific and so would break the goal of getting a unique

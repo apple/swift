@@ -25,7 +25,7 @@
 /// SWIFTSCAN_VERSION_MINOR should increase when there are API additions.
 /// SWIFTSCAN_VERSION_MAJOR is intended for "major" source/ABI breaking changes.
 #define SWIFTSCAN_VERSION_MAJOR 0
-#define SWIFTSCAN_VERSION_MINOR 9
+#define SWIFTSCAN_VERSION_MINOR 10
 
 SWIFTSCAN_BEGIN_DECLS
 
@@ -46,6 +46,9 @@ typedef struct swiftscan_module_details_s *swiftscan_module_details_t;
 /// Opaque container to a dependency info of a given module.
 typedef struct swiftscan_dependency_info_s *swiftscan_dependency_info_t;
 
+/// Opaque container to a link library info.
+typedef struct swiftscan_link_library_info_s *swiftscan_link_library_info_t;
+
 /// Opaque container to an overall result of a dependency scan.
 typedef struct swiftscan_dependency_graph_s *swiftscan_dependency_graph_t;
 
@@ -63,6 +66,12 @@ typedef struct {
   swiftscan_dependency_info_t *modules;
   size_t count;
 } swiftscan_dependency_set_t;
+
+/// Set of linked libraries
+typedef struct {
+  swiftscan_link_library_info_t *link_libraries;
+  size_t count;
+} swiftscan_link_library_set_t;
 
 typedef enum {
   SWIFTSCAN_DIAGNOSTIC_SEVERITY_ERROR = 0,
@@ -127,8 +136,20 @@ swiftscan_module_info_get_source_files(swiftscan_dependency_info_t info);
 SWIFTSCAN_PUBLIC swiftscan_string_set_t *
 swiftscan_module_info_get_direct_dependencies(swiftscan_dependency_info_t info);
 
+SWIFTSCAN_PUBLIC swiftscan_link_library_set_t *
+swiftscan_module_info_get_link_libraries(swiftscan_dependency_info_t info);
+
 SWIFTSCAN_PUBLIC swiftscan_module_details_t
 swiftscan_module_info_get_details(swiftscan_dependency_info_t info);
+
+//=== Link Library Info Functions ------------------------------------===//
+SWIFTSCAN_PUBLIC swiftscan_string_ref_t
+swiftscan_link_library_info_get_link_name(
+    swiftscan_link_library_info_t info);
+SWIFTSCAN_PUBLIC bool swiftscan_link_library_info_get_is_framework(
+    swiftscan_link_library_info_t info);
+SWIFTSCAN_PUBLIC bool swiftscan_link_library_info_get_should_force_load(
+    swiftscan_link_library_info_t info);
 
 //=== Dependency Module Info Details Functions ----------------------------===//
 

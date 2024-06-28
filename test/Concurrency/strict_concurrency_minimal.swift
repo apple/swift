@@ -1,6 +1,5 @@
-// RUN: %target-swift-frontend -strict-concurrency=minimal -o /dev/null -emit-sil %s -verify -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend -strict-concurrency=targeted -verify-additional-prefix targeted- -o /dev/null -emit-sil %s -verify -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend -strict-concurrency=complete -verify-additional-prefix targeted- -o /dev/null -emit-sil %s -verify -disable-region-based-isolation-with-strict-concurrency
+// RUN: %target-swift-frontend -strict-concurrency=minimal -o /dev/null -emit-sil %s -verify
+// RUN: %target-swift-frontend -strict-concurrency=targeted -verify-additional-prefix targeted- -o /dev/null -emit-sil %s -verify
 // RUN: %target-swift-frontend -strict-concurrency=complete -verify-additional-prefix targeted- -o /dev/null -emit-sil %s -verify
 
 // REQUIRES: concurrency

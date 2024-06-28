@@ -743,6 +743,20 @@ struct InheritedTemplatedConstRACIterator : BaseTemplatedRACIterator<T> {
 
 typedef InheritedTemplatedConstRACIterator<int> InheritedTemplatedConstRACIteratorInt;
 
+struct InheritedTypedConstRACIterator: InheritedTemplatedConstRACIterator<int> {
+  using _super = InheritedTemplatedConstRACIterator<int>;
+  using iterator_category = std::random_access_iterator_tag;
+  using pointer = int *;
+
+  InheritedTypedConstRACIterator(int x)
+    : InheritedTemplatedConstRACIterator<int>(value) {}
+
+  int operator-(const InheritedTypedConstRACIterator &other) const {
+    return _super::value - other.value;
+  }
+  void operator+=(typename _super::difference_type v) { _super::value += v; }
+};
+
 template <typename T>
 struct BaseTemplatedRACIteratorOutOfLineOps {
   using value_type = T;

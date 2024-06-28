@@ -7,7 +7,7 @@
 // REQUIRES: concurrency
 // REQUIRES: asserts
 
-actor foo {
+actor Foo {
   var t: Task<Void, Error>?
 
   func access() {}
@@ -19,6 +19,28 @@ actor foo {
       } onCancel: { @Sendable in
 
       }
+    }
+  }
+}
+
+actor Container {
+  var num: Int = 0 // expected-note{{mutation of this property is only permitted within the actor}}
+  func test() async {
+
+    // no warnings:
+    await withTaskCancellationHandler {
+      num += 1
+    } onCancel: {
+      // nothing
+    }
+  }
+
+  func errors() async {
+    await withTaskCancellationHandler {
+      num += 1 // no error, this runs synchronously on caller context
+    } onCancel: {
+      // this should error because cancellation is invoked concurrently
+      num += 10 // expected-error{{actor-isolated property 'num' can not be mutated from a Sendable closure}}
     }
   }
 }

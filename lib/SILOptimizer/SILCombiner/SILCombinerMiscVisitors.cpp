@@ -14,6 +14,7 @@
 
 #include "SILCombiner.h"
 #include "swift/AST/SemanticAttrs.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/STLExtras.h"
 #include "swift/SIL/BasicBlockBits.h"
 #include "swift/SIL/DebugUtils.h"
@@ -844,6 +845,15 @@ SILInstruction *SILCombiner::visitCondFailInst(CondFailInst *CFI) {
   ValueSet DefinedValues(CFI->getFunction());
   for (auto Iter = std::next(CFI->getIterator());
        Iter != CFI->getParent()->end(); ++Iter) {
+
+    if (isBeginScopeMarker(&*Iter)) {
+      for (auto *scopeUse : cast<SingleValueInstruction>(&*Iter)->getUses()) {
+        auto *scopeEnd = scopeUse->getUser();
+        if (isEndOfScopeMarker(scopeEnd)) {
+          ToRemove.push_back(scopeEnd);
+        }
+      }
+    }
     if (!CFI->getFunction()->hasOwnership()) {
       ToRemove.push_back(&*Iter);
       continue;
@@ -870,6 +880,9 @@ SILInstruction *SILCombiner::visitCondFailInst(CondFailInst *CFI) {
     return nullptr;
 
   for (auto *Inst : ToRemove) {
+    if (Inst->isDeleted())
+      continue;
+
     // Replace any still-remaining uses with undef and erase.
     Inst->replaceAllUsesOfAllResultsWithUndef();
     eraseInstFromFunction(*Inst);

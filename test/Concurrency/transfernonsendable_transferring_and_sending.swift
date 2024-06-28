@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-sil -swift-version 6 -enable-experimental-feature TransferringArgsAndResults %s -verify
+// RUN: %target-swift-frontend -emit-sil -swift-version 6 %s -verify
 
 // REQUIRES: concurrency
 // REQUIRES: asserts

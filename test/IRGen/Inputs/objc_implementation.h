@@ -8,6 +8,8 @@
 
 - (void)mainMethod:(int)param;
 
+- (void)asyncMethodWithCompletionHandler:(void (^ _Nullable)(void))completion;
+
 @end
 
 @interface ImplClass () <NSMutableCopying>

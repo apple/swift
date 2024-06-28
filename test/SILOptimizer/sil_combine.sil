@@ -587,6 +587,35 @@ bb0(%0 : $Builtin.Int1):
   return %2 : $()
 }
 
+// rdar://121599876 (SILCombine should delete instructions in blocks dominated by cond_fail -1)
+// CHECK-LABEL: sil @cond_fail_end_scope : $@convention(thin) (@inout Builtin.Int32, Builtin.Int1) -> () {
+// CHECK: cond_fail
+// CHECK-NEXT:   unreachable
+// CHECK:      bb1:
+// CHECK-NEXT:   br bb3
+// CHECK:      bb2:
+// CHECK-NEXT:   br bb3
+// CHECK-LABEL: } // end sil function 'cond_fail_end_scope'
+sil @cond_fail_end_scope : $@convention(thin) (@inout Builtin.Int32, Builtin.Int1) -> () {
+entry(%0 : $*Builtin.Int32, %1 : $Builtin.Int1):
+  %true = integer_literal $Builtin.Int1, -1
+  cond_fail %true : $Builtin.Int1
+  %access = begin_access [read] [static] %0 : $*Builtin.Int32
+  cond_br %1, left, right
+
+left:
+  end_access %access : $*Builtin.Int32
+  br end
+
+right:
+  end_access %access : $*Builtin.Int32
+  br end
+
+end:
+  %99 = tuple ()
+  return %99 : $()
+}
+
 // CHECK-LABEL: sil @release_then_retain_peephole
 // CHECK: bb0
 // CHECK-NOT: strong_release
@@ -3688,7 +3717,7 @@ bb3(%16 : $Int32):                                  // Preds: bb1 bb2
   return %16 : $Int32                               // id: %17
 }
 
-protocol Prot0 : class {
+protocol Prot0 : AnyObject {
   static func newWithConfig() throws -> Builtin.Int32
 }
 

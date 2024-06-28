@@ -1503,3 +1503,39 @@ entry(%executor: $Builtin.Executor):
   %r = tuple ()
   return %r : $()
 }
+
+private class X {
+  func foo<E>(_ e: E.Type) throws(E) where E : Error
+}
+
+sil private [ossa] @X_foo : $@convention(method) <E where E : Error> (@thick E.Type, @guaranteed X) -> @error_indirect E {
+bb0(%0 : $*E, %1 : $@thick E.Type, %2 : @guaranteed $X):
+  %5 = tuple ()
+  return %5 : $()
+}
+
+// CHECK-LABEL: sil [ossa] @class_method_with_typed_throw
+// CHECK:         function_ref
+// CHECK:       } // end sil function 'class_method_with_typed_throw'
+sil [ossa] @class_method_with_typed_throw : $@convention(thin) <E where E : Error> (@guaranteed X, @thick E.Type) -> () {
+bb0(%0 : @guaranteed $X, %1 : $@thick E.Type):
+  %4 = alloc_stack $E
+  %5 = class_method %0 : $X, #X.foo : <E where E : Error> (X) -> (E.Type) throws(E) -> (), $@convention(method) <τ_0_0 where τ_0_0 : Error> (@thick τ_0_0.Type, @guaranteed X) -> @error_indirect τ_0_0
+  %6 = alloc_stack $E
+  try_apply %5<E>(%6, %1, %0) : $@convention(method) <τ_0_0 where τ_0_0 : Error> (@thick τ_0_0.Type, @guaranteed X) -> @error_indirect τ_0_0, normal bb1, error bb2
+
+bb1(%8 : $()):
+  dealloc_stack %6 : $*E
+  dealloc_stack %4 : $*E
+  %11 = tuple ()
+  return %11 : $()
+
+bb2:
+  unreachable
+}
+
+
+sil_vtable X {
+  #X.foo: <E where E : Error> (X) -> (E.Type) throws(E) -> () : @X_foo
+}
+

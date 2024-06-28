@@ -643,8 +643,12 @@ extension Function {
     return nil
   }
 
+  /// True if this function has a dynamic-self metadata argument and any instruction is type dependent on it.
   var mayBindDynamicSelf: Bool {
-    self.bridged.mayBindDynamicSelf()
+    guard let dynamicSelf = self.dynamicSelfMetadata else {
+      return false
+    }
+    return dynamicSelf.uses.contains { $0.isTypeDependent }
   }
 }
 
@@ -655,9 +659,8 @@ extension FullApplySite {
       return false
     }
     // Cannot inline a non-inlinable function it an inlinable function.
-    if parentFunction.isSerialized,
-       let calleeFunction = referencedFunction,
-       !calleeFunction.isSerialized {
+    if let calleeFunction = referencedFunction,
+       !calleeFunction.canBeInlinedIntoCaller(parentFunction.serializedKind) {
       return false
     }
 

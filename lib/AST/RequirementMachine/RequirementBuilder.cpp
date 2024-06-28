@@ -25,6 +25,7 @@
 #include "swift/AST/Requirement.h"
 #include "swift/AST/RequirementSignature.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -89,7 +90,7 @@ void ConnectedComponent::buildRequirements(Type subjectType,
 
   } else {
     // Shape requirements cannot be concrete.
-    assert(kind == RequirementKind::SameType);
+    ASSERT(kind == RequirementKind::SameType);
 
     // If there are multiple protocol typealiases in the connected component,
     // lower them all to a series of identical concrete-type aliases.
@@ -103,12 +104,11 @@ void ConnectedComponent::buildRequirements(Type subjectType,
     if (auto *memberTy = subjectType->getAs<DependentMemberType>()) {
       if (memberTy->getAssocType() == nullptr) {
         auto *paramTy = memberTy->getBase()->castTo<GenericTypeParamType>();
-        assert(paramTy->getDepth() == 0 && paramTy->getIndex() == 0);
-        (void) paramTy;
+        ASSERT(paramTy->getDepth() == 0 && paramTy->getIndex() == 0);
 
         aliases.emplace_back(memberTy->getName(), ConcreteType);
 
-        assert(Members.empty());
+        ASSERT(Members.empty());
         return;
       }
     }
@@ -214,7 +214,7 @@ void RequirementBuilder::addRequirementRules(ArrayRef<unsigned> rules) {
                             subjectType, concreteType);
         } else {
           auto &component = Components[rule.getRHS()];
-          assert(!component.ConcreteType);
+          ASSERT(!component.ConcreteType);
           component.ConcreteType = concreteType;
         }
         return;
@@ -235,11 +235,11 @@ void RequirementBuilder::addRequirementRules(ArrayRef<unsigned> rules) {
       llvm_unreachable("Invalid symbol kind");
     }
 
-    assert(rule.getLHS().back().getKind() != Symbol::Kind::Protocol);
+    ASSERT(rule.getLHS().back().getKind() != Symbol::Kind::Protocol);
 
     MutableTerm constraintTerm(rule.getLHS());
     if (constraintTerm.back().getKind() == Symbol::Kind::Shape) {
-      assert(rule.getRHS().back().getKind() == Symbol::Kind::Shape);
+      ASSERT(rule.getRHS().back().getKind() == Symbol::Kind::Shape);
       // Strip off the shape symbol from the constraint term.
       constraintTerm = MutableTerm(constraintTerm.begin(),
                                    constraintTerm.end() - 1);
@@ -272,7 +272,7 @@ void RequirementBuilder::addTypeAliasRules(ArrayRef<unsigned> rules) {
     auto name = *rule.isProtocolTypeAliasRule();
 
     if (auto prop = rule.isPropertyRule()) {
-      assert(prop->getKind() == Symbol::Kind::ConcreteType);
+      ASSERT(prop->getKind() == Symbol::Kind::ConcreteType);
 
       // Requirements containing unresolved name symbols originate from
       // invalid code and should not appear in the generic signature.
@@ -292,7 +292,7 @@ void RequirementBuilder::addTypeAliasRules(ArrayRef<unsigned> rules) {
         concreteType = concreteType->reconstituteSugar(/*recursive=*/true);
 
       auto &component = Components[rule.getRHS()];
-      assert(!component.ConcreteType);
+      ASSERT(!component.ConcreteType);
       (void) component;
       Components[rule.getRHS()].ConcreteType = concreteType;
     } else {

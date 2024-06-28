@@ -13,6 +13,7 @@
 #include "swift/Markup/Markup.h"
 #include "cmark-gfm.h"
 #include "swift/AST/Comment.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Markup/LineList.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"

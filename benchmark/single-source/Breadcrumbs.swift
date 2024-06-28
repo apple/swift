@@ -29,6 +29,12 @@ public let benchmarks: [BenchmarkInfo] = [
 
   CopyUTF16CodeUnits(workload: asciiWorkload, count: 500).info,
   CopyUTF16CodeUnits(workload: mixedWorkload, count: 500).info,
+  CopyUTF16CodeUnits(workload: longMixedWorkload, count: 50).info,
+  
+  CopyAllUTF16CodeUnits(workload: asciiWorkload, count: 1_000).info,
+  CopyAllUTF16CodeUnits(workload: mixedWorkload, count: 100).info,
+  CopyAllUTF16CodeUnits(workload: longASCIIWorkload, count: 7).info,
+  CopyAllUTF16CodeUnits(workload: longMixedWorkload, count: 1).info,
 
   MutatedUTF16ToIdx(workload: asciiWorkload, count: 50).info,
   MutatedUTF16ToIdx(workload: mixedWorkload, count: 50).info,
@@ -364,6 +370,11 @@ class CopyUTF16CodeUnits: BenchmarkBase {
     self.count = count
     super.init(name: "Breadcrumbs.CopyUTF16CodeUnits", workload: workload)
   }
+  
+  init(name: String, workload: Workload, count: Int) {
+    self.count = count
+    super.init(name: name, workload: workload)
+  }
 
   override func setUp() {
     super.setUp()
@@ -390,6 +401,21 @@ class CopyUTF16CodeUnits: BenchmarkBase {
         }
       }
     }
+  }
+}
+
+class CopyAllUTF16CodeUnits : CopyUTF16CodeUnits {
+  override init(workload: Workload, count: Int) {
+    super.init(
+      name: "Breadcrumbs.CopyAllUTF16CodeUnits",
+      workload: workload,
+      count: count
+    )
+  }
+  
+  override func setUp() {
+    super.setUp()
+    inputIndices = Array(repeating: 0 ..< inputString.utf16.count, count: count)
   }
 }
 

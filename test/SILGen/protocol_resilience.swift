@@ -220,15 +220,14 @@ extension ReabstractSelfBase {
 
 // CHECK-LABEL: sil private [transparent] [thunk] [ossa] @$s19protocol_resilience21ReabstractSelfRefinedP8callbackyxxcvg :
 // CHECK: [[SELF_BOX:%.*]] = alloc_stack $τ_0_0
-// CHECK-NEXT: [[SELF_COPY:%.*]] = copy_value %0 : $τ_0_0
-// CHECK-NEXT: store [[SELF_COPY]] to [init] [[SELF_BOX]] : $*τ_0_0
+// CHECK-NEXT: [[SELF_BOX_BORROW:%.*]] = store_borrow %0 to [[SELF_BOX]]
 // CHECK: [[WITNESS:%.*]] = function_ref @$s19protocol_resilience18ReabstractSelfBasePAAE8callbackyxxcvg
-// CHECK-NEXT: [[RESULT:%.*]] = apply [[WITNESS]]<τ_0_0>([[SELF_BOX]])
+// CHECK-NEXT: [[RESULT:%.*]] = apply [[WITNESS]]<τ_0_0>([[SELF_BOX_BORROW]])
 // CHECK-NEXT: [[RESULT_CONV:%.*]] = convert_function [[RESULT]]
 // CHECK: [[THUNK_FN:%.*]] = function_ref
 // CHECK-NEXT: [[THUNK:%.*]] = partial_apply [callee_guaranteed] [[THUNK_FN]]<τ_0_0>([[RESULT_CONV]])
 // CHECK-NEXT: [[THUNK_CONV:%.*]] = convert_function [[THUNK]]
-// CHECK-NEXT: destroy_addr [[SELF_BOX]]
+// CHECK-NEXT: end_borrow [[SELF_BOX_BORROW]]
 // CHECK-NEXT: dealloc_stack [[SELF_BOX]]
 // CHECK-NEXT: return [[THUNK_CONV]]
 

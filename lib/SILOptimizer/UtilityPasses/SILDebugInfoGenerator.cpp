@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "sil-based-debuginfo-gen"
 #include "swift/AST/SILOptions.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILPrintContext.h"
 #include "swift/SIL/SILModule.h"
 #include "swift/SILOptimizer/PassManager/Transforms.h"

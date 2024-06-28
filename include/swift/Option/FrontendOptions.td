@@ -207,9 +207,6 @@ def no_serialize_debugging_options :
 def autolink_library : Separate<["-"], "autolink-library">,
   HelpText<"Add dependent library">, Flags<[FrontendOption]>;
 
-def public_autolink_library : Separate<["-"], "public-autolink-library">,
-  HelpText<"Add public dependent library">, Flags<[FrontendOption]>;
-
 def disable_typo_correction : Flag<["-"], "disable-typo-correction">,
   HelpText<"Disable typo correction">;
 
@@ -223,6 +220,14 @@ def swift_module_file: Joined<["-"], "swift-module-file=">,
 def swift_module_cross_import: MultiArg<["-"], "swift-module-cross-import", 2>,
   MetaVarName<"<moduleName> <crossImport.swiftoverlay>">,
   HelpText<"Specify the cross import module">;
+
+def module_can_import: Separate<["-"], "module-can-import">,
+  MetaVarName<"<moduleName>">,
+  HelpText<"Specify canImport module name">;
+
+def module_can_import_version: MultiArg<["-"], "module-can-import-version", 3>,
+  MetaVarName<"<moduleName> <version> <underlyingVersion>">,
+  HelpText<"Specify canImport module and versions">;
 
 def disable_cross_import_overlay_search: Flag<["-"], "disable-cross-import-overlay-search">,
   HelpText<"Disable searching for cross import overlay file">;
@@ -361,6 +366,10 @@ def enable_resilience : Flag<["-"], "enable-resilience">,
 def enable_experimental_async_top_level :
   Flag<["-"], "enable-experimental-async-top-level">,
   HelpText<"Enable experimental concurrency in top-level code">;
+
+def public_autolink_library :
+  Separate<["-"], "public-autolink-library">,
+  HelpText<"Add public dependent library">;
 }
 
 // HIDDEN FLAGS
@@ -548,6 +557,10 @@ def disable_autolink_frameworks : Flag<["-"],"disable-autolink-frameworks">,
 
 def disable_all_autolinking : Flag<["-"],"disable-all-autolinking">,
   HelpText<"Disable all Swift autolink directives">;
+
+def disable_force_load_symbols : Flag<["-"],"disable-force-load-symbols">,
+  Flags<[FrontendOption, HelpHidden]>,
+  HelpText<"Disable generation of all Swift _FORCE_LOAD symbols">;
 
 def disable_diagnostic_passes : Flag<["-"], "disable-diagnostic-passes">,
   HelpText<"Don't run diagnostic passes">;
@@ -1244,6 +1257,12 @@ def enable_move_inout_stack_protector :
   Flag<["-"], "enable-move-inout-stack-protector">,
   HelpText<"Enable the stack protector by moving values to temporaries">;
 
+// This feature is enabled by default, the flag is a no-op.
+def enable_import_ptrauth_field_function_pointers :
+   Flag<["-"], "enable-import-ptrauth-field-function-pointers">,
+   HelpText<"Enable import of custom ptrauth qualified field function pointers. "
+            "This is on by default.">;
+
 def disable_import_ptrauth_field_function_pointers :
   Flag<["-"], "disable-import-ptrauth-field-function-pointers">,
   HelpText<"Disable import of custom ptrauth qualified field function pointers">;
@@ -1357,11 +1376,6 @@ def platform_c_calling_convention_EQ :
 def disable_experimental_parser_round_trip : Flag<["-"],
   "disable-experimental-parser-round-trip">,
   HelpText<"Disable round trip through the new swift parser">;
-
-def disable_strict_concurrency_region_based_isolation : Flag<["-"],
-  "disable-region-based-isolation-with-strict-concurrency">,
-  HelpText<"Disable region based isolation when running with strict concurrency enabled. Only enabled with asserts">,
-  Flags<[HelpHidden]>;
 
 def disable_transferring_args_and_results_with_region_isolation : Flag<["-"],
   "disable-transferring-args-and-results-with-region-based-isolation">,

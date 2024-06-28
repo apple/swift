@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "Diff.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Migrator/ASTMigratorPass.h"
 #include "swift/Migrator/EditorAdapter.h"

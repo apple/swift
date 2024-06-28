@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend -verify -strict-concurrency=targeted -verify-additional-prefix targeted-and-complete- -emit-sil -o /dev/null %s -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend -verify -strict-concurrency=complete -verify-additional-prefix targeted-and-complete- -verify-additional-prefix complete-and-tns- -verify-additional-prefix complete- -emit-sil -o /dev/null %s -disable-region-based-isolation-with-strict-concurrency
+// RUN: %target-swift-frontend -verify -strict-concurrency=targeted -verify-additional-prefix targeted-and-complete- -emit-sil -o /dev/null %s
 // RUN: %target-swift-frontend -verify -strict-concurrency=complete -verify-additional-prefix tns- -verify-additional-prefix complete-and-tns- -emit-sil -o /dev/null %s
 
 // REQUIRES: concurrency
@@ -353,9 +352,10 @@ func callNonisolatedAsyncClosure(
 func testLocalCaptures() {
   let ns = NonSendable()
 
-  @Sendable func a2() -> NonSendable {
+  @Sendable
+  func a2() -> NonSendable {
     return ns
-    // expected-complete-and-tns-warning@-1 {{capture of 'ns' with non-sendable type 'NonSendable' in a `@Sendable` local function}}
+    // expected-complete-and-tns-warning @-1 {{capture of 'ns' with non-sendable type 'NonSendable' in a `@Sendable` local function}}
   }
 }
 
@@ -431,10 +431,11 @@ struct DowngradeForPreconcurrency {
     preconcurrencyContext {
       Task {
         completion()
-        // expected-warning@-1 2 {{capture of 'completion' with non-sendable type '@MainActor () -> Void' in a `@Sendable` closure; this is an error in the Swift 6 language mode}}
-        // expected-note@-2 2 {{a function type must be marked '@Sendable' to conform to 'Sendable'}}
-        // expected-warning@-3 {{expression is 'async' but is not marked with 'await'; this is an error in the Swift 6 language mode}}
-        // expected-note@-4 {{calls to parameter 'completion' from outside of its actor context are implicitly asynchronous}}
+        // expected-warning@-1 {{capture of 'completion' with non-sendable type '@MainActor () -> Void' in a `@Sendable` closure}}
+        // expected-warning@-2 {{capture of 'completion' with non-sendable type '@MainActor () -> Void' in an isolated closure}}
+        // expected-note@-3 2 {{a function type must be marked '@Sendable' to conform to 'Sendable'}}
+        // expected-warning@-4 {{expression is 'async' but is not marked with 'await'; this is an error in the Swift 6 language mode}}
+        // expected-note@-5 {{calls to parameter 'completion' from outside of its actor context are implicitly asynchronous}}
       }
     }
   }
@@ -480,4 +481,14 @@ extension UnavailableSendable: Sendable {}
 func checkOpaqueType() -> some Sendable {
   UnavailableSendable()
   // expected-warning@-1 {{conformance of 'UnavailableSendable' to 'Sendable' is unavailable; this is an error in the Swift 6 language mode}}
+}
+
+// rdar://129024926
+
+@available(SwiftStdlib 5.1, *)
+@MainActor class MainActorSuper<T: Sendable> {}
+
+@available(SwiftStdlib 5.1, *)
+class MainActorSub: MainActorSuper<MainActorSub.Nested> {
+  struct Nested {}  // no cycle
 }

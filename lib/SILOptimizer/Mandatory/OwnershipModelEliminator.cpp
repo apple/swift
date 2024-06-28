@@ -24,6 +24,7 @@
 
 #define DEBUG_TYPE "sil-ownership-model-eliminator"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/BlotSetVector.h"
 #include "swift/SIL/DebugUtils.h"
 #include "swift/SIL/Projection.h"
@@ -136,6 +137,7 @@ struct OwnershipModelEliminatorVisitor
   bool visitCopyValueInst(CopyValueInst *cvi);
   bool visitExplicitCopyValueInst(ExplicitCopyValueInst *cvi);
   bool visitExplicitCopyAddrInst(ExplicitCopyAddrInst *cai);
+  bool visitApplyInst(ApplyInst *ai);
 
   void splitDestroy(DestroyValueInst *destroy);
   bool visitDestroyValueInst(DestroyValueInst *dvi);
@@ -161,6 +163,10 @@ struct OwnershipModelEliminatorVisitor
     return true;
   }
   bool visitEndLifetimeInst(EndLifetimeInst *eli) {
+    eraseInstruction(eli);
+    return true;
+  }
+  bool visitExtendLifetimeInst(ExtendLifetimeInst *eli) {
     eraseInstruction(eli);
     return true;
   }
@@ -353,6 +359,32 @@ bool OwnershipModelEliminatorVisitor::visitExplicitCopyAddrInst(
   });
   eraseInstruction(ecai);
   return true;
+}
+
+bool OwnershipModelEliminatorVisitor::visitApplyInst(ApplyInst *ai) {
+  auto callee = ai->getCallee();
+
+  if (!callee)
+    return false;
+
+  // Insert destroy_addr for @in_cxx arguments.
+  auto fnTy = callee->getType().castTo<SILFunctionType>();
+  SILFunctionConventions fnConv(fnTy, ai->getModule());
+  bool changed = false;
+
+  for (int i = fnConv.getSILArgIndexOfFirstParam(),
+           e = i + fnConv.getNumParameters();
+       i < e; ++i) {
+    auto paramInfo = fnConv.getParamInfoForSILArg(i);
+    if (!paramInfo.isIndirectInCXX())
+      continue;
+    auto arg = ai->getArgument(i);
+    SILBuilderWithScope builder(ai->getNextInstruction(), builderCtx);
+    builder.createDestroyAddr(ai->getLoc(), arg);
+    changed = true;
+  }
+
+  return changed;
 }
 
 bool OwnershipModelEliminatorVisitor::visitUnmanagedRetainValueInst(

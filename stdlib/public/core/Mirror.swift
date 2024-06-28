@@ -538,6 +538,7 @@ extension Mirror {
 
 //===--- General Utilities ------------------------------------------------===//
 
+@_unavailableInEmbedded
 extension String {
   /// Creates a string representing the given value.
   ///

@@ -20,10 +20,10 @@
 ///     return value for the `withExtendedLifetime(_:_:)` method.
 /// - Returns: The return value, if any, of the `body` closure parameter.
 @_alwaysEmitIntoClient
-public func withExtendedLifetime<T: ~Copyable, Result: ~Copyable>(
+public func withExtendedLifetime<T: ~Copyable, E: Error, Result: ~Copyable>(
   _ x: borrowing T,
-  _ body: () throws -> Result // FIXME: Typed throws rdar://126576356
-) rethrows -> Result {
+  _ body: () throws(E) -> Result
+) throws(E) -> Result {
   defer { _fixLifetime(x) }
   return try body()
 }
@@ -32,8 +32,7 @@ public func withExtendedLifetime<T: ~Copyable, Result: ~Copyable>(
 @_silgen_name("$ss20withExtendedLifetimeyq_x_q_yKXEtKr0_lF")
 @usableFromInline
 internal func __abi_withExtendedLifetime<T, Result>(
-  _ x: T,
-  _ body: () throws -> Result // FIXME: Typed throws rdar://126576356
+  _ x: T, _ body: () throws -> Result
 ) rethrows -> Result {
   defer { _fixLifetime(x) }
   return try body()
@@ -49,9 +48,10 @@ internal func __abi_withExtendedLifetime<T, Result>(
 ///     return value for the `withExtendedLifetime(_:_:)` method.
 /// - Returns: The return value, if any, of the `body` closure parameter.
 @_alwaysEmitIntoClient
-public func withExtendedLifetime<T, Result: ~Copyable>(
-  _ x: T, _ body: (T) throws -> Result // FIXME: Typed throws rdar://126576356
-) rethrows -> Result {
+public func withExtendedLifetime<T: ~Copyable, E: Error, Result: ~Copyable>(
+  _ x: borrowing T,
+  _ body: (borrowing T) throws(E) -> Result
+) throws(E) -> Result {
   defer { _fixLifetime(x) }
   return try body(x)
 }
@@ -60,7 +60,7 @@ public func withExtendedLifetime<T, Result: ~Copyable>(
 @_silgen_name("$ss20withExtendedLifetimeyq_x_q_xKXEtKr0_lF")
 @usableFromInline
 internal func __abi_withExtendedLifetime<T, Result>(
-  _ x: T, _ body: (T) throws -> Result // FIXME: Typed throws rdar://126576356
+  _ x: T, _ body: (T) throws -> Result
 ) rethrows -> Result {
   defer { _fixLifetime(x) }
   return try body(x)

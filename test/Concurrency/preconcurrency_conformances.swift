@@ -35,24 +35,32 @@ extension TestPreconcurrencyAttr : @preconcurrency Q { // Ok
 }
 
 class NonSendable {}
-// expected-note@-1 6 {{class 'NonSendable' does not conform to the 'Sendable' protocol}}
 
 protocol TestSendability {
   var x: NonSendable { get }
   func test(_: NonSendable?) -> [NonSendable]
 }
 
-// Make sure that preconcurrency conformances don't suppress Sendable diagnostics
+// Make sure that preconcurrency conformances suppress Sendable diagnostics,
+// because @preconcurrency assumes that the witness will always be called
+// from within the same isolation domain (with a dynamic check).
 @MainActor
 struct Value : @preconcurrency TestSendability {
   var x: NonSendable { NonSendable() }
-  // expected-warning@-1 {{non-sendable type 'NonSendable' in conformance of main actor-isolated property 'x' to protocol requirement cannot cross actor boundary}}
-  // expected-note@-2 2 {{property declared here}}
+  // expected-note@-1 2 {{property declared here}}
 
-  // expected-warning@+2 {{non-sendable type '[NonSendable]' returned by main actor-isolated instance method 'test' satisfying protocol requirement cannot cross actor boundary}}
-  // expected-warning@+1 {{non-sendable type 'NonSendable?' in parameter of the protocol requirement satisfied by main actor-isolated instance method 'test' cannot cross actor boundary}}
   func test(_: NonSendable?) -> [NonSendable] {
     // expected-note@-1 2 {{calls to instance method 'test' from outside of its actor context are implicitly asynchronous}}
+    []
+  }
+}
+
+// Make sure we don't spuriously say the @preconcurrency is unnecessary.
+@MainActor
+struct OtherValue : @preconcurrency TestSendability {
+  var x: NonSendable { NonSendable() }
+
+  nonisolated func test(_: NonSendable?) -> [NonSendable] {
     []
   }
 }
@@ -73,10 +81,7 @@ actor MyActor {
 
 extension MyActor : @preconcurrency TestSendability {
   var x: NonSendable { NonSendable() }
-  // expected-warning@-1 {{non-sendable type 'NonSendable' in conformance of actor-isolated property 'x' to protocol requirement cannot cross actor boundary}}
 
-  // expected-warning@+2 {{non-sendable type '[NonSendable]' returned by actor-isolated instance method 'test' satisfying protocol requirement cannot cross actor boundary}}
-  // expected-warning@+1 {{non-sendable type 'NonSendable?' in parameter of the protocol requirement satisfied by actor-isolated instance method 'test' cannot cross actor boundary}}
   func test(_: NonSendable?) -> [NonSendable] {
     []
   }
@@ -176,4 +181,20 @@ do {
     var prop: Int = 42
     func test() {}
   }
+}
+
+// https://github.com/apple/swift/issues/74294
+protocol Parent {
+  func a()
+}
+
+protocol Child: Parent {
+  func b()
+}
+
+do {
+    actor Test: @preconcurrency Child {
+      func a() {} // Ok
+      func b() {} // Ok
+    }
 }

@@ -33,6 +33,7 @@
 #include "ForeignClassMetadataVisitor.h"
 #include "TupleMetadataVisitor.h"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/SIL/SILModule.h"
 #include <optional>

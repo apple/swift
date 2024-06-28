@@ -23,6 +23,7 @@
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeRepr.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/STLExtras.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/ModuleInterfaceSupport.h"
@@ -240,7 +241,8 @@ static void printImports(raw_ostream &out,
   // it's not obvious what higher-level optimization would be factored out here.
   ModuleDecl::ImportFilter allImportFilter = {
       ModuleDecl::ImportFilterKind::Exported,
-      ModuleDecl::ImportFilterKind::Default};
+      ModuleDecl::ImportFilterKind::Default,
+      ModuleDecl::ImportFilterKind::ShadowedByCrossImportOverlay};
 
   // With -experimental-spi-imports:
   // When printing the private or package swiftinterface file, print implementation-only
@@ -801,7 +803,7 @@ public:
   }
 
   /// If there were any conditional conformances that couldn't be printed,
-  /// make a dummy extension that conforms to all of them, constrained by a
+  /// make dummy extension(s) that conforms to all of them, constrained by a
   /// fake protocol.
   bool printInaccessibleConformanceExtensionIfNeeded(
       raw_ostream &out, const PrintOptions &printOptions,
@@ -810,20 +812,35 @@ public:
       return false;
     assert(nominal->isGenericContext());
 
-    if (!printOptions.printPublicInterface())
-      out << "@_spi(" << DummyProtocolName << ")\n";
-    out << "@available(*, unavailable)\nextension ";
-    nominal->getDeclaredType().print(out, printOptions);
-    out << " : ";
-    llvm::interleave(
-        ConditionalConformanceProtocols,
-        [&out, &printOptions](const ProtocolType *protoTy) {
-          protoTy->print(out, printOptions);
-        },
-        [&out] { out << ", "; });
-    out << " where "
-        << nominal->getGenericSignature().getGenericParams().front()->getName()
-        << " : " << DummyProtocolName << " {}\n";
+    auto emitExtension =
+        [&](ArrayRef<const ProtocolType *> conformanceProtos) {
+      if (!printOptions.printPublicInterface())
+        out << "@_spi(" << DummyProtocolName << ")\n";
+      out << "@available(*, unavailable)\nextension ";
+      nominal->getDeclaredType().print(out, printOptions);
+      out << " : ";
+      llvm::interleave(
+          conformanceProtos,
+          [&out, &printOptions](const ProtocolType *protoTy) {
+            protoTy->print(out, printOptions);
+          },
+          [&out] { out << ", "; });
+      out << " where "
+          << nominal->getGenericSignature().getGenericParams()[0]->getName()
+          << " : " << DummyProtocolName << " {}\n";
+    };
+
+    // We have to print conformances for invertible protocols in separate
+    // extensions, so do those first and save the rest for one extension.
+    SmallVector<const ProtocolType *, 8> regulars;
+    for (auto *proto : ConditionalConformanceProtocols) {
+      if (proto->getDecl()->getInvertibleProtocolKind()) {
+        emitExtension(proto);
+        continue;
+      }
+      regulars.push_back(proto);
+    }
+    emitExtension(regulars);
     return true;
   }
 

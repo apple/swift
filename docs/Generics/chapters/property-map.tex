@@ -269,6 +269,9 @@ $\genericsym{0}{0}.\assocsym{P}{B}$&$\protosym{Q}$, $\protosym{R}$, $\supersym{\
 
 \ifWIP
 
+(getReducedType() hack) Other consequences are explored in \SecRef{concrete contraction}.
+
+
 Recall the categorization of generic signature queries into predicates, properties and canonical type queries previously shown in \SecRef{genericsigqueries}. The predicates can be implemented in a straightforward manner using the property map. Each predicate takes a subject type parameter $T$.
 
 Generic signature queries are always posed relative to a generic signature, and not a protocol requirement signature, hence the type parameter $T$ is lowered with the generic signature type lowering map $\Lambda\colon\namesym{Type}\rightarrow\namesym{Term}$ (\AlgRef{build term generic}) and not a protocol type lowering map $\Lambda_{\proto{P}}\colon\namesym{Type}\rightarrow\namesym{Term}$ for some protocol $\proto{P}$ (\DefRef{build term protocol}).

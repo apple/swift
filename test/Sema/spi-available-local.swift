@@ -10,7 +10,7 @@ public class MacOSSPIClass {} // expected-note {{type declared here}}
 public class iOSSPIClass {}
 
 @available(macOS 10.10, iOS 8.0, *)
-public class MacOSDerived: MacOSSPIClass {} // expected-error {{cannot use class 'MacOSSPIClass' here; it is SPI}}
+public class MacOSDerived: MacOSSPIClass {} // expected-error {{cannot use class 'MacOSSPIClass' in a public or '@usableFromInline' conformance; it is SPI}}
 
 @available(macOS 10.10, iOS 8.0, *)
 public class iOSDerived: iOSSPIClass {}

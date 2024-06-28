@@ -18,6 +18,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "swift/SIL/SILCoverageMap.h"
 #include "swift/SIL/SILModule.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 

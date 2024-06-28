@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/IndexSubset.h"
+#include "swift/Basic/Assertions.h"
 
 using namespace swift;
 

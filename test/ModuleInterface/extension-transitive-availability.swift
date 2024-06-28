@@ -31,7 +31,8 @@ func foo() {
 // CHECK-NEXT:          "swift": "SwiftOnoneSupport"
 // CHECK-NEXT:        }
 // CHECK-NEXT:      ],
-// CHECK-NEXT:      "details": {
+// CHECK-NEXT:      "linkLibraries": [
+// CHECK:           "details": {
 // CHECK-NEXT:        "swift": {
 // CHECK-NEXT:          "moduleInterfacePath": 
 // CHECK-NEXT:          "compiledModuleCandidates": [

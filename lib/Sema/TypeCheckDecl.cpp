@@ -46,6 +46,7 @@
 #include "swift/AST/SourceFile.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/TypeWalker.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Parse/Lexer.h"
 #include "swift/Parse/Parser.h"
@@ -2260,16 +2261,19 @@ ParamSpecifierRequest::evaluate(Evaluator &evaluator,
   if (auto transferring = dyn_cast<TransferringTypeRepr>(nestedRepr)) {
     // If we do not have an Ownership Repr, return implicit copyable consuming.
     auto *base = transferring->getBase();
-    if (!isa<OwnershipTypeRepr>(base)) {
+    if (!param->getInterfaceType()->isNoEscape() &&
+        !isa<OwnershipTypeRepr>(base)) {
       return ParamSpecifier::ImplicitlyCopyableConsuming;
     }
     nestedRepr = base;
   }
 
   if (auto sending = dyn_cast<SendingTypeRepr>(nestedRepr)) {
-    // If we do not have an Ownership Repr, return implicit copyable consuming.
+    // If we do not have an Ownership Repr and do not have a no escape type,
+    // return implicit copyable consuming.
     auto *base = sending->getBase();
-    if (!isa<OwnershipTypeRepr>(base)) {
+    if (!param->getInterfaceType()->isNoEscape() &&
+        !isa<OwnershipTypeRepr>(base)) {
       return ParamSpecifier::ImplicitlyCopyableConsuming;
     }
     nestedRepr = base;

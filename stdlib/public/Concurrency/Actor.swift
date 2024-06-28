@@ -35,6 +35,18 @@ public typealias AnyActor = AnyObject & Sendable
 ///
 /// The `Actor` protocol generalizes over all `actor` types. Actor types
 /// implicitly conform to this protocol.
+///
+/// ### Actors and SerialExecutors
+/// By default, actors execute tasks on a shared global concurrency thread pool.
+/// This pool is shared by all default actors and tasks, unless an actor or task
+/// specified a more specific executor requirement.
+///
+/// It is possible to configure an actor to use a specific ``SerialExecutor``,
+/// as well as impact the scheduling of default tasks and actors by using
+/// a ``TaskExecutor``.
+///
+/// - SeeAlso: ``SerialExecutor``
+/// - SeeAlso: ``TaskExecutor``
 @available(SwiftStdlib 5.1, *)
 public protocol Actor: AnyObject, Sendable {
 
@@ -50,6 +62,9 @@ public protocol Actor: AnyObject, Sendable {
   /// eliminated, and rearranged with other work, and they may even
   /// be introduced when not strictly required.  Visible side effects
   /// are therefore strongly discouraged within this property.
+  ///
+  /// - SeeAlso: ``SerialExecutor``
+  /// - SeeAlso: ``TaskExecutor``
   nonisolated var unownedExecutor: UnownedSerialExecutor { get }
 }
 

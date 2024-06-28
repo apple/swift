@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/JSONSerialization.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Format.h"

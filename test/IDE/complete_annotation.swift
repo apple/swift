@@ -1,4 +1,4 @@
-// RUN: %target-swift-ide-test -batch-code-completion -code-completion-annotate-results -code-completion-sourcetext -source-filename %s -filecheck %raw-FileCheck -completion-output-dir %t
+// RUN: %batch-code-completion -code-completion-annotate-results -code-completion-sourcetext
 
 struct MyStruct {
   init(x: Int) {}

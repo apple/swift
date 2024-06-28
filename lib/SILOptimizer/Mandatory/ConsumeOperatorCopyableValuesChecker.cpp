@@ -13,6 +13,7 @@
 #define DEBUG_TYPE "sil-consume-operator-copyable-values-checker"
 
 #include "swift/AST/DiagnosticsSIL.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/SIL/BasicBlockBits.h"
 #include "swift/SIL/BasicBlockDatastructures.h"
@@ -25,6 +26,7 @@
 #include "swift/SIL/SILInstruction.h"
 #include "swift/SIL/SILUndef.h"
 #include "swift/SILOptimizer/Analysis/Analysis.h"
+#include "swift/SILOptimizer/Analysis/BasicCalleeAnalysis.h"
 #include "swift/SILOptimizer/Analysis/ClosureScope.h"
 #include "swift/SILOptimizer/Analysis/DominanceAnalysis.h"
 #include "swift/SILOptimizer/Analysis/LoopAnalysis.h"
@@ -216,17 +218,18 @@ namespace {
 struct ConsumeOperatorCopyableValuesChecker {
   SILFunction *fn;
   CheckerLivenessInfo livenessInfo;
-  DominanceInfo *dominanceToUpdate;
-  SILLoopInfo *loopInfoToUpdate;
+  DominanceInfo *dominance;
+  InstructionDeleter deleter;
+  CanonicalizeOSSALifetime canonicalizer;
 
-  ConsumeOperatorCopyableValuesChecker(SILFunction *fn)
-      : fn(fn), dominanceToUpdate(nullptr), loopInfoToUpdate(nullptr) {}
-
-  void setDominanceToUpdate(DominanceInfo *newDFI) {
-    dominanceToUpdate = newDFI;
-  }
-
-  void setLoopInfoToUpdate(SILLoopInfo *newLFI) { loopInfoToUpdate = newLFI; }
+  ConsumeOperatorCopyableValuesChecker(SILFunction *fn,
+                                       DominanceInfo *dominance,
+                                       BasicCalleeAnalysis *calleeAnalysis)
+      : fn(fn), dominance(dominance),
+        canonicalizer(DontPruneDebugInsts,
+                      MaximizeLifetime_t(!fn->shouldOptimize()), fn,
+                      /*accessBlockAnalysis=*/nullptr, dominance,
+                      calleeAnalysis, deleter) {}
 
   bool check();
 
@@ -480,6 +483,7 @@ bool ConsumeOperatorCopyableValuesChecker::check() {
     // Then look at all of our found consuming uses. See if any of these are
     // _move that are within the boundary.
     bool foundMove = false;
+    SmallVector<SILInstruction *, 2> validMoves;
     auto dbgVarInst = DebugVarCarryingInst::getFromValue(lexicalValue);
     StringRef varName = DebugVarCarryingInst::getName(dbgVarInst);
     for (auto *use : livenessInfo.consumingUse) {
@@ -510,6 +514,7 @@ bool ConsumeOperatorCopyableValuesChecker::check() {
                 dbgVarInst->getLoc(), SILUndef::get(mvi->getOperand()),
                 *varInfo, false /*poison*/, UsesMoveableValueDebugInfo);
           }
+          validMoves.push_back(mvi);
         }
         foundMove = true;
       }
@@ -519,6 +524,11 @@ bool ConsumeOperatorCopyableValuesChecker::check() {
     // ensures we emit llvm.dbg.addr instead of llvm.dbg.declare in IRGen.
     if (foundMove) {
       dbgVarInst.markAsMoved();
+    }
+
+    if (validMoves.size() > 0) {
+      canonicalizer.clear();
+      canonicalizer.canonicalizeValueLifetime(lexicalValue, validMoves);
     }
   }
 
@@ -575,18 +585,16 @@ class ConsumeOperatorCopyableValuesCheckerPass : public SILFunctionTransform {
     LLVM_DEBUG(llvm::dbgs() << "*** Checking moved values in fn: "
                             << getFunction()->getName() << '\n');
 
-    ConsumeOperatorCopyableValuesChecker checker(getFunction());
-
-    // If we already had dominance or loop info generated, update them when
-    // splitting blocks.
     auto *dominanceAnalysis = getAnalysis<DominanceAnalysis>();
-    if (dominanceAnalysis->hasFunctionInfo(fn))
-      checker.setDominanceToUpdate(dominanceAnalysis->get(fn));
+    auto *dominance = dominanceAnalysis->get(fn);
+    auto *calleeAnalysis = getAnalysis<BasicCalleeAnalysis>();
+    ConsumeOperatorCopyableValuesChecker checker(getFunction(), dominance,
+                                                 calleeAnalysis);
     auto *loopAnalysis = getAnalysis<SILLoopAnalysis>();
-    if (loopAnalysis->hasFunctionInfo(fn))
-      checker.setLoopInfoToUpdate(loopAnalysis->get(fn));
 
     if (checker.check()) {
+      // If we already had dominance or loop info generated, update them when
+      // splitting blocks.
       AnalysisPreserver preserveDominance(dominanceAnalysis);
       AnalysisPreserver preserveLoop(loopAnalysis);
       invalidateAnalysis(

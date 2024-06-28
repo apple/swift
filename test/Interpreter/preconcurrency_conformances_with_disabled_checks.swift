@@ -39,6 +39,18 @@
 // RUN: env SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=legacy SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test4.out 2>&1 | %FileCheck %t/src/Test4.swift
 // RUN: env SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=swift6 SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test4.out 2>&1 | %FileCheck %t/src/Test4.swift
 
+// RUN: %target-build-swift -I %t -L %t -l Types %t/src/Test5.swift -o %t/test5.out
+// RUN: %target-codesign %t/test5.out
+// RUN: env SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test5.out 2>&1 | %FileCheck %t/src/Test5.swift
+// RUN: env SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=legacy SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test5.out 2>&1 | %FileCheck %t/src/Test5.swift
+// RUN: env SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=swift6 SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test5.out 2>&1 | %FileCheck %t/src/Test5.swift
+
+// RUN: %target-build-swift -I %t -L %t -l Types %t/src/Test6.swift -o %t/test6.out
+// RUN: %target-codesign %t/test6.out
+// RUN: env SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test6.out 2>&1 | %FileCheck %t/src/Test6.swift
+// RUN: env SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=legacy SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test6.out 2>&1 | %FileCheck %t/src/Test6.swift
+// RUN: env SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=swift6 SWIFT_UNEXPECTED_EXECUTOR_LOG_LEVEL=2 %target-run %t/test6.out 2>&1 | %FileCheck %t/src/Test6.swift
+
 // REQUIRES: asserts
 // REQUIRES: concurrency
 // REQUIRES: concurrency_runtime
@@ -54,6 +66,10 @@ public protocol P {
 
   var prop: [String] { get set }
   func test() -> Int
+}
+
+public protocol Q : P {
+  func childTest()
 }
 
 //--- Types.swift
@@ -92,6 +108,21 @@ extension ActorTest : @preconcurrency P {
   public func test() -> Int { x }
 }
 
+@MainActor
+public struct TestWithParent : @preconcurrency Q {
+  public var prop: [String] = []
+
+  public init() {}
+
+  public func test() -> Int { 42 }
+  public func childTest() {}
+}
+
+public func runChildTest<T: Q>(_ type: T.Type) async {
+  let v = type.init()
+  return v.childTest()
+}
+
 //--- Test1.swift
 import Types
 print(await runTest(Test.self))
@@ -110,4 +141,14 @@ print(await runTest(ActorTest.self))
 //--- Test4.swift
 import Types
 print(await runAccessors(ActorTest.self))
+// CHECK-NOT: Incorrect actor executor assumption
+
+//--- Test5.swift
+import Types
+print(await runTest(TestWithParent.self))
+// CHECK-NOT: Incorrect actor executor assumption
+
+//--- Test6.swift
+import Types
+print(await runChildTest(TestWithParent.self))
 // CHECK-NOT: Incorrect actor executor assumption

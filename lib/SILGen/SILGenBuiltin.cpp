@@ -29,6 +29,7 @@
 #include "swift/AST/Module.h"
 #include "swift/AST/ProtocolConformance.h"
 #include "swift/AST/ReferenceCounting.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILArgument.h"
 #include "swift/SIL/SILUndef.h"
 #include "swift/AST/TypeCheckRequests.h" // FIXME: Temporary
@@ -1595,12 +1596,25 @@ static ManagedValue emitCreateAsyncTask(SILGenFunction &SGF, SILLocation loc,
     }
   }();
 
-  ManagedValue taskExecutor = [&] {
+  ManagedValue taskExecutorDeprecated = [&] {
     if (options & CreateTaskOptions::OptionalEverything) {
       return nextArg().getAsSingleValue(SGF);
     } else if (options & CreateTaskOptions::TaskExecutor) {
       return emitOptionalSome(nextArg());
     } else {
+      return emitOptionalNone(ctx.TheExecutorType);
+    }
+  }();
+  ManagedValue taskExecutorConsuming = [&] {
+    if (options & CreateTaskOptions::OptionalEverything) {
+      return nextArg().getAsSingleValue(SGF);
+    } else if (auto theTaskExecutorProto = ctx.getProtocol(KnownProtocolKind::TaskExecutor)) {
+      return emitOptionalNone(theTaskExecutorProto->getDeclaredExistentialType()
+                                  ->getCanonicalType());
+    } else {
+      // This builtin executor type here is just a placeholder type for being
+      // able to pass 'nil' for it with SDKs which do not have the TaskExecutor
+      // type.
       return emitOptionalNone(ctx.TheExecutorType);
     }
   }();
@@ -1617,11 +1631,13 @@ static ManagedValue emitCreateAsyncTask(SILGenFunction &SGF, SILLocation loc,
 
     auto &&fnArg = nextArg();
 
+    bool hasSending = ctx.LangOpts.hasFeature(Feature::SendingArgsAndResults);
+
     auto extInfo =
         ASTExtInfoBuilder()
             .withAsync()
             .withThrows()
-            .withSendable(true)
+            .withSendable(!hasSending)
             .withRepresentation(GenericFunctionType::Representation::Swift)
             .build();
 
@@ -1659,7 +1675,8 @@ static ManagedValue emitCreateAsyncTask(SILGenFunction &SGF, SILLocation loc,
     flags.getUnmanagedValue(),
     initialExecutor.getUnmanagedValue(),
     taskGroup.getUnmanagedValue(),
-    taskExecutor.getUnmanagedValue(),
+    taskExecutorDeprecated.getUnmanagedValue(),
+    taskExecutorConsuming.forward(SGF),
     functionValue.forward(SGF)
   };
 
@@ -1742,10 +1759,12 @@ SILGenFunction::emitCreateAsyncMainTask(SILLocation loc, SubstitutionMap subs,
                                         ManagedValue mainFunctionRef) {
   auto &ctx = getASTContext();
   CanType flagsType = ctx.getIntType()->getCanonicalType();
+  bool hasSending = ctx.LangOpts.hasFeature(Feature::SendingArgsAndResults);
   CanType functionType =
-    FunctionType::get({}, ctx.TheEmptyTupleType,
-                      ASTExtInfo().withAsync().withThrows().withSendable(true))
-      ->getCanonicalType();
+      FunctionType::get(
+          {}, ctx.TheEmptyTupleType,
+          ASTExtInfo().withAsync().withThrows().withSendable(!hasSending))
+          ->getCanonicalType();
 
   using Param = FunctionType::Param;
   PreparedArguments args({Param(flagsType), Param(functionType)});

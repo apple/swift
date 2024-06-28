@@ -505,7 +505,7 @@ public struct UnsafeContinuation<T, E: Error>: Sendable {
   /// The task continues executing
   /// when its executor schedules it.
   @_alwaysEmitIntoClient
-  public func resume(returning value: __owned T) where E == Never {
+  public func resume(returning value: sending T) where E == Never {
     #if compiler(>=5.5) && $BuiltinContinuation
     Builtin.resumeNonThrowingContinuationReturning(context, value)
     #else
@@ -527,7 +527,7 @@ public struct UnsafeContinuation<T, E: Error>: Sendable {
   /// The task continues executing
   /// when its executor schedules it.
   @_alwaysEmitIntoClient
-  public func resume(returning value: __owned T) {
+  public func resume(returning value: sending T) {
     #if compiler(>=5.5) && $BuiltinContinuation
     Builtin.resumeThrowingContinuationReturning(context, value)
     #else
@@ -549,7 +549,7 @@ public struct UnsafeContinuation<T, E: Error>: Sendable {
   /// The task continues executing
   /// when its executor schedules it.
   @_alwaysEmitIntoClient
-  public func resume(throwing error: __owned E) {
+  public func resume(throwing error: consuming E) {
     #if compiler(>=5.5) && $BuiltinContinuation
     Builtin.resumeThrowingContinuationThrowing(context, error)
     #else
@@ -577,7 +577,7 @@ extension UnsafeContinuation {
   /// The task continues executing
   /// when its executor schedules it.
   @_alwaysEmitIntoClient
-  public func resume<Er: Error>(with result: Result<T, Er>) where E == Error {
+  public func resume<Er: Error>(with result: __shared sending Result<T, Er>) where E == Error {
     switch result {
       case .success(let val):
         self.resume(returning: val)
@@ -603,7 +603,7 @@ extension UnsafeContinuation {
   /// The task continues executing
   /// when its executor schedules it.
   @_alwaysEmitIntoClient
-  public func resume(with result: Result<T, E>) {
+  public func resume(with result: __shared sending Result<T, E>) {
     switch result {
       case .success(let val):
         self.resume(returning: val)
@@ -635,7 +635,7 @@ extension UnsafeContinuation {
 @_alwaysEmitIntoClient
 internal func _resumeUnsafeContinuation<T>(
   _ continuation: UnsafeContinuation<T, Never>,
-  _ value: __owned T
+  _ value: sending T
 ) {
   continuation.resume(returning: value)
 }
@@ -644,7 +644,7 @@ internal func _resumeUnsafeContinuation<T>(
 @_alwaysEmitIntoClient
 internal func _resumeUnsafeThrowingContinuation<T>(
   _ continuation: UnsafeContinuation<T, Error>,
-  _ value: __owned T
+  _ value: sending T
 ) {
   continuation.resume(returning: value)
 }
@@ -653,7 +653,7 @@ internal func _resumeUnsafeThrowingContinuation<T>(
 @_alwaysEmitIntoClient
 internal func _resumeUnsafeThrowingContinuationWithError<T>(
   _ continuation: UnsafeContinuation<T, Error>,
-  _ error: __owned Error
+  _ error: consuming Error
 ) {
   continuation.resume(throwing: error)
 }
@@ -689,7 +689,7 @@ internal func _resumeUnsafeThrowingContinuationWithError<T>(
 public func withUnsafeContinuation<T>(
   isolation: isolated (any Actor)? = #isolation,
   _ fn: (UnsafeContinuation<T, Never>) -> Void
-) async -> T {
+) async -> sending T {
   return await Builtin.withUnsafeContinuation {
     fn(UnsafeContinuation<T, Never>($0))
   }
@@ -725,7 +725,7 @@ public func withUnsafeContinuation<T>(
 public func withUnsafeThrowingContinuation<T>(
   isolation: isolated (any Actor)? = #isolation,
   _ fn: (UnsafeContinuation<T, Error>) -> Void
-) async throws -> T {
+) async throws -> sending T {
   return try await Builtin.withUnsafeThrowingContinuation {
     fn(UnsafeContinuation<T, Error>($0))
   }

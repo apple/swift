@@ -14,6 +14,7 @@
 #define SWIFT_SILGEN_FORMALEVALUATION_H
 
 #include "Cleanup.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/DiverseStack.h"
 #include "swift/SIL/SILValue.h"
 #include <optional>

@@ -202,7 +202,7 @@ public:
 class AllInheritedProtocolsRequest
     : public SimpleRequest<
           AllInheritedProtocolsRequest, ArrayRef<ProtocolDecl *>(ProtocolDecl *),
-          RequestFlags::Cached> {
+          RequestFlags::SeparatelyCached> {
 public:
   using SimpleRequest::SimpleRequest;
 
@@ -216,6 +216,8 @@ private:
 public:
   // Caching
   bool isCached() const { return true; }
+  std::optional<ArrayRef<ProtocolDecl *>> getCachedResult() const;
+  void cacheResult(ArrayRef<ProtocolDecl *> value) const;
 };
 
 class ProtocolRequirementsRequest

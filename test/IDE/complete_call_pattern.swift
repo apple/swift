@@ -1,5 +1,4 @@
-// RUN: %empty-directory(%t)
-// RUN: %target-swift-ide-test -batch-code-completion -source-filename %s -filecheck %raw-FileCheck -completion-output-dir %t -disable-objc-attr-requires-foundation-module
+// RUN: %batch-code-completion -disable-objc-attr-requires-foundation-module
 
 struct FooStruct {
   init() {}

@@ -1,5 +1,4 @@
-// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete -parse-as-library %s -emit-sil -o /dev/null -verify -verify-additional-prefix complete- -disable-region-based-isolation-with-strict-concurrency
-// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete -parse-as-library %s -emit-sil -o /dev/null -verify
+// RUN: %target-swift-frontend  -disable-availability-checking -strict-concurrency=complete -enable-upcoming-feature InferSendableFromCaptures -parse-as-library %s -emit-sil -o /dev/null -verify
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
@@ -291,35 +290,23 @@ func blender(_ peeler : () -> Void) {
 
 
   await wisk({})
-  // expected-complete-warning@-1{{passing argument of non-sendable type '() -> ()' into global actor 'BananaActor'-isolated context may introduce data races}}
-  // expected-complete-note@-2{{a function type must be marked '@Sendable' to conform to 'Sendable'}}
   await wisk(1)
   await (peelBanana)()
   await (((((peelBanana)))))()
   await (((wisk)))((wisk)((wisk)(1)))
 
   blender((peelBanana))
-  // expected-warning@-1 {{converting function value of type '@BananaActor () -> ()' to '() -> Void' loses global actor 'BananaActor'}}
+  // expected-warning@-1 {{converting function value of type '@BananaActor @Sendable () -> ()' to '() -> Void' loses global actor 'BananaActor'}}
 
   await wisk(peelBanana)
-  // expected-complete-warning@-1{{passing argument of non-sendable type '() -> ()' into global actor 'BananaActor'-isolated context may introduce data races}}
-  // expected-complete-note@-2{{a function type must be marked '@Sendable' to conform to 'Sendable'}}
 
   await wisk(wisk)
-  // expected-complete-warning@-1{{passing argument of non-sendable type '(Any) -> ()' into global actor 'BananaActor'-isolated context may introduce data races}}
-  // expected-complete-note@-2{{a function type must be marked '@Sendable' to conform to 'Sendable'}}
   await (((wisk)))(((wisk)))
-  // expected-complete-warning@-1{{passing argument of non-sendable type '(Any) -> ()' into global actor 'BananaActor'-isolated context may introduce data races}}
-  // expected-complete-note@-2{{a function type must be marked '@Sendable' to conform to 'Sendable'}}
 
   await {wisk}()(1)
 
-  // FIXME: Poor diagnostic. The issue is that the invalid function conversion
-  // to remove '@BananaActor' on 'wisk' cannot influence which solution is chosen.
-  // So, the constraint system cannot determine whether the type of this expression
-  // is '(Any) -> Void' or '@BananaActor (Any) -> Void'.
-  await (true ? wisk : {n in return})(1)
-  // expected-error@-1 {{type of expression is ambiguous without a type annotation}}
+  (true ? wisk : {n in return})(1)
+  // expected-warning@-1 {{converting function value of type '@BananaActor @Sendable (Any) -> ()' to '(Any) -> ()' loses global actor 'BananaActor'; this is an error in the Swift 6 language mode}}
 }
 
 actor Chain {

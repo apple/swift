@@ -6,6 +6,8 @@
 // KW_IN: Keyword[in]/None: in{{; name=.+$}}
 // KW_NO_IN-NOT: Keyword[in]
 
+// KW_NO_INOUT-NOT: Keyword[inout]
+
 // KW_DECL-DAG: Keyword[class]/None: class{{; name=.+$}}
 // KW_DECL-DAG: Keyword/None: actor{{; name=.+$}}
 // KW_DECL-DAG: Keyword/None: convenience{{; name=.+$}}
@@ -23,6 +25,8 @@
 // KW_DECL-DAG: Keyword[let]/None: let{{; name=.+$}}
 // KW_DECL-DAG: Keyword/None: mutating{{; name=.+$}}
 // KW_DECL-DAG: Keyword/None: nonmutating{{; name=.+$}}
+// KW_DECL-DAG: Keyword/None: consuming{{; name=.+$}}
+// KW_DECL-DAG: Keyword/None: borrowing{{; name=.+$}}
 // KW_DECL-DAG: Keyword[operator]/None: operator{{; name=.+$}}
 // KW_DECL-DAG: Keyword/None: optional{{; name=.+$}}
 // KW_DECL-DAG: Keyword/None: override{{; name=.+$}}
@@ -58,6 +62,8 @@
 // KW_DECL_PROTOCOL-DAG: Keyword[let]/None: let{{; name=.+$}}
 // KW_DECL_PROTOCOL-DAG: Keyword/None: mutating{{; name=.+$}}
 // KW_DECL_PROTOCOL-DAG: Keyword/None: nonmutating{{; name=.+$}}
+// KW_DECL_PROTOCOL-DAG: Keyword/None: consuming{{; name=.+$}}
+// KW_DECL_PROTOCOL-DAG: Keyword/None: borrowing{{; name=.+$}}
 // KW_DECL_PROTOCOL-DAG: Keyword[operator]/None/Flair[RareKeyword]: operator{{; name=.+$}}
 // KW_DECL_PROTOCOL-DAG: Keyword/None: optional{{; name=.+$}}
 // KW_DECL_PROTOCOL-DAG: Keyword/None: override{{; name=.+$}}
@@ -93,6 +99,8 @@
 // KW_DECL_TYPECONTEXT-DAG: Keyword[let]/None: let{{; name=.+$}}
 // KW_DECL_TYPECONTEXT-DAG: Keyword/None: mutating{{; name=.+$}}
 // KW_DECL_TYPECONTEXT-DAG: Keyword/None: nonmutating{{; name=.+$}}
+// KW_DECL_TYPECONTEXT-DAG: Keyword/None: consuming{{; name=.+$}}
+// KW_DECL_TYPECONTEXT-DAG: Keyword/None: borrowing{{; name=.+$}}
 // KW_DECL_TYPECONTEXT-DAG: Keyword[operator]/None/Flair[RareKeyword]: operator{{; name=.+$}}
 // KW_DECL_TYPECONTEXT-DAG: Keyword/None: optional{{; name=.+$}}
 // KW_DECL_TYPECONTEXT-DAG: Keyword/None: override{{; name=.+$}}
@@ -132,6 +140,8 @@
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword[let]/None: let{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: mutating{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: nonmutating{{; name=.+$}}
+// KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: consuming{{; name=.+$}}
+// KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: borrowing{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword[operator]/None: operator{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: optional{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: override{{; name=.+$}}
@@ -172,6 +182,9 @@
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword[try]/None: try{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword[try]/None: try!{{; name=.+$}}
 // KW_DECL_STMT_TOPLEVEL-DAG: Keyword[try]/None: try?{{; name=.+$}}
+// KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: await{{; name=.+$}}
+// KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: consume{{; name=.+$}}
+// KW_DECL_STMT_TOPLEVEL-DAG: Keyword/None: copy{{; name=.+$}}
 //
 // Literals
 //
@@ -198,6 +211,8 @@
 // KW_DECL_STMT-DAG: Keyword[let]/None: let{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword/None: mutating{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword/None: nonmutating{{; name=.+$}}
+// KW_DECL_STMT-DAG: Keyword/None: consuming{{; name=.+$}}
+// KW_DECL_STMT-DAG: Keyword/None: borrowing{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword[operator]/None/Flair[RareKeyword]: operator{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword/None/Flair[RareKeyword]: optional{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword/None/Flair[RareKeyword]: override{{; name=.+$}}
@@ -238,6 +253,9 @@
 // KW_DECL_STMT-DAG: Keyword[try]/None: try{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword[try]/None: try!{{; name=.+$}}
 // KW_DECL_STMT-DAG: Keyword[try]/None: try?{{; name=.+$}}
+// KW_DECL_STMT-DAG: Keyword/None: await{{; name=.+$}}
+// KW_DECL_STMT-DAG: Keyword/None: consume{{; name=.+$}}
+// KW_DECL_STMT-DAG: Keyword/None: copy{{; name=.+$}}
 //
 // Literals
 //
@@ -252,6 +270,9 @@
 // KW_EXPR-DAG: Keyword[try]/None: try{{; name=.+$}}
 // KW_EXPR-DAG: Keyword[try]/None: try!{{; name=.+$}}
 // KW_EXPR-DAG: Keyword[try]/None: try?{{; name=.+$}}
+// KW_EXPR-DAG: Keyword/None: await{{; name=.+$}}
+// KW_EXPR-DAG: Keyword/None: consume{{; name=.+$}}
+// KW_EXPR-DAG: Keyword/None: copy{{; name=.+$}}
 //
 // let and var
 //
@@ -283,7 +304,7 @@
 // KW_EXPR_NEG-NOT: Keyword{{.*}}catch
 // KW_EXPR_NEG-NOT: Keyword{{.*}}break
 
-#^TOP_LEVEL_1?check=KW_DECL_STMT_TOPLEVEL;check=KW_NO_RETURN;check=KW_NO_IN^#
+#^TOP_LEVEL_1?check=KW_DECL_STMT_TOPLEVEL;check=KW_NO_RETURN;check=KW_NO_IN;check=KW_NO_INOUT^#
 
 for _ in 1...10 {
   #^TOP_LEVEL_2?check=KW_DECL_STMT;check=KW_NO_RETURN;check=KW_NO_IN^#
@@ -357,19 +378,19 @@ struct InInit {
 }
 
 struct InStruct {
-  #^IN_NOMINAL_DECL_1?check=KW_DECL_TYPECONTEXT^#
+  #^IN_NOMINAL_DECL_1?check=KW_DECL_TYPECONTEXT;check=KW_NO_INOUT^#
 }
 
 enum InEnum {
-  #^IN_NOMINAL_DECL_2?check=KW_DECL_TYPECONTEXT^#
+  #^IN_NOMINAL_DECL_2?check=KW_DECL_TYPECONTEXT;check=KW_NO_INOUT^#
 }
 
 class InClass {
-  #^IN_NOMINAL_DECL_3?check=KW_DECL_TYPECONTEXT^#
+  #^IN_NOMINAL_DECL_3?check=KW_DECL_TYPECONTEXT;check=KW_NO_INOUT^#
 }
 
 protocol InProtocol {
-  #^IN_NOMINAL_DECL_4?check=KW_DECL_PROTOCOL^#
+  #^IN_NOMINAL_DECL_4?check=KW_DECL_PROTOCOL;check=KW_NO_INOUT^#
 }
 
 struct AfterOtherKeywords1 {

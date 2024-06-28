@@ -14,6 +14,7 @@
 #include "SILGen.h"
 #include "SILGenFunction.h"
 #include "swift/AST/Types.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/SILArgument.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -65,6 +66,7 @@ void SILGenFunction::prepareEpilog(
 
   if (errorType) {
     auto genericSig = DC->getGenericSignatureOfContext();
+    errorType = (*errorType)->getReducedType(genericSig);
     AbstractionPattern origErrorType = TypeContext
       ? *TypeContext->OrigType.getFunctionThrownErrorType()
       : AbstractionPattern(genericSig.getCanonicalSignature(),

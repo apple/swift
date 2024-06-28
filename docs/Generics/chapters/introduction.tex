@@ -20,7 +20,7 @@
 \item The optimizer can generate a \textbf{specialization} of a generic function in the case where the definition is visible at the call site. This eliminates the overhead of runtime type metadata and abstract value manipulation.
 \end{enumerate}
 
-The author's philosophy is that \textsl{a compiler is a library for modeling the concepts of the target language}. From this vantage point, the design of the compiler's domain objects becomes the primary concern. The implementation of generics in Swift defines four fundamental domain objects: \emph{generic signatures}, \emph{substitution maps}, \emph{requirement signatures}, and \emph{conformances}. As we will see, they are understood as much by their inherent structure, as their relationships with each other. Subsequent chapters will dive into all the details, but first, we're going to present a series of worked examples.
+The author's philosophy is that \textsl{a compiler is a library for modeling the concepts of the target language}. The Swift generics implementation defines four fundamental kinds of semantic objects: \emph{generic signatures}, \emph{substitution maps}, \emph{requirement signatures}, and \emph{conformances}. As we will see, they are understood as much by their inherent structure, as their relationships with each other. Subsequent chapters will dive into all the details, but first, we're going to present a series of worked examples.
 
 \section{Functions}
 
@@ -96,7 +96,7 @@ All of this is packaged up into a \emph{generic function type} which completely 
 \end{quote}
 The name ``\texttt{T}'' is of no semantic consequence beyond name lookup. We will learn that the \emph{canonical type} for the above erases the generic parameter type \texttt{T} to the notation \ttgp{0}{0}. More generally, each generic parameter type is uniquely identified within its lexical scope by its \emph{depth} and \emph{index}.
 
-Having computed the interface type of the function, the type checker moves on to the function's body. The type of the return statement's expression must match the return type of the function declaration. When we type check the return expression \texttt{x}, we use name lookup to find the parameter declaration ``\verb|_ x: T|''. The interface type of this parameter declaration is the generic parameter type \texttt{T}, which is understood relative to the function's generic signature. The type assigned to the expression, however, is the \index{archetype type}\index{primary archetype type}\emph{primary archetype} corresponding to \texttt{T}, denoted $\archetype{T}$. We will learn later that an archetype is a self-describing form of a type parameter which behaves like a concrete type.
+Having computed the interface type of the function, the type checker moves on to the function's body. The type of the return statement's expression must match the return type of the function declaration. When we type check the return expression \texttt{x}, we use name lookup to find the parameter declaration ``\verb|_ x: T|''. The interface type of this parameter declaration is the generic parameter type \texttt{T}, which is understood relative to the function's generic signature. The type assigned to the expression, however, is the \index{archetype type}\emph{archetype} corresponding to \texttt{T}, denoted $\archetype{T}$. We will learn later that an archetype is a self-describing form of a type parameter which behaves like a concrete type.
 
 \paragraph{Code generation.}
 We've now successfully type checked our function declaration. How might we generate code for it? Recall the two concrete implementations that we folded into our single generic function:
@@ -120,8 +120,8 @@ For copyable types, a move is semantically equivalent to a copy followed by a de
 
 \begin{MoreDetails}
 \item Types: \ChapRef{types}
-\item Function declarations: \SecRef{function decls}
 \item Generic parameter lists: \SecRef{generic params}
+\item Function declarations: \SecRef{function decls}
 \item Archetypes: \ChapRef{genericenv}
 \item Type resolution: \ChapRef{typeresolution}
 \end{MoreDetails}
@@ -295,7 +295,7 @@ When generating code for the call to \verb|drawShapes(_:)|, we visit each entry 
 \end{MoreDetails}
 
 \paragraph{Existential types.}
-Note that \verb|drawShapes(_:)| operates on a \emph{homogeneous} array of shapes. While the array contains an arbitrary number of elements, \verb|drawShapes(_:)| only receives a single runtime type metadata for \texttt{S}, and one witness table for the conformance requirement $\ConfReq{S}{Shape}$, which together describe the behavior of each element in the array. If we instead want a function taking a \emph{heterogeneous} array of shapes, we can use an \emph{existential type} as the element type of our array:
+Note that \verb|drawShapes(_:)| operates on a \emph{homogeneous} array of shapes. While the array contains an arbitrary number of elements, \verb|drawShapes(_:)| only receives a single runtime type metadata for \texttt{S}, and one witness table for the conformance requirement $\ConfReq{S}{Shape}$, which together describe the behavior of each element in the array. If we instead want a function taking a \emph{heterogeneous} array of shapes, we can use an \index{existential type}\emph{existential type} as the element type of our array:
 \begin{Verbatim}
 func drawShapes(_ shapes: Array<any Shape>) {
   for shape in shapes {
@@ -304,7 +304,7 @@ func drawShapes(_ shapes: Array<any Shape>) {
 }
 \end{Verbatim}
 
-This function uses the \texttt{Shape} protocol in a new way. The \emph{existential type} \texttt{any Shape} is a box for storing a value of some concrete type, together with the concrete type's runtime type metadata and a witness table describing the conformance. Observe the difference between the type \texttt{Array<S>} from the previous variant of \verb|drawShapes(_:)|, and \texttt{Array<any Shape>} here. Every element of the latter has its own runtime type metadata and witness table, allowing us to mix multiple kinds of shapes in one array. Existential types built up from the core primitives of the generics system; we will learn about them in \PartRef{part features} of this book.
+This function uses the \texttt{Shape} protocol in a new way. The existential type \texttt{any Shape} is a container for a value of some concrete type, together with runtime type metadata, and a witness table describing the conformance. This container stores small values inline, otherwise it points to a heap-allocated \index{boxing}box. Observe the difference between the type \texttt{Array<S>} from the previous variant of \verb|drawShapes(_:)|, and \texttt{Array<any Shape>} here. Every element of the latter has its own runtime type metadata and witness table, so we can mix multiple types of shapes in one array. In the implementation, existential types are built on top of the core primitives of the generics system.
 
 \begin{MoreDetails}
 \item Existential types: \ChapRef{existentialtypes}
@@ -378,7 +378,7 @@ We now briefly introduce a concept that will later become important in our study
 
 \paragraph{Type parameters.} Generic parameter types and dependent member types are the two kinds of \index{type parameter}\emph{type parameters}. The generic signature of \verb|readTwo(_:)| defines two type parameters, \texttt{I} and \texttt{I.Element}.
 
-As with generic parameter types, dependent member types become \index{primary archetype type}primary archetypes in the body of a generic function. We can reveal a little more about the structure of primary archetypes now, and say that a primary archetype packages a type parameter together with a generic signature. While a type parameter is just a \emph{name} which can only be understood in relation to some generic signature, an archetype inherently ``knows'' what requirements it is subject to.
+As with generic parameter types, dependent member types map to \index{archetype type}archetypes in the body of a generic function. We can reveal a little more about the structure of archetypes now, and say that an archetype packages a type parameter together with a generic signature. While a type parameter is just a \emph{name} which can only be understood in relation to some generic signature, an archetype inherently ``knows'' what requirements it is subject to.
 
 \begin{MoreDetails}
 \item Type parameters: \SecRef{fundamental types}
@@ -390,7 +390,7 @@ Inside the body of \verb|readTwo(_:)|, the \index{expression}\index{call express
 
 We recover the runtime type metadata for an associated type from the witness table at run time, in the same way that dependent member type substitution projects a type witness from a conformance at compile time.
 
-A witness table for a conformance to \texttt{IteratorProtocol} consists of a metadata access function to witness the \texttt{Element} associated type, and a function pointer to witness the \texttt{next()} method. The witness table for the conformance $\ConfReq{Nat}{IteratorProtocol}$ therefore references the runtime type metadata for \texttt{Int}, defined by the standard library.
+A witness table for a conformance to \texttt{IteratorProtocol} consists of a metadata access function to witness the \texttt{Element} associated type, and a function pointer to witness the \texttt{next()} method. The witness table for $\ConfReq{Nat}{IteratorProtocol}$ references the runtime type metadata for \texttt{Int}, defined by the standard library.
 
 \paragraph{Same-type requirements.} To introduce another fundamental requirement kind, we compose \texttt{Pair} and \texttt{IteratorProtocol} in a new way, writing a function that takes two iterators and reads an element from each one:
 \begin{Verbatim}
@@ -409,7 +409,7 @@ The generic signature of our \verb|readTwoParallel(_:)| states the \emph{same-ty
 \end{quote}
 This generic signature defines four type parameters, \texttt{I}, \texttt{J}, \texttt{I.Element}, and \texttt{J.Element}, where the final two abstract over the same concrete type, forming an \index{equivalence class}\emph{equivalence class}. It is often convenient to refer to an entire equivalence class by a representative type parameter. To make this choice in a deterministic fashion, we \emph{order} type parameters and say the smallest type parameter inside an equivalence class is a \index{reduced type}\emph{reduced type}. In our example, \texttt{I.Element} is the reduced type of \texttt{J.Element}.
 
-In the presence of same-type requirements, an archetype represents a reduced type parameter (and thus an entire equivalence class of type parameters). In the body of \verb|readTwoParallel(_:)|, the expressions \verb|i.next()!| and \verb|j.next()!| both receive the type $\archetype{I.Element}$, and the call to the \texttt{Pair} constructor is made with this substitution map:
+In the presence of same-type requirements, an archetype represents a reduced type parameter (and thus an entire equivalence class of type parameters). In the body of \verb|readTwoParallel(_:)|, the expressions \verb|i.next()!| and \verb|j.next()!| both return the type $\archetype{I.Element}$, and the call to the \texttt{Pair} constructor is made with this substitution map:
 \[\SubstMap{\SubstType{T}{$\archetype{I.Element}$}}\]
 
 \begin{MoreDetails}
@@ -553,6 +553,8 @@ Rust's \emph{traits} are similar to Swift's protocols; traits can declare associ
 Rust's ``\texttt{where} clause elaboration'' is more limited than Swift's derived requirements formalism, and associated requirements sometimes need to be re-stated in the \texttt{where} clause of a generic declaration \cite{rust_bug}. An early attempt at formalizing Rust traits appears in a PhD dissertation from 2015 \cite{Milewski_2015}. A more recent effort is ``Chalk,'' an implementation of a \index{Prolog}Prolog-like solver based on Horn clauses~\cite{rust_chalk}.
 
 \paragraph{Java.}
-\index{Java}Java generics are separately type checked and compiled. In Java, only reference types can be used as generic arguments; primitive value types must be boxed first. Generic argument types are not reified at runtime, and values of generic parameter type are always represented as object pointers. This avoids the complexity of dependent layout, but comes at the cost of more runtime type checks and heap allocation. Java generics are based on existential types and also support \emph{variance}, sort of user-defined subtyping relation between different instantiations of the same generic type \cite{java_faq}.
+\index{Java}Java generics are separately type checked and compiled. In Java, only reference types can be used as generic arguments; primitive value types must be boxed first. Generic argument types are not reified at runtime, and values of generic parameter type are always represented as object pointers. This avoids the complexity of dependent layout, but comes at the cost of more runtime type checks and heap allocation. Java generics are based on existential types and also support \emph{variance}, a subtyping relation between different instantiations of the same generic type, defined in terms of the subtype relation on corresponding generic arguments \cite{java_faq}.
 
+\paragraph{Hylo.}
+\index{Hylo} Hylo is a research language with a focus on mutable value semantics \cite{hylo}. Hylo's generic programming capabilities are similar to Swift and Rust. The Hylo compiler implementation incorporates some ideas from this book, using the theory of string rewriting to reason about generic requirements \cite{hylorqm}.
 \end{document}

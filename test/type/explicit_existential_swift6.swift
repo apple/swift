@@ -62,6 +62,9 @@ typealias T2 = any Pub & Bar
 protocol HasAssoc {
   associatedtype Assoc
   func foo()
+
+  typealias HasAssoc_Alias = HasAssoc
+  typealias Int_Alias = Int
 }
 
 do {
@@ -91,7 +94,7 @@ func testHasAssoc(_ x: Any, _: any HasAssoc) {
 
     func method() -> any HasAssoc {}
     func existentialArray() ->  [any HasAssoc] {}
-    func existentialcSequence() ->  any Sequence<HasAssoc> {}
+    func existentialcSequence() ->  any Sequence<any HasAssoc> {}
   }
 }
 
@@ -311,61 +314,214 @@ do {
   let _: Codable
 }
 
-func testAnyFixIt() {
-  struct ConformingType : HasAssoc {
-    typealias Assoc = Int
-    func foo() {}
+protocol HasAssocGeneric<Assoc> {
+  associatedtype Assoc
+}
 
-    func method() -> any HasAssoc {}
+protocol NonCopyableHasAssoc: ~Copyable {
+  associatedtype Assoc
+}
+
+func testAnyFixIt() {
+  struct S {
+    typealias HasAssoc_Alias = HasAssoc
+    typealias HasAssocGeneric_Alias = HasAssocGeneric
+    typealias Copyable_Alias = Copyable
+
+    typealias G<T> = Self
+    typealias NonCopyable_G<T: ~Copyable> = Self
+    typealias S = Self
   }
+  typealias G<T> = S
+  typealias NonCopyable_G<T: ~Copyable> = S
 
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=any HasAssoc}}
-  let _: HasAssoc = ConformingType()
+  let _: HasAssoc
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-19=any ~Copyable}}
+  let _: ~Copyable
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{11-19=any HasAssoc}}
+  let _: (HasAssoc)
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-21=any ~(Copyable)}}
+  let _: ~(Copyable)
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{19-27=any HasAssoc}}
-  let _: Optional<HasAssoc> = nil
+  let _: Optional<HasAssoc>
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{19-28=any ~Copyable}}
+  let _: Optional<~Copyable>
+  // FIXME: No fix-it + generic argument not diagnosed.
+  // expected-error@+1 {{use of protocol 'HasAssocGeneric<any HasAssoc>' as a type must be written 'any HasAssocGeneric<any HasAssoc>'}}{{none}}
+  let _: HasAssocGeneric<HasAssoc>
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{14-22=any HasAssoc}}
+  let _: S.G<HasAssoc>
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{26-35=any ~Copyable}}
+  let _: S.NonCopyable_G<~Copyable>
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{12-20=any HasAssoc}}
+  let _: G<HasAssoc>.S
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{24-33=any ~Copyable}}
+  let _: NonCopyable_G<~Copyable>.S
+  // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{12-20=any HasAssoc}}
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{24-32=any HasAssoc}}
+  let _: G<HasAssoc>.G<HasAssoc>
+  // expected-error@+2 {{constraint that suppresses conformance requires 'any'}}{{24-33=any ~Copyable}}
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{49-58=any ~Copyable}}
+  let _: NonCopyable_G<~Copyable>.NonCopyable_G<~Copyable>
+  // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{12-20=any HasAssoc}}
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{24-32=any HasAssoc}}
+  let _: G<HasAssoc>.G<HasAssoc>.S
+  // expected-error@+2 {{constraint that suppresses conformance requires 'any'}}{{24-33=any ~Copyable}}
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{49-58=any ~Copyable}}
+  let _: NonCopyable_G<~Copyable>.NonCopyable_G<~Copyable>.S
+  // expected-error@+1 {{use of 'S.HasAssoc_Alias' (aka 'HasAssoc') as a type must be written 'any S.HasAssoc_Alias' (aka 'any HasAssoc')}}{{10-26=any S.HasAssoc_Alias}}
+  let _: S.HasAssoc_Alias
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-27=any ~S.Copyable_Alias}}
+  let _: ~S.Copyable_Alias
+  // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{12-20=any HasAssoc}}
+  // expected-error@+1 {{use of 'S.HasAssoc_Alias' (aka 'HasAssoc') as a type must be written 'any S.HasAssoc_Alias' (aka 'any HasAssoc')}}{{10-36=any G<HasAssoc>.HasAssoc_Alias}}
+  let _: G<HasAssoc>.HasAssoc_Alias
+  // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{13-21=any HasAssoc}}
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-37=any ~G<HasAssoc>.Copyable_Alias}}
+  let _: ~G<HasAssoc>.Copyable_Alias
+  // FIXME: No fix-it + generic argument not diagnosed.
+  // expected-error@+1 {{use of 'HasAssocGeneric<any HasAssoc>' as a type must be written 'any HasAssocGeneric<any HasAssoc>}}{{none}}
+  let _: S.HasAssocGeneric_Alias<HasAssoc>
+  // FIXME: No diagnostic.
+  let _: HasAssoc.Int_Alias
+  let _: HasAssoc.HasAssoc_Alias.Int_Alias
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-23=any HasAssoc.Type}}
-  let _: HasAssoc.Type = ConformingType.self
+  let _: HasAssoc.Type
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-24=any ~Copyable.Type}}
+  let _: ~Copyable.Type
+  // expected-error@+1 {{type 'any Copyable.Type' cannot be suppressed}}
+  let _: ~(Copyable.Type)
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-25=any (HasAssoc).Type}}
-  let _: (HasAssoc).Type = ConformingType.self
+  let _: (HasAssoc).Type
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-26=any (~Copyable).Type}}
+  let _: (~Copyable).Type
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-27=any ((HasAssoc)).Type}}
-  let _: ((HasAssoc)).Type = ConformingType.self
+  let _: ((HasAssoc)).Type
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-28=any ((~Copyable)).Type}}
+  let _: ((~Copyable)).Type
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-28=any HasAssoc.Type.Type}}
+  let _: HasAssoc.Type.Type
+  // expected-error@+1 {{type 'any Copyable.Type.Type' cannot be suppressed}}
+  let _: ~Copyable.Type.Type
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-31=any (~Copyable).Type.Type}}
+  let _: (~Copyable).Type.Type
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-30=any (HasAssoc.Type).Type}}
+  let _: (HasAssoc.Type).Type
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-31=any (~Copyable.Type).Type}}
+  let _: (~Copyable.Type).Type
   // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{30-38=(any HasAssoc)}}
   let _: HasAssoc.Protocol = HasAssoc.self
+  // expected-error@+2 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{11-19=any HasAssoc}}
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{33-41=any HasAssoc}}
+  let _: (HasAssoc).Protocol = (HasAssoc).self
+  // expected-error@+1 {{type '(any Copyable).Type' cannot be suppressed}}
+  let _: ~Copyable.Protocol
+  // expected-error@+2 {{constraint that suppresses conformance requires 'any'}}{{11-20=any ~Copyable}}
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{34-43=any ~Copyable}}
+  let _: (~Copyable).Protocol = (~Copyable).self
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
+  let _: HasAssoc.Protocol.Type.Type
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{11-20=any ~Copyable}}
+  let _: (~Copyable).Protocol.Type.Type
   do {
-    struct Wrapper {
-      typealias HasAssocAlias = HasAssoc
-    }
-    let wrapperMeta: Wrapper.Type
+    let meta: S.Type
     // FIXME: What is the correct fix-it for the initializer?
     //
-    // expected-error@+2:20 {{use of 'Wrapper.HasAssocAlias' (aka 'HasAssoc') as a type must be written 'any Wrapper.HasAssocAlias' (aka 'any HasAssoc')}}{{12-33=(any Wrapper.HasAssocAlias)}}
-    // expected-error@+1:57 {{use of 'Wrapper.HasAssocAlias' (aka 'HasAssoc') as a type must be written 'any Wrapper.HasAssocAlias' (aka 'any HasAssoc')}}{{57-70=(any HasAssocAlias)}}
-    let _: Wrapper.HasAssocAlias.Protocol = wrapperMeta.HasAssocAlias.self
+    // expected-error@+2:14 {{use of 'S.HasAssoc_Alias' (aka 'HasAssoc') as a type must be written 'any S.HasAssoc_Alias' (aka 'any HasAssoc')}}{{12-28=(any S.HasAssoc_Alias)}}
+    // expected-error@+1:45 {{use of 'S.HasAssoc_Alias' (aka 'HasAssoc') as a type must be written 'any S.HasAssoc_Alias' (aka 'any HasAssoc')}}{{45-59=(any HasAssoc_Alias)}}
+    let _: S.HasAssoc_Alias.Protocol = meta.HasAssoc_Alias.self
   }
-  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{11-19=any HasAssoc}}
-  let _: (HasAssoc).Protocol = (any HasAssoc).self
-  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
-  let _: HasAssoc? = ConformingType()
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-23=(any HasAssoc.Type)}}
-  let _: HasAssoc.Type? = ConformingType.self
+  let _: HasAssoc.Type.Protocol
+  // expected-error@+1 {{type '(any Copyable.Type).Type' cannot be suppressed}}
+  let _: ~Copyable.Type.Protocol
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-26=(any (~Copyable).Type)}}
+  let _: (~Copyable).Type.Protocol
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-28=(any HasAssoc.Type.Type)}}
+  let _: HasAssoc.Type.Type.Protocol
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-31=(any (~Copyable).Type.Type)}}
+  let _: (~Copyable).Type.Type.Protocol
   // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
-  let _: HasAssoc.Protocol? = (any HasAssoc).self
+  let _: HasAssoc?
+  // expected-error@+1 {{type '(any Copyable)?' cannot be suppressed}}
+  let _: ~Copyable?
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{11-19=any HasAssoc}}
+  let _: (HasAssoc)?
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{11-20=any ~Copyable}}
+  let _: (~Copyable)?
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
+  let _: HasAssoc!
+  // expected-error@+2 {{type '(any Copyable)?' cannot be suppressed}}
+  // expected-warning@+1 {{using '!' is not allowed here; treating this as '?' instead}}
+  let _: ~Copyable!
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{11-20=any ~Copyable}}
+  let _: (~Copyable)!
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-23=(any HasAssoc.Type)}}
+  let _: HasAssoc.Type?
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{10-26=(any (~Copyable).Type)}}
+  let _: (~Copyable).Type?
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-18=(any HasAssoc)}}
+  let _: HasAssoc.Protocol?
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{11-20=any ~Copyable}}
+  let _: (~Copyable).Protocol?
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{21-29=any HasAssoc}}
+  let _: (borrowing HasAssoc) -> Void
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{21-30=any ~Copyable}}
+  let _: (borrowing ~Copyable) -> Void
+  // https://github.com/apple/swift/issues/72588
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{30-38=any HasAssoc}}
+  let _: any HasAssocGeneric<HasAssoc>
+  // expected-error@+1 {{constraint that suppresses conformance requires 'any'}}{{30-39=any ~Copyable}}
+  let _: any HasAssocGeneric<~Copyable>
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{16-24=any HasAssoc}}
+  let _: any G<HasAssoc>.HasAssoc_Alias
+  // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{17-25=any HasAssoc}}
+  let _: any ~G<HasAssoc>.Copyable_Alias
+  do {
+    // expected-error@+1 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{22-30=any HasAssoc}}
+    func f(_: some G<HasAssoc>.HasAssoc_Alias) {}
+  }
+  // https://github.com/apple/swift/issues/65027
+  // expected-error@+2:10 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-29=any HasAssoc & HasAssoc}}
+  // expected-error@+1:21 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-29=any HasAssoc & HasAssoc}}
+  let _: HasAssoc & HasAssoc
+  // expected-error@+2:10 {{constraint that suppresses conformance requires 'any'}}{{10-31=any ~Copyable & ~Copyable}}
+  // expected-error@+1:22 {{constraint that suppresses conformance requires 'any'}}{{10-31=any ~Copyable & ~Copyable}}
+  let _: ~Copyable & ~Copyable
+  // expected-error@+3:10 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-42=any HasAssoc & (HasAssoc & HasAssoc)}}
+  // expected-error@+2:22 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-42=any HasAssoc & (HasAssoc & HasAssoc)}}
+  // expected-error@+1:33 {{use of protocol 'HasAssoc' as a type must be written 'any HasAssoc'}}{{10-42=any HasAssoc & (HasAssoc & HasAssoc)}}
+  let _: HasAssoc & (HasAssoc & HasAssoc)
+  // expected-error@+3:10 {{constraint that suppresses conformance requires 'any'}}{{10-45=any ~Copyable & (~Copyable & ~Copyable)}}
+  // expected-error@+2:23 {{constraint that suppresses conformance requires 'any'}}{{10-45=any ~Copyable & (~Copyable & ~Copyable)}}
+  // expected-error@+1:35 {{constraint that suppresses conformance requires 'any'}}{{10-45=any ~Copyable & (~Copyable & ~Copyable)}}
+  let _: ~Copyable & (~Copyable & ~Copyable)
+
+  // Misc. compound cases.
+
+  // expected-error@+2 {{constraint that suppresses conformance requires 'any'}}{{21-52=any NonCopyableHasAssoc & ~Copyable}}
+  // expected-error@+1 {{use of protocol 'NonCopyableHasAssoc' as a type must be written 'any NonCopyableHasAssoc'}}{{21-52=any NonCopyableHasAssoc & ~Copyable}}
+  let _: (borrowing NonCopyableHasAssoc & ~Copyable) -> Void
+  // expected-error@+3:15 {{constraint that suppresses conformance requires 'any'}}{{10-88=(any (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type)}}
+  // expected-error@+2:28 {{use of protocol 'NonCopyableHasAssoc' as a type must be written 'any NonCopyableHasAssoc'}}{{10-88=(any (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type)}}
+  // expected-error@+1:51 {{use of protocol 'NonCopyableHasAssoc' as a type must be written 'any NonCopyableHasAssoc'}}{{10-88=(any (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type)}}
+  let _: (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type?
+  let _: any (((((~Copyable) & NonCopyableHasAssoc) & NonCopyableHasAssoc).Type.Type)).Type // OK
+
+  // Misplaced '?'.
 
   // expected-error@+1 {{optional 'any' type must be written '(any HasAssoc)?'}}{{10-23=(any HasAssoc)?}}
-  let _: any HasAssoc? = nil
+  let _: any HasAssoc?
+  // FIXME: Better recovery
+  // expected-error@+1 {{type '(any Copyable)?' cannot be suppressed}}
+  let _: any ~Copyable?
   // expected-error@+1 {{optional 'any' type must be written '(any HasAssoc.Type)?'}}{{10-28=(any HasAssoc.Type)?}}
-  let _: any HasAssoc.Type? = nil
-
-  do {
-    struct Outer<T> {
-      struct Inner<U> {}
-    }
-
-    // expected-error@+2:18 {{must be written 'any HasAssoc'}}
-    // expected-error@+1:34 {{must be written 'any HasAssoc'}}
-    let _: Outer<HasAssoc>.Inner<HasAssoc>
-  }
+  let _: any HasAssoc.Type?
+  // FIXME: Better recovery
+  // expected-error@+1 {{type '(any Copyable.Type)?' cannot be suppressed}}
+  let _: any ~Copyable.Type?
 }
 
 func testNestedMetatype() {

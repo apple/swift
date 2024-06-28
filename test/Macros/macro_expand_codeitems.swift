@@ -21,7 +21,7 @@ func testFreestandingMacroExpansion() {
   // CHECK: from stmt
   // CHECK: from usedInExpandedStmt
   // CHECK: from expr
-  // CHECK-DIAGS: struct $s9MacroUser016testFreestandingA9ExpansionyyF9codeItemsfMf_3foofMu_ {
+  // CHECK-DIAGS: struct $s9MacroUser0033macro_expand_codeitemsswift_DbGHjfMX25_2_9codeItemsfMf_3foofMu_ {
   // CHECK-DIAGS: END CONTENTS OF FILE
   #codeItems
 

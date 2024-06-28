@@ -64,8 +64,11 @@ func computeLinearLiveness(for definingValue: Value, _ context: Context)
   var range = InstructionRange(for: definingValue, context)
 
   // Compute liveness.
-  definingValue.lookThroughBorrowedFromUser.uses.endingLifetime.forEach {
-    range.insert($0.instruction)
+ for use in definingValue.lookThroughBorrowedFromUser.uses {
+    let instruction = use.instruction
+    if use.endsLifetime || instruction is ExtendLifetimeInst {
+      range.insert(instruction)
+    }
   }
   return range
 }

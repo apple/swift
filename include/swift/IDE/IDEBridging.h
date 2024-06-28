@@ -38,6 +38,13 @@ enum class LabelRangeType {
   /// `func foo([a b]: Int)`
   Param,
 
+  /// The parameter of an enum case declaration
+  ///
+  /// ### Examples
+  ///  - `case myCase([a]: Int)`
+  ///  - `case myCase([]Int)`
+  EnumCaseParam,
+
   /// Parameters of a function that can't be collapsed if they are the same.
   ///
   /// This is the case for parameters of subscripts since subscripts have

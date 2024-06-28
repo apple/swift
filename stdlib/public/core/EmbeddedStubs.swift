@@ -15,10 +15,9 @@ import SwiftShims
 /// String
 
 @_unavailableInEmbedded
-extension String {
-  public init<Subject>(describing instance: Subject) { fatalError() }
-  public init<Subject>(reflecting instance: Subject) { fatalError() }
-}
+internal func _print_unlocked<T>(_ value: T, _ target: inout String) { fatalError() }
+@_unavailableInEmbedded
+public func _debugPrint_unlocked<T>(_ value: T, _ target: inout String) { fatalError() }
 
 /// Codable
 

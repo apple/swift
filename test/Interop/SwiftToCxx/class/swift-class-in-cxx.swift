@@ -102,13 +102,13 @@ public final class ClassWithIntField {
 // CHECK-EMPTY:
 // CHECK-NEXT: namespace Class SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("Class") {
 
-// CHECK: SWIFT_INLINE_THUNK ClassWithIntField passThroughClassWithIntField(const ClassWithIntField& x) noexcept SWIFT_SYMBOL("s:5Class011passThroughA12WithIntFieldyAA0adeF0CADF") SWIFT_WARN_UNUSED_RESULT {
-// CHECK-NEXT:  return _impl::_impl_ClassWithIntField::makeRetained(_impl::$s5Class011passThroughA12WithIntFieldyAA0adeF0CADF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(x)));
-// CHECK-NEXT: }
-
 public final class register { }
 
 // CHECK: class SWIFT_SYMBOL("s:5Class8registerC") register_ final : public swift::_impl::RefCountedClass {
+
+// CHECK: SWIFT_INLINE_THUNK ClassWithIntField passThroughClassWithIntField(const ClassWithIntField& x) noexcept SWIFT_SYMBOL("s:5Class011passThroughA12WithIntFieldyAA0adeF0CADF") SWIFT_WARN_UNUSED_RESULT {
+// CHECK-NEXT:  return _impl::_impl_ClassWithIntField::makeRetained(_impl::$s5Class011passThroughA12WithIntFieldyAA0adeF0CADF(::swift::_impl::_impl_RefCountedClass::getOpaquePointer(x)));
+// CHECK-NEXT: }
 
 public func returnClassWithIntField() -> ClassWithIntField {
   return ClassWithIntField()

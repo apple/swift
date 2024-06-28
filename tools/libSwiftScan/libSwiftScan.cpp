@@ -93,11 +93,22 @@ void swiftscan_dependency_info_details_dispose(
   delete details_impl;
 }
 
+void swiftscan_link_library_set_dispose(swiftscan_link_library_set_t *set) {
+  for (size_t i = 0; i < set->count; ++i) {
+    auto info = set->link_libraries[i];
+    swiftscan_string_dispose(info->name);
+    delete info;
+  }
+  delete[] set->link_libraries;
+  delete set;
+}
+
 void swiftscan_dependency_info_dispose(swiftscan_dependency_info_t info) {
   swiftscan_string_dispose(info->module_name);
   swiftscan_string_dispose(info->module_path);
   swiftscan_string_set_dispose(info->source_files);
   swiftscan_string_set_dispose(info->direct_dependencies);
+  swiftscan_link_library_set_dispose(info->link_libraries);
   swiftscan_dependency_info_details_dispose(info->details);
   delete info;
 }
@@ -260,9 +271,30 @@ swiftscan_string_set_t *swiftscan_module_info_get_direct_dependencies(
   return info->direct_dependencies;
 }
 
+
+swiftscan_link_library_set_t *swiftscan_module_info_get_link_libraries(
+    swiftscan_dependency_info_t info) {
+  return info->link_libraries;
+}
+
 swiftscan_module_details_t
 swiftscan_module_info_get_details(swiftscan_dependency_info_t info) {
   return info->details;
+}
+
+//=== Link Library Info query APIs -----------------------------------===//
+
+swiftscan_string_ref_t
+swiftscan_link_library_info_get_link_name(swiftscan_link_library_info_t info) {
+  return info->name;
+}
+bool
+swiftscan_link_library_info_get_is_framework(swiftscan_link_library_info_t info) {
+  return info->isFramework;
+}
+bool
+swiftscan_link_library_info_get_should_force_load(swiftscan_link_library_info_t info) {
+  return info->forceLoad;
 }
 
 //=== Swift Textual Module Details query APIs -----------------------------===//

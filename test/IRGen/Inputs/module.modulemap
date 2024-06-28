@@ -39,3 +39,7 @@ module PointerAuth {
 module CFBridgedType {
   header "CFBridgedType.h"
 }
+
+module RawLayoutCXX {
+  header "raw_layout_cxx.h"
+}

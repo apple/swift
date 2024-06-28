@@ -16,6 +16,7 @@
 
 #include "swift/AST/ClangModuleLoader.h"
 #include "swift/AST/ExtInfo.h"
+#include "swift/Basic/Assertions.h"
 
 #include "clang/AST/Type.h"
 

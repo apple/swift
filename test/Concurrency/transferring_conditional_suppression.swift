@@ -1,6 +1,6 @@
 // RUN: %empty-directory(%t)
 
-// RUN: %target-swift-frontend -enable-upcoming-feature TransferringArgsAndResults -swift-version 5 -enable-library-evolution -module-name test -emit-module -o %t/test.swiftmodule -emit-module-interface-path - %s | %FileCheck %s
+// RUN: %target-swift-frontend -strict-concurrency=complete -swift-version 5 -enable-library-evolution -module-name test -emit-module -o %t/test.swiftmodule -emit-module-interface-path - %s | %FileCheck %s
 
 public class NonSendableKlass {}
 

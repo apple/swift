@@ -155,10 +155,16 @@ if "@SWIFT_ENABLE_EXPERIMENTAL_OBSERVATION@" == "TRUE":
     config.available_features.add('observation')
 if "@SWIFT_STDLIB_ENABLE_DEBUG_PRECONDITIONS_IN_RELEASE@" == "TRUE":
     config.available_features.add('swift_stdlib_debug_preconditions_in_release')
+if "@SWIFT_ENABLE_VOLATILE@" == "TRUE":
+    config.available_features.add('volatile')
 if "@SWIFT_ENABLE_SYNCHRONIZATION@" == "TRUE":
     config.available_features.add('synchronization')
+if "@SWIFT_ENABLE_VOLATILE@" == "TRUE":
+    config.available_features.add('volatile')
 if "@SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB@" == "TRUE":
     config.available_features.add('embedded_stdlib')
+if "@SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB_CROSS_COMPILING@" == "TRUE":
+    config.available_features.add('embedded_stdlib_cross_compiling')
 
 config.swift_freestanding_is_darwin = "@SWIFT_FREESTANDING_IS_DARWIN@" == "TRUE"
 config.swift_stdlib_use_relative_protocol_witness_tables = "@SWIFT_STDLIB_USE_RELATIVE_PROTOCOL_WITNESS_TABLES@" == "TRUE"

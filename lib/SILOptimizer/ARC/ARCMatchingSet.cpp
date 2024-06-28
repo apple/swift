@@ -14,6 +14,7 @@
 
 #include "ARCMatchingSet.h"
 #include "RefCountState.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Basic/BlotMapVector.h"
 #include "swift/SIL/SILBuilder.h"
 #include "swift/SIL/SILVisitor.h"

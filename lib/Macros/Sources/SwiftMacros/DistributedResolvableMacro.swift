@@ -12,7 +12,6 @@
 import SwiftSyntax
 import SwiftSyntaxMacros
 import SwiftDiagnostics
-import SwiftOperators
 import SwiftSyntaxBuilder
 
 /// Introduces:
@@ -104,7 +103,7 @@ extension DistributedResolvableMacro {
 
   static func stubFunctionBody() -> DeclSyntax {
     """
-    if #available(SwiftStdlib 6.0, *) {
+    if #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) {
       Distributed._distributedStubFatalError()
     } else {
       fatalError()

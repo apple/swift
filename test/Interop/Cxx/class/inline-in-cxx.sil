@@ -1,0 +1,38 @@
+// RUN: %target-sil-opt -enable-sil-verify-all --enable-experimental-cxx-interop -inline --I %S/Inputs %s | %FileCheck %s
+
+import Swift
+import Closure
+
+sil [transparent] [ossa] @f0 : $@convention(c) (@in_cxx NonTrivial, Int, @in_cxx NonTrivial) -> () {
+bb0(%0 : $*NonTrivial, %1 : $Int, %2 : $*NonTrivial):
+  %3 = tuple ()
+  return %3 : $()
+}
+
+// CHECK: sil [ossa] @caller0 : $@convention(thin) (@in_guaranteed NonTrivial, Int) -> () {
+// CHECK: bb0(%[[V0:.*]] : $*NonTrivial, %[[V1:.*]] : $Int):
+// CHECK: %[[V2:.*]] = alloc_stack [lexical] $NonTrivial
+// CHECK: %[[V3:.*]] = alloc_stack [lexical] $NonTrivial
+// CHECK: copy_addr %[[V0]] to [init] %[[V2]] : $*NonTrivial
+// CHECK: copy_addr %[[V0]] to [init] %[[V3]] : $*NonTrivial
+// CHECK: tuple ()
+// CHECK: destroy_addr %[[V3]] : $*NonTrivial
+// CHECK: destroy_addr %[[V2]] : $*NonTrivial
+// CHECK: dealloc_stack %[[V3]] : $*NonTrivial
+// CHECK: dealloc_stack %[[V2]] : $*NonTrivial
+// CHECK: %[[V9:.*]] = tuple ()
+// CHECK: return %[[V9]] : $()
+
+sil [ossa] @caller0 : $@convention(thin) (@in_guaranteed NonTrivial, Int) -> () {
+bb0(%0 : $*NonTrivial, %1 : $Int):
+  %2 = alloc_stack $NonTrivial
+  %3 = alloc_stack $NonTrivial
+  copy_addr %0 to [init] %2: $*NonTrivial
+  copy_addr %0 to [init] %3: $*NonTrivial
+  %4 = function_ref @f0 : $@convention(c) (@in_cxx NonTrivial, Int, @in_cxx NonTrivial) -> ()
+  %5 = apply %4(%2, %1, %3) : $@convention(c) (@in_cxx NonTrivial, Int, @in_cxx NonTrivial) -> ()
+  dealloc_stack %3 : $*NonTrivial
+  dealloc_stack %2 : $*NonTrivial
+  %8 = tuple ()
+  return %8 : $()
+}

@@ -2,13 +2,9 @@
 // RUN: %target-swift-frontend -plugin-path %swift-plugin-dir -emit-module -emit-module-path %t/OtherActors.swiftmodule -module-name OtherActors %S/Inputs/OtherActors.swift -disable-availability-checking
 
 // RUN: %target-swift-frontend -I %t -plugin-path %swift-plugin-dir -disable-availability-checking -strict-concurrency=complete -parse-as-library %s -emit-sil -o /dev/null -verify
-// RUN: %target-swift-frontend -I %t -plugin-path %swift-plugin-dir -disable-availability-checking -strict-concurrency=complete -parse-as-library %s -emit-sil -o /dev/null -verify -enable-upcoming-feature RegionBasedIsolation
 
 // REQUIRES: concurrency
 // REQUIRES: asserts
-
-// FIXME: rdar://125078448 is resolved
-// XFAIL: *
 
 actor Test {
 

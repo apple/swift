@@ -89,6 +89,21 @@ bb0(%0 : @owned $Builtin.NativeObject):
   return %9999 : $()
 }
 
+// CHECK-LABEL: sil [ossa] @test_extend_lifetime : {{.*}} {
+// CHECK:       bb0([[K:%[^,]+]] :
+// CHECK:         br [[LOOP:bb[0-9]+]]
+// CHECK:       [[LOOP]]:
+// CHECK:         extend_lifetime [[K]]
+// CHECK:         br [[LOOP]]
+// CHECK-LABEL: } // end sil function 'test_extend_lifetime'
+sil [ossa] @test_extend_lifetime : $@convention(thin) (@owned Builtin.NativeObject) -> () {
+entry(%k : @owned $Builtin.NativeObject):
+  br bb1
+bb1:
+  extend_lifetime %k : $Builtin.NativeObject
+  br bb1
+}
+
 // CHECK-LABEL: sil [ossa] @test_mark_dependence : $@convention(thin) (@owned Builtin.NativeObject, @owned Builtin.NativeObject) -> () {
 // CHECK: [[MD1:%.*]] = mark_dependence %1 : $Builtin.NativeObject on %0 : $Builtin.NativeObject
 // CHECK: [[MD2:%.*]] = mark_dependence [nonescaping] [[MD1]] : $Builtin.NativeObject on %0 : $Builtin.NativeObject

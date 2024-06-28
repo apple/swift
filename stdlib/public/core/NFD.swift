@@ -10,52 +10,310 @@
 //
 //===----------------------------------------------------------------------===//
 
-extension Unicode {
-  internal struct _InternalNFD<S: StringProtocol> {
-    let base: S.UnicodeScalarView
+extension Sequence where Element == Unicode.Scalar {
+  internal var _internalNFD: Unicode._InternalNFD<Self> {
+    Unicode._InternalNFD(self)
   }
 }
 
-extension Unicode._InternalNFD {
-  internal struct Iterator {
-    var buffer = Unicode._NormDataBuffer()
+extension Unicode  {
 
-    // This index always points at the next starter of a normalization segment.
-    // Each iteration of 'next()' moves this index up to the next starter.
-    var index: S.UnicodeScalarView.Index
+  /// The contents of the source sequence, in Normalization Form D.
+  ///
+  /// Normalization to NFD preserves canonical equivalence.
+  ///
+  internal struct _InternalNFD<Source> where Source: Sequence<Unicode.Scalar> {
 
-    let unicodeScalars: S.UnicodeScalarView
+    internal let source: Source
+
+    internal init(_ source: Source) {
+      self.source = source
+    }
   }
 }
 
-extension Unicode._InternalNFD.Iterator: IteratorProtocol {
-  internal mutating func decompose(
-    _ scalar: Unicode.Scalar,
-    with normData: Unicode._NormData
-  ) {
-    // ASCII always decomposes to itself.
-    if _fastPath(scalar.value < 0xC0) {
-      // ASCII always has normData of 0.
-      // CCC = 0, NFC_QC = Yes, NFD_QC = Yes
-      buffer.append((scalar, normData))
-      return
+extension Unicode._InternalNFD: Sequence {
+
+  internal consuming func makeIterator() -> Iterator {
+    Iterator(source: source.makeIterator())
+  }
+
+  internal struct Iterator: IteratorProtocol {
+
+    internal var source: Source.Iterator
+    internal var normalizer: Unicode._NFDNormalizer
+
+    internal init(source: Source.Iterator) {
+      self.source = source
+      self.normalizer = Unicode._NFDNormalizer()
     }
 
+    internal mutating func next() -> Unicode.Scalar? {
+      normalizer.resume(consuming: &source) ?? normalizer.flush()
+    }
+  }
+}
+
+extension Unicode._InternalNFD: Sendable where Source: Sendable {}
+extension Unicode._InternalNFD.Iterator: Sendable where Source.Iterator: Sendable {}
+
+extension Unicode {
+
+  /// A stateful normalizer, producing a single logical stream
+  /// of normalized text from chunked inputs.
+  ///
+  /// To use the normalizer, first create an instance.
+  /// Next, feed it a chunk of a text stream using the `resume(consuming:)`
+  /// function. The normalizer will consume from the stream and buffer
+  /// it as needed, so continue feeding the same source until
+  /// it returns `nil`, indicating that the source was exhausted.
+  ///
+  /// ```swift
+  /// var normalizer = Unicode.NFDNormalizer()
+  ///
+  /// var input: some IteratorProtocol<Unicode.Scalar> = ...
+  /// while let scalar = normalizer.resume(consuming: &input) {
+  ///   print(scalar)
+  /// }
+  ///
+  /// // assert(input.next() == nil)
+  /// ```
+  ///
+  /// You may continue consuming sources until you reach the end
+  /// of the logical text stream. Once you reach the end,
+  /// call `flush()` to drain any remaining content
+  /// from the normalizer's buffers.
+  ///
+  /// ```swift
+  /// while let scalar = normalizer.flush() {
+  ///   print(scalar)
+  /// }
+  /// ```
+  ///
+  /// The chunks of input text do not need to be aligned on any normalization
+  /// boundary. The normalizer state has value semantics, so it is possible
+  /// to copy and store and is inherently thread-safe.
+  ///
+  internal struct _NFDNormalizer: Sendable {
+
+    internal enum State {
+      case emittingSegment
+      case consuming
+      case terminated
+    }
+
+    internal var state = State.consuming
+
+    internal var buffer = Unicode._NormDataBuffer()
+    internal var pendingStarter = Optional<ScalarAndNormData>.none
+    internal var bufferIsSorted = false
+
+    /// Creates a new normalizer.
+    ///
+    internal init() { }
+
+    /// Resume normalizing the text stream.
+    ///
+    /// Each call to `resume` returns the next scalar in the normalized output,
+    /// consuming elements from the given source as necessary.
+    ///
+    /// If the normalizer returns `nil`, the source was exhausted.
+    /// One a source is exhausted, you may:
+    ///
+    /// - Call `resume` again some time later with a different source
+    ///   to continue processing the same logical text stream, or
+    ///
+    /// - Call `flush` in order to mark the end of the stream
+    ///   and consume data remaining in the normalizer's internal buffers.
+    ///
+    /// Typical usage looks like the following:
+    ///
+    /// ```swift
+    /// var normalizer = Unicode.NFDNormalizer()
+    ///
+    /// var input: some IteratorProtocol<Unicode.Scalar> = ...
+    /// while let scalar = normalizer.resume(consuming: &input) {
+    ///   print(scalar)
+    /// }
+    ///
+    /// // We could resume again, consuming from another input here.
+    /// // Finally, when we are done consuming inputs:
+    ///
+    /// while let scalar = normalizer.flush() {
+    ///   print(scalar)
+    /// }
+    /// ```
+    ///
+    /// The normalizer consumes data from the source as needed,
+    /// meaning even if a call to `resume` returns a value,
+    /// that value may have come from the normalizer's internal buffers
+    /// without consuming the input source at all.
+    ///
+    /// Be careful to ensure each input source has been fully consumed
+    /// before moving on to the next source (marked by `resume` returning `nil`).
+    ///
+    internal mutating func resume(
+      consuming source: inout some IteratorProtocol<Unicode.Scalar>
+    ) -> Unicode.Scalar? {
+      resume(consuming: { source.next() })
+    }
+
+    // Intended ABI barrier for resume(consuming: inout some IteratorProtocol<Unicode.Scalar>).
+    // when it becomes public.
+    internal mutating func resume(
+      consuming nextFromSource: () -> Unicode.Scalar?
+    ) -> Unicode.Scalar? {
+      _resume(consuming: nextFromSource)?.scalar
+    }
+
+    /// Marks the end of the text stream and
+    /// returns the next scalar from the normalizer's internal buffer.
+    ///
+    /// Once you have finished feeding input data to the normalizer,
+    /// call `flush` until it returns `nil`.
+    ///
+    /// ```swift
+    /// while let scalar = normalizer.flush() {
+    ///   print(scalar)
+    /// }
+    /// ```
+    ///
+    /// After calling `flush`, all future calls to `resume`
+    /// will immediately return `nil` without consuming from its source.
+    /// This allows optional chaining to be used to
+    /// fully normalize a stream:
+    ///
+    /// ```swift
+    /// // Normalize the concatenation of inputA and inputB
+    ///
+    /// while let scalar =
+    ///   normalizer.resume(consuming: &inputA) ??
+    ///   normalizer.resume(consuming: &inputB) ??
+    ///   normalizer.flush()
+    /// {
+    ///   print(scalar)
+    /// }
+    /// ```
+    internal mutating func flush() -> Unicode.Scalar? {
+      _flush()?.scalar
+    }
+  }
+}
+
+extension Unicode._NFDNormalizer {
+
+  @inline(never)
+  internal mutating func _resume(
+    consuming nextFromSource: () -> Unicode.Scalar?
+  ) -> ScalarAndNormData? {
+
+    switch state {
+    case .emittingSegment:
+      _internalInvariant(
+        pendingStarter != nil,
+        "Must find next segment starter before emitting buffered segment"
+      )
+      _internalInvariant(
+        bufferIsSorted,
+        "Buffered segment must be sorted before being emitted"
+      )
+
+      if let buffered = buffer.next() {
+        return buffered
+      }
+      bufferIsSorted = false
+      state = .consuming
+      fallthrough
+
+    case .consuming:
+
+      while let (scalar, normData) = takePendingOrConsume(nextFromSource) {
+
+        // If this scalar is a starter, stash it and emit the decomposed segment
+        // we have in the buffer. The buffer must be sorted first.
+
+        if normData.canonicalCombiningClass == .notReordered, !buffer.isEmpty {
+          pendingStarter = (scalar, normData)
+          buffer.sort()
+          bufferIsSorted = true
+          state = .emittingSegment
+          return buffer.next()
+        }
+
+        // If this scalar is NFD_QC, it does not need to be decomposed.
+
+        if normData.isNFDQC {
+
+          // If the scalar is a starter its CCC is 0,
+          // so it does not need to be sorted and can be emitted directly.
+
+          if normData.canonicalCombiningClass == .notReordered {
+            return (scalar, normData)
+          }
+          buffer.append((scalar, normData))
+          continue
+        }
+
+        // Otherwise, append the scalar's decomposition to the buffer.
+
+        decomposeNonNFDQC((scalar, normData))
+      }
+
+      // Source is exhausted.
+      return nil
+
+    case .terminated:
+      return nil
+    }
+  }
+
+  internal mutating func _flush() -> ScalarAndNormData? {
+
+    state = .terminated
+
+    if !bufferIsSorted {
+      buffer.sort()
+      bufferIsSorted = true
+    }
+
+    // The buffer contains the decomposed segment *prior to*
+    // any pending starter we might have.
+
+    return buffer.next() ?? pendingStarter.take()
+  }
+
+  @inline(__always)
+  private mutating func takePendingOrConsume(
+    _ nextFromSource: () -> Unicode.Scalar?
+  ) -> ScalarAndNormData? {
+
+    if let pendingStarter = pendingStarter.take() {
+      return pendingStarter
+    } else if let nextScalar = nextFromSource() {
+      return (nextScalar, Unicode._NormData(nextScalar))
+    } else {
+      return nil
+    }
+  }
+
+  private mutating func decomposeNonNFDQC(
+    _ scalarInfo: ScalarAndNormData
+  ) {
     // Handle Hangul decomposition algorithmically.
     // S.base = 0xAC00
     // S.count = 11172
     // S.base + S.count - 1 = 0xD7A3
-    if (0xAC00 ... 0xD7A3).contains(scalar.value) {
-      decomposeHangul(scalar)
+    if (0xAC00 ... 0xD7A3).contains(scalarInfo.scalar.value) {
+      decomposeHangul(scalarInfo.scalar)
       return
     }
 
     // Otherwise, we need to lookup the decomposition (if there is one).
-    decomposeSlow(scalar, with: normData)
+    decomposeSlow(scalarInfo)
   }
 
   @inline(never)
-  internal mutating func decomposeHangul(_ scalar: Unicode.Scalar) {
+  private mutating func decomposeHangul(_ scalar: Unicode.Scalar) {
     // L = Hangul leading consonants
     let L: (base: UInt32, count: UInt32) = (base: 0x1100, count: 19)
     // V = Hangul vowels
@@ -92,20 +350,19 @@ extension Unicode._InternalNFD.Iterator: IteratorProtocol {
   }
 
   @inline(never)
-  internal mutating func decomposeSlow(
-    _ scalar: Unicode.Scalar,
-    with normData: Unicode._NormData
+  private mutating func decomposeSlow(
+    _ original: ScalarAndNormData
   ) {
     // Look into the decomposition perfect hash table.
-    let decompEntry = Unicode._DecompositionEntry(scalar)
+    let decompEntry = Unicode._DecompositionEntry(original.scalar)
 
     // If this is not our original scalar, then we have no decomposition for this
     // scalar, so just emit itself. This is required because perfect hashing
     // does not know the original set of keys that it used to create itself, so
     // we store the original scalar in our decomposition entry to ensure that
     // scalars that hash to the same index don't succeed.
-    guard scalar == decompEntry.hashedScalar else {
-      buffer.append((scalar, normData))
+    guard original.scalar == decompEntry.hashedScalar else {
+      buffer.append(original)
       return
     }
 
@@ -122,60 +379,5 @@ extension Unicode._InternalNFD.Iterator: IteratorProtocol {
 
       buffer.append((scalar, normData))
     }
-  }
-
-  internal mutating func next() -> ScalarAndNormData? {
-    // Empty out our buffer before attempting to decompose the next
-    // normalization segment.
-    if let nextBuffered = buffer.next() {
-      return nextBuffered
-    }
-
-    while index < unicodeScalars.endIndex {
-      let scalar = unicodeScalars[index]
-      let normData = Unicode._NormData(scalar)
-
-      // If we've reached a starter, stop.
-      if normData.ccc == 0, !buffer.isEmpty {
-        break
-      }
-
-      unicodeScalars.formIndex(after: &index)
-
-      // If our scalar IS NFD quick check, then it's as simple as appending to
-      // our buffer and moving on the next scalar. Otherwise, we need to
-      // decompose this and append each decomposed scalar.
-      if normData.isNFDQC {
-        // Fast path: If our scalar is also ccc = 0, then this doesn't need to
-        // be appended to the buffer at all.
-        if normData.ccc == 0 {
-          return (scalar, normData)
-        }
-
-        buffer.append((scalar, normData))
-      } else {
-        decompose(scalar, with: normData)
-      }
-    }
-
-    // Sort the entire buffer based on the canonical combining class.
-    buffer.sort()
-
-    return buffer.next()
-  }
-}
-
-extension Unicode._InternalNFD: Sequence {
-  internal func makeIterator() -> Iterator {
-    Iterator(
-      index: base.startIndex,
-      unicodeScalars: base
-    )
-  }
-}
-
-extension StringProtocol {
-  internal var _internalNFD: Unicode._InternalNFD<Self> {
-    Unicode._InternalNFD(base: unicodeScalars)
   }
 }

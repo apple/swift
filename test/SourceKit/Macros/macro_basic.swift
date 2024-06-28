@@ -168,7 +168,7 @@ func remoteCall<Result: ConjureRemoteValue>(function: String, arguments: [String
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=4:7 %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=EXPAND %s
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=4:8 %s -- ${COMPILER_ARGS[@]} | %FileCheck -check-prefix=EXPAND %s
 // EXPAND: source.edit.kind.active:
-// EXPAND-NEXT: 4:7-4:24 (@__swiftmacro_9MacroUser13testStringify1a1bySi_SitF9stringifyfMf_.swift) "(a + b, "a + b")"
+// EXPAND-NEXT: 4:7-4:24 (@__swiftmacro_9MacroUser0022macro_basicswift_tiAIefMX3_6_9stringifyfMf_.swift) "(a + b, "a + b")"
 
 //##-- cursor-info on macro declaration
 // RUN: %sourcekitd-test -req=cursor -pos=57:1 -cursor-action -req-opts=retrieve_symbol_graph=1 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=CURSOR_MACRO_DECL %s
@@ -193,7 +193,7 @@ func remoteCall<Result: ConjureRemoteValue>(function: String, arguments: [String
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=57:1 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=EXPAND_MACRO_DECL %s
 // RUN: %sourcekitd-test -req=refactoring.expand.macro -pos=57:2 %s -- ${COMPILER_ARGS[@]} -parse-as-library | %FileCheck -check-prefix=EXPAND_MACRO_DECL %s
 // EXPAND_MACRO_DECL: source.edit.kind.active:
-// EXPAND_MACRO_DECL-NEXT: 57:1-57:28 (@__swiftmacro_9MacroUser33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_.swift) "class $s9MacroUser33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_4namefMu_ {
+// EXPAND_MACRO_DECL-NEXT: 57:1-57:28 (@__swiftmacro_9MacroUser0022macro_basicswift_tiAIefMX56_0_33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_.swift) "class $s9MacroUser0022macro_basicswift_tiAIefMX56_0_33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_4namefMu_ {
 // EXPAND_MACRO_DECL-NEXT:   func hello() -> String {
 // EXPAND_MACRO_DECL-NEXT:     "hello"
 // EXPAND_MACRO_DECL-NEXT:   }
@@ -202,7 +202,7 @@ func remoteCall<Result: ConjureRemoteValue>(function: String, arguments: [String
 // EXPAND_MACRO_DECL-NEXT:      return Self.self
 // EXPAND_MACRO_DECL-NEXT:   }
 // EXPAND_MACRO_DECL-NEXT: }
-// EXPAND_MACRO_DECL-NEXT: enum $s9MacroUser33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_4namefMu0_ {
+// EXPAND_MACRO_DECL-NEXT: enum $s9MacroUser0022macro_basicswift_tiAIefMX56_0_33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_4namefMu0_ {
 // EXPAND_MACRO_DECL-NEXT:   case apple
 // EXPAND_MACRO_DECL-NEXT:   case banana
 // EXPAND_MACRO_DECL-EMPTY:
@@ -210,7 +210,7 @@ func remoteCall<Result: ConjureRemoteValue>(function: String, arguments: [String
 // EXPAND_MACRO_DECL-NEXT:     "hello"
 // EXPAND_MACRO_DECL-NEXT:   }
 // EXPAND_MACRO_DECL-NEXT: }
-// EXPAND_MACRO_DECL-NEXT: struct $s9MacroUser33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_4namefMu1_: Equatable {
+// EXPAND_MACRO_DECL-NEXT: struct $s9MacroUser0022macro_basicswift_tiAIefMX56_0_33_70D4178875715FB9B8B50C58F66F8D53Ll14anonymousTypesfMf_4namefMu1_: Equatable {
 // EXPAND_MACRO_DECL-NEXT:   static func == (lhs: Self, rhs: Self) -> Bool {
 // EXPAND_MACRO_DECL-NEXT:     false
 // EXPAND_MACRO_DECL-NEXT:   }

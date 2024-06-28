@@ -12,6 +12,7 @@
 
 #define DEBUG_TYPE "sil-variable-name-inference"
 
+#include "swift/Basic/Assertions.h"
 #include "swift/SILOptimizer/Utils/VariableNameUtils.h"
 #include "swift/SIL/AddressWalker.h"
 #include "swift/SIL/Test.h"
@@ -625,7 +626,8 @@ SILValue VariableNameInferrer::findDebugInfoProvidingValueHelper(
         isa<CopyableToMoveOnlyWrapperAddrInst>(searchValue) ||
         isa<MoveOnlyWrapperToCopyableAddrInst>(searchValue) ||
         isa<MoveOnlyWrapperToCopyableValueInst>(searchValue) ||
-        isa<CopyableToMoveOnlyWrapperValueInst>(searchValue)) {
+        isa<CopyableToMoveOnlyWrapperValueInst>(searchValue) ||
+        isa<EndInitLetRefInst>(searchValue)) {
       searchValue = cast<SingleValueInstruction>(searchValue)->getOperand(0);
       continue;
     }

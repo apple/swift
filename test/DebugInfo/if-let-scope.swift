@@ -5,6 +5,7 @@ public func f(value: String?) {
   if let value, let value = Int(value) {
     // CHECK: sil_scope [[S1:[0-9]+]] { loc "{{.*}}":5:3
     // CHECK: sil_scope [[S2:[0-9]+]] { loc "{{.*}}":5:10
+    // CHECK: sil_scope [[S2:[0-9]+]] { loc "{{.*}}":5:10
     // CHECK: sil_scope [[S3:[0-9]+]] { loc "{{.*}}":5:29 parent [[S2]] }
     // CHECK: sil_scope [[S4:[0-9]+]] { loc "{{.*}}":5:29 parent [[S2]] }
     // CHECK: sil_scope [[S5:[0-9]+]] { loc "{{.*}}":5:40 parent [[S4]] }

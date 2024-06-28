@@ -26,7 +26,7 @@ protocol Greeter: DistributedActor where ActorSystem: DistributedActorSystem<any
 
 // CHECK: extension Greeter where Self: Distributed._DistributedActorStub {
 // CHECK-NEXT:   distributed func greet(name: String) -> String {
-// CHECK-NEXT:     if #available(SwiftStdlib 6.0, *) {
+// CHECK-NEXT:     if #available(macOS 15.0, iOS 18.0, watchOS 11.0, tvOS 18.0, visionOS 2.0, *) {
 // CHECK-NEXT:       Distributed._distributedStubFatalError()
 // CHECK-NEXT:     } else {
 // CHECK-NEXT:       fatalError()

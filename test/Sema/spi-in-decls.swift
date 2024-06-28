@@ -46,14 +46,14 @@ public struct BadWrapper { // expected-note {{type declared here}}
 //@_spi(X)
 //precedencegroup BadPrecedence {}
 
-public struct TestConformance: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
+public struct TestConformance: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; it is SPI}}
 
-@usableFromInline struct TestConformanceUFI: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
+@usableFromInline struct TestConformanceUFI: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; it is SPI}}
 
 struct TestConformanceOkay: BadProto {} // ok
 
-public class TestConformanceClass: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
-public enum TestConformanceEnum: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
+public class TestConformanceClass: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; it is SPI}}
+public enum TestConformanceEnum: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; it is SPI}}
 
 
 public struct TestGenericParams<T: BadProto> {} // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
@@ -105,11 +105,11 @@ public protocol TestAssocTypeWhereClause {
   associatedtype Assoc: Collection where Assoc.Element: BadProto // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
 }
 
-public enum TestRawType: IntLike { // expected-error {{cannot use struct 'IntLike' here; it is SPI}}
+public enum TestRawType: IntLike { // expected-error {{cannot use struct 'IntLike' in a public or '@usableFromInline' conformance; it is SPI}}
   case x = 1
 }
 
-public class TestSubclass: BadClass { // expected-error {{cannot use class 'BadClass' here; it is SPI}}
+public class TestSubclass: BadClass { // expected-error {{cannot use class 'BadClass' in a public or '@usableFromInline' conformance; it is SPI}}
 }
 
 public typealias TestUnderlying = BadStruct // expected-error {{cannot use struct 'BadStruct' here; it is SPI}}
@@ -150,7 +150,7 @@ extension Array where Element == BadStruct {
   subscript(okay _: Int) -> Int { 0 } // okay
 }
 
-extension Int: BadProto {} // expected-error {{cannot use protocol 'BadProto' here; it is SPI}}
+extension Int: BadProto {} // expected-error {{cannot use protocol 'BadProto' in a public or '@usableFromInline' conformance; it is SPI}}
 struct TestExtensionConformanceOkay {}
 extension TestExtensionConformanceOkay: BadProto {} // okay
 

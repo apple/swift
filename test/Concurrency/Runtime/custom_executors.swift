@@ -27,6 +27,8 @@ actor Custom {
   }
 
   func report() async {
+    simple.preconditionIsolated() // we're supposed to be on the same executor as 'simple'
+
     print("custom.count == \(count)")
     count += 1
 

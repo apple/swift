@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -primary-file %s %S/Inputs/filelist-other.swift -o %t.out -module-name parseable_output -empty-abi-descriptor -emit-abi-descriptor-path %t.abi.weird_file_extension -emit-module -emit-module-path %t.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -c -primary-file %s %S/Inputs/filelist-other.swift -o %t.out -module-name parseable_output -empty-abi-descriptor -emit-abi-descriptor-path %t.abi.weird_file_extension -emit-module -emit-module-path %t.swiftmodule -frontend-parseable-output 2>&1 | %FileCheck %s
 
 // CHECK: {{[1-9][0-9]*}}
 // CHECK-NEXT: {

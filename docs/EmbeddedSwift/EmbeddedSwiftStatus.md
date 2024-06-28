@@ -34,7 +34,7 @@ This status table describes which of the following standard library features can
 | Codable, Encodable, Decodable                              | No     |
 | Collection + related protocols                             | Yes    |
 | Collection algorithms (sort, reverse)                      | Yes    |
-| CustomStringConvertible, CustomDebugStringConvertible      | No     |
+| CustomStringConvertible, CustomDebugStringConvertible      | Yes, except those that require reflection (e.g. Array's .description)     |
 | Dictionary (dynamic heap-allocated container)              | Yes    |
 | FixedWidthInteger + related protocols                      | Yes    |
 | Hashable, Equatable, Comparable protocols                  | Yes    |
@@ -45,15 +45,15 @@ This status table describes which of the following standard library features can
 | Mirror (runtime reflection)                                | No, intentionally unsupported long-term |
 | Objective-C bridging                                       | No, intentionally unsupported long-term |
 | Optional                                                   | Yes    |
-| print / debugPrint                                         | Partial (only StaticStrings and integers) |
+| print / debugPrint                                         | Partial (only String, string interpolation, StaticStrings, integers, pointers and booleans) |
 | Range, ClosedRange, Stride                                 | Yes    |
 | Result                                                     | Yes    |
 | Set (dynamic heap-allocated container)                     | Yes    |                                      
 | SIMD types                                                 | Yes    |
 | StaticString                                               | Yes    |
-| String (dynamic)                                           | No (work in progress) |
-| String Interpolations                                      | No (work in progress) |
-| Unicode                                                    | No     |
+| String (dynamic)                                           | Yes    |
+| String Interpolations                                      | Yes    |
+| Unicode                                                    | Yes    |
 | Unsafe\[Mutable\]\[Raw\]\[Buffer\]Pointer                  | Yes    |
 | VarArgs                                                    | No     |
 

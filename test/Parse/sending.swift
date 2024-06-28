@@ -28,3 +28,6 @@ func testArgWithConsumingWrongOrder(_ x: sending consuming String, _ y: sending 
 func testArgWithConsumingWrongOrderType(_ x: (sending consuming String, sending inout String) -> ()) {}
 // expected-error @-1 {{'sending' must be placed after specifier 'consuming'}}
 // expected-error @-2 {{'sending' must be placed after specifier 'inout'}}
+
+func testBorrowSending(_ x: borrowing sending String) {}
+// expected-error @-1 {{'sending' cannot be used together with 'borrowing'}}

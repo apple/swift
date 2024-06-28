@@ -1161,7 +1161,7 @@ extension _StringGutsSlice {
       }
     }
 
-    for scalar in substring._internalNFC {
+    for scalar in substring.unicodeScalars._internalNFC {
       try scalar.withUTF8CodeUnits {
         for byte in $0 {
           try f(byte)

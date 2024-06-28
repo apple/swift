@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "swift/AST/DiagnosticsCommon.h"
+#include "swift/Basic/Assertions.h"
 using namespace swift;
 
 enum class swift::DiagID : uint32_t {

@@ -29,6 +29,7 @@
 #include "swift/AST/NameLookupRequests.h"
 #include "swift/AST/TypeCheckRequests.h"
 #include "swift/AST/ExistentialLayout.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/Sema/IDETypeChecking.h"
 
 using namespace swift;
@@ -699,6 +700,49 @@ static bool isSendableClosure(
   }
 
   return false;
+}
+
+/// Returns true if this closure acts as an inference boundary in the AST. An
+/// inference boundary is an expression in the AST where we newly infer
+/// isolation different from our parent decl context.
+///
+/// Examples:
+///
+///   1. a @Sendable closure.
+///   2. a closure literal passed to a sending parameter.
+///
+/// NOTE: This does not mean that it has nonisolated isolation since for
+/// instance one could define an @MainActor closure in a nonisolated
+/// function. That @MainActor closure would act as an Isolation Inference
+/// Boundary.
+///
+/// \arg forActorIsolation we currently have two slightly varying semantics
+/// here. If this is set, then we assuming that we are being called recursively
+/// while walking up a decl context path to determine the actor isolation of a
+/// closure. In such a case, we do not want to be a boundary if we should
+/// inheritActorContext. In other contexts though, we want to determine if the
+/// closure is part of an init or deinit. In such a case, we are walking up the
+/// decl context chain and we want to stop if we see a sending parameter since
+/// in such a case, the sending closure parameter is known to not be part of the
+/// init or deinit.
+static bool
+isIsolationInferenceBoundaryClosure(const AbstractClosureExpr *closure,
+                                    bool forActorIsolation) {
+  if (auto *ce = dyn_cast<ClosureExpr>(closure)) {
+    if (!forActorIsolation) {
+      // For example, one would along this path see if for flow sensitive
+      // isolation the closure is part of an init or deinit.
+      if (ce->isPassedToSendingParameter())
+        return true;
+    } else {
+      // This is for actor isolation. If we have inheritActorContext though, we
+      // do not want to do anything since we are part of our parent's isolation.
+      if (!ce->inheritsActorContext() && ce->isPassedToSendingParameter())
+        return true;
+    }
+  }
+
+  return isSendableClosure(closure, forActorIsolation);
 }
 
 /// Add Fix-It text for the given nominal type to adopt Sendable.
@@ -1624,12 +1668,40 @@ bool ReferencedActor::isKnownToBeLocal() const {
   }
 }
 
-static AbstractFunctionDecl const *
-isActorInitOrDeInitContext(const DeclContext *dc) {
-  return swift::isActorInitOrDeInitContext(
-      dc, [](const AbstractClosureExpr *closure) {
-        return isSendableClosure(closure, /*forActorIsolation=*/false);
-      });
+const AbstractFunctionDecl *
+swift::isActorInitOrDeInitContext(const DeclContext *dc) {
+  while (true) {
+    // Stop looking if we hit an isolation inference boundary.
+    if (auto *closure = dyn_cast<AbstractClosureExpr>(dc)) {
+      if (isIsolationInferenceBoundaryClosure(closure,
+                                              false /*is for actor isolation*/))
+        return nullptr;
+
+      // Otherwise, look through our closure at the closure's parent decl
+      // context.
+      dc = dc->getParent();
+      continue;
+    }
+
+    if (auto func = dyn_cast<AbstractFunctionDecl>(dc)) {
+      // If this is an initializer or deinitializer of an actor, we're done.
+      if ((isa<ConstructorDecl>(func) || isa<DestructorDecl>(func)) &&
+          getSelfActorDecl(dc->getParent()))
+        return func;
+
+      // Non-Sendable local functions are considered part of the enclosing
+      // context.
+      if (func->getDeclContext()->isLocalContext()) {
+        if (func->isSendable())
+          return nullptr;
+
+        dc = dc->getParent();
+        continue;
+      }
+    }
+
+    return nullptr;
+  }
 }
 
 static bool isStoredProperty(ValueDecl const *member) {
@@ -2082,6 +2154,10 @@ namespace {
     llvm::function_ref<Type(Expr *)> getType;
     llvm::function_ref<ActorIsolation(AbstractClosureExpr *)>
         getClosureActorIsolation;
+    /// Whether to check if the closure captures an `isolated` parameter.
+    /// This is needed as a workaround during code completion, which doesn't
+    /// have types applied to the AST and thus doesn't have captures computed.
+    bool checkIsolatedCapture;
 
     SourceLoc requiredIsolationLoc;
 
@@ -2148,7 +2224,11 @@ namespace {
                   .limitBehaviorUntilSwiftVersion(behavior, 6);
             }
 
-            // Always emit the note with fix-it.
+            // Overrides cannot be isolated to a global actor; the isolation
+            // must match the overridden decl.
+            if (fn->getOverriddenDecl())
+              return false;
+
             fn->diagnose(diag::add_globalactor_to_function,
                          globalActor->getWithoutParens().getString(),
                          fn, globalActor)
@@ -2537,9 +2617,13 @@ namespace {
           if (patternBindingDecl && patternBindingDecl->isAsyncLet()) {
             // Defer diagnosing checking of non-Sendable types that are passed
             // into async let to SIL level region based isolation if we have
-            // transferring and region based isolation enabled.
-            if (!ctx.LangOpts.hasFeature(Feature::RegionBasedIsolation) ||
-                !ctx.LangOpts.hasFeature(Feature::TransferringArgsAndResults)) {
+            // region based isolation enabled.
+            //
+            // We purposely do not do this for SendingArgsAndResults since that
+            // just triggers the actual ability to represent
+            // 'sending'. RegionBasedIsolation is what determines if we get the
+            // differing semantics.
+            if (!ctx.LangOpts.hasFeature(Feature::RegionBasedIsolation)) {
               diagnoseNonSendableTypes(
                   type, getDeclContext(),
                   /*inDerivedConformance*/Type(), capture.getLoc(),
@@ -2578,9 +2662,11 @@ namespace {
         const DeclContext *dc,
         llvm::function_ref<Type(Expr *)> getType = __Expr_getType,
         llvm::function_ref<ActorIsolation(AbstractClosureExpr *)>
-            getClosureActorIsolation = __AbstractClosureExpr_getActorIsolation)
+            getClosureActorIsolation = __AbstractClosureExpr_getActorIsolation,
+        bool checkIsolatedCapture = true)
         : ctx(dc->getASTContext()), getType(getType),
-          getClosureActorIsolation(getClosureActorIsolation) {
+          getClosureActorIsolation(getClosureActorIsolation),
+          checkIsolatedCapture(checkIsolatedCapture) {
       contextStack.push_back(dc);
     }
 
@@ -2692,7 +2778,7 @@ namespace {
     PreWalkResult<Expr *> walkToExprPre(Expr *expr) override {
       // Skip expressions that didn't make it to solution application
       // because the constraint system diagnosed an error.
-      if (!expr->getType())
+      if (!expr->getType() || expr->getType()->hasError())
         return Action::SkipNode(expr);
 
       if (auto *openExistential = dyn_cast<OpenExistentialExpr>(expr)) {
@@ -3449,21 +3535,18 @@ namespace {
 
         argForIsolatedParam = arg;
         unsatisfiedIsolation = std::nullopt;
+
+        // Assume that a callee with an isolated parameter does not
+        // cross an isolation boundary. We'll set this again below if
+        // the given isolated argument doesn't match the isolation of the
+        // caller.
+        mayExitToNonisolated = false;
+
+        // If the argument is an isolated parameter from the enclosing context,
+        // or #isolation, then the call does not cross an isolation boundary.
         if (getIsolatedActor(arg) || isa<CurrentContextIsolationExpr>(arg))
           continue;
 
-        // An isolated parameter was provided with a non-isolated argument.
-        // FIXME: The modeling of unsatisfiedIsolation is not great here.
-        // We'd be better off using something more like closure isolation
-        // that can talk about specific parameters.
-        auto nominal = getType(arg)->getAnyNominal();
-        if (!nominal) {
-          // FIXME: This is wrong for distributed actors.
-          nominal = getType(arg)->getASTContext().getProtocol(
-              KnownProtocolKind::Actor);
-        }
-
-        mayExitToNonisolated = false;
         auto calleeIsolation = ActorIsolation::forActorInstanceParameter(
             const_cast<Expr *>(arg->findOriginalValue()), paramIdx);
 
@@ -3600,8 +3683,11 @@ namespace {
 
       // Check for sendability of the result type if we do not have a
       // transferring result.
-      if ((!ctx.LangOpts.hasFeature(Feature::TransferringArgsAndResults) ||
+      if ((!ctx.LangOpts.hasFeature(Feature::RegionBasedIsolation) ||
            !fnType->hasSendingResult())) {
+        assert(ctx.LangOpts.hasFeature(Feature::SendingArgsAndResults) &&
+               "SendingArgsAndResults should be enabled if RegionIsolation is "
+               "enabled");
         // See if we are a autoclosure that has a direct callee that has the
         // same non-transferred type value returned. If so, do not emit an
         // error... we are going to emit an error on the call expr and do not
@@ -4162,9 +4248,14 @@ namespace {
               .withPreconcurrency(preconcurrency);
       }
 
-      // Sendable closures are nonisolated unless the closure has
-      // specifically opted into inheriting actor isolation.
-      if (isSendableClosure(closure, /*forActorIsolation=*/true))
+      // If we have a closure that acts as an isolation inference boundary, then
+      // we return that it is non-isolated.
+      //
+      // NOTE: Since we already checked for global actor isolated things, we
+      // know that all Sendable closures must be nonisolated. That is why it is
+      // safe to rely on this path to handle Sendable closures.
+      if (isIsolationInferenceBoundaryClosure(
+              closure, true /*is for closure isolation*/))
         return ActorIsolation::forNonisolated(/*unsafe=*/false)
             .withPreconcurrency(preconcurrency);
 
@@ -4193,9 +4284,16 @@ namespace {
       }
 
       case ActorIsolation::ActorInstance: {
-        if (auto param = closure->getCaptureInfo().getIsolatedParamCapture())
-          return ActorIsolation::forActorInstanceCapture(param)
-            .withPreconcurrency(preconcurrency);
+        if (checkIsolatedCapture) {
+          if (auto param = closure->getCaptureInfo().getIsolatedParamCapture())
+            return ActorIsolation::forActorInstanceCapture(param)
+                .withPreconcurrency(preconcurrency);
+        } else {
+          // If we don't have capture information during code completion, assume
+          // that the closure captures the `isolated` parameter from the parent
+          // context.
+          return parentIsolation;
+        }
 
         return ActorIsolation::forNonisolated(/*unsafe=*/false)
             .withPreconcurrency(preconcurrency);
@@ -4325,7 +4423,8 @@ ActorIsolation swift::determineClosureActorIsolation(
     llvm::function_ref<ActorIsolation(AbstractClosureExpr *)>
         getClosureActorIsolation) {
   ActorIsolationChecker checker(closure->getParent(), getType,
-                                getClosureActorIsolation);
+                                getClosureActorIsolation,
+                                /*checkIsolatedCapture=*/false);
   return checker.determineClosureIsolation(closure);
 }
 
@@ -4435,6 +4534,11 @@ getIsolationFromAttributes(const Decl *decl, bool shouldDiagnose = true,
 /// Infer isolation from witnessed protocol requirements.
 static std::optional<ActorIsolation>
 getIsolationFromWitnessedRequirements(ValueDecl *value) {
+  // Associated types cannot have isolation, so there's no such inference for
+  // type witnesses.
+  if (isa<TypeDecl>(value))
+    return std::nullopt;
+
   auto dc = value->getDeclContext();
   auto idc = dyn_cast_or_null<IterableDeclContext>(dc->getAsDecl());
   if (!idc)
@@ -4575,13 +4679,15 @@ getIsolationFromConformances(NominalTypeDecl *nominal) {
 static std::optional<ActorIsolation>
 getIsolationFromInheritedProtocols(ProtocolDecl *protocol) {
   std::optional<ActorIsolation> foundIsolation;
-  for (auto inherited : protocol->getInheritedProtocols()) {
-    switch (auto protoIsolation = getActorIsolation(inherited)) {
+  bool conflict = false;
+
+  auto inferIsolation = [&](ValueDecl *decl) {
+    switch (auto protoIsolation = getActorIsolation(decl)) {
     case ActorIsolation::ActorInstance:
     case ActorIsolation::Unspecified:
     case ActorIsolation::Nonisolated:
     case ActorIsolation::NonisolatedUnsafe:
-      break;
+      return;
 
     case ActorIsolation::Erased:
       llvm_unreachable("protocol cannot have erased isolation");
@@ -4589,15 +4695,26 @@ getIsolationFromInheritedProtocols(ProtocolDecl *protocol) {
     case ActorIsolation::GlobalActor:
       if (!foundIsolation) {
         foundIsolation = protoIsolation;
-        continue;
+        return;
       }
 
       if (*foundIsolation != protoIsolation)
-        return std::nullopt;
+        conflict = true;
 
-      break;
+      return;
     }
+  };
+
+  for (auto inherited : protocol->getInheritedProtocols()) {
+    inferIsolation(inherited);
   }
+
+  if (auto *superclass = protocol->getSuperclassDecl()) {
+    inferIsolation(superclass);
+  }
+
+  if (conflict)
+    return std::nullopt;
 
   return foundIsolation;
 }
@@ -4915,6 +5032,7 @@ static OverrideIsolationResult validOverrideIsolation(
     ValueDecl *overridden, ActorIsolation overriddenIsolation) {
   ConcreteDeclRef valueRef = getDeclRefInContext(value);
   auto declContext = value->getInnermostDeclContext();
+  auto &ctx = declContext->getASTContext();
 
   auto refResult = ActorReferenceResult::forReference(
       valueRef, SourceLoc(), declContext, std::nullopt, std::nullopt, isolation,
@@ -4938,8 +5056,10 @@ static OverrideIsolationResult validOverrideIsolation(
 
     // If the overridden declaration is from Objective-C with no actor
     // annotation, allow it.
-    if (overridden->hasClangNode() && !overriddenIsolation)
+    if (ctx.LangOpts.StrictConcurrencyLevel != StrictConcurrency::Complete &&
+        overridden->hasClangNode() && !overriddenIsolation) {
       return OverrideIsolationResult::Allowed;
+    }
 
     return OverrideIsolationResult::Disallowed;
   }
@@ -5028,7 +5148,11 @@ ActorIsolation ActorIsolationRequest::evaluate(
   // isolated to a global actor.
   auto checkGlobalIsolation = [var = dyn_cast<VarDecl>(value)](
                                   ActorIsolation isolation) {
-    if (var && var->getLoc() &&
+    // Diagnose only declarations in the same module.
+    //
+    // TODO: This should be factored out from ActorIsolationRequest into
+    // either ActorIsolationChecker or DeclChecker.
+    if (var && var->getLoc(/*SerializedOK*/false) &&
         var->getASTContext().LangOpts.hasFeature(Feature::GlobalConcurrency) &&
         !isolation.isGlobalActor() &&
         (isolation != ActorIsolation::NonisolatedUnsafe)) {
@@ -6424,40 +6548,6 @@ bool swift::completionContextUsesConcurrencyFeatures(const DeclContext *dc) {
     [](const ClosureExpr *closure) {
       return closure->isIsolatedByPreconcurrency();
     });
-}
-
-AbstractFunctionDecl const *swift::isActorInitOrDeInitContext(
-    const DeclContext *dc,
-    llvm::function_ref<bool(const AbstractClosureExpr *)> isSendable) {
-  while (true) {
-    // Non-Sendable closures are considered part of the enclosing context.
-    if (auto *closure = dyn_cast<AbstractClosureExpr>(dc)) {
-      if (isSendable(closure))
-        return nullptr;
-
-      dc = dc->getParent();
-      continue;
-    }
-
-    if (auto func = dyn_cast<AbstractFunctionDecl>(dc)) {
-      // If this is an initializer or deinitializer of an actor, we're done.
-      if ((isa<ConstructorDecl>(func) || isa<DestructorDecl>(func)) &&
-          getSelfActorDecl(dc->getParent()))
-        return func;
-
-      // Non-Sendable local functions are considered part of the enclosing
-      // context.
-      if (func->getDeclContext()->isLocalContext()) {
-        if (func->isSendable())
-          return nullptr;
-
-        dc = dc->getParent();
-        continue;
-      }
-    }
-
-    return nullptr;
-  }
 }
 
 /// Find the directly-referenced parameter or capture of a parameter for

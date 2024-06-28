@@ -19,6 +19,7 @@
 #define DEBUG_TYPE "closure-scope"
 
 #include "swift/SILOptimizer/Analysis/ClosureScope.h"
+#include "swift/Basic/Assertions.h"
 #include "swift/SIL/ApplySite.h"
 #include "swift/SIL/SILModule.h"
 #include "llvm/ADT/iterator.h"

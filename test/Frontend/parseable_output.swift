@@ -1,6 +1,6 @@
-// RUN: %target-swift-frontend -primary-file %s %S/Inputs/filelist-other.swift -o %t.out -module-name parseable_output -empty-abi-descriptor -emit-abi-descriptor-path %t.abi.json -emit-module -emit-module-path %t.swiftmodule -serialize-diagnostics -serialize-diagnostics-path %t.dia -frontend-parseable-output 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -c -primary-file %s %S/Inputs/filelist-other.swift -o %t.out -module-name parseable_output -empty-abi-descriptor -emit-abi-descriptor-path %t.abi.json -emit-module -emit-module-path %t.swiftmodule -serialize-diagnostics -serialize-diagnostics-path %t.dia -frontend-parseable-output 2>&1 | %FileCheck %s
 // Check without primary files (WMO):
-// RUN: %target-swift-frontend %s %S/Inputs/filelist-other.swift -o %t.out -module-name parseable_output -empty-abi-descriptor -emit-abi-descriptor-path %t.abi.json -emit-module -emit-module-path %t.swiftmodule -serialize-diagnostics -serialize-diagnostics-path %t.dia -frontend-parseable-output 2>&1 | %FileCheck %s
+// RUN: %target-swift-frontend -c %s %S/Inputs/filelist-other.swift -o %t.out -module-name parseable_output -empty-abi-descriptor -emit-abi-descriptor-path %t.abi.json -emit-module -emit-module-path %t.swiftmodule -serialize-diagnostics -serialize-diagnostics-path %t.dia -frontend-parseable-output 2>&1 | %FileCheck %s
 
 // CHECK: {{[1-9][0-9]*}}
 // CHECK-NEXT: {

@@ -1,4 +1,4 @@
-// RUN: %target-swiftc_driver -Xfrontend -disable-sil-ownership-verifier -emit-sil %s -o /dev/null -Xfrontend -verify
+// RUN: %target-swiftc_driver -emit-sil %s -o /dev/null -Xfrontend -verify
 
 // TODO: Change this back to using target-swift-frontend once we move errors to
 // type checker and SILGen.
