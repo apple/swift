@@ -4975,8 +4975,29 @@ TypeResolver::resolveSendingTypeRepr(SendingTypeRepr *repr,
     return ErrorType::get(getASTContext());
   }
 
+  NeverNullType resolvedType = resolveType(repr->getBase(), options);
+  
+  // If resolved type is Sendable, warn about unnecessary 'sending' annotation.
+  if (options.is(TypeResolverContext::FunctionInput)) {
+    if(!resolvedType->hasTypeParameter()) {
+      if (resolvedType->isSendableType()) {
+        diagnose(repr->getSpecifierLoc(),
+                 diag::sending_applied_to_sendable,
+                 resolvedType.get())
+        .fixItRemove(repr->getSpecifierLoc());
+      }
+    } else {
+      if (resolvedType->getASTContext().getProtocol(KnownProtocolKind::Sendable)) {
+        diagnose(repr->getSpecifierLoc(),
+                 diag::sending_applied_to_sendable,
+                 resolvedType.get())
+        .fixItRemove(repr->getSpecifierLoc());
+      };
+    }
+  }
+
   // Return the type.
-  return resolveType(repr->getBase(), options);
+  return resolvedType;
 }
 
 NeverNullType
