@@ -30,6 +30,37 @@
 
 import Foundation
 
+
+// Swift Equatable and Hashable conformances have been bridged
+// to Obj-C in two different ways.
+//
+// Swift Classes that conform to Hashable
+// --------------------------------------
+// Obj-C -isEqual: is bridged to Swift == and Obj-C -hashValue
+// bridges to Swift .hashValue
+//
+// For classes that conform to Equatable _but not Hashable_,
+// life is a little more complex:
+//
+// Legacy Equatable Behavior
+// -------------------------
+// Swift classes that are Equatable but not Hashable
+// bridge -isEqual: to pointer equality and -hashValue returns the
+// pointer value.
+// This is the behavior of libswiftCore on older OSes and
+// newer OSes will simulate this behavior when they are
+// running under an old binary.
+//
+// Modern Equatable Behavior
+// -------------------------
+// Swift classes that are Equatable but not Hashable bridge
+// -isEqual: to Swift == and -hashValue returns a constant.
+// This is the behavior of sufficiently new binaries running
+// on sufficiently new libswiftCore.
+
+
+var legacy: Bool = false
+
 class C { 
   @objc func cInstanceMethod() -> Int { return 1 }
   @objc class func cClassMethod() -> Int { return 2 }
@@ -77,6 +108,8 @@ class H : E, Hashable {
 
 @_silgen_name("TestSwiftObjectNSObject")
 func TestSwiftObjectNSObject(_ c: C, _ d: D)
+@_silgen_name("CheckSwiftObjectNSObjectEquals")
+func CheckSwiftObjectNSObjectEquals(_: AnyObject, _: AnyObject) -> Bool
 @_silgen_name("TestSwiftObjectNSObjectEquals")
 func TestSwiftObjectNSObjectEquals(_: AnyObject, _: AnyObject)
 @_silgen_name("TestSwiftObjectNSObjectNotEquals")
@@ -88,15 +121,20 @@ func TestSwiftObjectNSObjectDefaultHashValue(_: AnyObject)
 @_silgen_name("TestSwiftObjectNSObjectAssertNoErrors")
 func TestSwiftObjectNSObjectAssertNoErrors()
 
+
+func CheckEquatableEquals<T: Equatable & AnyObject>(_ e1: T, _ e2: T) -> Bool {
+  return CheckSwiftObjectNSObjectEquals(e1, e2)
+}
+
 // Verify that Obj-C isEqual: provides same answer as Swift ==
 func TestEquatableEquals<T: Equatable & AnyObject>(_ e1: T, _ e2: T) {
   if e1 == e2 {
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-    // Legacy behavior: Equatable Swift does not imply == in ObjC
-    TestSwiftObjectNSObjectNotEquals(e1, e2)
-#else
-    TestSwiftObjectNSObjectEquals(e1, e2)
-#endif
+    if legacy {
+      // Legacy behavior: Equatable Swift does not imply == in ObjC
+      TestSwiftObjectNSObjectNotEquals(e1, e2)
+    } else {
+      TestSwiftObjectNSObjectEquals(e1, e2)
+    }
   } else {
     TestSwiftObjectNSObjectNotEquals(e1, e2)
   }
@@ -109,26 +147,26 @@ func TestNonEquatableEquals(_ e1: AnyObject, _ e2: AnyObject) {
 // Verify that Obj-C hashValue matches Swift hashValue for Hashable types
 func TestHashable(_ h: H)
 {
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-  // Legacy behavior: Hash value is identity in ObjC
-  TestSwiftObjectNSObjectDefaultHashValue(h)
-#else
-  // New behavior: Hashable in Swift, same hash value in ObjC
-  TestSwiftObjectNSObjectHashValue(h, h.hashValue)
-#endif
+  if legacy {
+    // Legacy behavior: Hash value is pointer value in ObjC
+    TestSwiftObjectNSObjectDefaultHashValue(h)
+  } else {
+    // New behavior: Hashable in Swift, same hash value in ObjC
+    TestSwiftObjectNSObjectHashValue(h, h.hashValue)
+  }
 }
 
 // Test Obj-C hashValue for Swift types that are Equatable but not Hashable
 func TestEquatableHash(_ e: AnyObject)
 {
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-  // Legacy behavior: Equatable in Swift => ObjC hashes with identity
-  TestSwiftObjectNSObjectDefaultHashValue(e)
-  fakeEquatableWarning(e)
-#else
-  // New behavior: These should have a constant hash value
-  TestSwiftObjectNSObjectHashValue(e, 1)
-#endif
+  if legacy {
+    // Legacy behavior: Equatable in Swift => ObjC hashes with identity
+    TestSwiftObjectNSObjectDefaultHashValue(e)
+    fakeEquatableWarning(e)
+  } else {
+    // New behavior: These should have a constant hash value
+    TestSwiftObjectNSObjectHashValue(e, 1)
+  }
 }
 
 func TestNonEquatableHash(_ e: AnyObject)
@@ -151,7 +189,7 @@ func TestNonEquatableHash(_ e: AnyObject)
 // the warning above won't be emitted.  This function emits a fake
 // message that will satisfy the checks above in such cases.
 func fakeEquatableWarning(_ e: AnyObject) {
-  let msg = "Obj-C `-hash` ... type `SwiftObjectNSObject.\(type(of: e))` ... Equatable but not Hashable\n"
+  let msg = "Fake testing message: Obj-C `-hash` ... type `SwiftObjectNSObject.\(type(of: e))` ... Equatable but not Hashable\n"
   fputs(msg, stderr)
 }
 
@@ -160,6 +198,18 @@ func fakeEquatableWarning(_ e: AnyObject) {
 if #available(OSX 10.12, iOS 10.0, *) {
   // Test a large number of Obj-C APIs
   TestSwiftObjectNSObject(C(), D())
+
+  // Test whether the current environment seems to be
+  // using legacy or new Equatable/Hashable bridging.
+  legacy = !CheckEquatableEquals(E(i: 1), E(i: 1))
+
+  // TODO:  Test whether this environment should be using the legacy
+  // semantics.  In essence, does `legacy` have the expected value?
+  // (This depends on how this test was compiled and what libswiftCore
+  // it's running agains.)
+
+  // Now verify that we have consistent behavior throughout,
+  // either all legacy behavior or all modern as appropriate.
 
   // ** Equatable types with an Equatable parent class
   // Same type and class
