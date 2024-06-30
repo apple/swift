@@ -4,8 +4,9 @@
 
 // CHECK: namespace Structs SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("Structs") {
 
-// CHECK-NOT: class SWIFT_SYMBOL({{.*}}) ZeroSizedStruct final {
-
+// CHECK: class SWIFT_SYMBOL({{.*}}) ZeroSizedStruct final {
+// CHECK: alignas(1) char _storage[1];
+// CHECK-NEXT:   friend class
 public struct ZeroSizedStruct {}
 
 // CHECK: } // namespace Structs

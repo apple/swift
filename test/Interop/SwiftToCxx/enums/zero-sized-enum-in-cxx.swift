@@ -6,6 +6,16 @@ public enum EmptyEnum {}
 public enum SingleCaseEnum { case first }
 
 // CHECK: namespace Enums SWIFT_PRIVATE_ATTR SWIFT_SYMBOL_MODULE("Enums") {
+
 // CHECK-NOT: EmptyEnum final {
-// CHECK-NOT: SingleCaseEnum final {
+
+// CHECK: class SWIFT_SYMBOL({{.*}}) SingleCaseEnum final {
+// CHECK: SWIFT_INLINE_THUNK operator cases() const {
+// CHECK: }
+// CHECK-NEXT: }
+// CHECK-EMPTY:
+// CHECK-NEXT: SWIFT_INLINE_THUNK swift::Int getHashValue() const SWIFT_SYMBOL({{.*}});
+// CHECK-NEXT: private:
+
 // CHECK: } // namespace Enums
+

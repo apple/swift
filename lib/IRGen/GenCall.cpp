@@ -1031,8 +1031,11 @@ SignatureExpansion::expandDirectResult() {
     if (native.requiresIndirect())
       return std::make_pair(addIndirectResult(resultType), nullptr);
 
+    if (native.empty())
+      return std::make_pair(native.getExpandedType(IGM), nullptr);
+
     // Disable the use of sret if we have a non-trivial direct result.
-    if (!native.empty()) CanUseSRet = false;
+    CanUseSRet = false;
     return std::make_pair(native.getExpandedType(IGM), &ti);
   }
   }
