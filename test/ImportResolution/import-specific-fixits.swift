@@ -39,6 +39,13 @@ import var DeclsUsedWrongly.Callback // expected-error {{'Callback' was imported
 import struct DeclsUsedWrongly.Pair // expected-error {{type alias 'Pair<T>' (aka '(T, T)') cannot be imported as 'struct'}} {{8-14=typealias}}
 import var DeclsUsedWrongly.Pair // expected-error {{'Pair' was imported as 'var', but is a type}} {{8-11=typealias}}
 
+import protocol DeclsUsedWrongly.TopLevelProtocol  // no-warning
+import protocol DeclsUsedWrongly.AnyTopLevelProtocol // expected-error {{type alias 'AnyTopLevelProtocol' (aka 'any TopLevelProtocol') cannot be imported as 'protocol'}} {{8-16=typealias}}
+import typealias DeclsUsedWrongly.AnyTopLevelProtocol // no-warning
+import protocol DeclsUsedWrongly.NestedProtocol  // no-warning
+import typealias DeclsUsedWrongly.AnyNestedProtocol // no-warning
+import protocol DeclsUsedWrongly.AnyNestedProtocol // expected-error {{type alias 'AnyNestedProtocol' (aka 'any NamespaceStruct.NestedProtocol') cannot be imported as 'protocol'}} {{8-16=typealias}}
+
 import struct Swift.print // expected-error {{'print' was imported as 'struct', but is a function}} {{8-14=func}}
 
 // CHECK: [[@LINE-2]]:15: error: 'print' was imported as 'struct', but is a function
