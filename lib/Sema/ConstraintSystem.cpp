@@ -2337,21 +2337,37 @@ static Type typeEraseExistentialSelfReferences(
               return parameterized->getBaseType();
           }
         }
-        /*
+
         if (auto lvalue = dyn_cast<LValueType>(t)) {
           auto objTy = lvalue->getObjectType();
-          auto erasedTy =
+          Type erasedTy;
+
+          if (auto *memberTy = objTy->getAs<DependentMemberType>()) {
+            if (memberTy->getBase()->is<TypeVariableType>()) {
+              erasedTy =
+              typeEraseExistentialSelfReferences(
+                objTy, baseTy, currPos,
+                existentialSig, containsFn, predicateFn, projectionFn,
+                force);
+
+              if (erasedTy.getPointer() == objTy.getPointer())
+                return Type(lvalue);
+
+              return erasedTy;
+            }
+          } else if (auto arch = dyn_cast<OpenedArchetypeType>(objTy)){
+            erasedTy =
             typeEraseExistentialSelfReferences(
               objTy, baseTy, currPos,
               existentialSig, containsFn, predicateFn, projectionFn,
               force);
 
-          if (erasedTy.getPointer() == objTy.getPointer())
-            return Type(lvalue);
+            if (erasedTy.getPointer() == objTy.getPointer())
+              return Type(lvalue);
 
-          return erasedTy;
+            return erasedTy;
+          }
         }
-        */
 
         if (!predicateFn(t)) {
           // Recurse.
