@@ -231,13 +231,9 @@ extension String {
   ///
   /// - Complexity: O(*n*), where *n* is the number of bytes in the C++ string.
   public init(_ cxxString: std.string) {
-    let buffer = UnsafeBufferPointer<CChar>(
-      start: cxxString.__c_strUnsafe(),
-      count: cxxString.size())
-    self = buffer.withMemoryRebound(to: UInt8.self) {
+    self = cxxString.withUTF8 {
       String(decoding: $0, as: UTF8.self)
     }
-    withExtendedLifetime(cxxString) {}
   }
 
   /// Creates a String having the same content as the given C++ UTF-16 string.
@@ -272,5 +268,19 @@ extension String {
       String(decoding: $0, as: UTF32.self)
     }
     withExtendedLifetime(cxxU32String) {}
+  }
+}
+
+// MARK: Converting a C++ string to a C string
+
+extension std.string {
+  @inlinable
+  public borrowing func withUTF8<Result>(
+    _ body: (UnsafeBufferPointer<UInt8>) throws -> Result
+  ) rethrows -> Result {
+    let buffer = UnsafeBufferPointer<CChar>(
+      start: self.__c_strUnsafe(),
+      count: self.size())
+    return try buffer.withMemoryRebound(to: UInt8.self, body)
   }
 }
