@@ -2237,6 +2237,19 @@ function Build-DocC() {
   }
 }
 
+function Build-SwiftSyntaxExamples() {
+  $OutDir = Join-Path -Path $HostArch.BinaryCache -ChildPath swift-syntax-examples
+
+  Isolate-EnvVars {
+    $env:SWIFTCI_USE_LOCAL_DEPS=1
+    Build-SPMProject `
+      -Src $SourceCache\swift-syntax\Examples `
+      -Bin $OutDir `
+      -Arch $HostArch `
+      --product MacroExamplesPlayground
+  }
+}
+
 function Test-PackageManager() {
   $OutDir = Join-Path -Path $HostArch.BinaryCache -ChildPath swift-package-manager
   $SrcDir = if (Test-Path -Path "$SourceCache\swift-package-manager" -PathType Container) {
@@ -2406,6 +2419,7 @@ if (-not $SkipBuild) {
 Install-HostToolchain
 
 if (-not $SkipBuild -and -not $IsCrossCompiling) {
+  Invoke-BuildStep Build-SwiftSyntaxExamples $HostArch
   Invoke-BuildStep Build-Inspect $HostArch
   Invoke-BuildStep Build-DocC $HostArch
 }
