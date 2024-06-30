@@ -32,8 +32,10 @@ static const __swift_uint32_t _SwiftKeyPathBufferHeader_TrivialFlag
   = 0x80000000U;
 static const __swift_uint32_t _SwiftKeyPathBufferHeader_HasReferencePrefixFlag
   = 0x40000000U;
+static const __swift_uint32_t _SwiftKeyPathBufferHeader_IsSingleComponentFlag
+  = 0x20000000U;
 static const __swift_uint32_t _SwiftKeyPathBufferHeader_ReservedMask
-  = 0x3F000000U;
+  = 0x1F000000U;
   
 // Bitfields for a key path component header.
 
