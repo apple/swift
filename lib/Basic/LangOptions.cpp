@@ -393,6 +393,10 @@ void LangOptions::setHasAtomicBitWidth(llvm::Triple triple) {
     setMaxAtomicBitWidth(128);
     break;
 
+  case llvm::Triple::ArchType::avr:
+    setMaxAtomicBitWidth(0);
+    break;
+
   default:
     // Some exotic architectures may not support atomics at all. If that's the
     // case please update the switch with your flavor of arch. Otherwise assume
@@ -542,6 +546,7 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
     break;
   case llvm::Triple::ArchType::riscv64:
     addPlatformConditionValue(PlatformConditionKind::Arch, "riscv64");
+    break;
   case llvm::Triple::ArchType::avr:
     addPlatformConditionValue(PlatformConditionKind::Arch, "avr");
     break;
