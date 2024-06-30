@@ -1680,7 +1680,7 @@ void SILGenFunction::emitProfilerIncrement(ProfileCounterRef Ref) {
 
   // If we're at an unreachable point, the increment can be elided as the
   // counter cannot be incremented.
-  if (!B.hasValidInsertionPoint())
+  if (!B.hasValidInsertionPoint() || !getModule().getOptions().GenerateProfile)
     return;
 
   B.createIncrementProfilerCounter(

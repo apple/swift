@@ -144,16 +144,11 @@ static bool shouldProfile(SILDeclRef Constant) {
 }
 
 SILProfiler *SILProfiler::create(SILModule &M, SILDeclRef Ref) {
-  // If profiling isn't enabled, don't profile anything.
-  const auto &Opts = M.getOptions();
-  if (!Opts.GenerateProfile && Opts.UseProfile.empty())
-    return nullptr;
-
   if (!shouldProfile(Ref))
     return nullptr;
 
   auto *Buf = M.allocate<SILProfiler>(1);
-  auto *SP = ::new (Buf) SILProfiler(M, Ref, Opts.EmitProfileCoverageMapping);
+  auto *SP = ::new (Buf) SILProfiler(M, Ref, /*CoverageMapping*/ true);
   SP->assignRegionCounters();
   return SP;
 }
