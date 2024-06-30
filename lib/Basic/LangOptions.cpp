@@ -573,15 +573,11 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   }
 
   // Set the "_pointerBitWidth" platform condition.
-  if (Target.getArch()==llvm::Triple::ArchType::avr) {
-    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_16");
-  } else {
     if (Target.isArch32Bit()) {
       addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_32");
     } else if (Target.isArch64Bit()) {
       addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");
     }
-  }
 
   // Set the "runtime" platform condition.
   addPlatformConditionValue(PlatformConditionKind::Runtime,
