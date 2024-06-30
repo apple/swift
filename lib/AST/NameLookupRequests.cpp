@@ -168,7 +168,7 @@ void HasMissingDesignatedInitializersRequest::cacheResult(bool result) const {
 
 bool
 HasMissingDesignatedInitializersRequest::evaluate(Evaluator &evaluator,
-                                           ClassDecl *subject) const {
+                                                  ClassDecl *subject) const {
   // Short-circuit and check for the attribute here.
   if (subject->getAttrs().hasAttribute<HasMissingDesignatedInitializersAttr>())
     return true;

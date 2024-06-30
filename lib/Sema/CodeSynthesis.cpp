@@ -1238,11 +1238,9 @@ static void addImplicitInheritedConstructorsToClass(ClassDecl *decl) {
     }
 
     // If the superclass initializer is not accessible from the derived
-    // class, don't synthesize an override, since we cannot reference the
-    // superclass initializer's method descriptor at all.
-    //
-    // FIXME: This should be checked earlier as part of calculating
-    // canInheritInitializers.
+    // class, don't synthesize an override, not even a stub, since we
+    // cannot reference the superclass initializer's method descriptor
+    // at all.
     if (!superclassCtor->isAccessibleFrom(decl))
       continue;
 
@@ -1314,6 +1312,21 @@ InheritsSuperclassInitializersRequest::evaluate(Evaluator &eval,
       superclassDecl->hasMissingDesignatedInitializers())
     return false;
 
+  if (hasClangImplementation(decl))
+    return true;
+
+  SmallVector<ConstructorDecl *, 4> nonOverriddenSuperclassCtors;
+  collectNonOveriddenSuperclassInits(decl, nonOverriddenSuperclassCtors);
+
+  // If any designated inits are inaccessible, they cannot be overridden or
+  // inherited, so we cannot inherit convenience inits.
+  for (auto *ctor : nonOverriddenSuperclassCtors) {
+    if (!ctor->isAccessibleFrom(decl,
+                                /*forConformance=*/false,
+                                /*allowUsableFromInline=*/true))
+      return false;
+  }
+
   // If we're allowed to inherit designated initializers, then we can inherit
   // convenience inits too.
   if (canInheritDesignatedInits(eval, decl))
@@ -1321,14 +1334,12 @@ InheritsSuperclassInitializersRequest::evaluate(Evaluator &eval,
 
   // Otherwise we need to check whether the user has overridden all of the
   // superclass' designed inits.
-  SmallVector<ConstructorDecl *, 4> nonOverriddenSuperclassCtors;
-  collectNonOveriddenSuperclassInits(decl, nonOverriddenSuperclassCtors);
+  for (auto *ctor : nonOverriddenSuperclassCtors) {
+    if (ctor->isDesignatedInit())
+      return false;
+  }
 
-  auto allDesignatedInitsOverridden =
-      llvm::none_of(nonOverriddenSuperclassCtors, [](ConstructorDecl *ctor) {
-        return ctor->isDesignatedInit();
-      });
-  return allDesignatedInitsOverridden;
+  return true;
 }
 
 static bool shouldAttemptInitializerSynthesis(const NominalTypeDecl *decl) {

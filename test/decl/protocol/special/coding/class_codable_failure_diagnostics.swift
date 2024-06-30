@@ -120,6 +120,8 @@ class C8 {
     private init?(from: Decoder) {}
 }
 final class C9: C8 {}
+// expected-error@-1 {{class 'C9' has no initializers}}
+
 extension C9: Codable {}
 // expected-error@-1 {{type 'C9' does not conform to protocol 'Decodable'}}
 

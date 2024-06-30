@@ -28,8 +28,9 @@ class InaccessibleNonDecodableSuper {
   private init() {} // expected-note {{cannot automatically synthesize 'init(from:)' because implementation would need to call 'init()', which is inaccessible due to 'private' protection level}}
 }
 
-class InaccessibleNonDecodableSub : InaccessibleNonDecodableSuper, Decodable { // expected-error {{type 'InaccessibleNonDecodableSub' does not conform to protocol 'Decodable'}}
-}
+class InaccessibleNonDecodableSub : InaccessibleNonDecodableSuper, Decodable {}
+// expected-error@-1 {{type 'InaccessibleNonDecodableSub' does not conform to protocol 'Decodable'}}
+// expected-error@-2 {{class 'InaccessibleNonDecodableSub' has no initializers}}
 
 // Non-Decodable superclasses of synthesized Decodable classes must have a
 // non-failable init().
