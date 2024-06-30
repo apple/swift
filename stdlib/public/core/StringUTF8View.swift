@@ -278,9 +278,13 @@ extension String {
     @_effects(readonly) @_semantics("string.getUTF8CString")
     get {
       if _fastPath(_guts.isFastUTF8) {
-        var result = _guts.withFastCChar { ContiguousArray($0) }
-        result.append(0)
-        return result
+        return _guts.withFastCChar {
+          var tmp = ContiguousArray<CChar>()
+          tmp.reserveCapacity($0.count + 1)
+          tmp.append(contentsOf: $0)
+          tmp.append(0)
+          return tmp
+        }
       }
 
       return _slowUTF8CString()
