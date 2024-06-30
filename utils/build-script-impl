@@ -1668,6 +1668,8 @@ for host in "${ALL_HOSTS[@]}"; do
     else
         CLANG_BIN="$(build_directory_bin ${LOCAL_HOST} llvm)"
     fi
+    export SWIFT_DRIVER_CLANG_EXEC="${CLANG_BIN}/clang"
+    export SWIFT_DRIVER_CLANGXX_EXEC="${CLANG_BIN}/clang++"
 
     if [[ "${NATIVE_SWIFT_TOOLS_PATH}" ]] ; then
         SWIFTC_BIN="${NATIVE_SWIFT_TOOLS_PATH}/swiftc"
@@ -2743,6 +2745,8 @@ for host in "${ALL_HOSTS[@]}"; do
     else
         CLANG_BIN="$(build_directory_bin ${LOCAL_HOST} llvm)"
     fi
+    export SWIFT_DRIVER_CLANG_EXEC="${CLANG_BIN}/clang"
+    export SWIFT_DRIVER_CLANGXX_EXEC="${CLANG_BIN}/clang++"
 
     if [[ "${NATIVE_SWIFT_TOOLS_PATH}" ]] ; then
         SWIFTC_BIN="${NATIVE_SWIFT_TOOLS_PATH}/swiftc"
@@ -3021,6 +3025,20 @@ for host in "${ALL_HOSTS[@]}"; do
     if ! [[ $(should_execute_host_actions_for_phase ${host} install) ]]; then
         continue
     fi
+
+    # Have to set the clang path or the driver will try to link with the wrong
+    # clang
+    if [[ "${NATIVE_CLANG_TOOLS_PATH}" ]] ; then
+        CLANG_BIN="${NATIVE_CLANG_TOOLS_PATH}"
+        if [[ ! -f "${CLANG_BIN}/clang" ]] ; then
+            echo "error: clang does not exist at the specified native tools path: ${CLANG_BIN}/clang"
+            exit 1
+        fi
+    else
+        CLANG_BIN="$(build_directory_bin ${LOCAL_HOST} llvm)"
+    fi
+    export SWIFT_DRIVER_CLANG_EXEC="${CLANG_BIN}/clang"
+    export SWIFT_DRIVER_CLANGXX_EXEC="${CLANG_BIN}/clang++"
 
     # Set the build options for this host
     set_build_options_for_host $host
