@@ -30,6 +30,7 @@ add_pure_swift_host_library(swiftASTGen STATIC
   Sources/ASTGen/LegacyParse.swift
   Sources/ASTGen/Literals.swift
   Sources/ASTGen/Macros.swift
+  Sources/ASTGen/PackageAvailableModules.swift
   Sources/ASTGen/ParameterClause.swift
   Sources/ASTGen/Patterns.swift
   Sources/ASTGen/PluginHost.swift

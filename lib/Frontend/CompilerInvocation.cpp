@@ -1070,6 +1070,16 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
     }
   }
 
+  if (const Arg *A = Args.getLastArg(OPT_package_available_modules)) {
+    Opts.PackageAvailableModulesFile = A->getValue();
+  }
+  if (const Arg *A = Args.getLastArg(OPT_package_manifest)) {
+    Opts.PackageManifestFile = A->getValue();
+  }
+  if (const Arg *A = Args.getLastArg(OPT_package_target_name)) {
+    Opts.PackageTargetName = A->getValue();
+  }
+
   if (const Arg *A = Args.getLastArg(OPT_require_explicit_availability_EQ)) {
     StringRef diagLevel = A->getValue();
     if (diagLevel == "warn") {

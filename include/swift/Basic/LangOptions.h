@@ -456,6 +456,17 @@ namespace swift {
     /// The name of the package this module belongs to.
     std::string PackageName;
 
+    /// The path to the package manifest in which this target resides.
+    std::string PackageManifestFile;
+
+    /// The name of the JSON file containing information about modules
+    /// that are visible within the package containing this source file.
+    std::string PackageAvailableModulesFile;
+
+    /// The name of this target within its package manifest. This target
+    /// must be defined in the `PackageManifestFile`.
+    std::string PackageTargetName;
+
     /// Allow importing a non-package interface from the same package.
     bool AllowNonPackageInterfaceImportFromSamePackage = false;
 

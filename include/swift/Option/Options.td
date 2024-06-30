@@ -574,6 +574,15 @@ def package_name : Separate<["-"], "package-name">,
 def export_as : Separate<["-"], "export-as">,
   Flags<[FrontendOption, ModuleInterfaceOption]>,
   HelpText<"Module name to use when referenced in clients module interfaces">;
+def package_available_modules : Separate<["-"], "package-available-modules">,
+  Flags<[FrontendOption, ArgumentIsPath, DoesNotAffectIncrementalBuild]>,
+  HelpText<"JSON file describing the modules that are available within the enclosing package">;
+def package_manifest : Separate<["-"], "package-manifest">,
+  Flags<[FrontendOption, ArgumentIsPath, DoesNotAffectIncrementalBuild]>,
+  HelpText<"The path to the package manifest in which this source file resides">;
+def package_target_name : Separate<["-"], "package-target-name">,
+  Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,
+  HelpText<"The name of the target corresponding to this module within the enclosing package">;
 
 def emit_module : Flag<["-"], "emit-module">,
   Flags<[FrontendOption, NoInteractiveOption, SupplementaryOutput]>,

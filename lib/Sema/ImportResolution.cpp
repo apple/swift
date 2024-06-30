@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "swift-import-resolution"
+#include "swift/AST/ASTBridging.h"
 #include "swift/AST/ASTWalker.h"
 #include "swift/AST/DiagnosticsSema.h"
 #include "swift/AST/ModuleDependencies.h"
@@ -27,6 +28,7 @@
 #include "swift/Basic/Assertions.h"
 #include "swift/Basic/Defer.h"
 #include "swift/Basic/Statistic.h"
+#include "swift/Bridging/ASTGen.h"
 #include "swift/ClangImporter/ClangModule.h"
 #include "swift/Parse/Parser.h"
 #include "swift/Subsystems.h"
@@ -451,6 +453,92 @@ UnboundImport::getTopLevelModule(ModuleDecl *M, SourceFile &SF) {
 }
 
 //===----------------------------------------------------------------------===//
+// MARK: Package manifest editing
+//===----------------------------------------------------------------------===//
+
+extern "C" void *swift_ASTGen_load_available_modules(
+    const char *jsonStart, intptr_t jsonLength);
+extern "C" void swift_ASTGen_destroy_available_modules(void *availableModules);
+
+extern "C" void swift_ASTGen_package_manifest_import_fixit(
+    void *cDiagsPtr,
+    void *availableModules,
+    void *manifestSourceFile,
+    const char *moduleNamePtr, intptr_t moduleNameLength,
+    const char *targetNamePtr, intptr_t targetNameLength);
+
+/// Try to produce a Fix-It that edits the package manifest to introduce a
+/// missing target dependency.
+static void tryPackageManifestFixit(ModuleDecl *importingModule,
+                                    StringRef moduleName,
+                                    SourceLoc importLoc) {
+  ASTContext &ctx = importingModule->getASTContext();
+
+  // Load the package manifest.
+  const auto& packageManifestPath = ctx.LangOpts.PackageManifestFile;
+  if (packageManifestPath.empty())
+    return;
+
+  // Find the package manifest file.
+  SourceManager &sourceMgr = ctx.SourceMgr;
+  auto &fileSystem = *sourceMgr.getFileSystem();
+  auto packageManifestOrError =
+     fileSystem.getBufferForFile(packageManifestPath);
+  if (!packageManifestOrError) {
+    // FIXME: Error.
+    (void)packageManifestOrError.getError();
+    llvm::errs() << "Can't load package manifest: " << packageManifestOrError.getError().message() << "\n";
+    return;
+  }
+
+  // Load the package manifest file.
+  // FIXME: Cache this somewhere.
+  unsigned packageManifestID = sourceMgr.addNewSourceBuffer(
+      std::move(packageManifestOrError.get()));
+  StringRef packageManifestContents =
+      sourceMgr.extractText(sourceMgr.getRangeForBuffer(packageManifestID));
+
+  auto packageManifestSF = new (ctx) SourceFile(
+      *importingModule, SourceFileKind::Library, packageManifestID,
+      SourceFile::getDefaultParsingOptions(ctx.LangOpts));
+
+  auto packageManifestFile = packageManifestSF->getExportedSourceFile();
+
+  // Find the available modules file.
+  if (ctx.LangOpts.PackageAvailableModulesFile.empty())
+    return;
+
+  auto availableModulesFileOrError =
+      fileSystem.getBufferForFile(ctx.LangOpts.PackageAvailableModulesFile);
+  if (!availableModulesFileOrError) {
+    // FIXME: Error.
+    (void)availableModulesFileOrError.getError();
+    llvm::errs() << "Can't load available module file: " << availableModulesFileOrError.getError().message() << "\n";
+    return;
+  }
+
+  // Load the available modules.
+  auto availableModulesBuffer = std::move(availableModulesFileOrError.get());
+  auto availableModules = swift_ASTGen_load_available_modules(
+      availableModulesBuffer->getBufferStart(),
+      availableModulesBuffer->getBufferSize());
+  if (!availableModules)
+    return;
+  SWIFT_DEFER {
+    swift_ASTGen_destroy_available_modules(availableModules);
+  };
+
+  // Try to create the Fix-It.
+  if (ctx.LangOpts.PackageTargetName.empty())
+    return;
+
+  swift_ASTGen_package_manifest_import_fixit(
+      &ctx.Diags, availableModules, packageManifestFile,
+      moduleName.data(), moduleName.size(),
+      ctx.LangOpts.PackageTargetName.data(), ctx.LangOpts.PackageTargetName.size());
+}
+
+//===----------------------------------------------------------------------===//
 // MARK: Implicit imports
 //===----------------------------------------------------------------------===//
 
@@ -482,6 +570,9 @@ static void diagnoseNoSuchModule(ModuleDecl *importingModule,
       diagKind = diag::sema_no_import_repl;
     ctx.Diags.diagnose(importLoc, diagKind, modulePathStr);
     tryStdlibFixit(ctx, modulePathStr, importLoc);
+    if (!ctx.LangOpts.PackageAvailableModulesFile.empty()) {
+      tryPackageManifestFixit(importingModule, modulePathStr, importLoc);
+    }
   }
 
   if (ctx.SearchPathOpts.getSDKPath().empty() &&

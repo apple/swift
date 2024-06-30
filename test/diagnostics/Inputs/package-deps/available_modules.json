@@ -1,0 +1,10 @@
+{
+  "modules" : {
+    "Testing" : {
+      "product" : {
+        "name" : "Testing",
+        "package" : "swift-testing"
+      }
+    }
+  }
+}
