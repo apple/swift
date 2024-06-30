@@ -141,12 +141,13 @@ extension _ArrayBufferProtocol {
       initializing: newBuffer.firstElementAddress)
     self = Self( _buffer: newBuffer, shiftedToStartIndex: buffer.startIndex)
   }
-
+  
   @inlinable
   internal mutating func replaceSubrange<C>(
     _ subrange: Range<Int>,
     with newCount: Int,
-    elementsOf newValues: __owned C
+    elementsOf newValues: __owned C,
+    holeAlreadyPunched: Bool
   ) where C: Collection, C.Element == Element {
     _internalInvariant(startIndex == 0, "_SliceBuffer should override this function.")
     let elements = self.firstElementAddress
@@ -155,8 +156,11 @@ extension _ArrayBufferProtocol {
     let holeStart = elements + subrange.lowerBound
     let holeEnd = holeStart + newCount
     let eraseCount = subrange.count
-    holeStart.deinitialize(count: eraseCount)
-
+    
+    if !holeAlreadyPunched {
+      holeStart.deinitialize(count: eraseCount)
+    }
+    
     let growth = newCount - eraseCount
 
     if growth != 0 {
@@ -189,5 +193,18 @@ extension _ArrayBufferProtocol {
         _expectEnd(of: newValues, is: i)
       }
     }
+  }
+
+  @inlinable
+  internal mutating func replaceSubrange<C>(
+    _ subrange: Range<Int>,
+    with newCount: Int,
+    elementsOf newValues: __owned C
+  ) where C: Collection, C.Element == Element {
+    replaceSubrange(
+      subrange,
+      with: newCount,
+      elementsOf: newValues,
+      holeAlreadyPunched: false)
   }
 }

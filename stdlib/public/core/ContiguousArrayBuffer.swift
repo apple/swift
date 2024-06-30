@@ -870,6 +870,53 @@ internal struct _ContiguousArrayBuffer<Element>: _ArrayBufferProtocol {
     }
     return newBuffer
   }
+  
+  @_alwaysEmitIntoClient
+  @inline(never)
+  @_semantics("optimize.sil.specialize.owned2guarantee.never")
+  internal __consuming func _consumeAndCreateNew(
+    bufferIsUnique: Bool, 
+    minimumCapacity: Int,
+    growForAppend: Bool,
+    rangeToNotCopy: Range<Int>
+  ) -> _ContiguousArrayBuffer {
+    let newCapacity = _growArrayCapacity(oldCapacity: capacity,
+                                         minimumCapacity: minimumCapacity,
+                                         growForAppend: growForAppend)
+    let c = count
+    _internalInvariant(newCapacity >= c)
+    
+    let newBuffer = _ContiguousArrayBuffer<Element>(
+      _uninitializedCount: c, minimumCapacity: newCapacity)
+    let dest = newBuffer.mutableFirstElementAddress
+    let offset = MemoryLayout<Element>.stride * rangeToNotCopy.upperBound
+
+    if bufferIsUnique {
+      // As an optimization, if the original buffer is unique, we can just move
+      // the elements instead of copying.
+      if rangeToNotCopy.lowerBound > 0 {
+        dest.moveInitialize(from: firstElementAddress,
+                            count: (0 ..< rangeToNotCopy.lowerBound).count)
+      }
+      if rangeToNotCopy.upperBound < c {
+        dest.moveInitialize(from: firstElementAddress + offset,
+                            count: (rangeToNotCopy.upperBound ..< c).count)
+      }
+      mutableCount = 0
+    } else {
+      if rangeToNotCopy.lowerBound > 0 {
+        _copyContents(
+          subRange: 0 ..< rangeToNotCopy.lowerBound,
+          initializing: dest)
+      }
+      if rangeToNotCopy.upperBound < c {
+        _copyContents(
+          subRange: rangeToNotCopy.upperBound ..< c,
+          initializing: dest + offset)
+      }
+    }
+    return newBuffer
+  }
 
 #if _runtime(_ObjC)
   

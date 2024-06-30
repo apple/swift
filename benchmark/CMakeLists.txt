@@ -38,6 +38,7 @@ set(SWIFT_BENCH_MODULES
     single-source/ArrayOfPOD
     single-source/ArrayOfRef
     single-source/ArrayRemoveAll
+    Single-source/ArrayRRC
     single-source/ArraySetElement
     single-source/ArraySubscript
     single-source/AsyncTree
