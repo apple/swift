@@ -40,7 +40,7 @@ final class NaiveOnMainQueueExecutor: SerialExecutor {
     UnownedSerialExecutor(complexEquality: self)
   }
 
-  public func checkIsolated() {
+  public func checkIsolated() throws {
     print("\(Self.self).checkIsolated...")
     dispatchPrecondition(condition: .onQueue(self.mainQueue))
   }

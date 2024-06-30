@@ -62,9 +62,17 @@ static void swift_task_enqueueMainExecutorImpl(Job *job) {
                        "swift_task_enqueueMainExecutor");
 }
 
+// DEPRECATED. Replace with SwiftError returning version.
 SWIFT_CC(swift)
 static void swift_task_checkIsolatedImpl(SerialExecutorRef executor) {
   _task_serialExecutor_checkIsolated(
+      executor.getIdentity(), swift_getObjectType(executor.getIdentity()),
+      executor.getSerialExecutorWitnessTable());
+}
+
+SWIFT_CC(swift)
+static SwiftError* swift_serialExecutor_checkIsolatedErrorImpl(SerialExecutorRef executor) {
+  return _task_serialExecutor_checkIsolatedError(
       executor.getIdentity(), swift_getObjectType(executor.getIdentity()),
       executor.getSerialExecutorWitnessTable());
 }

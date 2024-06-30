@@ -18,7 +18,8 @@
 ///   swift_task_enqueueGlobalImpl
 ///   swift_task_enqueueGlobalWithDelayImpl
 ///   swift_task_enqueueMainExecutorImpl
-///   swift_task_checkIsolated
+///   swift_task_checkIsolatedImpl
+///   swift_serialExecutor_checkIsolatedErrorImpl
 /// as well as any Dispatch-specific functions for the runtime.
 ///
 ///===------------------------------------------------------------------===///
@@ -447,4 +448,30 @@ static void swift_task_checkIsolatedImpl(SerialExecutorRef executor) {
   // otherwise, we have no way to check, so report an error
   // TODO: can we swift_getTypeName(swift_getObjectType(executor.getIdentity()), false).data safely in the message here?
   swift_Concurrency_fatalError(0, "Incorrect actor executor assumption");
+}
+
+SWIFT_CC(swift)
+static SwiftError* swift_serialExecutor_checkIsolatedErrorImpl(SerialExecutorRef executor) {
+  // We're not able to special case the main executor; it must implement SerialExecutor and go through checkIsolated
+  // if (executor.isMainExecutor()) {
+  // dispatch_assert_queue(dispatch_get_main_queue());
+  //   return;
+  // }
+
+  // if able to, use the checkIsolated implementation in Swift
+  if (executor.hasSerialExecutorWitnessTable()) { // FIXME: what if it's not...
+    fprintf(stderr, "[%s:%d](%s) NO serial executor?\n", __FILE_NAME__, __LINE__, __FUNCTION__);
+    return _task_serialExecutor_checkIsolatedError(
+        executor.getIdentity(), swift_getObjectType(executor.getIdentity()),
+        executor.getSerialExecutorWitnessTable());
+  }
+
+  // We cannot write the code to check "is this the right queue" in Swift, we can only rely on SerialExecutor's checkIsolated error throwing
+  // if (auto queue = getAsDispatchSerialQueue(executor)) {
+  //   dispatch_assert_queue(queue);
+  //   return;
+  // }
+
+  // TODO: pass the expected executor here so error message can include it.
+  return swift_serialExecutor_makeUnexpectedExecutorError();
 }

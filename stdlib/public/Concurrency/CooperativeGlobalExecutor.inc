@@ -142,6 +142,13 @@ static void swift_task_checkIsolatedImpl(SerialExecutorRef executor) {
       executor.getSerialExecutorWitnessTable());
 }
 
+SWIFT_CC(swift)
+static SwiftError* swift_serialExecutor_checkIsolatedErrorImpl(SerialExecutorRef executor) {
+  return _task_serialExecutor_checkIsolatedError(
+      executor.getIdentity(), swift_getObjectType(executor.getIdentity()),
+      executor.getSerialExecutorWitnessTable());
+}
+
 /// Insert a job into the cooperative global queue with a delay.
 SWIFT_CC(swift)
 static void swift_task_enqueueGlobalWithDelayImpl(JobDelay delay,

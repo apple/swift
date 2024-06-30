@@ -715,10 +715,17 @@ void swift_task_enqueue(Job *job, SerialExecutorRef executor);
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_enqueueGlobal(Job *job);
 
+/// DEPRECATED. Use Error returning version instead.
+///
 /// Invoke an executor's `checkIsolated` or otherwise equivalent API,
 /// that will crash if the current executor is NOT the passed executor.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_checkIsolated(SerialExecutorRef executor);
+
+/// Invoke an executor's `checkIsolated` or otherwise equivalent API,
+/// that will return an Error if the current executor is NOT the passed executor.
+SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
+SwiftError* swift_serialExecutor_checkIsolatedError(SerialExecutorRef executor);
 
 /// A count in nanoseconds.
 using JobDelay = unsigned long long;
@@ -789,10 +796,16 @@ SWIFT_CC(swift) void (*swift_task_enqueueGlobalWithDeadline_hook)(
     int clock, Job *job,
     swift_task_enqueueGlobalWithDeadline_original original);
 
+// Deprecated. Use swift_serialExecutor_checkIsolatedError instead.
 typedef SWIFT_CC(swift) void (*swift_task_checkIsolated_original)(SerialExecutorRef executor);
 SWIFT_EXPORT_FROM(swift_Concurrency)
 SWIFT_CC(swift) void (*swift_task_checkIsolated_hook)(
     SerialExecutorRef executor, swift_task_checkIsolated_original original);
+
+typedef SWIFT_CC(swift) SwiftError* (*swift_serialExecutor_checkIsolatedError_original)(SerialExecutorRef executor);
+SWIFT_EXPORT_FROM(swift_Concurrency)
+SWIFT_CC(swift) SwiftError* (*swift_serialExecutor_checkIsolatedError_hook)(
+    SerialExecutorRef executor, swift_serialExecutor_checkIsolatedError_original original);
 
 
 typedef SWIFT_CC(swift) bool (*swift_task_isOnExecutor_original)(
@@ -971,8 +984,12 @@ SerialExecutorRef swift_task_getMainExecutor(void);
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 TaskExecutorRef swift_task_getPreferredTaskExecutor(void);
 
+// DEPRECATED. Prefer swift_task_checkCurrentExecutor.
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 bool swift_task_isCurrentExecutor(SerialExecutorRef executor);
+
+SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
+SwiftError* swift_task_checkCurrentExecutor(SerialExecutorRef executor);
 
 SWIFT_EXPORT_FROM(swift_Concurrency) SWIFT_CC(swift)
 void swift_task_reportUnexpectedExecutor(

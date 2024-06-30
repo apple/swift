@@ -1,4 +1,7 @@
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking %import-libdispatch -parse-as-library )
+// RUN: %empty-directory(%t)
+// RUN: %target-build-swift -Xfrontend -disable-availability-checking %import-libdispatch -parse-as-library %s -o %t/a.out
+// RUN: %target-codesign %t/a.out
+// RUN: %env-SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=legacy %target-run %t/a.out
 
 // REQUIRES: executable_test
 // REQUIRES: concurrency
@@ -27,14 +30,11 @@ final class NaiveQueueExecutor: TaskExecutor, SerialExecutor {
     }
   }
 
-<<<<<<< Updated upstream:test/Concurrency/Runtime/async_task_executor_and_serial_executor_nonisolated_async_func.swift
-=======
   public func checkIsolated() throws {
     print("\(Self.self).\(#function)")
     dispatchPrecondition(condition: .onQueue(self.queue))
   }
 
->>>>>>> Stashed changes:test/Concurrency/Runtime/async_task_executor_and_serial_executor_nonisolated_async_func_swift6.swift
   @inlinable
   public func asUnownedSerialExecutor() -> UnownedSerialExecutor {
     UnownedSerialExecutor(complexEquality: self)
@@ -48,22 +48,28 @@ final class NaiveQueueExecutor: TaskExecutor, SerialExecutor {
 
 nonisolated func nonisolatedFunc(expectedExecutor: NaiveQueueExecutor) async {
   dispatchPrecondition(condition: .onQueue(expectedExecutor.queue))
-  expectedExecutor.assertIsolated()
+  expectedExecutor.preconditionIsolated()
 }
 
-actor Worker {
-  let executor: NaiveQueueExecutor
+actor DefaultActor {
 
-  init(on executor: NaiveQueueExecutor) {
-    self.executor = executor
-  }
+  func testWithTaskExecutorPreferenceTask(_ expectedExecutor: NaiveQueueExecutor) async {
+    withUnsafeCurrentTask { task in
+      precondition(task?.unownedTaskExecutor != nil, "This test expects to be called with a task executor preference")
+    }
 
-  func test(_ expectedExecutor: NaiveQueueExecutor) async {
-    // we are isolated to the serial-executor (!)
+    // we always must be on the "self" isolation context
+    self.preconditionIsolated() // baseline soundness check
+
+    // we are on this queue because we were invoked with a task executor preference
     dispatchPrecondition(condition: .onQueue(expectedExecutor.queue))
-    expectedExecutor.preconditionIsolated()
 
-    // the nonisolated async func properly executes on the task-executor
+    // The following precondition would, we are isolated to the 'default actor',
+    // and without calling 'checkIsolated' in this legacy mode,
+    // we can't know that it's "actually the same queue"
+    //     expectedExecutor.preconditionIsolated()
+
+    // calling a nonisolated async func properly executes on the task-executor
     await nonisolatedFunc(expectedExecutor: expectedExecutor)
 
     // the task-executor preference is inherited properly:
@@ -79,21 +85,29 @@ actor Worker {
       dispatchPrecondition(condition: .notOnQueue(expectedExecutor.queue))
     }.value
 
+    _ = await Task.detached {
+      dispatchPrecondition(condition: .notOnQueue(expectedExecutor.queue))
+    }.value
+
     // we properly came back to the serial executor, just to make sure
     dispatchPrecondition(condition: .onQueue(expectedExecutor.queue))
-    expectedExecutor.preconditionIsolated()
+
+    // The following precondition would, we are isolated to the 'default actor',
+    // and without calling 'checkIsolated' in this legacy mode,
+    // we can't know that it's "actually the same queue"
+    //     expectedExecutor.preconditionIsolated()
   }
 }
 
 @main struct Main {
 
   static func main() async {
-    let queue = DispatchQueue(label: "example-queue")
-    let executor = NaiveQueueExecutor(queue)
+    let executor = NaiveQueueExecutor(DispatchQueue(label: "example-queue"))
+
+    let actor = DefaultActor()
 
     await Task(executorPreference: executor) {
-      let worker = Worker(on: executor)
-      await worker.test(executor)
+      await actor.testWithTaskExecutorPreferenceTask(executor)
     }.value
   }
 }

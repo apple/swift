@@ -23,7 +23,7 @@ import Dispatch
 
 // FIXME(concurrency): Dispatch should provide such implementation
 extension DispatchQueue { // which includes DispatchSerialQueue, when a platform has it
-  public func checkIsolated() {
+  public func checkIsolated() throws {
     dispatchPrecondition(condition: .onQueue(self))
   }
 }
@@ -49,7 +49,7 @@ final class NaiveQueueExecutor: SerialExecutor {
     UnownedSerialExecutor(ordinary: self)
   }
 
-  func checkIsolated() {
+  func checkIsolated() throws {
     self.queue.checkIsolated()
   }
 }

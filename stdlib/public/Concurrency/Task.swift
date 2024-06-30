@@ -1275,6 +1275,11 @@ func _taskCreateNullaryContinuationJob(priority: Int, continuation: Builtin.RawU
 @_silgen_name("swift_task_isCurrentExecutor")
 func _taskIsCurrentExecutor(_ executor: Builtin.Executor) -> Bool
 
+@available(SwiftStdlib 6.0, *)
+@usableFromInline
+@_silgen_name("swift_task_checkCurrentExecutor")
+func _taskCheckCurrentExecutor(_ executor: Builtin.Executor) -> (any Error)?
+
 @available(SwiftStdlib 5.1, *)
 @usableFromInline
 @_silgen_name("swift_task_reportUnexpectedExecutor")

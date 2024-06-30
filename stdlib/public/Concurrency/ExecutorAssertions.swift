@@ -115,6 +115,18 @@ extension Actor {
         "Incorrect actor executor assumption; Expected '\(self.unownedExecutor)' executor. \(message())",
         file: file, line: line)
   }
+
+
+  @available(SwiftStdlib 6.0, *)
+  @_unavailableInEmbedded
+  public nonisolated func checkIsolated() throws {
+    // FIXME: this can't backdeploy since we need a new signature.
+    guard let error = _taskCheckCurrentExecutor(self.unownedExecutor.executor) else {
+      return
+    }
+
+    throw error
+  }
 }
 
 @available(SwiftStdlib 5.1, *)
@@ -297,6 +309,26 @@ extension GlobalActor {
 
 // ==== -----------------------------------------------------------------------
 // MARK: Assume Executor
+
+@available(SwiftStdlib 6.0, *)
+@_silgen_name("swift_serialExecutor_makeUnexpectedExecutorError")
+@_unavailableInEmbedded
+internal // SPI Concurrency
+func _makeSerialExecutorUnexpectedExecutorError() -> any Error {
+  // TODO: can this include the expected type name? We need to pass it in, and file and line no maybe too
+  UnexpectedSerialExecutorError(message: "Unexpected SerialExecutor!")
+}
+
+/// Thrown by ``Actor/checkIsolated``
+public struct UnexpectedSerialExecutorError: Error {
+  // TODO: file and line as well?
+  let message: String
+
+  internal init(message: String) {
+    self.message = message
+  }
+}
+
 
 @available(SwiftStdlib 5.1, *)
 extension Actor {

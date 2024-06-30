@@ -316,6 +316,10 @@ Added: _$sScf13checkIsolatedyyFTj
 // method descriptor for Swift.SerialExecutor.checkIsolated() -> ()
 Added: _$sScf13checkIsolatedyyFTq
 
+// === 'SerialExecutor.checkIsolated() throws'
+Added: _swift_serialExecutor_checkIsolatedError
+Added: _swift_serialExecutor_checkIsolatedError_hook
+
 // #isolated adoption in multiple APis
 // withTaskCancellationHandler gains #isolated
 Added: _$ss27withTaskCancellationHandler9operation8onCancel9isolationxxyYaKXE_yyYbXEScA_pSgYitYaKlF

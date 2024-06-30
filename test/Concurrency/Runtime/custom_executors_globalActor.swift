@@ -24,7 +24,7 @@ final class NaiveQueueExecutor: SerialExecutor {
     return UnownedSerialExecutor(ordinary: self)
   }
 
-  func checkIsolated() {
+  func checkIsolated() throws {
     // ok
   }
 }

@@ -92,6 +92,13 @@ swift_task_checkIsolated_override(SerialExecutorRef executor,
 }
 
 SWIFT_CC(swift)
+static SwiftError*
+swift_serialExecutor_checkIsolatedError_override(SerialExecutorRef executor,
+                                       swift_serialExecutor_checkIsolatedError_original original) {
+  Ran = true;
+}
+
+SWIFT_CC(swift)
 static void swift_task_enqueueGlobalWithDelay_override(
     unsigned long long delay, Job *job,
     swift_task_enqueueGlobalWithDelay_original original) {
@@ -139,6 +146,8 @@ protected:
         swift_task_enqueueMainExecutor_override;
     swift_task_checkIsolated_hook =
         swift_task_checkIsolated_override;
+    swift_serialExecutor_checkIsolatedError_hook =
+        swift_serialExecutor_checkIsolatedError_override;
 #ifdef RUN_ASYNC_MAIN_DRAIN_QUEUE_TEST
     swift_task_asyncMainDrainQueue_hook =
         swift_task_asyncMainDrainQueue_override_fn;
@@ -194,6 +203,11 @@ TEST_F(CompatibilityOverrideConcurrencyTest,
 TEST_F(CompatibilityOverrideConcurrencyTest,
        test_swift_task_checkIsolated) {
   swift_task_checkIsolated(SerialExecutorRef::generic());
+}
+
+TEST_F(CompatibilityOverrideConcurrencyTest,
+       test_swift_serialExecutor_checkIsolatedError) {
+  swift_serialExecutor_checkIsolatedError(SerialExecutorRef::generic());
 }
 
 TEST_F(CompatibilityOverrideConcurrencyTest,

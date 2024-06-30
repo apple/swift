@@ -136,6 +136,10 @@ OVERRIDE_ACTOR(task_isCurrentExecutor, bool,
                SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
                swift::, (SerialExecutorRef executor), (executor))
 
+OVERRIDE_ACTOR(task_checkCurrentExecutor, SwiftError*,
+               SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swift),
+               swift::, (SerialExecutorRef executor), (executor))
+
 OVERRIDE_ACTOR(task_switch, void,
                SWIFT_EXPORT_FROM(swift_Concurrency), SWIFT_CC(swiftasync),
                swift::, (SWIFT_ASYNC_CONTEXT AsyncContext *resumeToContext,

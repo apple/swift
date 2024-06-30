@@ -420,8 +420,11 @@ static bool swift_task_isCurrentExecutorImpl(SerialExecutorRef expectedExecutor)
     if (isCurrentExecutorMode == Swift6_UseCheckIsolated_AllowCrash) {
       swift_task_checkIsolated(expectedExecutor); // will crash if not same context
 
+      // TODO(checkIsolationError): see how to make use of the new call here.
+      auto error = swift_serialExecutor_checkIsolatedError(expectedExecutor); // will crash if not same context
+
       // checkIsolated did not crash, so we are on the right executor, after all!
-      return true;
+      return error == nullptr;
     }
 
     assert(isCurrentExecutorMode == Legacy_NoCheckIsolated_NonCrashing);
@@ -511,14 +514,125 @@ static bool swift_task_isCurrentExecutorImpl(SerialExecutorRef expectedExecutor)
   if (isCurrentExecutorMode == Swift6_UseCheckIsolated_AllowCrash) {
     swift_task_checkIsolated(expectedExecutor); // will crash if not same context
 
+    // TODO(checkIsolationError): finish hooking this up ONLY this way and re-throw
+    auto error = swift_serialExecutor_checkIsolatedError(expectedExecutor); // will crash if not same context
+
     // The checkIsolated call did not crash, so we are on the right executor.
-    return true;
+    return error == nullptr;
   }
 
   // In the end, since 'checkIsolated' could not be used, so we must assume
   // that the executors are not the same context.
   assert(isCurrentExecutorMode == Legacy_NoCheckIsolated_NonCrashing);
   return false;
+}
+
+SWIFT_CC(swift)
+static SwiftError*
+swift_task_checkCurrentExecutorImpl(SerialExecutorRef expectedExecutor) {
+  auto current = ExecutorTrackingInfo::current();
+
+  if (!current) {
+    // We have no current executor, i.e. we are running "outside" of Swift
+    // Concurrency. We could still be running on a thread/queue owned by
+    // the expected executor however, so we need to try a bit harder before
+    // we fail.
+
+    // Special handling the main executor by detecting the main thread.
+    if (expectedExecutor.isMainExecutor() && isExecutingOnMainThread()) {
+      return nullptr;
+    }
+
+    // We cannot use 'complexEquality' as it requires two executor instances,
+    // and we do not have a 'current' executor here.
+
+    // Otherwise, as last resort, let the expected executor check using
+    // external means, as it may "know" this thread is managed by it etc.
+    return swift_serialExecutor_checkIsolatedError(expectedExecutor);
+  }
+
+  SerialExecutorRef currentExecutor = current->getActiveExecutor();
+
+  // Fast-path: the executor is exactly the same memory address;
+  // We assume executors do not come-and-go appearing under the same address,
+  // and treat pointer equality of executors as good enough to assume the executor.
+  if (currentExecutor == expectedExecutor) {
+    return nullptr;
+  }
+
+  // Fast-path, specialize the common case of comparing two main executors.
+  if (currentExecutor.isMainExecutor() && expectedExecutor.isMainExecutor()) {
+    return nullptr;
+  }
+
+  // Only in legacy mode:
+  // We check if the current xor expected executor are the main executor.
+  // If so only one of them is, we know that WITHOUT 'checkIsolated' or invoking
+  // 'dispatch_assert_queue' we cannot be truly sure the expected/current truly
+  // are "on the same queue". There exists no non-crashing API to check this,
+  // so we PESSIMISTICALLY return false here.
+  //
+  // In Swift6 mode:
+  // We don't do this naive check, because we'll fall back to
+  // `expected.checkIsolated()` which, if it is the main executor, will invoke
+  // the crashing 'dispatch_assert_queue(main queue)' which will either crash
+  // or confirm we actually are on the main queue; or the custom expected
+  // executor has a chance to implement a similar queue check.
+//  if (isCurrentExecutorMode == Legacy_NoCheckIsolated_NonCrashing) {
+//    if ((expectedExecutor.isMainExecutor() && !currentExecutor.isMainExecutor()) ||
+//        (!expectedExecutor.isMainExecutor() && currentExecutor.isMainExecutor())) {
+//      return false;
+//    }
+//  }
+
+  // Complex equality means that if two executors of the same type have some
+  // special logic to check if they are "actually the same".
+  if (expectedExecutor.isComplexEquality()) {
+    if (currentExecutor.getIdentity() &&
+        expectedExecutor.getIdentity() &&
+        swift_compareWitnessTables(
+            reinterpret_cast<const WitnessTable *>(
+                currentExecutor.getSerialExecutorWitnessTable()),
+            reinterpret_cast<const WitnessTable *>(
+                expectedExecutor.getSerialExecutorWitnessTable()))) {
+
+      auto isSameExclusiveExecutionContextResult =
+          _task_serialExecutor_isSameExclusiveExecutionContext(
+              currentExecutor.getIdentity(), expectedExecutor.getIdentity(),
+              swift_getObjectType(currentExecutor.getIdentity()),
+              expectedExecutor.getSerialExecutorWitnessTable());
+
+      // if the 'isSameExclusiveExecutionContext' returned true we trust
+      // it and return; if it was false, we need to give checkIsolated another
+      // chance to check.
+      if (isSameExclusiveExecutionContextResult) {
+        return nullptr;
+      } // else, we must give 'checkIsolatedError' a last chance to verify isolation
+    }
+  }
+
+  // This provides a last-resort check by giving the expected SerialExecutor the
+  // chance to perform a check using some external knowledge if perhaps we are,
+  // after all, on this executor, but the Swift concurrency runtime was just not
+  // aware.
+  //
+  // Unless handled in `swift_task_checkIsolated` directly, this should call
+  // through to the executor's `SerialExecutor.checkIsolated`.
+  //
+  // This call is expected to CRASH, unless it has some way of proving that
+  // we're actually indeed running on this executor.
+  //
+  // For example, when running outside of Swift concurrency tasks, but trying to
+  // `MainActor.assumeIsolated` while executing DIRECTLY on the main dispatch
+  // queue, this allows Dispatch to check for this using its own tracking
+  // mechanism, and thus allow the assumeIsolated to work correctly, even though
+  // the code executing is not even running inside a Task.
+  //
+  // Note that this only works because the closure in assumeIsolated is
+  // synchronous, and will not cause suspensions, as that would require the
+  // presence of a Task.
+  fprintf(stderr, "[%s:%d](%s) call checkIsolatedError\n", __FILE_NAME__, __LINE__, __FUNCTION__);
+  return swift_serialExecutor_checkIsolatedError(expectedExecutor); // will crash if not same context
 }
 
 /// Logging level for unexpected executors:

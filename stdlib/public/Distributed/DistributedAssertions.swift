@@ -204,3 +204,8 @@ extension DistributedActor {
 @usableFromInline
 @_silgen_name("swift_task_isCurrentExecutor")
 func _taskIsCurrentExecutor(_ executor: Builtin.Executor) -> Bool
+
+@available(SwiftStdlib 6.0, *)
+@usableFromInline
+@_silgen_name("swift_task_checkCurrentExecutor")
+func _taskCheckCurrentExecutor(_ executor: Builtin.Executor) -> (any Error)?

@@ -90,16 +90,32 @@ SWIFT_CC(swift)
 void (*swift::swift_task_enqueueMainExecutor_hook)(
     Job *job, swift_task_enqueueMainExecutor_original original) = nullptr;
 
+// DEPRECATED. Replacing with Error returning version
 SWIFT_CC(swift)
 void (*swift::swift_task_checkIsolated_hook)(
     SerialExecutorRef executor,
     swift_task_checkIsolated_original original) = nullptr;
 
-extern "C" SWIFT_CC(swift)
-    void _task_serialExecutor_checkIsolated(
-        HeapObject *executor,
-        const Metadata *selfType,
-        const SerialExecutorWitnessTable *wtable);
+// DEPRECATED. Replacing with Error returning version
+SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+void _task_serialExecutor_checkIsolated(
+    HeapObject *executor,
+    const Metadata *selfType,
+    const SerialExecutorWitnessTable *wtable);
+
+SWIFT_CC(swift)
+SwiftError* (*swift::swift_serialExecutor_checkIsolatedError_hook)(
+    SerialExecutorRef executor,
+    swift_serialExecutor_checkIsolatedError_original original) = nullptr;
+
+SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+SwiftError* _task_serialExecutor_checkIsolatedError(
+    HeapObject *executor,
+    const Metadata *selfType,
+    const SerialExecutorWitnessTable *wtable);
+
+SWIFT_CC(swift) SWIFT_RUNTIME_STDLIB_INTERNAL
+    SwiftError* swift_serialExecutor_makeUnexpectedExecutorError();
 
 #if SWIFT_CONCURRENCY_COOPERATIVE_GLOBAL_EXECUTOR
 #include "CooperativeGlobalExecutor.inc"
@@ -148,6 +164,13 @@ void swift::swift_task_checkIsolated(SerialExecutorRef executor) {
     swift_task_checkIsolated_hook(executor, swift_task_checkIsolatedImpl);
   else
     swift_task_checkIsolatedImpl(executor);
+}
+
+SwiftError* swift::swift_serialExecutor_checkIsolatedError(SerialExecutorRef executor) {
+  if (swift_serialExecutor_checkIsolatedError_hook)
+    return swift_serialExecutor_checkIsolatedError_hook(executor, swift_serialExecutor_checkIsolatedErrorImpl);
+  else
+    return swift_serialExecutor_checkIsolatedErrorImpl(executor);
 }
 
 // Implemented in Swift because we need to obtain the user-defined flags on the executor ref.

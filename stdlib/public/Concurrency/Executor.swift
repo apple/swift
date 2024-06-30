@@ -192,7 +192,7 @@ public protocol SerialExecutor: Executor {
   /// - Warning: This method must crash and halt program execution if unable
   ///     to prove the isolation of the calling context.
   @available(SwiftStdlib 6.0, *)
-  func checkIsolated()
+  func checkIsolated() throws // FIXME: Figure out how to roll out; can we replace the signature with throwing after all before 6.0 ships?
 
 }
 
@@ -200,9 +200,10 @@ public protocol SerialExecutor: Executor {
 extension SerialExecutor {
 
   @available(SwiftStdlib 6.0, *)
-  public func checkIsolated() {
+  public func checkIsolated() throws {
     #if !$Embedded
-    fatalError("Unexpected isolation context, expected to be executing on \(Self.self)")
+    // fatalError("Unexpected isolation context, expected to be executing on \(Self.self)")
+    throw UnexpectedSerialExecutorError(message: "Unexpected isolation context, expected to be executing on \(self)")
     #else
     Builtin.int_trap()
     #endif
@@ -478,11 +479,25 @@ internal func _task_serialExecutor_isSameExclusiveExecutionContext<E>(current cu
   currentExecutor.isSameExclusiveExecutionContext(other: executor)
 }
 
+// DEPRECATED. Replacing crashing version with throwing version.
+// Used by the Swift concurrency runtime to invoke ``SerialExecutor/checkIsolated``.
 @available(SwiftStdlib 6.0, *)
 @_silgen_name("_task_serialExecutor_checkIsolated")
 internal func _task_serialExecutor_checkIsolated<E>(executor: E)
     where E: SerialExecutor {
-  executor.checkIsolated()
+    try! executor.checkIsolated()
+}
+
+@available(SwiftStdlib 6.0, *)
+@_silgen_name("_task_serialExecutor_checkIsolatedError")
+internal func _task_serialExecutor_checkIsolatedError<E>(executor: E) -> (any Error)?
+    where E: SerialExecutor {
+  do {
+    try executor.checkIsolated()
+    return nil
+  } catch {
+    return error
+  }
 }
 
 /// Obtain the executor ref by calling the executor's `asUnownedSerialExecutor()`.
