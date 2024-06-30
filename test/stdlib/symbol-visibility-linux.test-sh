@@ -256,6 +256,13 @@
 // RUN:             -e _ZNSt8__detail9__variant15__erased_assignIRSt9monostateOS2_EEvPvS5_ \
 // RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE15_M_replace_coldEPcmPKcmm \
 // RUN:             -e _ZSt12__str_concatINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEET_PKNS6_10value_typeENS6_9size_typeES9_SA_RKNS6_14allocator_typeE \
+// RUN:             -e _ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE17_M_realloc_appendIJS5_EEEvDpOT_ \
+// RUN:             -e _ZNSt6vectorISt10unique_ptrIKvSt8functionIFvPS1_EEESaIS6_EE17_M_realloc_appendIJS6_EEEvDpOT_ \
+// RUN:             -e _ZNSt6vectorISt8optionalISt4pairINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEbEESaIS9_EE17_M_realloc_appendIJRKS9_EEEvDpOT_ \
+// RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE22__resize_and_overwriteIZNS_9to_stringEiEUlPcmE_EEvmT_ \
+// RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE22__resize_and_overwriteIZNS_9to_stringEjEUlPcmE_EEvmT_ \
+// RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE22__resize_and_overwriteIZNS_9to_stringEmEUlPcmE_EEvmT_ \
+// RUN:              -e _ZNSt10_HashtableImSt4pairIKmSt8optionalINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEESaISA_ENSt8__detail10_Select1stESt8equal_toImESt4hashImENSC_18_Mod_range_hashingENSC_20_Default_ranged_hashENSC_20_Prime_rehash_policyENSC_17_Hashtable_traitsILb0ELb0ELb1EEEE9_M_rehashEmSt17integral_constantIbLb1EE \
 // RUN:   > %t/swiftCore-all.txt
 // RUN: %llvm-nm --defined-only --extern-only --no-weak %platform-dylib-dir/%target-library-name(swiftCore) > %t/swiftCore-no-weak.txt
 // RUN: diff -u %t/swiftCore-all.txt %t/swiftCore-no-weak.txt
@@ -516,6 +523,13 @@
 // RUN:             -e _ZNSt10_HashtableImSt4pairIKmSt8optionalISsEESaIS4_ENSt8__detail10_Select1stESt8equal_toImESt4hashImENS6_18_Mod_range_hashingENS6_20_Default_ranged_hashENS6_20_Prime_rehash_policyENS6_17_Hashtable_traitsILb0ELb0ELb1EEEE13_M_rehash_auxEmSt17integral_constantIbLb1EE \
 // RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE15_M_replace_coldEPcmPKcmm \
 // RUN:             -e _ZSt12__str_concatINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEET_PKNS6_10value_typeENS6_9size_typeES9_SA_RKNS6_14allocator_typeE \
+// RUN:             -e _ZNSt6vectorINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESaIS5_EE17_M_realloc_appendIJS5_EEEvDpOT_ \
+// RUN:             -e _ZNSt6vectorISt10unique_ptrIKvSt8functionIFvPS1_EEESaIS6_EE17_M_realloc_appendIJS6_EEEvDpOT_ \
+// RUN:             -e _ZNSt6vectorISt8optionalISt4pairINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEbEESaIS9_EE17_M_realloc_appendIJRKS9_EEEvDpOT_ \
+// RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE22__resize_and_overwriteIZNS_9to_stringEiEUlPcmE_EEvmT_ \
+// RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE22__resize_and_overwriteIZNS_9to_stringEjEUlPcmE_EEvmT_ \
+// RUN:             -e _ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE22__resize_and_overwriteIZNS_9to_stringEmEUlPcmE_EEvmT_ \
+// RUN:             -e _ZNSt10_HashtableImSt4pairIKmSt8optionalINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEESaISA_ENSt8__detail10_Select1stESt8equal_toImESt4hashImENSC_18_Mod_range_hashingENSC_20_Default_ranged_hashENSC_20_Prime_rehash_policyENSC_17_Hashtable_traitsILb0ELb0ELb1EEEE9_M_rehashEmSt17integral_constantIbLb1EE \
 // RUN:   > %t/swiftRemoteMirror-all.txt
 // RUN: %llvm-nm --defined-only --extern-only --no-weak %platform-dylib-dir/%target-library-name(swiftRemoteMirror) > %t/swiftRemoteMirror-no-weak.txt
 // RUN: diff -u %t/swiftRemoteMirror-all.txt %t/swiftRemoteMirror-no-weak.txt
