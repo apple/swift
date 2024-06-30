@@ -1412,6 +1412,60 @@ static bool fixupCopyBlockWithoutEscaping(CopyBlockWithoutEscapingInst *cb,
   return true;
 }
 
+/// Differentiable functions, obtained via the `differentiable_function` and
+/// the `differentiable_function_extract` instructions, from conversion or
+/// reabstractions of `thin_to_thick_function` closures are trivial and don't
+/// capture any values. Conversions of such closures to noescape does not
+/// necessitate fixing up the lifetime of the closures.
+///
+/// If we encounter such a closure, we can simply mark the noescape conversion's
+/// lifetime as guaranteed.
+static bool tryHandleConvertOfDifferentiableFunction(
+    ConvertEscapeToNoEscapeInst *convertEscapeToNoEscapeInst) {
+  SILValue closure = convertEscapeToNoEscapeInst;
+  bool isConvertOfDifferentiableFunction = false;
+
+  for (;;) {
+    if (auto *cvt = dyn_cast<ConvertEscapeToNoEscapeInst>(closure)) {
+      closure = cvt->getOperand();
+      continue;
+    } else if (auto *cfi = dyn_cast<ConvertFunctionInst>(closure)) {
+      closure = cfi->getOperand();
+      continue;
+    } else if (auto *pai = dyn_cast<PartialApplyInst>(closure)) {
+      if (auto orig = isPartialApplyOfReabstractionThunk(pai)) {
+        closure = orig;
+        continue;
+      }
+      break;
+    } else if (auto *cvi = dyn_cast<CopyValueInst>(closure)) {
+      closure = cvi->getOperand();
+      continue;
+    } else if (auto *bbi = dyn_cast<BeginBorrowInst>(closure)) {
+      closure = bbi->getOperand();
+      continue;
+    } else if (auto *dfei =
+                   dyn_cast<DifferentiableFunctionExtractInst>(closure)) {
+      closure = dfei->getOperand();
+      continue;
+    } else if (auto *dfi = dyn_cast<DifferentiableFunctionInst>(closure)) {
+      closure = dfi->getOriginalFunction();
+      isConvertOfDifferentiableFunction = true;
+      continue;
+    } else if (auto *tttfi = dyn_cast<ThinToThickFunctionInst>(closure)) {
+      if (isConvertOfDifferentiableFunction) {
+        convertEscapeToNoEscapeInst->setLifetimeGuaranteed();
+        return true;
+      }
+      return false;
+    } else {
+      break;
+    }
+  }
+
+  return false;
+}
+
 static void computeUnreachableBlocks(
   llvm::DenseSet<SILBasicBlock*> &unreachableBlocks,
   SILFunction &fn) {
@@ -1457,6 +1511,11 @@ static bool fixupClosureLifetimes(SILFunction &fn,
       auto *cvt = dyn_cast<ConvertEscapeToNoEscapeInst>(&inst);
       if (!cvt || cvt->isLifetimeGuaranteed())
         continue;
+
+      if (tryHandleConvertOfDifferentiableFunction(cvt)) {
+        changed = true;
+        continue;
+      }
 
       // First try to peephole a known pattern.
       if (!DisableConvertEscapeToNoEscapeSwitchEnumPeephole) {
