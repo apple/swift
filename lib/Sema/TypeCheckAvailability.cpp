@@ -1843,8 +1843,26 @@ static void fixAvailabilityForDecl(SourceRange ReferenceRange, const Decl *D,
   if (TypeChecker::diagnosticIfDeclCannotBePotentiallyUnavailable(D).has_value())
     return;
 
-  if (getActiveAvailableAttribute(D, Context)) {
-    // For QoI, in future should emit a fixit to update the existing attribute.
+  if (auto Attr = getActiveAvailableAttribute(D, Context)) {
+    // Check if the `range` of the attribute `Attr` overlaps with its
+    // `IntroducedRange`, which can be from a macro or the minimum version
+    // supported by the compiler, etc. If there's no explicit introduction range
+    // marked in the code,  skip the update logic and return immediately.
+    if (!Attr->getRange().isValid() ||
+        !Attr->getRange().overlaps(Attr->IntroducedRange)) {
+      return;
+    }
+
+    auto Version = Attr->Introduced->getAsString();
+    auto Required = RequiredRange.getLowerEndpoint().getAsString();
+    auto ReferenceName =
+        Context.SourceMgr
+            .extractText(Lexer::getCharSourceRangeFromSourceRange(
+                Context.SourceMgr, ReferenceRange))
+            .str();
+    D->diagnose(diag::availability_update_attribute, Attr->platformString(),
+                Version, Required, ReferenceName)
+        .fixItReplace(Attr->IntroducedRange, Required);
     return;
   }
 
