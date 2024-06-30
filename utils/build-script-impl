@@ -1666,7 +1666,7 @@ for host in "${ALL_HOSTS[@]}"; do
         CLANG_BIN="$(build_directory_bin ${LOCAL_HOST} llvm)"
     fi
 
-    if [[ -f "${CLANG_BIN}/clang" ]]; then
+    if [[ -f "${CLANG_BIN}/clang" ]] && [[ "${host}" != "macosx-"* ]]; then
       export SWIFT_DRIVER_CLANG_EXEC="${CLANG_BIN}/clang"
       export SWIFT_DRIVER_CLANGXX_EXEC="${CLANG_BIN}/clang++"
     fi
@@ -2744,7 +2744,7 @@ for host in "${ALL_HOSTS[@]}"; do
         CLANG_BIN="$(build_directory_bin ${LOCAL_HOST} llvm)"
     fi
 
-    if [[ -f "${CLANG_BIN}/clang" ]]; then
+    if [[ -f "${CLANG_BIN}/clang" ]] && [[ "${host}" != "macosx-"* ]]; then
       export SWIFT_DRIVER_CLANG_EXEC="${CLANG_BIN}/clang"
       export SWIFT_DRIVER_CLANGXX_EXEC="${CLANG_BIN}/clang++"
     fi
@@ -3039,7 +3039,7 @@ for host in "${ALL_HOSTS[@]}"; do
         CLANG_BIN="$(build_directory_bin ${LOCAL_HOST} llvm)"
     fi
 
-    if [[ -f "${CLANG_BIN}/clang" ]]; then
+    if [[ -f "${CLANG_BIN}/clang" ]] && [[ "${host}" != "macosx-"* ]]; then
       export SWIFT_DRIVER_CLANG_EXEC="${CLANG_BIN}/clang"
       export SWIFT_DRIVER_CLANGXX_EXEC="${CLANG_BIN}/clang++"
     fi
