@@ -1,5 +1,8 @@
 set(ASTGen_Swift_dependencies)
 
+# Prevents leftovers from other branches confuses the module search.
+set(CMAKE_INCLUDE_CURRENT_DIR NO)
+
 # If requested, build the regular expression parser into the compiler itself.
 if(SWIFT_BUILD_REGEX_PARSER_IN_COMPILER)
   file(GLOB_RECURSE _COMPILER_REGEX_PARSER_SOURCES
