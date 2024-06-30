@@ -150,3 +150,25 @@ func fallthrough_not_last(i: Int) {
     break
   }
 }
+
+// rdar://117871338 - incorrect diagnostic - type of expression is ambiguous when member is missing.
+func test_invalid_optional_chaining() {
+  func test(_: (E) -> Void) {
+  }
+
+  enum E {
+  case a
+  case b
+  }
+
+  struct S {
+    var prop: E
+  }
+
+  test {
+    switch $0.prop? { // expected-error {{value of type 'E' has no member 'prop'}}
+    case .a: break
+    case .b: break
+    }
+  }
+}
