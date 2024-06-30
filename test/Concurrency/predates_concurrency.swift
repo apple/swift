@@ -252,3 +252,21 @@ extension MainActorPreconcurrency: NotIsolated {
     }
   }
 }
+
+
+open class Parent {
+    init(userInfo: [String : Any]) {
+        self.userInfo = userInfo
+    }
+
+  @preconcurrency open var userInfo : [String : any Sendable] // expected-note {{overridden declaration is here}}
+}
+
+class Child : Parent {
+    override var userInfo: [String : Any] { // expected-warning {{declaration 'userInfo' has a type with different sendability from any potential overrides; this is an error in the Swift 6 language mode}}
+        get {
+            [:]
+        }
+        set {}
+    }
+}

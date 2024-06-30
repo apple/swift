@@ -1203,6 +1203,8 @@ bool OverrideMatcher::checkOverride(ValueDecl *baseDecl,
   // If this is an exact type match, we're successful!
   Type declTy = getDeclComparisonType();
   Type owningTy = dc->getDeclaredInterfaceType();
+  bool mismatchedOnSendability =
+      attempt == OverrideCheckingAttempt::MismatchedSendability;
   auto isClassContext = classDecl != nullptr;
   if (declIUOAttr == matchDeclIUOAttr && declTy->isEqual(baseTy)) {
     // Nothing to do.
@@ -1264,17 +1266,42 @@ bool OverrideMatcher::checkOverride(ValueDecl *baseDecl,
     CanType parentPropertyCanTy =
       parentPropertyTy->getReducedType(
         decl->getInnermostDeclContext()->getGenericSignatureOfContext());
-    if (!propertyTy->matches(parentPropertyCanTy,
-                             TypeMatchFlags::AllowOverride)) {
-      diags.diagnose(property, diag::override_property_type_mismatch,
-                     property->getName(), propertyTy, parentPropertyTy);
-      noteFixableMismatchedTypes(decl, baseDecl);
-      diags.diagnose(baseDecl, diag::property_override_here);
-      return true;
+
+    auto options = TypeMatchFlags::AllowOverride;
+    if (!propertyTy->matches(parentPropertyCanTy, options)) {
+      // The perfect match failed
+      bool failed = true;
+      if (baseDecl->preconcurrency() &&
+          (attempt == OverrideCheckingAttempt::PerfectMatch ||
+           attempt == OverrideCheckingAttempt::MismatchedSendability)) {
+        propertyTy = propertyTy->stripConcurrency(/*recursive=*/true,
+                                                  /*dropGlobalActor=*/true);
+        parentPropertyCanTy =
+        Type(parentPropertyCanTy)->stripConcurrency(/*recursive=*/true,
+                                               /*dropGlobalActor=*/true)->getCanonicalType();
+
+        parentPropertyTy =
+        parentPropertyTy->stripConcurrency(/*recursive=*/true,
+                                               /*dropGlobalActor=*/true);
+
+
+        if (propertyTy->matches(parentPropertyCanTy, options)) {
+          mismatchedOnSendability = true;
+          failed = false;
+        }
+      }
+
+      if (failed) {
+        diags.diagnose(property, diag::override_property_type_mismatch,
+                       property->getName(), propertyTy, parentPropertyTy);
+        noteFixableMismatchedTypes(decl, baseDecl);
+        diags.diagnose(baseDecl, diag::property_override_here);
+        return true;
+      }
     }
 
     // Differing only in Optional vs. ImplicitlyUnwrappedOptional is fine.
-    bool IsSilentDifference = false;
+    bool IsSilentDifference = mismatchedOnSendability;
     if (auto propertyTyNoOptional = propertyTy->getOptionalObjectType())
       if (auto parentPropertyTyNoOptional =
               parentPropertyTy->getOptionalObjectType())
@@ -1294,7 +1321,7 @@ bool OverrideMatcher::checkOverride(ValueDecl *baseDecl,
   if (emittedMatchError)
     return true;
 
-  if (attempt == OverrideCheckingAttempt::MismatchedSendability) {
+  if (mismatchedOnSendability) {
     SendableCheckContext fromContext(decl->getDeclContext(),
                                      SendableCheck::Explicit);
     auto baseDeclClass = baseDecl->getDeclContext()->getSelfClassDecl();

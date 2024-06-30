@@ -899,6 +899,25 @@ unsigned int TypeBase::getOptionalityDepth() {
 }
 
 Type TypeBase::stripConcurrency(bool recurse, bool dropGlobalActor) {
+  if (auto *arrayTy = dyn_cast<ArraySliceType>(this)) {
+      auto newBaseTy =
+          arrayTy->getBaseType()->stripConcurrency(recurse, dropGlobalActor);
+      return newBaseTy->isEqual(arrayTy->getBaseType())
+                 ? Type(this)
+                 : ArraySliceType::get(newBaseTy);
+    }
+
+    if (auto *dictTy = dyn_cast<DictionaryType>(this)) {
+      auto keyTy = dictTy->getKeyType();
+      auto strippedKeyTy = keyTy->stripConcurrency(recurse, dropGlobalActor);
+      auto valueTy = dictTy->getValueType();
+      auto strippedValueTy = valueTy->stripConcurrency(recurse, dropGlobalActor);
+
+      return keyTy->isEqual(strippedKeyTy) && valueTy->isEqual(strippedValueTy)
+                 ? Type(this)
+                 : DictionaryType::get(strippedKeyTy, strippedValueTy);
+    }
+
   // Look through optionals.
   if (Type optionalObject = getOptionalObjectType()) {
     Type newOptionalObject =
@@ -1082,25 +1101,6 @@ Type TypeBase::stripConcurrency(bool recurse, bool dropGlobalActor) {
         });
 
     return anyChanged ? TupleType::get(elts, getASTContext()) : Type(this);
-  }
-
-  if (auto *arrayTy = dyn_cast<ArraySliceType>(this)) {
-    auto newBaseTy =
-        arrayTy->getBaseType()->stripConcurrency(recurse, dropGlobalActor);
-    return newBaseTy->isEqual(arrayTy->getBaseType())
-               ? Type(this)
-               : ArraySliceType::get(newBaseTy);
-  }
-
-  if (auto *dictTy = dyn_cast<DictionaryType>(this)) {
-    auto keyTy = dictTy->getKeyType();
-    auto strippedKeyTy = keyTy->stripConcurrency(recurse, dropGlobalActor);
-    auto valueTy = dictTy->getValueType();
-    auto strippedValueTy = valueTy->stripConcurrency(recurse, dropGlobalActor);
-
-    return keyTy->isEqual(strippedKeyTy) && valueTy->isEqual(strippedValueTy)
-               ? Type(this)
-               : DictionaryType::get(strippedKeyTy, strippedValueTy);
   }
 
   return Type(this);
