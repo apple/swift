@@ -1,5 +1,5 @@
 
-# Continuous Integration for Swift
+# Continuous Integration for Swift (but not SwiftPM)
 
 **Table of Contents**
 
