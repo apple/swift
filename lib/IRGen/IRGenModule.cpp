@@ -814,146 +814,38 @@ namespace RuntimeConstants {
     return deploymentAvailability.isContainedIn(featureAvailability);
   }
 
-  RuntimeAvailability OpaqueTypeAvailability(ASTContext &Context) {
-    auto featureAvailability = Context.getOpaqueTypeAvailability();
-    if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
+#define FEATURE(name,version)                                           \
+  RuntimeAvailability name##Availability(ASTContext &context) {         \
+    auto featureAvailability = context.get##name##Availability();       \
+    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) { \
+      return RuntimeAvailability::ConditionallyAvailable;               \
+    }                                                                   \
+    return RuntimeAvailability::AlwaysAvailable;                        \
   }
 
+#include "swift/AST/FeatureAvailability.def"
+
+  // Legacy aliases
   RuntimeAvailability
   GetTypesInAbstractMetadataStateAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getTypesInAbstractMetadataStateAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability DynamicReplacementAvailability(ASTContext &Context) {
-    auto featureAvailability = Context.getSwift51Availability();
-    if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::AvailableByCompatibilityLibrary;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability
-  CompareTypeContextDescriptorsAvailability(ASTContext &Context) {
-    auto featureAvailability =
-        Context.getCompareTypeContextDescriptorsAvailability();
-    if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability
-  CompareProtocolConformanceDescriptorsAvailability(ASTContext &Context) {
-    auto featureAvailability =
-        Context.getCompareProtocolConformanceDescriptorsAvailability();
-    if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
+    return TypesInAbstractMetadataStateAvailability(context);
   }
 
   RuntimeAvailability
   GetCanonicalSpecializedMetadataAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getIntermodulePrespecializedGenericMetadataAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
+    return IntermodulePrespecializedGenericMetadataAvailability(context);
   }
 
   RuntimeAvailability
   GetCanonicalPrespecializedGenericMetadataAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getPrespecializedGenericMetadataAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
+    return PrespecializedGenericMetadataAvailability(context);
   }
 
-  RuntimeAvailability ConcurrencyAvailability(ASTContext &context) {
-    auto featureAvailability = context.getConcurrencyAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability TaskExecutorAvailability(ASTContext &context) {
-    auto featureAvailability = context.getTaskExecutorAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability ConcurrencyDiscardingTaskGroupAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getConcurrencyDiscardingTaskGroupAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability DifferentiationAvailability(ASTContext &context) {
-    auto featureAvailability = context.getDifferentiationAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability TypedThrowsAvailability(ASTContext &Context) {
-    auto featureAvailability = Context.getTypedThrowsAvailability();
+  // Not based on FeatureAvailability.def
+  RuntimeAvailability DynamicReplacementAvailability(ASTContext &Context) {
+    auto featureAvailability = Context.getSwift51Availability();
     if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability
-  MultiPayloadEnumTagSinglePayloadAvailability(ASTContext &context) {
-    auto featureAvailability = context.getMultiPayloadEnumTagSinglePayload();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability
-  ObjCIsUniquelyReferencedAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getObjCIsUniquelyReferencedAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability SignedConformsToProtocolAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getSignedConformsToProtocolAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability SignedDescriptorAvailability(ASTContext &context) {
-    auto featureAvailability =
-        context.getSignedDescriptorAvailability();
-    if (!isDeploymentAvailabilityContainedIn(context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
+      return RuntimeAvailability::AvailableByCompatibilityLibrary;
     }
     return RuntimeAvailability::AlwaysAvailable;
   }
@@ -965,22 +857,6 @@ namespace RuntimeConstants {
     // swift_task_run_inline is only available under task-to-thread execution
     // model.
     return RuntimeAvailability::ConditionallyAvailable;
-  }
-
-  RuntimeAvailability ParameterizedExistentialAvailability(ASTContext &Context) {
-    auto featureAvailability = Context.getParameterizedExistentialAvailability();
-    if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
-  }
-
-  RuntimeAvailability ClearSensitiveAvailability(ASTContext &Context) {
-    auto featureAvailability = Context.getClearSensitiveAvailability();
-    if (!isDeploymentAvailabilityContainedIn(Context, featureAvailability)) {
-      return RuntimeAvailability::ConditionallyAvailable;
-    }
-    return RuntimeAvailability::AlwaysAvailable;
   }
 
 } // namespace RuntimeConstants

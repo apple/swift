@@ -107,6 +107,10 @@ static void _swift_release_n_(HeapObject *object, uint32_t n)
   asm("__swift_release_n_");
 static HeapObject *_swift_tryRetain_(HeapObject *object)
   asm("__swift_tryRetain_");
+static void _swift_retainMultiple_(HeapObject **objects, size_t count)
+  asm("__swift_retainMultiple_");
+static void _swift_releaseMultiple_(HeapObject **objects, size_t count)
+  asm("__swift_releaseMultiple_");
 
 #ifdef SWIFT_STDLIB_OVERRIDABLE_RETAIN_RELEASE
 
@@ -264,6 +268,14 @@ void (*SWIFT_RT_DECLARE_ENTRY _swift_release_n)(HeapObject *object,
 SWIFT_RUNTIME_EXPORT
 HeapObject *(*SWIFT_RT_DECLARE_ENTRY _swift_tryRetain)(HeapObject *object) =
     _swift_tryRetain_;
+
+SWIFT_RUNTIME_EXPORT
+void (*SWIFT_RT_DECLARE_ENTRY _swift_retainMultiple)(HeapObject **objects,
+                                                     size_t count) = _swift_retainMultiple_;
+
+SWIFT_RUNTIME_EXPORT
+void (*SWIFT_RT_DECLARE_ENTRY _swift_releaseMultiple)(HeapObject **objects,
+                                                      size_t count) = _swift_releaseMultiple_;
 
 #endif // SWIFT_STDLIB_OVERRIDABLE_RETAIN_RELEASE
 
@@ -587,6 +599,46 @@ void swift::swift_nonatomic_release_n(HeapObject *object, uint32_t n) {
   SWIFT_RT_TRACK_INVOCATION(object, swift_nonatomic_release_n);
   if (isValidPointerForNativeRetain(object))
     object->refCounts.decrementAndMaybeDeinitNonAtomic(n);
+}
+
+SWIFT_ALWAYS_INLINE
+static void _swift_retainMultiple_(HeapObject **objects, size_t count) {
+  for (size_t n = 0; n < count; ++n)
+    _swift_retain_(objects[n]);
+}
+
+void swift::swift_nonatomic_retainMultiple(HeapObject **objects, size_t count) {
+  for (size_t n = 0; n < count; ++n) {
+    swift_nonatomic_retain(objects[n]);
+  }
+}
+
+void swift::swift_retainMultiple(HeapObject **objects, size_t count) {
+#ifdef SWIFT_THREADING_NONE
+  swift_nonatomic_retainMultiple(objects, count);
+#else
+  CALL_IMPL(swift_retainMultiple, (objects, count));
+#endif
+}
+
+void swift::swift_nonatomic_releaseMultiple(HeapObject **objects, size_t count) {
+  for (size_t n = 0; n < count; ++n) {
+    swift_nonatomic_release(objects[n]);
+  }
+}
+
+SWIFT_ALWAYS_INLINE
+static void _swift_releaseMultiple_(HeapObject **objects, size_t count) {
+  for (size_t n = 0; n < count; ++n)
+    _swift_release_(objects[n]);
+}
+
+void swift::swift_releaseMultiple(HeapObject **objects, size_t count) {
+#ifdef SWIFT_THREADING_NONE
+  swift_nonatomic_releaseMultiple(objects, count);
+#else
+  CALL_IMPL(swift_releaseMultiple, (objects, count));
+#endif
 }
 
 size_t swift::swift_retainCount(HeapObject *object) {

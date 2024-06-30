@@ -192,6 +192,29 @@ void swift_setDeallocating(HeapObject *object);
 SWIFT_RUNTIME_EXPORT
 void swift_nonatomic_release_n(HeapObject *object, uint32_t n);
 
+/// Atomically increments the retain counts of each object in an array.
+///
+/// \param objects - A pointer to a contiguous array of object pointers.
+/// \param count - The number of object pointers in the array.
+SWIFT_RUNTIME_EXPORT
+void swift_retainMultiple(HeapObject **objects, size_t count);
+
+/// Non-atomic version of the above
+SWIFT_RUNTIME_EXPORT
+void swift_nonatomic_retainMultiple(HeapObject **objects, size_t count);
+
+/// Atomically decrements the retain counts of each object in an array.  If
+/// the retain count of an object reaches zero, the object will be destroyed.
+///
+/// \param objects - A pointer to a contiguous array of object pointers.
+/// \param count - The number of object pointers in the array.
+SWIFT_RUNTIME_EXPORT
+void swift_releaseMultiple(HeapObject **objects, size_t count);
+
+/// Non-atomic version of the above
+SWIFT_RUNTIME_EXPORT
+void swift_nonatomic_releaseMultiple(HeapObject **objects, size_t count);
+
 // Refcounting observation hooks for memory tools. Don't use these.
 SWIFT_RUNTIME_EXPORT
 size_t swift_retainCount(HeapObject *object);
