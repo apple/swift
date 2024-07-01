@@ -3,6 +3,7 @@
 This page describes the overall organization of documentation for the Swift toolchain.
 It is divided into the following sections:
 
+
 - [Tutorials](#tutorials)
   gently guide you towards achieving introductory tasks,
   while assuming minimal background knowledge.
