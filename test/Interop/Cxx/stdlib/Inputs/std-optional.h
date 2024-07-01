@@ -5,7 +5,25 @@
 #include <string>
 
 using StdOptionalInt = std::optional<int>;
+using StdOptionalBool = std::optional<bool>;
 using StdOptionalString = std::optional<std::string>;
+using StdOptionalOptionalInt = std::optional<std::optional<int>>;
+
+struct HasConstexprCtor {
+  int value;
+  constexpr HasConstexprCtor(int value) : value(value) {}
+  constexpr HasConstexprCtor(const HasConstexprCtor &other) = default;
+  constexpr HasConstexprCtor(HasConstexprCtor &&other) = default;
+};
+using StdOptionalHasConstexprCtor = std::optional<HasConstexprCtor>;
+
+struct HasDeletedMoveCtor {
+  int value;
+  HasDeletedMoveCtor(int value) : value(value) {}
+  HasDeletedMoveCtor(const HasDeletedMoveCtor &other) : value(other.value) {}
+  HasDeletedMoveCtor(HasDeletedMoveCtor &&other) = delete;
+};
+using StdOptionalHasDeletedMoveCtor = std::optional<HasDeletedMoveCtor>;
 
 inline StdOptionalInt getNonNilOptional() { return {123}; }
 

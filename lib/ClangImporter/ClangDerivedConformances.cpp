@@ -123,19 +123,24 @@ static bool isStdDecl(const clang::CXXRecordDecl *clangDecl,
 }
 
 static clang::TypeDecl *
-getIteratorCategoryDecl(const clang::CXXRecordDecl *clangDecl) {
-  clang::IdentifierInfo *iteratorCategoryDeclName =
-      &clangDecl->getASTContext().Idents.get("iterator_category");
-  auto iteratorCategories = clangDecl->lookup(iteratorCategoryDeclName);
+lookupNestedClangTypeDecl(const clang::CXXRecordDecl *clangDecl,
+                          StringRef name) {
+  clang::IdentifierInfo *nestedDeclName =
+      &clangDecl->getASTContext().Idents.get(name);
+  auto nestedDecls = clangDecl->lookup(nestedDeclName);
   // If this is a templated typedef, Clang might have instantiated several
   // equivalent typedef decls. If they aren't equivalent, Clang has already
   // complained about this. Let's assume that they are equivalent. (see
   // filterNonConflictingPreviousTypedefDecls in clang/Sema/SemaDecl.cpp)
-  if (iteratorCategories.empty())
+  if (nestedDecls.empty())
     return nullptr;
-  auto iteratorCategory = iteratorCategories.front();
+  auto nestedDecl = nestedDecls.front();
+  return dyn_cast_or_null<clang::TypeDecl>(nestedDecl);
+}
 
-  return dyn_cast_or_null<clang::TypeDecl>(iteratorCategory);
+static clang::TypeDecl *
+getIteratorCategoryDecl(const clang::CXXRecordDecl *clangDecl) {
+  return lookupNestedClangTypeDecl(clangDecl, "iterator_category");
 }
 
 static ValueDecl *lookupOperator(NominalTypeDecl *decl, Identifier id,
@@ -639,6 +644,8 @@ void swift::conformToCxxOptionalIfNeeded(
   assert(decl);
   assert(clangDecl);
   ASTContext &ctx = decl->getASTContext();
+  clang::ASTContext &clangCtx = impl.getClangASTContext();
+  clang::Sema &clangSema = impl.getClangSema();
 
   if (!isStdDecl(clangDecl, {"optional"}))
     return;
@@ -661,6 +668,63 @@ void swift::conformToCxxOptionalIfNeeded(
 
   impl.addSynthesizedTypealias(decl, ctx.getIdentifier("Wrapped"), pointeeTy);
   impl.addSynthesizedProtocolAttrs(decl, {KnownProtocolKind::CxxOptional});
+
+  // `std::optional` has a C++ constructor that takes the wrapped value as a
+  // parameter. Unfortunately this constructor has templated parameter type, so
+  // it isn't directly usable from Swift. Let's explicitly instantiate a
+  // constructor with the wrapped value type, and then import it into Swift.
+
+  auto valueTypeDecl = lookupNestedClangTypeDecl(clangDecl, "value_type");
+  if (!valueTypeDecl)
+    // `std::optional` without a value_type?!
+    return;
+  auto valueType = clangCtx.getTypeDeclType(valueTypeDecl);
+
+  auto constRefValueType =
+      clangCtx.getLValueReferenceType(valueType.withConst());
+  // Create a fake variable with type of the wrapped value.
+  auto fakeValueVarDecl = clang::VarDecl::Create(
+      clangCtx, /*DC*/ clangCtx.getTranslationUnitDecl(),
+      clang::SourceLocation(), clang::SourceLocation(), /*Id*/ nullptr,
+      constRefValueType, clangCtx.getTrivialTypeSourceInfo(constRefValueType),
+      clang::StorageClass::SC_None);
+  auto fakeValueRefExpr = new (clangCtx) clang::DeclRefExpr(
+      clangCtx, fakeValueVarDecl, false,
+      constRefValueType.getNonReferenceType(), clang::ExprValueKind::VK_LValue,
+      clang::SourceLocation());
+
+  auto clangDeclTyInfo = clangCtx.getTrivialTypeSourceInfo(
+      clang::QualType(clangDecl->getTypeForDecl(), 0));
+  SmallVector<clang::Expr *, 1> constructExprArgs = {fakeValueRefExpr};
+
+  // Instantiate the templated constructor that would accept this fake variable.
+  auto constructExprResult = clangSema.BuildCXXTypeConstructExpr(
+      clangDeclTyInfo, clangDecl->getLocation(), constructExprArgs,
+      clangDecl->getLocation(), /*ListInitialization*/ false);
+  if (!constructExprResult.isUsable())
+    return;
+
+  auto castExpr = dyn_cast_or_null<clang::CastExpr>(constructExprResult.get());
+  if (!castExpr)
+    return;
+
+  // The temporary bind expression will only be present for some non-trivial C++
+  // types.
+  auto bindTempExpr =
+      dyn_cast_or_null<clang::CXXBindTemporaryExpr>(castExpr->getSubExpr());
+
+  auto constructExpr = dyn_cast_or_null<clang::CXXConstructExpr>(
+      bindTempExpr ? bindTempExpr->getSubExpr() : castExpr->getSubExpr());
+  if (!constructExpr)
+    return;
+
+  auto constructorDecl = constructExpr->getConstructor();
+
+  auto importedConstructor =
+      impl.importDecl(constructorDecl, impl.CurrentVersion);
+  if (!importedConstructor)
+    return;
+  decl->addMember(importedConstructor);
 }
 
 void swift::conformToCxxSequenceIfNeeded(
