@@ -857,8 +857,49 @@ tests.test("Strideable") {
     // Edge cases fixed in Swift 6.0
     expectEqual(Int8.min.advanced(by: Int(Int8.max)+1), 0)
     expectEqual(UInt.max.advanced(by: Int.min), UInt.max / 2)
+
+%   if int(WORD_BITS) <= 64:
+    expectEqual(dist(UInt64(UInt.max), UInt64(UInt.max / 2)), Int.min)
+    expectEqual(dist(Int64(Int.max), Int64(-1 as Int)), Int.min)
+%   end
   }
 }
+
+% if int(WORD_BITS) <= 64:
+%   for suffix in ['64', '']:
+tests.test("Strideable/Distance/Int${suffix}/MaxPlus1") {
+  func f(_ a: Int${suffix}, _ b: Int${suffix}) -> Int {
+    return a.distance(to: b)
+  }
+  expectCrashLater()
+  noop(f(Int${suffix}(-1), Int${suffix}(Int.max)))
+}
+
+tests.test("Strideable/Distance/Int${suffix}/MinMinus1") {
+  func f(_ a: Int${suffix}, _ b: Int${suffix}) -> Int {
+    return a.distance(to: b)
+  }
+  expectCrashLater()
+  noop(f(Int${suffix}(Int.max), Int${suffix}(-2)))
+}
+
+tests.test("Strideable/Distance/UInt${suffix}/MaxPlus1") {
+  func f(_ a: UInt${suffix}, _ b: UInt${suffix}) -> Int {
+    return a.distance(to: b)
+  }
+  expectCrashLater()
+  noop(f(UInt${suffix}.min, UInt${suffix}(Int.max) + 1))
+}
+
+tests.test("Strideable/Distance/UInt${suffix}/MinMinus1") {
+  func f(_ a: UInt${suffix}, _ b: UInt${suffix}) -> Int {
+    return a.distance(to: b)
+  }
+  expectCrashLater()
+  noop(f(UInt${suffix}(Int.max) + 2, UInt${suffix}.min))
+}
+%   end
+% end
 
 tests.test("signum/generic") {
   func check<T : BinaryInteger>(_ expected: T, _ x: T) {

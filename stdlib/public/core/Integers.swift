@@ -1578,25 +1578,26 @@ extension BinaryInteger {
   @inlinable
   @inline(__always)
   public func distance(to other: Self) -> Int {
-    if !Self.isSigned {
-      if self > other {
-        if let result = Int(exactly: self - other) {
-          return -result
-        }
-      } else {
-        if let result = Int(exactly: other - self) {
-          return result
-        }
+    if self.bitWidth < Int.bitWidth && other.bitWidth < Int.bitWidth {
+      // Smaller integers always fit.
+      return Int(truncatingIfNeeded: other) &- Int(truncatingIfNeeded: self)
+    } else if Self.isSigned || self <= other {
+      // Use trapping subtraction for performance.
+      if let result = Int(exactly: other - self) {
+        return result
       }
     } else {
-      let isNegative = self < (0 as Self)
-      if isNegative == (other < (0 as Self)) {
-        if let result = Int(exactly: other - self) {
-          return result
+      // This type is unsigned and the distance is negative here.
+      let absolute = self - other
+      let distance = ~Int(truncatingIfNeeded: absolute) &+ 1
+      // The zero comparison generates better code in Swift 5.10.
+      if absolute.bitWidth <= Int.bitWidth {
+        if distance < Int.zero {
+          return distance
         }
       } else {
-        if let result = Int(exactly: self.magnitude + other.magnitude) {
-          return isNegative ? result : -result
+        if absolute <= Self(truncatingIfNeeded: Int.min.magnitude) {
+          return distance
         }
       }
     }
