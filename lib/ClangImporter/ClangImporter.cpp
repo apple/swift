@@ -655,6 +655,14 @@ void importer::getNormalInvocationArguments(
       });
     }
 
+    // To support -apple-none, -apple-none-macho, -unknown-none-wasm triples.
+    if (triple.getVendor() == llvm::Triple::VendorType::Apple) {
+      invocationArgStrs.insert(invocationArgStrs.end(), {"-D__APPLE__"});
+    }
+    if (triple.isOSBinFormatMachO()) {
+      invocationArgStrs.insert(invocationArgStrs.end(), {"-D__MACH__"});
+    }
+
     if (triple.isOSWindows()) {
       switch (triple.getArch()) {
       default: llvm_unreachable("unsupported Windows architecture");

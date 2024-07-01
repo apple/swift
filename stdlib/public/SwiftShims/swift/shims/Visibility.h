@@ -134,7 +134,7 @@
 // right for Windows, we have everything set up to get it right on
 // other targets as well, and doing so lets the compiler use more
 // efficient symbol access patterns.
-#if defined(__MACH__) || defined(__wasi__)
+#if defined(__MACH__) || defined(__wasm__)
 
 // On Mach-O and WebAssembly, we use non-hidden visibility.  We just use
 // default visibility on both imports and exports, both because these
