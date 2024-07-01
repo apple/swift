@@ -39,7 +39,12 @@ bool useLegacyOptionalNilInjectionInCasting();
 bool useLegacyObjCBoxingInCasting();
 
 /// Whether to use legacy semantics when unboxing __SwiftValue
+/// Default false starting with Swift 5.9
 bool useLegacySwiftValueUnboxingInCasting();
+
+/// Whether to use legacy semantics when casting ObjC Metatypes
+bool useLegacyObjCMetatypeCasting();
+
 
 /// Legacy semantics use trivial implementations for -hashValue/-isEqual:
 /// requests from ObjC to Swift values.

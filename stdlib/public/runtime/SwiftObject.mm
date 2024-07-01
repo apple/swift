@@ -1341,12 +1341,38 @@ const Metadata *swift_dynamicCastTypeToObjCProtocolConditional(
   return type;
 }
 
+static bool classObjectConformsToProtocol(id object, Protocol *protocol) {
+  for (Class c = object_getClass(object_getClass(object)); c; c = class_getSuperclass(c)) {
+    if (class_conformsToProtocol(c, protocol)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 SWIFT_RUNTIME_EXPORT
 id swift_dynamicCastObjCProtocolUnconditional(id object,
                                               size_t numProtocols,
                                               Protocol * const *protocols,
                                               const char *filename,
                                               unsigned line, unsigned column) {
+  if (numProtocols == 0) {
+    return object;
+  }
+  if (object_isClass(object)) {
+    // Shield old apps from this behavior change
+    if (!runtime::bincompat::useLegacyObjCMetatypeCasting()) {
+      for (size_t i = 0; i < numProtocols; ++i) {
+	if (!classObjectConformsToProtocol(object, protocols[i])) {
+	  Class sourceType = object_getClass(object);
+	  swift_dynamicCastFailure(sourceType, class_getName(sourceType),
+				   protocols[i], protocol_getName(protocols[i]));
+	}
+      }
+      return object;
+    }
+  }
+  // General case for non-class objects:
   for (size_t i = 0; i < numProtocols; ++i) {
     if (![object conformsToProtocol:protocols[i]]) {
       Class sourceType = object_getClass(object);
@@ -1366,6 +1392,20 @@ id swift_dynamicCastObjCProtocolConditional(id object,
     if (getAsSwiftValue(object) != nil) {
       // SwiftValue wrapper never holds a class object
       return nil;
+    }
+  }
+  if (numProtocols == 0) {
+    return object;
+  }
+  if (object_isClass(object)) {
+    // Shield old apps from this behavior change
+    if (!runtime::bincompat::useLegacyObjCMetatypeCasting()) {
+      for (size_t i = 0; i < numProtocols; ++i) {
+	if (!classObjectConformsToProtocol(object, protocols[i])) {
+	  return nil;
+	}
+      }
+      return object;
     }
   }
   for (size_t i = 0; i < numProtocols; ++i) {
