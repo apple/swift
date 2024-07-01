@@ -62,13 +62,13 @@ internal func _decodeUTF8(
 }
 
 @inlinable
-internal func _decodeScalar(
-  _ utf8: UnsafeBufferPointer<UInt8>, startingAt i: Int
+internal func _decodeComplexScalar(
+  _ utf8: UnsafeBufferPointer<UInt8>, 
+  startingAt i: Int,
+  firstByte cu0: UInt8,
+  len: Int
 ) -> (Unicode.Scalar, scalarLength: Int) {
-  let cu0 = utf8[_unchecked: i]
-  let len = _utf8ScalarLength(cu0)
-  switch  len {
-  case 1: return (_decodeUTF8(cu0), len)
+  switch len {
   case 2: return (_decodeUTF8(cu0, utf8[_unchecked: i &+ 1]), len)
   case 3: return (_decodeUTF8(
     cu0, utf8[_unchecked: i &+ 1], utf8[_unchecked: i &+ 2]), len)
@@ -81,6 +81,18 @@ internal func _decodeScalar(
     len)
   default: Builtin.unreachable()
   }
+}
+
+@inlinable @inline(__always)
+internal func _decodeScalar(
+  _ utf8: UnsafeBufferPointer<UInt8>, startingAt i: Int
+) -> (Unicode.Scalar, scalarLength: Int) {
+  let cu0 = utf8[_unchecked: i]
+  let len = _utf8ScalarLength(cu0)
+  if len == 1 {
+    return (_decodeUTF8(cu0), len)
+  }
+  return _decodeComplexScalar(utf8, startingAt: i, firstByte: cu0, len: len)
 }
 
 @inlinable
