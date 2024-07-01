@@ -34,7 +34,7 @@ struct S1 {
 let _: S1? = .member1
 let _: S1? = .member_wrongType
 let _: S1? = .init()
-let _: S1? = .member1() // expected-error {{instance member 'member1' cannot be used on type 'S1?'}}
+let _: S1? = .member1() // expected-error {{instance member 'member1' of type 'S1?' cannot be used in static context}}
 let _: S1? = .member2()
 let _: S1? = .init(S1())
 let _: S1? = .init(overloaded: ())

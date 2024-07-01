@@ -79,7 +79,7 @@ func classMethods(_ b: B, other: NSObject) {
   // exists another overload `instanceTakesObjectClassTakesFloat: (Any?) -> Void` which makes this invocation
   // type-check iff base is an instance of `B`.
   B.instanceTakesObjectClassTakesFloat(other)
-  // expected-error@-1 {{instance member 'instanceTakesObjectClassTakesFloat' cannot be used on type 'B'; did you mean to use a value of this type instead?}}
+  // expected-error@-1 {{instance member 'instanceTakesObjectClassTakesFloat' of type 'B' cannot be used in static context; did you mean to use a value of this type instead?}}
 
   // Call an instance method of NSObject.
   var c: AnyClass = B.myClass() // no-warning
@@ -361,7 +361,7 @@ func testDynamicSelf(_ queen: Bee, wobbler: NSWobbling) {
   // class itself.
   // FIXME: This should be accepted.
   let baseClass: ObjCParseExtras.Base.Type = ObjCParseExtras.Base.returnMyself()
-  // expected-error@-1 {{instance member 'returnMyself' cannot be used on type 'Base'; did you mean to use a value of this type instead?}}
+  // expected-error@-1 {{instance member 'returnMyself' of type 'Base' cannot be used in static context; did you mean to use a value of this type instead?}}
   // expected-error@-2 {{cannot convert value of type 'Base?' to specified type 'Base.Type'}}
 }
 

@@ -37,7 +37,7 @@ func test1a() -> unionSearchFlags {
 func test1b(_ b : Bool) {
   _ = 123
   _ = .description == 1
-  // expected-error@-1 {{instance member 'description' cannot be used on type 'Int'}}
+  // expected-error@-1 {{instance member 'description' of type 'Int' cannot be used in static context}}
   // expected-error@-2 {{member 'description' in 'Int' produces result of type 'String', but context expects 'Int'}}
 }
 
@@ -121,7 +121,7 @@ func test4() {
   var b = CGPoint.CGPoint(1, 2) // expected-error {{type 'CGPoint' has no member 'CGPoint'}}
   var c = CGPoint(x: 2, y : 1)   // Using injected name.
 
-  var e = CGPoint.x // expected-error {{member 'x' cannot be used on type 'CGPoint'}}
+  var e = CGPoint.x // expected-error {{member 'x' of type 'CGPoint' cannot be used in static context}}
   var f = OtherPoint.x  // expected-error {{type 'OtherPoint' (aka '(x: Int, y: Int)') has no member 'x'}}
 }
 

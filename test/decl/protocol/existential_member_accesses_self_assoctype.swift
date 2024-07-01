@@ -575,8 +575,8 @@ do {
     protoMeta[static_invariantSelfSubscript: ()] // expected-error {{static member 'subscript' cannot be used on protocol metatype '(any P1_TypeMemberOnInstanceAndViceVersa).Type'}}
     _ = protoMeta.covariantSelfMethod // ok
     protoMeta.invariantSelfMethod // expected-error {{member 'invariantSelfMethod' cannot be used on value of type '(any P1_TypeMemberOnInstanceAndViceVersa).Type'; consider using a generic constraint instead}}
-    protoMeta.invariantSelfProp // expected-error {{instance member 'invariantSelfProp' cannot be used on type 'any P1_TypeMemberOnInstanceAndViceVersa'}}
-    protoMeta[invariantSelfSubscript: ()] // expected-error {{instance member 'subscript' cannot be used on type 'any P1_TypeMemberOnInstanceAndViceVersa'}}
+    protoMeta.invariantSelfProp // expected-error {{instance member 'invariantSelfProp' of type 'any P1_TypeMemberOnInstanceAndViceVersa' cannot be used in static context}}
+    protoMeta[invariantSelfSubscript: ()] // expected-error {{instance member 'subscript' of type 'any P1_TypeMemberOnInstanceAndViceVersa' cannot be used in static context}}
 
     // P1_TypeMemberOnInstanceAndViceVersa.Type
     _ = existMeta.static_covariantSelfMethod // ok
@@ -585,9 +585,9 @@ do {
     existMeta.static_invariantSelfMethod // expected-error {{member 'static_invariantSelfMethod' cannot be used on value of type 'any P1_TypeMemberOnInstanceAndViceVersa.Type'; consider using a generic constraint instead}}
     existMeta.static_invariantSelfProp // expected-error {{member 'static_invariantSelfProp' cannot be used on value of type 'any P1_TypeMemberOnInstanceAndViceVersa.Type'; consider using a generic constraint instead}}
     existMeta[static_invariantSelfSubscript: ()] // expected-error {{member 'subscript' cannot be used on value of type 'any P1_TypeMemberOnInstanceAndViceVersa.Type'; consider using a generic constraint instead}}
-    existMeta.invariantSelfMethod // expected-error {{instance member 'invariantSelfMethod' cannot be used on type 'P1_TypeMemberOnInstanceAndViceVersa'}}
-    existMeta.invariantSelfProp // expected-error {{instance member 'invariantSelfProp' cannot be used on type 'P1_TypeMemberOnInstanceAndViceVersa'}}
-    existMeta[invariantSelfSubscript: ()] // expected-error {{instance member 'subscript' cannot be used on type 'P1_TypeMemberOnInstanceAndViceVersa'}}
+    existMeta.invariantSelfMethod // expected-error {{instance member 'invariantSelfMethod' of type %0 cannot be used in static context 'P1_TypeMemberOnInstanceAndViceVersa'}}
+    existMeta.invariantSelfProp // expected-error {{instance member 'invariantSelfProp' of type 'P1_TypeMemberOnInstanceAndViceVersa' cannot be used in static context}}
+    existMeta[invariantSelfSubscript: ()] // expected-error {{instance member 'subscript' of type 'P1_TypeMemberOnInstanceAndViceVersa' cannot be used in static context}}
 
     // P1_TypeMemberOnInstanceAndViceVersa
     instance.static_invariantSelfMethod // expected-error {{static member 'static_invariantSelfMethod' cannot be used on instance of type 'any P1_TypeMemberOnInstanceAndViceVersa'}}

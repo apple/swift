@@ -212,7 +212,7 @@ func validateSaveButton(_ text: String) {
 // <rdar://problem/20201968> QoI: poor diagnostic when calling a class method via a metatype
 class r20201968C {
   func blah() {
-    r20201968C.blah()  // expected-error {{instance member 'blah' cannot be used on type 'r20201968C'; did you mean to use a value of this type instead?}}
+    r20201968C.blah()  // expected-error {{instance member 'blah' of type 'r20201968C' cannot be used in static context; did you mean to use a value of this type instead?}}
   }
 }
 
@@ -1016,7 +1016,7 @@ takesClosure() { ambiguousCall() } // expected-error {{ambiguous use of 'ambiguo
 class C1_47269 {
   private static func foo(x: Int, y: Bool) {
     self.bar(x: x)
-    // expected-error@-1 {{instance member 'bar' cannot be used on type 'C1_47269'}}
+    // expected-error@-1 {{instance member 'bar' of type 'C1_47269' cannot be used in static context}}
   }
 
   private func bar(x: Int) {
@@ -1026,7 +1026,7 @@ class C1_47269 {
 class C2_47269 {
   static func a() {
     self.f(x: 3, y: true)
-    // expected-error@-1 {{instance member 'f' cannot be used on type 'C2_47269'}}
+    // expected-error@-1 {{instance member 'f' of type 'C2_47269' cannot be used in static context}}
   }
 
   private func f(a: Int, b: Bool, c: String) {

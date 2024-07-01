@@ -120,7 +120,7 @@ class Y4 {
   var x = X()
   
   static subscript(idx: Int) -> X {
-    get { return x } // expected-error {{instance member 'x' cannot be used on type 'Y4'}}
+    get { return x } // expected-error {{instance member 'x' of type 'Y4' cannot be used in static context}}
     set {}
   }
 }

@@ -1625,7 +1625,7 @@ CurriedClass.method2(c)(32)(b: 1) // expected-error{{extraneous argument label '
 _ = CurriedClass.method2(c)
 _ = CurriedClass.method2(c)(32)
 _ = CurriedClass.method2(1,2)      // expected-error {{extra argument in call}}
-// expected-error@-1 {{instance member 'method2' cannot be used on type 'CurriedClass'; did you mean to use a value of this type instead?}}
+// expected-error@-1 {{instance member 'method2' of type 'CurriedClass' cannot be used in static context; did you mean to use a value of this type instead?}}
 CurriedClass.method2(c)(1.0)(b: 1) // expected-error {{cannot convert value of type 'Double' to expected argument type 'Int'}}
 // expected-error@-1 {{extraneous argument label 'b:' in call}}
 CurriedClass.method2(c)(1)(1.0) // expected-error {{cannot convert value of type 'Double' to expected argument type 'Int'}}
@@ -1635,7 +1635,7 @@ CurriedClass.method3(c)(32, b: 1)
 _ = CurriedClass.method3(c)
 _ = CurriedClass.method3(c)(1, 2)        // expected-error {{missing argument label 'b:' in call}} {{32-32=b: }}
 _ = CurriedClass.method3(c)(1, b: 2)(32) // expected-error {{cannot call value of non-function type '()'}}
-_ = CurriedClass.method3(1, 2)           // expected-error {{instance member 'method3' cannot be used on type 'CurriedClass'; did you mean to use a value of this type instead?}}
+_ = CurriedClass.method3(1, 2)           // expected-error {{instance member 'method3' of type 'CurriedClass' cannot be used in static context; did you mean to use a value of this type instead?}}
 // expected-error@-1 {{missing argument label 'b:' in call}}
 CurriedClass.method3(c)(1.0, b: 1)       // expected-error {{cannot convert value of type 'Double' to expected argument type 'Int'}}
 CurriedClass.method3(c)(1)               // expected-error {{missing argument for parameter 'b' in call}}
@@ -1661,10 +1661,10 @@ extension CurriedClass {
 }
 
 // <rdar://problem/23718816> QoI: "Extra argument" error when accidentally currying a method
-CurriedClass.m1(2, b: 42)   // expected-error {{instance member 'm1' cannot be used on type 'CurriedClass'; did you mean to use a value of this type instead?}}
+CurriedClass.m1(2, b: 42)   // expected-error {{instance member 'm1' of type 'CurriedClass' cannot be used in static context; did you mean to use a value of this type instead?}}
 
 // <rdar://problem/22108559> QoI: Confusing error message when calling an instance method as a class method
-CurriedClass.m2(12)  // expected-error {{instance member 'm2' cannot be used on type 'CurriedClass'; did you mean to use a value of this type instead?}}
+CurriedClass.m2(12)  // expected-error {{instance member 'm2' of type 'CurriedClass' cannot be used in static context; did you mean to use a value of this type instead?}}
 // -------------------------------------------
 // Multiple label errors
 // -------------------------------------------

@@ -67,7 +67,7 @@ struct GZ<T> {
     var t = f1(i, b: f)
     f = t.1
 
-    var zi = Z.i; // expected-error{{instance member 'i' cannot be used on type 'Z'}}
+    var zi = Z.i; // expected-error{{instance member 'i' of type 'Z' cannot be used in static context}}
     var zj = Z.asdfasdf  // expected-error {{type 'Z' has no member 'asdfasdf'}}
   }
 }
@@ -284,7 +284,7 @@ enum LedModules: Int {
 
 extension LedModules {
   static var watts: Double {
-    return [0.30][self.rawValue] // expected-error {{instance member 'rawValue' cannot be used on type 'LedModules'}}
+    return [0.30][self.rawValue] // expected-error {{instance member 'rawValue' of type 'LedModules' cannot be used in static context}}
   }
 }
 
@@ -527,7 +527,7 @@ class A {}
 
 enum B {
   static func foo() {
-    bar(A()) // expected-error {{instance member 'bar' cannot be used on type 'B'}}
+    bar(A()) // expected-error {{instance member 'bar' of type 'B' cannot be used in static context}}
   }
 
   func bar(_: A) {}
@@ -535,7 +535,7 @@ enum B {
 
 class C {
   static func foo() {
-    bar(0) // expected-error {{instance member 'bar' cannot be used on type 'C'}}
+    bar(0) // expected-error {{instance member 'bar' of type 'C' cannot be used in static context}}
   }
 
   func bar(_: Int) {}
@@ -606,10 +606,10 @@ func rdar50679161() {
       if let v = Int?(1) {
         var _ = Q(
           a: v + foo.w,
-          // expected-error@-1 {{instance member 'w' cannot be used on type 'S'}}
+          // expected-error@-1 {{instance member 'w' of type 'S' cannot be used in static context}}
           // expected-error@-2 {{cannot convert value of type 'Point' to expected argument type 'Int'}}
           b: v + foo.h
-          // expected-error@-1 {{instance member 'h' cannot be used on type 'S'}}
+          // expected-error@-1 {{instance member 'h' of type 'S' cannot be used in static context}}
           // expected-error@-2 {{cannot convert value of type 'Point' to expected argument type 'Int'}}
         )
       }
