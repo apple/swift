@@ -1094,8 +1094,9 @@ static void printSingleFrontendOpt(llvm::opt::OptTable &table, options::ID id,
 static bool printSwiftFeature(CompilerInstance &instance) {
   ASTContext &context = instance.getASTContext();
   const CompilerInvocation &invocation = instance.getInvocation();
-  const FrontendOptions &opts = invocation.getFrontendOptions();
-  std::string path = opts.InputsAndOutputs.getSingleOutputFilename();
+  const FrontendOptions &frontendOpts = invocation.getFrontendOptions();
+  const LangOptions &langOpts = invocation.getLangOptions();
+  std::string path = frontendOpts.InputsAndOutputs.getSingleOutputFilename();
   std::error_code EC;
   llvm::raw_fd_ostream out(path, EC, llvm::sys::fs::OF_None);
 
@@ -1111,6 +1112,7 @@ static bool printSwiftFeature(CompilerInstance &instance) {
   SWIFT_DEFER {
     out << "}\n";
   };
+
   out << "  \"SupportedArguments\": [\n";
 #define OPTION(PREFIX, NAME, ID, KIND, GROUP, ALIAS, ALIASARGS, FLAGS, PARAM,  \
                HELPTEXT, METAVAR, VALUES)                                      \
@@ -1119,10 +1121,14 @@ static bool printSwiftFeature(CompilerInstance &instance) {
 #undef OPTION
   out << "    \"LastOption\"\n";
   out << "  ],\n";
+
   out << "  \"SupportedFeatures\": [\n";
-  // Print supported feature names here.
+#define LANGUAGE_FEATURE(FeatureName, SENumber, Description)                   \
+  if (langOpts.hasFeature(Feature::FeatureName)) out << "    \"" << #FeatureName << "\",\n";
+#include "swift/Basic/Features.def"
   out << "    \"LastFeature\"\n";
   out << "  ]\n";
+
   return false;
 }
 

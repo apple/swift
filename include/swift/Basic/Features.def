@@ -397,6 +397,9 @@ EXPERIMENTAL_FEATURE(ReinitializeConsumeInMultiBlockDefer, false)
 
 EXPERIMENTAL_FEATURE(SE427NoInferenceOnExtension, false)
 
+// Used for test purposes only.
+EXPERIMENTAL_FEATURE(SupportedFeaturesTest, false)
+
 #undef EXPERIMENTAL_FEATURE_EXCLUDED_FROM_MODULE_INTERFACE
 #undef EXPERIMENTAL_FEATURE
 #undef UPCOMING_FEATURE
