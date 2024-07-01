@@ -586,6 +586,8 @@ ERROR(objc_with_embedded,none,
       "Objective-C interoperability cannot be enabled with embedded Swift.", ())
 ERROR(no_allocations_without_embedded,none,
       "-no-allocations is only applicable with embedded Swift.", ())
+ERROR(optimize_embedded_module_without_embedded,none,
+      "-optimize-embedded-module-as is only applicable with embedded Swift.", ())
 ERROR(no_swift_sources_with_embedded,none,
       "embedded swift cannot be enabled in a compiler built without Swift sources", ())
 

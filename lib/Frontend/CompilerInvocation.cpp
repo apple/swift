@@ -2586,6 +2586,19 @@ static bool ParseSILArgs(SILOptions &Opts, ArgList &Args,
     }
   }
 
+  if (const Arg *A = Args.getLastArg(options::OPT_OptimizeEmbeddedModuleAs)) {
+    auto ModuleRole =
+        llvm::StringSwitch<std::optional<ModuleRoleOption>>(A->getValue())
+            .Case("leaf", ModuleRoleOption::Leaf)
+            .Case("library", ModuleRoleOption::Library)
+            .Default(std::nullopt);
+    if (ModuleRole)
+      Opts.ModuleRole = ModuleRole.value();
+    else
+      Diags.diagnose(SourceLoc(), diag::error_invalid_arg_value,
+                     A->getAsString(Args), A->getValue());
+  }
+
   Opts.EnableStackProtection =
       Args.hasFlag(OPT_enable_stack_protector, OPT_disable_stack_protector,
                    Opts.EnableStackProtection);
@@ -3578,6 +3591,10 @@ bool CompilerInvocation::parseArgs(
   } else {
     if (SILOpts.NoAllocations) {
       Diags.diagnose(SourceLoc(), diag::no_allocations_without_embedded);
+      return true;
+    }
+    if (SILOpts.ModuleRole != ModuleRoleOption::Unknown) {
+      Diags.diagnose(SourceLoc(), diag::optimize_embedded_module_without_embedded);
       return true;
     }
   }

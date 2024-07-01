@@ -70,6 +70,12 @@ enum class CrossModuleOptimizationMode : uint8_t {
   Everything = 3,
 };
 
+enum class ModuleRoleOption : uint8_t {
+  Unknown = 0,
+  Library = 1,
+  Leaf = 2,
+};
+
 class SILModule;
 
 class SILOptions {
@@ -173,6 +179,11 @@ public:
   /// Whether to stop the optimization pipeline right before we lower ownership
   /// and go from OSSA to non-ownership SIL.
   bool StopOptimizationBeforeLoweringOwnership = false;
+
+  /// Whether this module is definitely a leaf module (cannot have other
+  /// modules depending on it), definitely a library module (will have
+  /// dependents), or we don't know.
+  ModuleRoleOption ModuleRole = ModuleRoleOption::Unknown;
 
   /// Do we always serialize SIL in OSSA form?
   ///
