@@ -2468,6 +2468,7 @@ if (-not $IsCrossCompiling) {
       $Indent += 2
   }
 
+  Write-ErrorLines "env:Path $env:Path"
   exit 1
 } finally {
   if ($Summary) {
