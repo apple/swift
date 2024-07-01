@@ -63,6 +63,7 @@ func nonPointerBits(_ x: Builtin.BridgeObject) -> UInt {
 
 // Try without any bits set.
 if true {
+  print("No bits set") // CHECK-NEXT: No bits set
   let x = C()
   let bo = Builtin.castToBridgeObject(x, 0._builtinWordValue)
   let bo2 = bo
@@ -90,6 +91,7 @@ if true {
 
 // Try with all spare bits set.
 if true {
+  print("All spare bits set") // CHECK-NEXT: All spare bits set
   let x = C()
   let bo = Builtin.castToBridgeObject(x, NATIVE_SPARE_BITS._builtinWordValue)
 
@@ -128,6 +130,7 @@ func nonNativeBridgeObject(_ o: AnyObject) -> Builtin.BridgeObject {
 // Try with a (probably) tagged pointer. No bits may be masked into a
 // non-native object.
 if true {
+  print("Tagged pointer") // CHECK-NEXT: Tagged pointer
   let x = NSNumber(value: 22)
   let bo = nonNativeBridgeObject(x)
   let bo2 = bo
@@ -159,6 +162,7 @@ var unTaggedString: NSString {
 
 // Try with an un-tagged pointer. 
 if true {
+  print("Untagged pointer") // CHECK-NEXT: Untagged pointer
   let x = unTaggedString
   let bo = nonNativeBridgeObject(x)
   let bo2 = bo
@@ -195,6 +199,8 @@ func hitOptionalSpecifically(_ x: Builtin.BridgeObject?) {
 }
 
 if true {
+  print("BridgeObject") // CHECK-NEXT: BridgeObject
+
   // CHECK-NEXT: true
   print(MemoryLayout<Optional<Builtin.BridgeObject>>.size
             == MemoryLayout<Builtin.BridgeObject>.size)
