@@ -27,6 +27,11 @@ static StringRef sandboxProfile(llvm::BumpPtrAllocator &Alloc) {
   // Allow reading dylibs.
   contents += "(allow file-read* (regex #\"\\.dylib$\"))\n";
 
+  // Allow running under Rosetta.
+  contents +=
+      "(allow file-read* "
+      "(literal \"/Library/Apple/usr/libexec/oah/libRosettaRuntime\"))\n";
+
   // This is required to launch any processes (execve(2)).
   contents += "(allow process-exec*)\n";
 
