@@ -2179,6 +2179,7 @@ function Build-SourceKitLSP($Arch) {
     -BuildTargets default `
     -Defines @{
       SwiftSyntax_DIR = (Get-HostProjectCMakeModules Compilers);
+      SwiftDriver_DIR = (Get-HostProjectCMakeModules Driver);
       SwiftSystem_DIR = (Get-HostProjectCMakeModules System);
       TSC_DIR = (Get-HostProjectCMakeModules ToolsSupportCore);
       LLBuild_DIR = (Get-HostProjectCMakeModules LLBuild);
