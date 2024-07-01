@@ -42,7 +42,6 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
-#include <deque>
 #include <optional>
 
 using namespace swift;
