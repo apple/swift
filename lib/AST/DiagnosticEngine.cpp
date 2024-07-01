@@ -1202,10 +1202,6 @@ DiagnosticBehavior DiagnosticState::determineBehavior(const Diagnostic &diag) {
     anyErrorOccurred = true;
   }
 
-  assert((!AssertOnError || !anyErrorOccurred) && "We emitted an error?!");
-  assert((!AssertOnWarning || (lvl != DiagnosticBehavior::Warning)) &&
-         "We emitted a warning?!");
-
   previousBehavior = lvl;
   return lvl;
 }
@@ -1538,6 +1534,10 @@ void DiagnosticEngine::emitDiagnostic(const Diagnostic &diagnostic) {
   std::vector<Diagnostic> extendedChildNotes;
 
   if (auto info = diagnosticInfoForDiagnostic(diagnostic)) {
+    assert((!AssertOnError || info->Kind != DiagnosticKind::Error) && "We emitted an error?!");
+    assert((!AssertOnWarning || info->Kind != DiagnosticKind::Warning) &&
+           "We emitted a warning?!");
+
     // If the diagnostic location is within a buffer containing generated
     // source code, add child notes showing where the generation occurred.
     // We need to avoid doing this if this is itself a child note, as otherwise
