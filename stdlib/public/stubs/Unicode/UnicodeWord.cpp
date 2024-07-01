@@ -35,13 +35,14 @@ __swift_uint8_t _swift_stdlib_getWordBreakProperty(__swift_uint32_t scalar) {
 
     //If we want the left child of the current node in our virtual tree,
     //that's at index * 2, if we want the right child it's at (index * 2) + 1
-    if (scalar < lower) {
-      index = 2 * index;
-    } else if (scalar <= upper) {
-      return _swift_stdlib_words_data[index];
-    } else {
-      index = 2 * index + 1;
-    }
+    index = scalar < lower ?
+      2 * index :
+      scalar <= upper ?
+        (WORD_BREAK_DATA_COUNT * 2) + _swift_stdlib_words_data[index] :
+        2 * index + 1;
+  }
+  if (index >= WORD_BREAK_DATA_COUNT * 2) {
+    return (__swift_uint8_t)(index - (WORD_BREAK_DATA_COUNT * 2));
   }
   // If we made it out here, then our scalar was not found in the word
   // array (this occurs when a scalar doesn't map to any word break

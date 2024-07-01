@@ -44,13 +44,14 @@ __swift_uint8_t _swift_stdlib_getGraphemeBreakProperty(__swift_uint32_t scalar) 
     
     //If we want the left child of the current node in our virtual tree,
     //that's at index * 2, if we want the right child it's at (index * 2) + 1
-    if (scalar < lower) {
-      index = 2 * index;
-    } else if (scalar <= upper) {
-      return enumValue;
-    } else {
-      index = 2 * index + 1;
-    }
+    index = scalar < lower ?
+      2 * index :
+      scalar <= upper ?
+        (GRAPHEME_BREAK_DATA_COUNT * 2) + enumValue :
+        2 * index + 1;
+  }
+  if (index >= GRAPHEME_BREAK_DATA_COUNT * 2) {
+    return (__swift_uint8_t)(index - (GRAPHEME_BREAK_DATA_COUNT * 2));
   }
   // If we made it out here, then our scalar was not found in the grapheme
   // array (this occurs when a scalar doesn't map to any grapheme break
