@@ -13,7 +13,7 @@
 #
 # ===---------------------------------------------------------------------===//
 """
-Benchmark_Driver is a tool for running and analysing Swift Benchmarking Suite.
+Benchmark_Driver is a tool for running and analyzing Swift Benchmarking Suite.
 
 Example:
     $ Benchmark_Driver run
