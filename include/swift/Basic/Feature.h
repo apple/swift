@@ -53,9 +53,21 @@ inline bool featureImpliesFeature(Feature feature, Feature implied) {
 /// Get the feature corresponding to this "future" feature, if there is one.
 std::optional<Feature> getUpcomingFeature(llvm::StringRef name);
 
+/// Extract features from a comma-separated string of feature names. If any
+/// feature is invalid, a std::nullopt will be inserted into the output vector,
+/// so length(nameList.splitAll(',')) == features.size()
+void getUpcomingFeatures(llvm::StringRef nameList,
+                         SmallVector<std::optional<Feature>, 2> &features);
+
 /// Get the feature corresponding to this "experimental" feature, if there is
 /// one.
 std::optional<Feature> getExperimentalFeature(llvm::StringRef name);
+
+/// Extract features from a comma-separated string of feature names. If any
+/// feature is invalid, a std::nullopt will be inserted into the output vector,
+/// so length(nameList.splitAll(',')) == features.size()
+void getExperimentalFeatures(llvm::StringRef nameList,
+                             SmallVector<std::optional<Feature>, 2> &features);
 
 /// Get the major language version in which this feature was introduced, or
 /// \c None if it does not have such a version.

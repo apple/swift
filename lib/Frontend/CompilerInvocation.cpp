@@ -648,6 +648,40 @@ static bool ParseCASArgs(CASOptions &Opts, ArgList &Args,
   return false;
 }
 
+/// returns true iff an error was detected.
+static bool parseExperimentalFeature(LangOptions &Opts,
+                                     DiagnosticEngine &Diags,
+                                     const Arg *A) {
+  SmallVector<std::optional<Feature>, 2> features;
+  getExperimentalFeatures(A->getValue(), features);
+
+  // If this is a known experimental feature, allow it in +Asserts
+  // (non-release) builds for testing purposes.
+  for (auto feature : features) {
+    // Ignore unknown features
+    if (!feature)
+      continue;
+
+    if (Opts.RestrictNonProductionExperimentalFeatures &&
+        !isFeatureAvailableInProduction(*feature)) {
+      Diags.diagnose(SourceLoc(),
+                     diag::experimental_not_supported_in_production,
+                     getFeatureName(*feature));
+      return true;
+    } else {
+      Opts.enableFeature(*feature);
+    }
+
+    if (*feature == Feature::NoncopyableGenerics2)
+      Opts.enableFeature(Feature::NoncopyableGenerics);
+
+    if (*feature == Feature::IsolatedAny2)
+      Opts.enableFeature(Feature::IsolatedAny);
+  }
+
+  return false;
+}
+
 static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
                           DiagnosticEngine &Diags,
                           const FrontendOptions &FrontendOpts) {
@@ -942,24 +976,7 @@ static bool ParseLangArgs(LangOptions &Opts, ArgList &Args,
       }
     }
 
-    // If this is a known experimental feature, allow it in +Asserts
-    // (non-release) builds for testing purposes.
-    if (auto feature = getExperimentalFeature(value)) {
-      if (Opts.RestrictNonProductionExperimentalFeatures &&
-          !isFeatureAvailableInProduction(*feature)) {
-        Diags.diagnose(SourceLoc(), diag::experimental_not_supported_in_production,
-                       A->getValue());
-        HadError = true;
-      } else {
-        Opts.enableFeature(*feature);
-      }
-
-      if (*feature == Feature::NoncopyableGenerics2)
-        Opts.enableFeature(Feature::NoncopyableGenerics);
-
-      if (*feature == Feature::IsolatedAny2)
-        Opts.enableFeature(Feature::IsolatedAny);
-    }
+    HadError &= parseExperimentalFeature(Opts, Diags, A);
 
     // Hack: In order to support using availability macros in SPM packages, we
     // need to be able to use:

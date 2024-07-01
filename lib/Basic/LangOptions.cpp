@@ -688,6 +688,23 @@ swift::getPlaygroundOption(llvm::StringRef name) {
       .Default(std::nullopt);
 }
 
+static void splitFeaturesAndMap(
+                llvm::function_ref<std::optional<Feature>(llvm::StringRef)> fn,
+                llvm::StringRef list,
+                SmallVector<std::optional<Feature>, 2> &output) {
+  for (auto name : llvm::split(list, ','))
+    output.push_back(fn(name));
+}
+
+void getExperimentalFeatures(llvm::StringRef nameList,
+                             SmallVector<std::optional<Feature>, 2> &features) {
+  splitFeaturesAndMap(getExperimentalFeature, nameList, features);
+}
+void getUpcomingFeatures(llvm::StringRef nameList,
+                         SmallVector<std::optional<Feature>, 2> &features) {
+  splitFeaturesAndMap(getUpcomingFeature, nameList, features);
+}
+
 DiagnosticBehavior LangOptions::getAccessNoteFailureLimit() const {
   switch (AccessNoteBehavior) {
   case AccessNoteDiagnosticBehavior::Ignore:
