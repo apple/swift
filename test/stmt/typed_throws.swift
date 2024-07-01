@@ -82,8 +82,8 @@ func testDoCatchMultiErrorType() {
   do {
     try doSomething()
     try doHomework()
-  } catch .failed { // expected-error{{type 'any Error' has no member 'failed'}}
-
+  } catch .failed { // expected-error{{expression pattern of type 'Unicode.Scalar' cannot match values of type 'any Error}}
+    // expected-error@-1{{type 'Unicode.Scalar' has no member 'failed'}}
   } catch {
     let _: Int = error // expected-error{{cannot convert value of type 'any Error' to specified type 'Int'}}
   }
