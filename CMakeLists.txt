@@ -25,6 +25,12 @@ if(POLICY CMP0077)
   cmake_policy(SET CMP0077 NEW)
 endif()
 
+# Not transform the relative paths in the DEPFILE for Ninja
+# 'OLD' align with llvm-project/cmake/Modules/CMakePolicy.cmake
+if(POLICY CMP0116)
+  cmake_policy(SET CMP0116 OLD)
+endif()
+
 # Add path for custom CMake modules.
 list(APPEND CMAKE_MODULE_PATH
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
