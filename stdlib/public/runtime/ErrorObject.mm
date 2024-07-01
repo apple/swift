@@ -359,7 +359,9 @@ const Metadata *SwiftError::getHashableBaseType() const {
   if (isPureNSError()) {
     return getNSErrorMetadata();
   }
-  if (auto type = hashableBaseType.load(std::memory_order_acquire)) {
+  // Because hashableBaseType cannot be changed when set, synchronization is
+  // not needed
+  if (auto type = hashableBaseType.load(std::memory_order_relaxed)) {
     if (reinterpret_cast<uintptr_t>(type) == 1) {
       return nullptr;
     }
@@ -371,7 +373,7 @@ const Metadata *SwiftError::getHashableBaseType() const {
   this->hashableBaseType.compare_exchange_strong(
       expectedType, hashableBaseType ? hashableBaseType
                                      : reinterpret_cast<const Metadata *>(1),
-      std::memory_order_acq_rel);
+      std::memory_order_relaxed, std::memory_order_relaxed);
   return type;
 }
 
@@ -379,7 +381,9 @@ const HashableWitnessTable *SwiftError::getHashableConformance() const {
   if (isPureNSError()) {
     return getNSErrorConformanceToHashable();
   }
-  if (auto wt = hashableConformance.load(std::memory_order_acquire)) {
+  // Because hashableConformance cannot be changed when set, synchronization is
+  // not needed
+  if (auto wt = hashableConformance.load(std::memory_order_relaxed)) {
     if (reinterpret_cast<uintptr_t>(wt) == 1) {
       return nullptr;
     }
@@ -392,7 +396,7 @@ const HashableWitnessTable *SwiftError::getHashableConformance() const {
           swift_conformsToProtocolCommon(type, &HashableProtocolDescriptor));
   hashableConformance.compare_exchange_strong(
       expectedWT, wt ? wt : reinterpret_cast<const HashableWitnessTable *>(1),
-      std::memory_order_acq_rel);
+      std::memory_order_relaxed, std::memory_order_relaxed);
   return wt;
 }
 
@@ -526,7 +530,8 @@ swift::_swift_stdlib_bridgeErrorToNSError(SwiftError *errorObject) {
   CFDictionaryRef expectedUserInfo = nullptr;
   if (!errorObject->userInfo.compare_exchange_strong(expectedUserInfo,
                                                      (CFDictionaryRef)userInfo,
-                                                     std::memory_order_acq_rel))
+                                                     std::memory_order_release,
+                                                     std::memory_order_relaxed))
     objc_release(userInfo);
 
   // We also need to cmpxchg in the domain; if somebody beat us to it,
@@ -537,7 +542,8 @@ swift::_swift_stdlib_bridgeErrorToNSError(SwiftError *errorObject) {
   CFStringRef expectedDomain = nullptr;
   if (!errorObject->domain.compare_exchange_strong(expectedDomain,
                                                    (CFStringRef)domain,
-                                                   std::memory_order_acq_rel))
+                                                   std::memory_order_release,
+                                                   std::memory_order_relaxed))
     objc_release(domain);
 
   return ns;

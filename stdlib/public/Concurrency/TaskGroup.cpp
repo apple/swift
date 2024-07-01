@@ -648,7 +648,9 @@ AsyncTask *TaskGroupBase::claimWaitingTask() {
          "task is present!");
 
   auto waitingTask = waitQueue.load(std::memory_order_acquire);
-  if (!waitQueue.compare_exchange_strong(waitingTask, nullptr)) {
+  if (!waitQueue.compare_exchange_strong(waitingTask, nullptr,
+                                         std::memory_order_release,
+                                         std::memory_order_relaxed)) {
     swift_Concurrency_fatalError(0, "Failed to claim waitingTask!");
   }
   return waitingTask;
@@ -1398,7 +1400,9 @@ void DiscardingTaskGroup::offer(AsyncTask *completedTask, AsyncContext *context)
     // allows a single task to get the waiting task and attempt to complete it.
     // As another offer gets to run, it will have either a different waiting task, or no waiting task at all.
     auto waitingTask = waitQueue.load(std::memory_order_acquire);
-    if (!waitQueue.compare_exchange_strong(waitingTask, nullptr)) {
+    if (!waitQueue.compare_exchange_strong(waitingTask, nullptr,
+                                           std::memory_order_release,
+                                           std::memory_order_relaxed)) {
       swift_Concurrency_fatalError(0, "Failed to claim waitingTask!");
     }
     assert(waitingTask && "status claimed to have waitingTask but waitQueue was empty!");
@@ -1720,7 +1724,7 @@ reevaluate_if_taskgroup_has_results:;
     if (status.compare_exchange_strong(
         assumedStatus, newStatus.completingPendingReadyWaiting(this).status,
         /*success*/ std::memory_order_release,
-        /*failure*/ std::memory_order_acquire)) {
+        /*failure*/ std::memory_order_relaxed)) {
 
       // We're going back to running the task, so if we suspended before,
       // we need to flag it as running again.

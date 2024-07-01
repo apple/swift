@@ -1074,15 +1074,14 @@ namespace {
             std::forward<ArgTys>(args)...);
         if (cache.Private.compare_exchange_strong(existingEntry,
                                                   allocatedEntry,
-                                                  std::memory_order_acq_rel,
-                                                  std::memory_order_acquire)) {
+                                                  std::memory_order_release,
+                                                  std::memory_order_relaxed)) {
           // If that succeeded, return the entry we allocated and tell the
           // caller we allocated it.
           return { allocatedEntry, true };
         }
 
         // Otherwise, use the new entry and destroy the one we allocated.
-        assert(existingEntry && "spurious failure of strong compare-exchange?");
         swift_cxx_deleteObject(allocatedEntry);
       }
 

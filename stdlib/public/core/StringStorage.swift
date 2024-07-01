@@ -770,7 +770,7 @@ extension __SharedStringStorage {
 extension _StringGuts {
   /// Atomically load and return breadcrumbs, populating them if necessary.
   ///
-  /// This emits aquire/release barriers to avoid access reordering trouble.
+  /// This emits acquire/release barriers to avoid access reordering trouble.
   ///
   /// This returns an unmanaged +0 reference to allow accessing breadcrumbs
   /// without incurring retain/release operations.
