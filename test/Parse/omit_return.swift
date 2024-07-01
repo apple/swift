@@ -689,7 +689,7 @@ var fv_optionalTryUnusedExplicit: () {
 }
 
 var fv_optionalTryUnusedImplicit: () {
-    try? failableLogAndReturn("oh") //expected-warning {{result of 'try?' is unused}}
+    try? failableLogAndReturn("oh")
 }
 
 var fv_optionalTryExplicit: String? {
@@ -1694,7 +1694,7 @@ class D_optionalTryUnusedExplicit {
 
 class D_optionalTryUnusedImplicit {
     deinit {
-        try? failableLogAndReturn("oh") // expected-warning {{result of 'try?' is unused}}
+        try? failableLogAndReturn("oh")
     }
 }
 

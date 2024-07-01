@@ -85,7 +85,7 @@ namespace {
 
         TypeChecker::computeCaptures(CE);
         return Action::SkipNode(E);
-      } 
+      }
 
       if (auto CapE = dyn_cast<CaptureListExpr>(E)) {
         // Capture lists need to be reparented to enclosing autoclosures
@@ -1936,22 +1936,34 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
       .highlight(E->getSourceRange());
     return;
   }
-    
-  // Always complain about 'try?'.
-  if (auto *OTE = dyn_cast<OptionalTryExpr>(valueE)) {
-    DE.diagnose(OTE->getTryLoc(), diag::expression_unused_optional_try)
-      .highlight(E->getSourceRange());
-    return;
-  }
 
   if (auto *LE = dyn_cast<LiteralExpr>(valueE)) {
     diagnoseIgnoredLiteral(Context, LE);
     return;
   }
+  
+  ApplyExpr *call = nullptr;
+  
+  // Unwrap optional try to get inner function calls.
+  {
+    auto nextExpr = valueE;
+    while(nextExpr != nullptr) {
+      if (auto applyExpr = dyn_cast<ApplyExpr>(nextExpr)) {
+        call = applyExpr;
+        break;
+      } else if (auto optionalTry = dyn_cast<OptionalTryExpr>(nextExpr)) {
+        nextExpr = optionalTry->getSubExpr();
+      } else if (auto implicitConversion = dyn_cast<InjectIntoOptionalExpr>(nextExpr)) {
+        nextExpr = implicitConversion->getSubExpr();
+      } else {
+        break;
+      }
+    }
+  }
 
   // Check if we have a call to a function not marked with
   // '@discardableResult'.
-  if (auto call = dyn_cast<ApplyExpr>(valueE)) {
+  if (call != nullptr) {
     // Dig through all levels of calls.
     Expr *fn = call->getFn();
     while (true) {
@@ -1987,6 +1999,13 @@ void TypeChecker::checkIgnoredExpr(Expr *E) {
       return;
 
     // Otherwise, complain.  Start with more specific diagnostics.
+    
+    // Complain about 'try?'.
+    if (auto *OTE = dyn_cast<OptionalTryExpr>(valueE)) {
+      DE.diagnose(OTE->getTryLoc(), diag::expression_unused_optional_try)
+        .highlight(E->getSourceRange());
+      return;
+    }
 
     // Diagnose unused constructor calls.
     if (isa_and_nonnull<ConstructorDecl>(callee) && !call->isImplicit()) {
