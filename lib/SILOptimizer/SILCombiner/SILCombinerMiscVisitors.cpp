@@ -32,6 +32,7 @@
 #include "swift/SILOptimizer/Utils/BasicBlockOptUtils.h"
 #include "swift/SILOptimizer/Utils/CFGOptUtils.h"
 #include "swift/SILOptimizer/Utils/Devirtualize.h"
+#include "swift/SILOptimizer/Utils/Generics.h"
 #include "swift/SILOptimizer/Utils/InstOptUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -2236,4 +2237,162 @@ SILCombiner::visitCopyAddrInst(CopyAddrInst *CAI) {
   return Builder.createCopyAddr(
       CAI->getLoc(), Src->getOperand(), Dst->getOperand(),
       CAI->isTakeOfSrc(), CAI->isInitializationOfDest());
+}
+
+static SILFunction *specializeKeyPathAccessor(SILOptFunctionBuilder &FuncBuilder,
+                                              SILFunction *accessor,
+                                              SubstitutionMap subs) {
+  ReabstractionInfo reInfo(FuncBuilder.getModule().getSwiftModule(),
+                           FuncBuilder.getModule().isWholeModule(),
+                           ApplySite(),
+                           accessor,
+                           subs,
+                           accessor->isSerialized(),
+                           /* convertIndirectToDirect */ false,
+                           /* dropMetatypeArgs */ false);
+
+  GenericFuncSpecializer funcSpecializer(FuncBuilder,
+                                         accessor,
+                                         subs,
+                                         reInfo);
+
+  return funcSpecializer.trySpecialization();
+}
+
+// If we have a 'keypath' instruction who has a substitution map that looks like
+// <T> (...) <Int> for example, then we can specialize the underlying pattern
+// it references. This allows the keypath to not have to resolve generic
+// arguments at runtime and generates a once location so it only needs to be
+// initialized once.
+SILInstruction *
+SILCombiner::visitKeyPathInst(KeyPathInst *KPI) {
+  auto subs = KPI->getSubstitutions();
+
+  // If we don't have a substitution map, then this isn't a keypath that is
+  // specializable to begin with.
+  if (!subs) {
+    return nullptr;
+  }
+
+  auto pattern = KPI->getPattern();
+
+  if (!pattern) {
+    return nullptr;
+  }
+
+  for (auto component : pattern->getComponents()) {
+    if (!component.getSubscriptIndices().empty()) {
+      return nullptr;
+    }
+  }
+
+  auto kpType = KPI->getKeyPathType();
+  auto rootTy = kpType->getGenericArgs()[0]->getCanonicalType();
+  auto valueTy = kpType->getGenericArgs()[1]->getCanonicalType();
+
+  // Both 'Root' and 'Value' must be completely concrete.
+  if (rootTy->hasArchetype() || valueTy->hasArchetype()) {
+    return nullptr;
+  }
+
+  SmallVector<KeyPathPatternComponent, 4> specializedComponents;
+
+  // Specialize every getter/setter in our component list if we have any.
+  for (auto component : pattern->getComponents()) {
+    auto specializedComponentTy =
+        component.getComponentType().subst(subs)->getCanonicalType();
+
+    switch (component.getKind()) {
+    case KeyPathPatternComponent::Kind::GettableProperty:
+    case KeyPathPatternComponent::Kind::SettableProperty: {
+      auto getter = component.getComputedPropertyGetter();
+      auto specializedGetter = specializeKeyPathAccessor(FuncBuilder, getter, subs);
+
+      if (!specializedGetter) {
+        return nullptr;
+      }
+
+      if (component.getKind() == KeyPathPatternComponent::Kind::GettableProperty) {
+        // Note that this is still using the old pattern's ID. We do this
+        // because we want these components to still compare equal as the thing
+        // they were specialized from.
+        auto specializedComponent =
+            KeyPathPatternComponent::forComputedGettableProperty(
+                                              component.getComputedPropertyId(),
+                                              specializedGetter,
+                                              component.getSubscriptIndices(),
+                                              component.getSubscriptIndexEquals(),
+                                              component.getSubscriptIndexHash(),
+                                              component.getExternalDecl(),
+                                              component.getExternalSubstitutions(),
+                                              specializedComponentTy);
+
+        specializedComponents.push_back(specializedComponent);
+        break;
+      }
+
+      auto setter = component.getComputedPropertySetter();
+      auto specializedSetter = specializeKeyPathAccessor(FuncBuilder, setter, subs);
+
+      if (!specializedSetter) {
+        return nullptr;
+      }
+
+      // Note that this is still using the old pattern's ID. We do this
+      // because we want these components to still compare equal as the thing
+      // they were specialized from.
+      auto specializedComponent =
+          KeyPathPatternComponent::forComputedSettableProperty(
+                                              component.getComputedPropertyId(),
+                                              specializedGetter,
+                                              specializedSetter,
+                                              component.getSubscriptIndices(),
+                                              component.getSubscriptIndexEquals(),
+                                              component.getSubscriptIndexHash(),
+                                              component.getExternalDecl(),
+                                              component.getExternalSubstitutions(),
+                                              specializedComponentTy);
+
+      specializedComponents.push_back(specializedComponent);
+      break;
+    }
+
+    case KeyPathPatternComponent::Kind::StoredProperty: {
+      specializedComponents.push_back(
+        KeyPathPatternComponent::forStoredProperty(component.getStoredPropertyDecl(),
+                                                   specializedComponentTy));
+      break;
+    }
+
+    case KeyPathPatternComponent::Kind::TupleElement: {
+      specializedComponents.push_back(
+        KeyPathPatternComponent::forTupleElement(component.getTupleIndex(),
+                                                 specializedComponentTy));
+      break;
+    }
+
+    case KeyPathPatternComponent::Kind::OptionalChain:
+    case KeyPathPatternComponent::Kind::OptionalForce:
+    case KeyPathPatternComponent::Kind::OptionalWrap: {
+      specializedComponents.push_back(
+        KeyPathPatternComponent::forOptional(component.getKind(),
+                                             specializedComponentTy));
+      break;
+    }
+    }
+  }
+
+  auto specializedPattern = KeyPathPattern::get(KPI->getModule(),
+                                                /* genericSignature */ nullptr,
+                                                rootTy, valueTy,
+                                                specializedComponents,
+                                                pattern->getObjCString());
+
+  SmallVector<SILValue, 4> opValues;
+  for (auto &op : KPI->getAllOperands()) {
+    opValues.push_back(op.get());
+  }
+
+  return Builder.createKeyPath(KPI->getLoc(), specializedPattern,
+                               SubstitutionMap(), opValues, KPI->getType());
 }
