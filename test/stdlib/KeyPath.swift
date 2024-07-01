@@ -1159,5 +1159,70 @@ if #available(SwiftStdlib 5.9, *) {
   }
 }
 
+keyPath.test("keypath equality") {
+  do {
+    // Equality for the simplest cases.
+    struct S1 { var x: Int }
+    struct S2 { var s1: S1 }
+    struct S3 { var s2: S2 }
+
+    let kp1A = \S1.x
+    let kp1B = \S1.x
+    let kp2A = \S2.s1.x
+    let kp2B = \S2.s1.x
+    let kp3A = \S3.s2.s1.x
+    let kp3B = \S3.s2.s1.x
+
+    expectEqual(kp1A, kp1B)
+    expectEqual(kp2A, kp2B)
+    expectEqual(kp3A, kp3B)
+
+    expectNotEqual(kp1A, kp2A)
+    expectNotEqual(kp1A, kp3A)
+    expectNotEqual(kp2A, kp3A)
+  }
+
+  do {
+    // Equality involving captures.
+    struct S {
+      subscript<H: Hashable>(x: H) -> Any { fatalError() }
+    }
+
+    let kp1 = \S.["hello"]
+    let kp2 = \S.["hello"]
+    let kp3 = \S.["hi"]
+    let kp4 = \S.["hi"]
+
+    expectEqual(kp1, kp2)
+    expectEqual(kp3, kp4)
+    expectNotEqual(kp2, kp3)
+
+    // Make sure we correctly compare captures of different types. Look out for
+    // false positives (when the values are different but have matching bytes)
+    // and crashes (when the values contain pointers) caused by type confusion
+    // in the == implementation.
+
+    // Two values with the same value but different type should not match.
+    let kp5 = \S.[0]
+    let kp6 = \S.[0 as Int8]
+    expectNotEqual(kp5, kp6)
+    expectNotEqual(kp6, kp5)
+
+    // Check a value that's a bytewise prefix of the other value.
+    let kp7 = \S.[0x100]
+    expectNotEqual(kp6, kp7)
+    expectNotEqual(kp7, kp6)
+
+    // Try with String and Array to trigger pointer loads.
+    let kp8 = \S.[[0]]
+    expectNotEqual(kp5, kp8)
+    expectNotEqual(kp8, kp5)
+    expectNotEqual(kp1, kp8)
+    expectNotEqual(kp8, kp1)
+    expectNotEqual(kp1, kp5)
+    expectNotEqual(kp5, kp1)
+  }
+}
+
 runAllTests()
 

@@ -812,6 +812,12 @@ extension KeyPathComponent: Hashable {
         return false
       }
       if let arg1 = argument1, let arg2 = argument2 {
+        // To compare for equality, they must be the same type. Check that that
+        // by checking if they have the same witnesses. If they have different
+        // witnesses then they cannot ever be equal.
+        if (arg1.witnesses._value != arg2.witnesses._value) {
+          return false
+        }
         return arg1.witnesses.equals(
           arg1.data.baseAddress.unsafelyUnwrapped,
           arg2.data.baseAddress.unsafelyUnwrapped,
