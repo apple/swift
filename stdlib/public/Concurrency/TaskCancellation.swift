@@ -58,6 +58,8 @@ import Swift
 ///
 /// If cancellation occurs while the operation is running, the cancellation
 /// handler executes *concurrently* with the operation.
+/// In that case, the cancellation handler is guaranteed to have finished executing
+/// by the time `withTaskCancellationHandler(operation:onCancel:)` returns.
 ///
 /// ### Cancellation handlers and locks
 ///
