@@ -410,3 +410,17 @@ extension GlobalType {
     rhs: GlobalType
   ) -> Bool { true }
 }
+
+// expected-complete-tns-note@+1 2 {{class 'NotSendable' does not conform to the 'Sendable' protocol}}
+class NotSendable {}
+
+func testUnsafeAsyncFunctionConversions(
+  f: @escaping @MainActor (NotSendable) async -> Void,
+  g: @escaping @MainActor () async -> NotSendable
+) {
+  // expected-complete-tns-warning@+1 {{non-sendable parameter type 'NotSendable' in conversion from main actor-isolated function to nonisolated function; this is an error in the Swift 6 language mode}}
+  let _: (NotSendable) async -> Void = f
+
+  // expected-complete-tns-warning@+1 {{non-sendable result type 'NotSendable' in conversion from main actor-isolated function to nonisolated function; this is an error in the Swift 6 language mode}}
+  let _: () async -> NotSendable = g
+}

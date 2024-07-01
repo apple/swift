@@ -2010,7 +2010,8 @@ bool swift::isAsyncDecl(ConcreteDeclRef declRef) {
 /// \param ty a function type where \c globalActor was removed from it.
 /// \return true if it is safe to drop the global-actor qualifier.
 static bool safeToDropGlobalActor(
-    DeclContext *dc, Type globalActor, Type ty, ApplyExpr *call) {
+    DeclContext *dc, Type globalActor, Type ty,
+    ApplyExpr *call, SourceLoc loc) {
   auto funcTy = ty->getAs<AnyFunctionType>();
   if (!funcTy)
     return false;
@@ -2029,11 +2030,30 @@ static bool safeToDropGlobalActor(
   if (otherIsolation.isErased())
     return true;
 
-  // We currently allow unconditional dropping of global actors from
-  // async function types, despite this confusing Sendable checking
-  // in light of SE-338.
-  if (funcTy->isAsync())
+  // Converting from a global actor isolated type to an async function
+  // type is okay as long as the parameter and result types are 'Sendable',
+  // because the argument and result values will cross an isolation boundary
+  // in the conversion thunk.
+  if (funcTy->isAsync()) {
+    auto sourceIsolation = ActorIsolation::forGlobalActor(globalActor);
+    for (auto param : funcTy->getParams()) {
+      auto paramType = param.getPlainType();
+      diagnoseNonSendableTypes(
+          paramType, dc, /*inDerivedConformance*/Type(),
+          loc, diag::non_sendable_param_reference,
+          sourceIsolation,
+          ActorIsolation::forNonisolated(/*unsafe*/false));
+    }
+
+    auto resultType = funcTy->getResult();
+    diagnoseNonSendableTypes(
+        resultType, dc, /*inDerivedConformance*/Type(),
+        loc, diag::non_sendable_result_reference,
+        sourceIsolation,
+        ActorIsolation::forNonisolated(/*unsafe*/false));
+
     return true;
+  }
 
   // If the argument is passed over an isolation boundary, it's not
   // safe to erase actor isolation, because the callee can call the
@@ -2466,13 +2486,15 @@ namespace {
         if (auto fromActor = fromFnType->getGlobalActor()) {
           if (auto toFnType = toType->getAs<FunctionType>()) {
 
-            // ignore some kinds of casts, as they're diagnosed elsewhere.
-            if (toFnType->hasGlobalActor() || toFnType->isAsync())
+            // The conversion is okay if the global actors match.
+            if (toFnType->hasGlobalActor() &&
+                fromActor->isEqual(toFnType->getGlobalActor()))
               return;
 
             auto dc = const_cast<DeclContext*>(getDeclContext());
             if (!safeToDropGlobalActor(dc, fromActor, toType,
-                                       getImmediateApply())) {
+                                       getImmediateApply(),
+                                       funcConv->getLoc())) {
               // otherwise, it's not a safe cast.
               dc->getASTContext()
                   .Diags

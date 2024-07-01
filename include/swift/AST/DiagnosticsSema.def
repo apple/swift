@@ -5688,6 +5688,14 @@ ERROR(non_sendable_param_type,none,
       "in parameter of superclass method overridden by %3 %kind2|"
       "in parameter of %3 '@objc' %kind2}1 cannot cross actor boundary",
       (Type, unsigned, const ValueDecl *, ActorIsolation))
+ERROR(non_sendable_param_reference,none,
+      "non-sendable parameter type %0 in conversion from %1 function to "
+      "%2 function",
+      (Type, ActorIsolation, ActorIsolation))
+ERROR(non_sendable_result_reference,none,
+      "non-sendable result type %0 in conversion from %1 function to "
+      "%2 function",
+      (Type, ActorIsolation, ActorIsolation))
 ERROR(non_sendable_call_argument,none,
       "passing argument of non-sendable type %0 %select{into %2 context|"
       "outside of %2 context}1 may introduce data races",
