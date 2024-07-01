@@ -54,7 +54,6 @@ To learn more about the programming language, visit [swift.org](https://swift.or
 
 - [Contributing to Swift](#contributing-to-swift)
 - [Getting Started](#getting-started)
-  - [Swift Toolchains](#swift-toolchains)
   - [Build Failures](#build-failures)
 - [Learning More](#learning-more)
 
@@ -86,69 +85,11 @@ If you are interested in:
   [How to Submit Your First Pull Request guide](/docs/HowToGuides/FirstPullRequest.md).
 - Building the compiler as a one-off: See our [Getting Started guide][].
 - Building a toolchain as a one-off: Follow the [Getting Started guide][]
-  up until the "Building the project" section. After that, follow the
-  instructions in the [Swift Toolchains](#swift-toolchains) section below.
+  up until the "Building the project" section.
 
 We also have an [FAQ](/docs/HowToGuides/FAQ.md) that answers common questions.
 
 [Getting Started guide]: /docs/HowToGuides/GettingStarted.md
-
-### Swift Toolchains
-
-#### Building
-
-Swift toolchains are created using the script
-[build-toolchain](https://github.com/apple/swift/blob/main/utils/build-toolchain). This
-script is used by swift.org's CI to produce snapshots and can allow for one to
-locally reproduce such builds for development or distribution purposes. A typical 
-invocation looks like the following:
-
-```
-  $ ./swift/utils/build-toolchain $BUNDLE_PREFIX
-```
-
-where ``$BUNDLE_PREFIX`` is a string that will be prepended to the build 
-date to give the bundle identifier of the toolchain's ``Info.plist``. For 
-instance, if ``$BUNDLE_PREFIX`` was ``com.example``, the toolchain 
-produced will have the bundle identifier ``com.example.YYYYMMDD``. It 
-will be created in the directory you run the script with a filename 
-of the form: ``swift-LOCAL-YYYY-MM-DD-a-osx.tar.gz``.
-
-Beyond building the toolchain, ``build-toolchain`` also supports the 
-following (non-exhaustive) set of useful options:
-
-- ``--dry-run``: Perform a dry run build. This is off by default.
-- ``--test``: Test the toolchain after it has been compiled. This is off by default.
-- ``--distcc``: Use distcc to speed up the build by distributing the C++ part of
-  the swift build. This is off by default.
-- ``--sccache``: Use sccache to speed up subsequent builds of the compiler by
-  caching more C++ build artifacts. This is off by default.
-
-More options may be added over time. Please pass ``--help`` to
-``build-toolchain`` to see the full set of options.
-
-#### Installing into Xcode
-
-On macOS if one wants to install such a toolchain into Xcode:
-
-1. Untar and copy the toolchain to one of `/Library/Developer/Toolchains/` or
-   `~/Library/Developer/Toolchains/`. E.g.:
-
-```
-  $ sudo tar -xzf swift-LOCAL-YYYY-MM-DD-a-osx.tar.gz -C /
-  $ tar -xzf swift-LOCAL-YYYY-MM-DD-a-osx.tar.gz -C ~/
-```
-
-The script also generates an archive containing debug symbols which
-can be installed over the main archive allowing symbolication of any
-compiler crashes.
-
-```
-  $ sudo tar -xzf swift-LOCAL-YYYY-MM-DD-a-osx-symbols.tar.gz -C /
-  $ tar -xzf swift-LOCAL-YYYY-MM-DD-a-osx-symbols.tar.gz -C ~/
-```
-
-2. Specify the local toolchain for Xcode's use via `Xcode->Toolchains`.
 
 ### Build Failures
 
