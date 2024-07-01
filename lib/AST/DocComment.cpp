@@ -427,24 +427,49 @@ private:
     return std::nullopt;
   }
 
+  /// Check if there is an inherited protocol that has a default implementation
+  /// of `VD` with a doc comment.
   std::optional<ResultWithDecl> findDefaultProvidedDecl(const ValueDecl *VD) {
-    // Only applies to protocol extension member.
-    auto *protocol = VD->getDeclContext()->getExtendedProtocolDecl();
-    if (!protocol)
+    NominalTypeDecl *nominalType =
+        dyn_cast_or_null<NominalTypeDecl>(VD->getDeclContext()->getAsDecl());
+    if (!nominalType) {
+      nominalType = VD->getDeclContext()->getExtendedProtocolDecl();
+    }
+    if (!nominalType)
       return std::nullopt;
 
     SmallVector<ValueDecl *, 2> members;
-    protocol->lookupQualified(const_cast<ProtocolDecl *>(protocol),
-                              DeclNameRef(VD->getName()),
-                              VD->getLoc(), NLOptions::NL_ProtocolMembers,
-                              members);
+    nominalType->lookupQualified(nominalType, DeclNameRef(VD->getName()),
+                                 VD->getLoc(), NLOptions::NL_ProtocolMembers,
+                                 members);
 
     std::optional<ResultWithDecl> result;
-    for (auto *member : members) {
-      if (!isa<ProtocolDecl>(member->getDeclContext()) ||
-          !member->isProtocolRequirement())
-        continue;
+    Type vdComparisonTy = VD->getInterfaceType();
+    if (!vdComparisonTy) {
+      return std::nullopt;
+    }
+    if (auto fnTy = vdComparisonTy->getAs<AnyFunctionType>()) {
+      // Strip off the 'Self' parameter.
+      vdComparisonTy = fnTy->getResult();
+    }
 
+    for (auto *member : members) {
+      if (isa<AbstractFunctionDecl>(member) || isa<AbstractStorageDecl>(member)) {
+        if (VD->isStatic() != member->isStatic()) {
+          continue;
+        }
+        Type memberComparisonTy = member->getInterfaceType();
+        if (!memberComparisonTy) {
+          continue;
+        }
+        if (auto fnTy = memberComparisonTy->getAs<AnyFunctionType>()) {
+          // Strip off the 'Self' parameter.
+          memberComparisonTy = fnTy->getResult();
+        }
+        if (!vdComparisonTy->matches(memberComparisonTy, TypeMatchFlags::AllowOverride)) {
+          continue;
+        }
+      }
       auto newResult = visit(member);
       if (!newResult)
         continue;
@@ -487,10 +512,10 @@ public:
     if (auto result = findOverriddenDecl(VD))
       return result;
 
-    if (auto result = findDefaultProvidedDecl(VD))
+    if (auto result = findRequirementDecl(VD))
       return result;
 
-    if (auto result = findRequirementDecl(VD))
+    if (auto result = findDefaultProvidedDecl(VD))
       return result;
 
     return std::nullopt;
