@@ -500,8 +500,6 @@ set(SWIFT_SDK_LINUX_ARCHITECTURES "" CACHE STRING
 set(SWIFT_ANDROID_API_LEVEL "" CACHE STRING
   "Version number for the Android API")
 
-set(SWIFT_ANDROID_NDK_PATH "" CACHE STRING
-  "Path to the directory that contains the Android NDK tools that are executable on the build machine")
 set(SWIFT_ANDROID_DEPLOY_DEVICE_PATH "" CACHE STRING
   "Path on an Android device where build products will be pushed. These are used when running the test suite against the device")
 
@@ -1205,8 +1203,9 @@ elseif("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "ANDROID")
   set(SWIFT_HOST_VARIANT "android" CACHE STRING
       "Deployment OS for Swift host tools (the compiler) [android]")
 
-  set(SWIFT_ANDROID_NATIVE_SYSROOT "/data/data/com.termux/files" CACHE STRING
-      "Path to Android sysroot, default initialized to the Termux app's layout")
+  string(TOLOWER ${CMAKE_HOST_SYSTEM_NAME} platform)
+  set(SWIFT_ANDROID_NATIVE_SYSROOT "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/${platform}-x86_64/sysroot" CACHE STRING
+      "Path to Android sysroot")
 
   if("${SWIFT_SDK_ANDROID_ARCHITECTURES}" STREQUAL "")
     set(SWIFT_SDK_ANDROID_ARCHITECTURES ${SWIFT_HOST_VARIANT_ARCH})
@@ -1269,9 +1268,6 @@ endif()
 # Should we cross-compile the standard library for Android?
 is_sdk_requested(ANDROID swift_build_android)
 if(swift_build_android AND NOT "${SWIFT_HOST_VARIANT_SDK}" STREQUAL "ANDROID")
-  if ("${SWIFT_ANDROID_NDK_PATH}" STREQUAL "")
-    message(FATAL_ERROR "You must set SWIFT_ANDROID_NDK_PATH to cross-compile the Swift runtime for Android")
-  endif()
   if (NOT ("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Darwin" OR "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux"))
     message(FATAL_ERROR "A Darwin or Linux host is required to build the Swift runtime for Android")
   endif()
