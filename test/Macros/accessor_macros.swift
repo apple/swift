@@ -147,7 +147,7 @@ struct HasStoredTests {
 
 #if TEST_DIAGNOSTICS
   @AddWillSetSneakily var y: Int = 0
-  // expected-error@-1{{expansion of macro 'AddWillSetSneakily()' did not produce a getter or a setter as expected}}
+  // expected-error@-1{{expansion of macro 'AddWillSetSneakily()' did not produce a non-observing accessor (such as 'get') as expected}}
 
   @MakeComputedSneakily var z: Int = 0
   // expected-error@-1{{expansion of macro 'MakeComputedSneakily()' produced an unexpected getter}}

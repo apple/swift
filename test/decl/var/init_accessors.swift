@@ -57,14 +57,14 @@ func test_use_of_initializes_accesses_on_non_inits() {
       get { y }
 
       @storageRestrictions(initializes: y)
-      // expected-error@-1 {{@storageRestrictions attribute could only be used with init functions}}
+      // expected-error@-1 {{@storageRestrictions attribute could only be used with init accessors}}
       set(initialValue) {}
     }
 
     var _q: String {
       get { y }
       @storageRestrictions(accesses: x)
-      // expected-error@-1 {{@storageRestrictions attribute could only be used with init functions}}
+      // expected-error@-1 {{@storageRestrictions attribute could only be used with init accessors}}
       set(initialValue) {}
     }
 
@@ -82,7 +82,7 @@ func test_invalid_refs_in_init_attrs() {
       @storageRestrictions(initializes: a, accesses: b, c)
       // expected-error@-1 {{find type 'a' in scope}}
       // expected-error@-2 {{find type 'b' in scope}}
-      // expected-error@-3 {{init function cannot refer to property 'c'; init accessors can refer only to stored properties}}
+      // expected-error@-3 {{init accessor cannot refer to property 'c'; init accessors can refer only to stored properties}}
       init(initialValue) {}
 
       get { 0 }
@@ -157,9 +157,9 @@ func test_duplicate_and_computed_lazy_properties() {
 
     var a: Int {
       @storageRestrictions(initializes: a, c, accesses: _a, b)
-      // expected-error@-1 {{init function cannot refer to property 'a'; init accessors can refer only to stored properties}}
-      // expected-error@-2 {{init function cannot refer to property 'b'; init accessors can refer only to stored properties}}
-      // expected-error@-3 {{init function cannot refer to property 'c'; init accessors can refer only to stored properties}}
+      // expected-error@-1 {{init accessor cannot refer to property 'a'; init accessors can refer only to stored properties}}
+      // expected-error@-2 {{init accessor cannot refer to property 'b'; init accessors can refer only to stored properties}}
+      // expected-error@-3 {{init accessor cannot refer to property 'c'; init accessors can refer only to stored properties}}
       init(initialValue) {}
 
       get { _a }
@@ -411,7 +411,7 @@ func test_memberwise_ordering() {
     var a: Int {
       @storageRestrictions(initializes: _a, accesses: _b)
       init(initialValue) {
-        // expected-note@-1 {{init function for 'a' cannot access stored property '_b' because it is called before '_b' is initialized}}
+        // expected-note@-1 {{init accessor for 'a' cannot access stored property '_b' because it is called before '_b' is initialized}}
         _a = initialValue
       }
 
@@ -621,7 +621,7 @@ func test_invalid_storage_restrictions() {
     var c: Int {
       @storageRestrictions(initializes: a, initializes: b)
       // expected-error@-1 {{duplicate label 'initializes' in @storageRestrictions attribute}}
-      // expected-error@-2 {{init function cannot refer to property 'a'; init accessors can refer only to stored properties}}
+      // expected-error@-2 {{init accessor cannot refer to property 'a'; init accessors can refer only to stored properties}}
       init {}
 
       get { 0 }
@@ -630,7 +630,7 @@ func test_invalid_storage_restrictions() {
     var d: Int {
       @storageRestrictions(accesses: a, accesses: c)
       // expected-error@-1 {{duplicate label 'accesses' in @storageRestrictions attribute}}
-      // expected-error@-2 {{init function cannot refer to property 'a'; init accessors can refer only to stored properties}}
+      // expected-error@-2 {{init accessor cannot refer to property 'a'; init accessors can refer only to stored properties}}
       init {}
 
       get { 0 }
@@ -653,7 +653,7 @@ func test_invalid_storage_restrictions() {
 
     var g: Int {
       @storageRestrictions(initializes: _a)
-      // expected-error@-1 {{@storageRestrictions attribute could only be used with init functions}}
+      // expected-error@-1 {{@storageRestrictions attribute could only be used with init accessors}}
       get { 0 }
     }
 

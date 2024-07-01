@@ -6388,7 +6388,7 @@ ERROR(no_opaque_return_type_of,none,
 ERROR(objc_observing_accessor, none,
       "%0 is not allowed to be marked @objc", (DescriptiveDeclKind))
 ERROR(objc_init_accessor, none,
-      "init functions cannot be marked @objc", ())
+      "init accessors cannot be marked @objc", ())
 ERROR(objc_addressor, none,
       "addressors are not allowed to be marked @objc", ())
 ERROR(objc_coroutine_accessor, none,
@@ -7660,7 +7660,7 @@ ERROR(macro_nonobserver_unexpected_in_expansion,none,
       "expansion of macro %0 produced an unexpected %1",
       (DeclName, DescriptiveDeclKind))
 ERROR(macro_init_accessor_not_documented,none,
-      "expansion of macro %0 produced an unexpected 'init' member",
+      "expansion of macro %0 produced an unexpected 'init' accessor",
       (DeclName))
 ERROR(global_arbitrary_name,none,
       "'%0' macros are not allowed to introduce arbitrary names "
@@ -7878,22 +7878,22 @@ ERROR(nonescapable_types_attr_disabled,none,
 //------------------------------------------------------------------------------
 
 ERROR(init_accessor_can_refer_only_to_properties,none,
-      "init function cannot refer to %0 %1; init functions can refer only"
+      "init accessor cannot refer to %0 %1; init accessors can refer only"
       " to stored properties",
       (DescriptiveDeclKind, DeclNameRef))
 
 ERROR(storage_restrictions_attribute_not_on_init_accessor,none,
-      "@storageRestrictions attribute could only be used with init functions",
+      "@storageRestrictions attribute could only be used with init accessors",
       ())
 ERROR(init_accessor_property_both_init_and_accessed,none,
       "property %0 cannot be both initialized and accessed",
       (DeclName))
 ERROR(invalid_use_of_self_in_init_accessor,none,
-      "'self' within init function can only be used to reference "
+      "'self' within init accessors can only be used to reference "
       "properties listed in 'initializes' and 'accesses'; "
-      "init function are run before 'self' is fully available", ())
+      "init accessors are run before 'self' is fully available", ())
 ERROR(init_accessor_invalid_member_ref,none,
-      "cannot reference instance member %0; init function can only "
+      "cannot reference instance member %0; init accessors can only "
       "refer to instance properties listed in 'initializes' and "
       "'accesses' attributes",
       (DeclNameRef))
@@ -7901,7 +7901,7 @@ ERROR(cannot_synthesize_memberwise_due_to_property_init_order,none,
       "cannot synthesize memberwise initializer",
       ())
 NOTE(out_of_order_access_in_init_accessor,none,
-     "init function for %0 cannot access stored property %1 because it "
+     "init accessor for %0 cannot access stored property %1 because it "
      "is called before %1 is initialized",
      (Identifier, Identifier))
 

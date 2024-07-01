@@ -10,7 +10,7 @@ struct Abstraction<T> {
     init(_ initial : T) { self.value = initial }
 
     var wrappedValue : T {
-        get throws { return value } // expected-error{{property wrappers currently cannot define an 'async' or 'throws'}}
+        get throws { return value } // expected-error{{property wrappers cannot be applied to properties that are 'async' or 'throws'}}
     }
 
     // its OK to have effectful props that are not `wrappedValue`
