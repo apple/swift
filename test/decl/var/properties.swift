@@ -1218,7 +1218,7 @@ struct r19874152S6 {
   // Cannot handle implicit synth of this yet.
   let (a,b) = (1,2)   // expected-error {{unsupported}}
 }
-_ = r19874152S5()  // ok
+_ = r19874152S6()  // ok
 
 
 
