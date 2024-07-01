@@ -31,7 +31,6 @@
 @_spiOnly import Empty // expected-error {{'@_spiOnly' requires setting the frontend flag '-experimental-spi-only-imports'}}
 
 //--- Client.private.swiftinterface
-
 // swift-interface-format-version: 1.0
 // swift-compiler-version: Swift version 5.8-dev effective-4.1.50
 // swift-module-flags: -swift-version 4 -module-name Client

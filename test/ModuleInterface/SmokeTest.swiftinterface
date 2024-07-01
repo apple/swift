@@ -1,7 +1,6 @@
 // The "flags" line in this test deliberately has no flags and no space after
 // the colon, just to make sure that works (even though it'll never be printed
 // that way).
-
 // swift-module-flags:
 // swift-interface-format-version: 1.0
 
