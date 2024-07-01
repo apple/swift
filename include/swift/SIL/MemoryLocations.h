@@ -188,13 +188,9 @@ private:
   /// init_existential_addr and open_existential_addr.
   bool handleNonTrivialProjections;
 
-  /// If true, also analyze trivial memory locations.
-  bool handleTrivialLocations;
-
 public:
-  MemoryLocations(bool handleNonTrivialProjections, bool handleTrivialLocations) :
-    handleNonTrivialProjections(handleNonTrivialProjections),
-    handleTrivialLocations(handleTrivialLocations) {}
+  MemoryLocations(bool handleNonTrivialProjections)
+      : handleNonTrivialProjections(handleNonTrivialProjections) {}
 
   MemoryLocations(const MemoryLocations &) = delete;
   MemoryLocations &operator=(const MemoryLocations &) = delete;
@@ -237,11 +233,15 @@ public:
 
   /// Clears the location bits of \p addr in \p bits, if \p addr is associated
   /// with a location.
-  void clearBits(Bits &bits, SILValue addr) const {
-    if (auto *loc = getLocation(addr))
-      bits.reset(loc->subLocations);
+  void clearBits(Bits &bits, SILValue addr, bool evenTrivial) {
+    if (auto *loc = getLocation(addr)) {
+      const auto &sublocations =
+          evenTrivial ? loc->subLocations
+                      : loc->subLocations & getNonTrivialLocations();
+      bits.reset(sublocations);
+    }
   }
-  
+
   void genBits(Bits &genSet, Bits &killSet, SILValue addr) const {
     if (auto *loc = getLocation(addr)) {
       killSet.reset(loc->subLocations);
@@ -249,10 +249,13 @@ public:
     }
   }
 
-  void killBits(Bits &genSet, Bits &killSet, SILValue addr) const {
+  void killBits(Bits &genSet, Bits &killSet, SILValue addr, bool evenTrivial) {
     if (auto *loc = getLocation(addr)) {
-      killSet |= loc->subLocations;
-      genSet.reset(loc->subLocations);
+      const auto &sublocations =
+          evenTrivial ? loc->subLocations
+                      : loc->subLocations & getNonTrivialLocations();
+      killSet |= sublocations;
+      genSet.reset(sublocations);
     }
   }
 

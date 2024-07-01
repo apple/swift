@@ -10,6 +10,10 @@ sil_stage canonical
 
 import Builtin
 
+struct Int {
+  var _value: Builtin.Int64
+}
+
 protocol P {
 }
 
@@ -22,4 +26,11 @@ bb0(%0 : $*P):
   apply %2<@opened("4E16CBC0-FD9F-11E8-A311-D0817AD9F6DD", P) Self>(%1) : $@convention(thin) <τ_0_0 where τ_0_0 : P> (@inout_aliasable τ_0_0) -> ()
   %9999 = tuple()
   return %9999 : $()
+}
+
+sil @trivial_in_guaranteed_to_in : $@convention(thin) (@in_guaranteed Int) -> () {
+entry(%addr : $*Int):
+  apply undef(%addr) : $@convention(thin) (@in Int) -> ()
+  %7 = tuple ()
+  return %7 : $()
 }

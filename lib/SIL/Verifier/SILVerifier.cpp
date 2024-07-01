@@ -521,8 +521,12 @@ void verifyKeyPathComponent(SILModule &M,
 /// open_existential_addr. We should expand it as needed.
 struct ImmutableAddressUseVerifier {
   SmallVector<Operand *, 32> worklist;
+  bool consumeIsMutate;
 
-  bool isConsumingOrMutatingArgumentConvention(SILArgumentConvention conv) {
+  ImmutableAddressUseVerifier(bool consumeIsMutate)
+      : consumeIsMutate(consumeIsMutate) {}
+
+  bool isMutatingArgumentConvention(SILArgumentConvention conv) {
     switch (conv) {
     case SILArgumentConvention::Indirect_In_Guaranteed:
     case SILArgumentConvention::Pack_Guaranteed:
@@ -542,10 +546,15 @@ struct ImmutableAddressUseVerifier {
     case SILArgumentConvention::Pack_Owned:
     case SILArgumentConvention::Pack_Inout:
     case SILArgumentConvention::Indirect_Out:
-    case SILArgumentConvention::Indirect_In:
     case SILArgumentConvention::Indirect_Inout:
     case SILArgumentConvention::Indirect_In_CXX:
       return true;
+
+    case SILArgumentConvention::Indirect_In:
+      if (consumeIsMutate) {
+        return true;
+      }
+      return false;
 
     case SILArgumentConvention::Direct_Unowned:
     case SILArgumentConvention::Direct_Guaranteed:
@@ -556,18 +565,18 @@ struct ImmutableAddressUseVerifier {
     llvm_unreachable("covered switch isn't covered?!");
   }
 
-  bool isConsumingOrMutatingApplyUse(Operand *use) {
+  bool isMutatingApplyUse(Operand *use) {
     ApplySite apply(use->getUser());
     assert(apply && "Not an apply instruction kind");
     auto conv = apply.getArgumentConvention(*use);
-    return isConsumingOrMutatingArgumentConvention(conv);
+    return isMutatingArgumentConvention(conv);
   }
 
-  bool isConsumingOrMutatingYieldUse(Operand *use) {
+  bool isMutatingYieldUse(Operand *use) {
     // For now, just say that it is non-consuming for now.
     auto *yield = cast<YieldInst>(use->getUser());
     auto conv = yield->getArgumentConventionForOperand(*use);
-    return isConsumingOrMutatingArgumentConvention(conv);
+    return isMutatingArgumentConvention(conv);
   }
 
   // A "copy_addr %src [take] to *" is consuming on "%src".
@@ -613,12 +622,12 @@ struct ImmutableAddressUseVerifier {
       case SILInstructionKind::TryApplyInst:
       case SILInstructionKind::PartialApplyInst:
       case SILInstructionKind::BeginApplyInst:
-        return isConsumingOrMutatingApplyUse(use);
+        return isMutatingApplyUse(use);
       }
     });
   }
 
-  bool isMutatingOrConsuming(SILValue address) {
+  bool isMutating(SILValue address) {
     llvm::copy(address->getUses(), std::back_inserter(worklist));
     while (!worklist.empty()) {
       auto *use = worklist.pop_back_val();
@@ -693,11 +702,11 @@ struct ImmutableAddressUseVerifier {
       case SILInstructionKind::TryApplyInst:
       case SILInstructionKind::PartialApplyInst:
       case SILInstructionKind::BeginApplyInst:
-        if (isConsumingOrMutatingApplyUse(use))
+        if (isMutatingApplyUse(use))
           return true;
         break;
       case SILInstructionKind::YieldInst:
-        if (isConsumingOrMutatingYieldUse(use))
+        if (isMutatingYieldUse(use))
           return true;
         break;
       case SILInstructionKind::BeginAccessInst:
@@ -1280,7 +1289,10 @@ public:
         !fArg->hasConvention(SILArgumentConvention::Indirect_In_Guaranteed))
       return;
 
-    require(!ImmutableAddressUseVerifier().isMutatingOrConsuming(fArg),
+    require(!ImmutableAddressUseVerifier(
+                 /*consumeIsMutate*/ !fArg->getType().isTrivial(
+                     *fArg->getFunction()))
+                 .isMutating(fArg),
             "Found mutating or consuming use of an in_guaranteed parameter?!");
   }
 
@@ -4407,7 +4419,8 @@ public:
       return;
 
     require(allowedAccessKind == OpenedExistentialAccess::Mutable ||
-                !ImmutableAddressUseVerifier().isMutatingOrConsuming(OEI),
+                !ImmutableAddressUseVerifier(/*consumeIsMutate=*/false)
+                     .isMutating(OEI),
             "open_existential_addr uses that consumes or mutates but is not "
             "opened for mutation");
   }

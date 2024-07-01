@@ -806,3 +806,19 @@ bb3:
   return %r : $()
 }
 
+sil [ossa] @trivial_in_guaranteed_to_in : $@convention(thin) (@in_guaranteed Int) -> () {
+entry(%addr : $*Int):
+  apply undef(%addr) : $@convention(thin) (@in Int) -> ()
+  %7 = tuple ()
+  return %7 : $()
+}
+
+// Legal because Mixed.i was initialized and can never be uninitialized.
+sil [ossa] @test_mixed : $@convention(thin) (@in Mixed, Int) -> Int {
+bb0(%0 : $*Mixed, %1 : $Int):
+  %2 = struct_element_addr %0 : $*Mixed, #Mixed.i
+  store %1 to [trivial] %2 : $*Int
+  destroy_addr %0 : $*Mixed
+  %3 = load [trivial] %2 : $*Int
+  return %3 : $Int
+}
