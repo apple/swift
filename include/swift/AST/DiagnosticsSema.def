@@ -7201,7 +7201,7 @@ ERROR(property_wrapper_computed, none,
       "property wrapper cannot be applied to a computed property",
       ())
 ERROR(property_wrapper_effectful,none,
-    "property wrappers currently cannot define an 'async' or 'throws'",
+    "property wrappers cannot be applied to properties that are 'async' or 'throws'",
     ())
 
 ERROR(property_with_wrapper_conflict_attribute,none,
@@ -7633,7 +7633,7 @@ ERROR(invalid_decl_in_macro_expansion,none,
       "macro expansion cannot introduce %0",
       (DescriptiveDeclKind))
 ERROR(let_accessor_expansion,none,
-      "cannot expand macros on variable declared with 'let'",
+      "cannot expand accessor macro on variable declared with 'let'",
       ())
 ERROR(invalid_main_type_in_macro_expansion,none,
       "macro expansion cannot introduce '@main' type",
@@ -7653,7 +7653,8 @@ ERROR(invalid_macro_role_for_macro_syntax,none,
 ERROR(macro_cannot_introduce_names,none,
       "'%0' macros are not allowed to introduce names", (StringRef))
 ERROR(macro_nonobserving_accessor_missing_from_expansion,none,
-      "expansion of macro %0 did not produce a getter or a setter as expected",
+      "expansion of macro %0 did not produce a non-observing accessor "
+      "(such as 'get') as expected",
       (DeclName))
 ERROR(macro_nonobserver_unexpected_in_expansion,none,
       "expansion of macro %0 produced an unexpected %1",
@@ -7701,7 +7702,7 @@ NOTE(macro_expand_circular_reference_unnamed_through, none,
      "circular reference expanding %0 macros", (StringRef))
 
 ERROR(accessor_macro_not_single_var, none,
-      "macro %0 can only apply to a single variable", (DeclName))
+      "accessor macro %0 can only apply to a single variable", (DeclName))
 
 //------------------------------------------------------------------------------
 // MARK: Noncopyable Types Diagnostics
