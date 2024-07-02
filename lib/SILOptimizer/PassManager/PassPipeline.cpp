@@ -947,6 +947,10 @@ SILPassPipelinePlan::getIRGenPreparePassPipeline(const SILOptions &Options) {
   // boundaries as required by the ABI.
   P.addLoadableByAddress();
 
+  // Delete instructions without strongly ordered side effects that appear
+  // "directly before" an unreachable.
+  P.addUnreachableBlockOptimization();
+
   if (Options.EnablePackMetadataStackPromotion) {
     // Insert marker instructions indicating where on-stack pack metadata
     // deallocation must occur.
