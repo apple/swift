@@ -3132,8 +3132,20 @@ void CompletionLookup::getAttributeDeclParamCompletions(
   }
 }
 
-void CompletionLookup::getTypeAttributeKeywordCompletions() {
-  auto addTypeAttr = [&](StringRef Name) {
+void CompletionLookup::getTypeAttributeKeywordCompletions(
+    CompletionKind completionKind) {
+  auto addTypeAttr = [&](TypeAttrKind Kind, StringRef Name) {
+    if (completionKind != CompletionKind::TypeAttrInheritanceBeginning) {
+      switch (Kind) {
+      case TypeAttrKind::Retroactive:
+      case TypeAttrKind::Preconcurrency:
+      case TypeAttrKind::Unchecked:
+        // These attributes are only available in inheritance clasuses.
+        return;
+      default:
+        break;
+      }
+    }
     CodeCompletionResultBuilder Builder = makeResultBuilder(
         CodeCompletionResultKind::Keyword, SemanticContextKind::None);
     Builder.addAttributeKeyword(Name, "Type Attribute");
@@ -3142,17 +3154,17 @@ void CompletionLookup::getTypeAttributeKeywordCompletions() {
   // Add simple user-accessible attributes.
 #define SIL_TYPE_ATTR(SPELLING, C)
 #define SIMPLE_SIL_TYPE_ATTR(SPELLING, C)
-#define SIMPLE_TYPE_ATTR(SPELLING, C)                      \
-  if (!TypeAttribute::isUserInaccessible(TypeAttrKind::C)) \
-    addTypeAttr(#SPELLING);
+#define SIMPLE_TYPE_ATTR(SPELLING, C)                                          \
+  if (!TypeAttribute::isUserInaccessible(TypeAttrKind::C))                     \
+    addTypeAttr(TypeAttrKind::C, #SPELLING);
 #include "swift/AST/TypeAttr.def"
 
   // Add non-simple cases.
-  addTypeAttr("convention(swift)");
-  addTypeAttr("convention(block)");
-  addTypeAttr("convention(c)");
-  addTypeAttr("convention(thin)");
-  addTypeAttr("isolated(any)");
+  addTypeAttr(TypeAttrKind::Convention, "convention(swift)");
+  addTypeAttr(TypeAttrKind::Convention, "convention(block)");
+  addTypeAttr(TypeAttrKind::Convention, "convention(c)");
+  addTypeAttr(TypeAttrKind::Convention, "convention(thin)");
+  addTypeAttr(TypeAttrKind::Isolated, "isolated(any)");
 }
 
 void CompletionLookup::collectPrecedenceGroups() {

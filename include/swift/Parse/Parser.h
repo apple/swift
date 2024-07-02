@@ -1401,6 +1401,8 @@ public:
 
     /// Whether the type is for a closure attribute.
     CustomAttribute,
+    /// A type in an inheritance clause.
+    InheritanceClause,
   };
 
   ParserResult<TypeRepr> parseTypeScalar(
@@ -1458,6 +1460,7 @@ public:
   ParserResult<TypeRepr> parseTypeDotted(ParserResult<TypeRepr> Base);
 
   struct ParsedTypeAttributeList {
+    ParseTypeReason ParseReason;
     ParamDecl::Specifier Specifier = ParamDecl::Specifier::Default;
     SourceLoc SpecifierLoc;
     SourceLoc IsolatedLoc;
@@ -1466,6 +1469,8 @@ public:
     SourceLoc SendingLoc;
     SmallVector<TypeOrCustomAttr> Attributes;
     SmallVector<LifetimeDependenceSpecifier> lifetimeDependenceSpecifiers;
+
+    ParsedTypeAttributeList(ParseTypeReason reason) : ParseReason(reason) {}
 
     /// Main entry point for parsing.
     ///
@@ -1488,7 +1493,7 @@ public:
   };
 
   ParserStatus parseTypeAttribute(TypeOrCustomAttr &result, SourceLoc AtLoc,
-                                  SourceLoc AtEndLoc,
+                                  SourceLoc AtEndLoc, ParseTypeReason reason,
                                   PatternBindingInitializer *&initContext,
                                   bool justChecking = false);
 

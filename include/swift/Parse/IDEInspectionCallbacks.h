@@ -288,6 +288,8 @@ public:
 
   virtual void completeTypeAttrBeginning() {};
 
+  virtual void completeTypeAttrInheritanceBeginning() {};
+
   virtual void completeOptionalBinding(){};
 
   virtual void completeWithoutConstraintType(){};

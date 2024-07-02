@@ -161,7 +161,7 @@ SourceLoc Parser::tryCompleteFunctionParamTypeBeginning() {
   // Skip over any starting parameter specifiers.
   {
     CancellableBacktrackingScope backtrack(*this);
-    ParsedTypeAttributeList attrs;
+    ParsedTypeAttributeList attrs(ParseTypeReason::Unspecified);
     attrs.parse(*this);
     if (!Tok.is(tok::code_complete))
       return SourceLoc();

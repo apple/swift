@@ -1126,7 +1126,8 @@ bool SILParser::parseSILType(SILType &Result,
   }
 
   // Parse attributes.
-  Parser::ParsedTypeAttributeList parsedAttrs;
+  Parser::ParsedTypeAttributeList parsedAttrs(
+      Parser::ParseTypeReason::Unspecified);
   parsedAttrs.parse(P);
 
   // Global functions are implicitly @convention(thin) if not specified otherwise.
