@@ -64,8 +64,8 @@ public struct HeapObject {
 
 /// Forward declarations of C functions
 
-@_extern(c, "posix_memalign")
-func posix_memalign(_: UnsafeMutablePointer<UnsafeMutableRawPointer?>, _: Int, _: Int) -> CInt
+@_extern(c, "aligned_alloc")
+func aligned_alloc(_: Int, _: Int) -> Builtin.RawPointer
 
 @_extern(c, "free")
 func free(_ p: Builtin.RawPointer)
@@ -76,9 +76,8 @@ func free(_ p: Builtin.RawPointer)
 
 func alignedAlloc(size: Int, alignment: Int) -> UnsafeMutableRawPointer? {
   let alignment = max(alignment, MemoryLayout<UnsafeRawPointer>.size)
-  var r: UnsafeMutableRawPointer? = nil
-  _ = posix_memalign(&r, alignment, size)
-  return r
+  let size = (size + alignment - 1) & ~(alignment - 1)
+  return UnsafeMutableRawPointer(aligned_alloc(alignment, size))
 }
 
 @_cdecl("swift_slowAlloc")

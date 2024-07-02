@@ -235,7 +235,7 @@ Embedded Swift minimizes external dependencies (i.e. functions that need to be a
 For (1), external dependencies are only used based on actual usage of the program under compilation:
 
 - instantiating a class, or using UnsafeMutablePointer.allocate()
-  - dependency: `int posix_memalign(void **, size_t, size_t);`
+  - dependency: `void *aligned_alloc(size_t alignment, size_t size);`
   - dependency: `void free(void *);`
 - using print()
   - dependency: `int putchar(int);`

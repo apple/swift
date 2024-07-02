@@ -14,11 +14,11 @@
 // DEP: ___stack_chk_fail
 // DEP: ___stack_chk_guard
 // DEP: _arc4random_buf
+// DEP: _aligned_alloc
 // DEP: _free
 // DEP: _memmove
 // DEP: _memset
 // DEP: _putchar
-// DEP: _posix_memalign
 
 // RUN: %target-clang -x c -c %S/Inputs/print.c -o %t/print.o
 // RUN: %target-clang -x c -c %S/Inputs/linux-rng-support.c -o %t/linux-rng-support.o

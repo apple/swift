@@ -13,11 +13,11 @@
 
 // DEP: ___stack_chk_fail
 // DEP: ___stack_chk_guard
+// DEP: _aligned_alloc
 // DEP: _free
 // DEP: _memmove
 // DEP: _memset
 // DEP: _putchar
-// DEP: _posix_memalign
 
 // RUN: %target-clang -x c -c %S/Inputs/print.c -o %t/print.o
 // RUN: %target-clang %t/a.o %t/print.o -o %t/a.out
