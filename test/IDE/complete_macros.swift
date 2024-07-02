@@ -55,6 +55,9 @@ public macro AttachedPeerMacro()
 @attached(extension)
 public macro AttachedConformanceMacro()
 
+@attached(body)
+public macro BodyMacro()
+
 @freestanding(expression)
 @freestanding(declaration)
 @attached(accessor)
@@ -69,59 +72,68 @@ public macro EverythingMacro()
 import MacroDefinitions
 #endif
 
-@#^CLASS_ATTR?check=NOMINAL_ATTR^# class C {}
-@#^EXTRA_FILTER?check=NOMINAL_ATTR^#IB class C2 {}
-@#^ENUM_ATTR?check=NOMINAL_ATTR^# enum E {}
-@#^STRUCT_ATTR?check=NOMINAL_ATTR^# struct S{}
-// NOMINAL_ATTR-NOT: freestanding
-// NOMINAL_ATTR-NOT: AttachedAccessorMacro
+@#^CLASS_ATTR?check=NOMINAL_ATTR;check=NOMINAL_ATTR_NOT^# class C {}
+@#^EXTRA_FILTER?check=NOMINAL_ATTR;check=NOMINAL_ATTR_NOT^#IB class C2 {}
+@#^ENUM_ATTR?check=NOMINAL_ATTR;check=NOMINAL_ATTR_NOT^# enum E {}
+@#^STRUCT_ATTR?check=NOMINAL_ATTR;check=NOMINAL_ATTR_NOT^# struct S{}
 // NOMINAL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedMemberMacro[#Member Macro#]; name=AttachedMemberMacro
 // NOMINAL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedMemberMacroWithArgs({#arg1: Int#})[#Member Macro#]; name=AttachedMemberMacroWithArgs
 // NOMINAL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedMemberAttributeMacro[#Member Attribute Macro#]; name=AttachedMemberAttributeMacro
 // NOMINAL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedPeerMacro[#Peer Macro#]; name=AttachedPeerMacro
 // NOMINAL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedConformanceMacro[#Extension Macro#]; name=AttachedConformanceMacro
 // NOMINAL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+//
+// NOMINAL_ATTR_NOT-NOT: freestanding
+// NOMINAL_ATTR_NOT-NOT: AttachedAccessorMacro
+// NOMINAL_ATTR_NOT-NOT: BodyMacro
 
-@#^FUNC_ATTR?check=DECL_ATTR^# func method() {}
+@#^FUNC_ATTR?check=FUNC_ATTR;check=FUNC_ATTR_NOT^# func method() {}
 struct MethodAttrs {
-  @#^INIT_ATTR?check=DECL_ATTR^# init() {}
-  @#^DEINIT_ATTR?check=DECL_ATTR^# deinit{}
-  @#^METHOD_ATTR?check=DECL_ATTR^# func method() {}
+  var x: Int {
+    @#^ACCESSOR_ATTR?check=FUNC_ATTR;check=FUNC_ATTR_NOT^# get { 0 }
+  }
+  @#^INIT_ATTR?check=FUNC_ATTR;check=FUNC_ATTR_NOT^# init() {}
+  @#^DEINIT_ATTR?check=FUNC_ATTR;check=FUNC_ATTR_NOT^# deinit{}
+  @#^METHOD_ATTR?check=FUNC_ATTR;check=FUNC_ATTR_NOT^# func method() {}
 }
-// DECL_ATTR-NOT: freestanding
-// DECL_ATTR-NOT: AttachedAccessorMacro
-// DECL_ATTR-NOT: AttachedMemberMacro
-// DECL_ATTR-NOT: AttachedMemberMacroWithArgs
-// DECL_ATTR-NOT: AttachedConformanceMacro
-// DECL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedPeerMacro[#Peer Macro#]; name=AttachedPeerMacro
-// DECL_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+// FUNC_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedPeerMacro[#Peer Macro#]; name=AttachedPeerMacro
+// FUNC_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: BodyMacro[#Body Macro#]; name=BodyMacro
+// FUNC_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+//
+// FUNC_ATTR_NOT-NOT: freestanding
+// FUNC_ATTR_NOT-NOT: AttachedAccessorMacro
+// FUNC_ATTR_NOT-NOT: AttachedMemberMacro
+// FUNC_ATTR_NOT-NOT: AttachedMemberMacroWithArgs
+// FUNC_ATTR_NOT-NOT: AttachedConformanceMacro
 
-@#^GLOBAL_ATTR?check=VAR_ATTR^# var globalVar
+@#^GLOBAL_ATTR?check=VAR_ATTR;check=VAR_ATTR_NOT^# var globalVar
 struct PropAttr {
-  @#^PROP_ATTR?check=VAR_ATTR^# var propVar
+  @#^PROP_ATTR?check=VAR_ATTR;check=VAR_ATTR_NOT^# var propVar
   func localAttr() {
-    @#^LOCAL_ATTR?check=VAR_ATTR^# var localVar
+    @#^LOCAL_ATTR?check=VAR_ATTR;check=VAR_ATTR_NOT^# var localVar
   }
 }
-// VAR_ATTR-NOT: freestanding
-// VAR_ATTR-NOT: AttachedMemberMacro
-// VAR_ATTR-NOT: AttachedMemberMacroWithArgs
-// VAR_ATTR-NOT: AttachedMemberAttributeMacro
-// VAR_ATTR-NOT: AttachedConformanceMacro
 // VAR_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedAccessorMacro[#Accessor Macro#]; name=AttachedAccessorMacro
 // VAR_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedPeerMacro[#Peer Macro#]; name=AttachedPeerMacro
 // VAR_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+//
+// VAR_ATTR_NOT-NOT: freestanding
+// VAR_ATTR_NOT-NOT: AttachedMemberMacro
+// VAR_ATTR_NOT-NOT: AttachedMemberMacroWithArgs
+// VAR_ATTR_NOT-NOT: AttachedMemberAttributeMacro
+// VAR_ATTR_NOT-NOT: AttachedConformanceMacro
+// VAR_ATTR_NOT-NOT: BodyMacro
 
 func paramAttr(@#^PARAM_ATTR?check=PARAM_ATTR^#) {}
 func paramAttr2(@#^PARAM2_ATTR?check=PARAM_ATTR^# arg: Int) {}
 // TODO: These should both be PARAM_ATTR
 func takeNoArgClosure(_: (Int) -> Void) {
-  takeClosure { @#^NO_ARG_CLOSURE_ATTR?check=INDEPENDENT_ATTR^# in
+  takeClosure { @#^NO_ARG_CLOSURE_ATTR?check=INDEPENDENT_ATTR;check=INDEPENDENT_ATTR_NOT^# in
     print("x")
   }
 }
 func takeNoArgClosure(_: () -> Void) {
-  takeClosure { @#^CLOSURE_ATTR?check=INDEPENDENT_ATTR^# in
+  takeClosure { @#^CLOSURE_ATTR?check=INDEPENDENT_ATTR;check=INDEPENDENT_ATTR_NOT^# in
     print("x")
   }
 }
@@ -132,41 +144,47 @@ func takeNoArgClosure(_: () -> Void) {
 // PARAM_ATTR-NOT: AttachedMemberAttributeMacro
 // PARAM_ATTR-NOT: AttachedPeerMacro
 // PARAM_ATTR-NOT: AttachedConformanceMacro
+// PARAM_ATTR-NOT: BodyMacro
 // PARAM_ATTR-NOT: EverythingMacro
 
-##^TOP_LEVEL_FREESTANDING?check=ALL_FREESTANDING^#
+##^TOP_LEVEL_FREESTANDING?check=ALL_FREESTANDING;check=ALL_FREESTANDING_NOT^#
 func nestedFreestanding() {
-  ##^TOP_NESTED_FREESTANDING?check=ALL_FREESTANDING^#
+  ##^TOP_NESTED_FREESTANDING?check=ALL_FREESTANDING;check=ALL_FREESTANDING_NOT^#
 }
-// ALL_FREESTANDING-NOT: Attached
 // ALL_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingDeclMacro[#Declaration Macro#]; name=freestandingDeclMacro
 // ALL_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingCodeItemMacro[#Code Item Macro#]; name=freestandingCodeItemMacro
 // ALL_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingExprIntMacro[#Int#]; name=freestandingExprIntMacro
 // ALL_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingExprStringMacro[#String#]; name=freestandingExprStringMacro
 // ALL_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingExprTMacro({#(value): T#})[#T#]; name=freestandingExprTMacro(:)
 // ALL_FREESTANDING-DAG: Decl[Macro]/{{.*}}: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+//
+// ALL_FREESTANDING_NOT-NOT: Attached
+// ALL_FREESTANDING_NOT-NOT: BodyMacro
 
 func exprFreestanding(arg: Int) {
-  _ = arg + ##^EXPR_FREESTANDING^#
+  _ = arg + ##^EXPR_FREESTANDING?check=EXPR_FREESTANDING;check=EXPR_FREESTANDING_NOT^#
 }
-// EXPR_FREESTANDING-NOT: freestandingDeclMacro
-// EXPR_FREESTANDING-NOT: freestandingCodeItemMacro
-// EXPR_FREESTANDING-NOT: Attached
 // EXPR_FREESTANDING-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: freestandingExprIntMacro[#Int#]; name=freestandingExprIntMacro
 // EXPR_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingExprStringMacro[#String#]; name=freestandingExprStringMacro
 // EXPR_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingExprTMacro({#(value): T#})[#T#]; name=freestandingExprTMacro(:)
 // TODO: This should be invalid in both same module and across modules
 // EXPR_FREESTANDING-DAG: Decl[Macro]/{{.*}}: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+//
+// EXPR_FREESTANDING_NOT-NOT: freestandingDeclMacro
+// EXPR_FREESTANDING_NOT-NOT: freestandingCodeItemMacro
+// EXPR_FREESTANDING_NOT-NOT: Attached
+// EXPR_FREESTANDING_NOT-NOT: BodyMacro
 
 struct NestedFreestanding {
-  ##^TYPE_NESTED_FREESTANDING?check=ITEM_FREESTANDING^#
+  ##^TYPE_NESTED_FREESTANDING?check=ITEM_FREESTANDING;check=ITEM_FREESTANDING_NOT^#
 }
-// ITEM_FREESTANDING-NOT: Attached
-// ITEM_FREESTANDING-NOT: freestandingExpr
-// ITEM_FREESTANDING-NOT: freestandingCodeItemMacro
 // ITEM_FREESTANDING-DAG: Decl[Macro]/{{.*}}: freestandingDeclMacro[#Declaration Macro#]; name=freestandingDeclMacro
 // ITEM_FREESTANDING-DAG: Decl[Macro]/{{.*}}: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
-
+//
+// ITEM_FREESTANDING_NOT-NOT: Attached
+// ITEM_FREESTANDING_NOT-NOT: freestandingExpr
+// ITEM_FREESTANDING_NOT-NOT: freestandingCodeItemMacro
+// ITEM_FREESTANDING_NOT-NOT: BodyMacro
 
 @AttachedMemberMacroWithEnumArgs(.#^ATTACHED_MACRO_ARG^#)
 struct AttachedMacroArg {}
@@ -181,15 +199,17 @@ struct AttachedMacroSecondArgLabel {}
 
 
 struct LastMember {
-  @#^LAST_MEMBER_ATTR?check=INDEPENDENT_ATTR^#
+  @#^LAST_MEMBER_ATTR?check=INDEPENDENT_ATTR;check=INDEPENDENT_ATTR_NOT^#
 }
-@#^INDEPENDENT?check=INDEPENDENT_ATTR^#
-// INDEPENDENT_ATTR-NOT: freestandingExprMacro
-// INDEPENDENT_ATTR-NOT: freestandingDeclMacro
+@#^INDEPENDENT?check=INDEPENDENT_ATTR;check=INDEPENDENT_ATTR_NOT^#
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedAccessorMacro[#Accessor Macro#]; name=AttachedAccessorMacro
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedMemberMacro[#Member Macro#]; name=AttachedMemberMacro
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedMemberMacroWithArgs({#arg1: Int#})[#Member Macro#]; name=AttachedMemberMacroWithArgs
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedMemberAttributeMacro[#Member Attribute Macro#]; name=AttachedMemberAttributeMacro
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedPeerMacro[#Peer Macro#]; name=AttachedPeerMacro
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: AttachedConformanceMacro[#Extension Macro#]; name=AttachedConformanceMacro
+// INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: BodyMacro[#Body Macro#]; name=BodyMacro
 // INDEPENDENT_ATTR-DAG: Decl[Macro]/{{.*}}/TypeRelation[Convertible]: EverythingMacro[#Expression Macro, Declaration Macro, Accessor Macro, Member Attribute Macro, Member Macro, Peer Macro, Extension Macro#]; name=EverythingMacro
+//
+// INDEPENDENT_ATTR_NOT-NOT: freestandingExprMacro
+// INDEPENDENT_ATTR_NOT-NOT: freestandingDeclMacro

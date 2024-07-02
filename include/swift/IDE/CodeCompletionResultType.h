@@ -34,6 +34,8 @@ enum class CustomAttributeKind : uint8_t {
   ContextMacro = 1 << 4,
   /// A macro that can be used on any declaration.
   DeclMacro = 1 << 5,
+  /// A macro that can by used on any function.
+  FunctionMacro = 1 << 6,
 };
 
 /// The expected contextual type(s) for code-completion.

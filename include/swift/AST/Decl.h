@@ -7899,9 +7899,14 @@ public:
   /// declaration, given that it is @objc and 'async'.
   std::optional<ForeignAsyncConvention> getForeignAsyncConvention() const;
 
+  /// Whether the given DeclKind is for an AbstractFunctionDecl.
+  static bool isKind(DeclKind kind) {
+    return kind >= DeclKind::First_AbstractFunctionDecl &&
+           kind <= DeclKind::Last_AbstractFunctionDecl;
+  }
+
   static bool classof(const Decl *D) {
-    return D->getKind() >= DeclKind::First_AbstractFunctionDecl &&
-           D->getKind() <= DeclKind::Last_AbstractFunctionDecl;
+    return isKind(D->getKind());
   }
 
   static bool classof(const DeclContext *DC) {
