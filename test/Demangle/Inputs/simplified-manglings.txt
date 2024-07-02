@@ -65,7 +65,6 @@ _TF3foos3barSi ---> bar.setter
 _TFC3foo3bar3basfT3zimCS_3zim_T_ ---> bar.bas(zim:)
 _TToFC3foo3bar3basfT3zimCS_3zim_T_ ---> @objc bar.bas(zim:)
 _TTDFC3foo3bar3basfT3zimCS_3zim_T_ ---> dynamic bar.bas(zim:)
-_TFC3foo3bar3basfT3zimCS_3zim_T_ ---> bar.bas(zim:)
 _TF3foooi1pFTCS_3barVS_3bas_OS_3zim ---> + infix(_:_:)
 _TF3foooP1xFTCS_3barVS_3bas_OS_3zim ---> ^ postfix(_:_:)
 _TFC3foo3barCfT_S0_ ---> bar.__allocating_init()
@@ -118,7 +117,6 @@ _T ---> _T
 _TTo ---> _TTo
 _TC ---> _TC
 _TM ---> _TM
-_TM ---> _TM
 _TW ---> _TW
 _TWV ---> _TWV
 _TWo ---> _TWo
@@ -147,7 +145,6 @@ _TFCSo1Ae ---> A.__ivar_initializer
 _TTWC13call_protocol1CS_1PS_FS1_3foofT_Si ---> protocol witness for P.foo() in conformance C
 _TTSg5Si___TFSqcfT_GSqx_ ---> specialized Optional.init()
 _TTSg5SiSis3Foos_Sf___TFSqcfT_GSqx_ ---> specialized Optional.init()
-_TTSg5Si_Sf___TFSqcfT_GSqx_ ---> specialized Optional.init()
 _TTSg5Si_Sf___TFSqcfT_GSqx_ ---> specialized Optional.init()
 _TTSgS ---> _TTSgS
 _TTSg5S ---> _TTSg5S

@@ -94,12 +94,9 @@ _$s3foo3barC3bas3zimyAaEC_tFTo ---> {T:_$s3foo3barC3bas3zimyAaEC_tF,C} @objc foo
 _$sSC3fooyS2d_SdtFTO ---> {T:_$sSC3fooyS2d_SdtF} @nonobjc __C_Synthesized.foo(Swift.Double, Swift.Double) -> Swift.Double
 _$S3foo3barC3bas3zimyAaEC_tFTo ---> {T:_$S3foo3barC3bas3zimyAaEC_tF,C} @objc foo.bar.bas(zim: foo.zim) -> ()
 _$SSC3fooyS2d_SdtFTO ---> {T:_$SSC3fooyS2d_SdtF} @nonobjc __C_Synthesized.foo(Swift.Double, Swift.Double) -> Swift.Double
-_$S3foo3barC3bas3zimyAaEC_tFTo ---> {T:_$S3foo3barC3bas3zimyAaEC_tF,C} @objc foo.bar.bas(zim: foo.zim) -> ()
-_$SSC3fooyS2d_SdtFTO ---> {T:_$SSC3fooyS2d_SdtF} @nonobjc __C_Synthesized.foo(Swift.Double, Swift.Double) -> Swift.Double
 _$sTA.123 ---> {T:} partial apply forwarder with unmangled suffix ".123"
 $s4main3fooyySiFyyXEfU_TA.1 ---> {T:} closure #1 () -> () in main.foo(Swift.Int) -> ()partial apply forwarder with unmangled suffix ".1"
 _TTDFC3foo3bar3basfT3zimCS_3zim_T_ ---> dynamic foo.bar.bas(zim: foo.zim) -> ()
-_TFC3foo3bar3basfT3zimCS_3zim_T_ ---> foo.bar.bas(zim: foo.zim) -> ()
 _TF3foooi1pFTCS_3barVS_3bas_OS_3zim ---> foo.+ infix(foo.bar, foo.bas) -> foo.zim
 _TF3foooP1xFTCS_3barVS_3bas_OS_3zim ---> foo.^ postfix(foo.bar, foo.bas) -> foo.zim
 _TFC3foo3barCfT_S0_ ---> foo.bar.__allocating_init() -> foo.bar
@@ -160,7 +157,6 @@ _T ---> _T
 _TTo ---> {T:_T} _TTo
 _TC ---> _TC
 _TM ---> _TM
-_TM ---> _TM
 _TW ---> _TW
 _TWV ---> _TWV
 _TWo ---> _TWo
@@ -193,7 +189,6 @@ _TFC12dynamic_self1X1ffT_DS0_ ---> dynamic_self.X.f() -> Self
 _TTSg5Si___TFSqcfT_GSqx_ ---> generic specialization <Swift.Int> of Swift.Optional.init() -> A?
 _TTSgq5Si___TFSqcfT_GSqx_ ---> generic specialization <serialized, Swift.Int> of Swift.Optional.init() -> A?
 _TTSg5SiSis3Foos_Sf___TFSqcfT_GSqx_ ---> generic specialization <Swift.Int with Swift.Int : Swift.Foo in Swift, Swift.Float> of Swift.Optional.init() -> A?
-_TTSg5Si_Sf___TFSqcfT_GSqx_ ---> generic specialization <Swift.Int, Swift.Float> of Swift.Optional.init() -> A?
 _TTSg5Si_Sf___TFSqcfT_GSqx_ ---> generic specialization <Swift.Int, Swift.Float> of Swift.Optional.init() -> A?
 _TTSgS ---> _TTSgS
 _TTSg5S ---> _TTSg5S
@@ -419,7 +414,6 @@ $sScA ---> Swift.Actor
 $sScGySiG ---> Swift.TaskGroup<Swift.Int>
 $s4test10returnsOptyxycSgxyScMYccSglF ---> test.returnsOpt<A>((@Swift.MainActor () -> A)?) -> (() -> A)?
 $sSvSgA3ASbIetCyyd_SgSbIetCyyyd_SgD ---> (@escaping @convention(thin) @convention(c) (@unowned Swift.UnsafeMutableRawPointer?, @unowned Swift.UnsafeMutableRawPointer?, @unowned (@escaping @convention(thin) @convention(c) (@unowned Swift.UnsafeMutableRawPointer?, @unowned Swift.UnsafeMutableRawPointer?) -> (@unowned Swift.Bool))?) -> (@unowned Swift.Bool))?
-$s4test10returnsOptyxycSgxyScMYccSglF ---> test.returnsOpt<A>((@Swift.MainActor () -> A)?) -> (() -> A)?
 $s1t10globalFuncyyAA7MyActorCYiF ---> t.globalFunc(isolated t.MyActor) -> ()
 $sSIxip6foobarP ---> foobar in Swift.DefaultIndices.subscript : A
 $s13__lldb_expr_110$10016c2d8yXZ1B10$10016c2e0LLC ---> __lldb_expr_1.(unknown context at $10016c2d8).(B in $10016c2e0)
