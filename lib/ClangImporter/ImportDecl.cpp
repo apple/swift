@@ -777,6 +777,13 @@ classImplementsProtocol(const clang::ObjCInterfaceDecl *constInterface,
 }
 
 static void
+setWeakStorageInterface(VarDecl *var, Type type) {
+  ASTContext &ctx = var->getASTContext();
+  var->getAttrs().add(new (ctx) ReferenceOwnershipAttr(ReferenceOwnership::Weak));
+  var->setInterfaceType(WeakStorageType::get(type->isOptional() ? type : type->wrapInOptionalType(), ctx));
+}
+
+static void
 applyPropertyOwnership(VarDecl *prop,
                        clang::ObjCPropertyAttribute::Kind attrs) {
   Type ty = prop->getInterfaceType();
@@ -791,10 +798,7 @@ applyPropertyOwnership(VarDecl *prop,
     return;
   }
   if (attrs & clang::ObjCPropertyAttribute::kind_weak) {
-    prop->getAttrs().add(new (ctx)
-                             ReferenceOwnershipAttr(ReferenceOwnership::Weak));
-    prop->setInterfaceType(WeakStorageType::get(
-        prop->getInterfaceType(), ctx));
+    setWeakStorageInterface(prop, prop->getInterfaceType());
     return;
   }
   if ((attrs & clang::ObjCPropertyAttribute::kind_assign) ||
@@ -2123,25 +2127,6 @@ namespace {
         isNonTrivialPtrAuth = Impl.SwiftContext.SILOpts
                                   .EnableImportPtrauthFieldFunctionPointers &&
                               isNonTrivialDueToAddressDiversifiedPtrAuth(decl);
-        if (!isNonTrivialPtrAuth) {
-          // Note that there is a third predicate related to these,
-          // isNonTrivialToPrimitiveDefaultInitialize. That one's not important
-          // for us because Swift never "trivially default-initializes" a struct
-          // (i.e. uses whatever bits were lying around as an initial value).
-
-          // FIXME: It would be nice to instead import the declaration but mark
-          // it as unavailable, but then it might get used as a type for an
-          // imported function and the developer would be able to use it without
-          // referencing the name, which would sidestep our availability
-          // diagnostics.
-          Impl.addImportDiagnostic(
-              decl,
-              Diagnostic(
-                  diag::record_non_trivial_copy_destroy,
-                  Impl.SwiftContext.AllocateCopy(decl->getNameAsString())),
-              decl->getLocation());
-          return nullptr;
-        }
       }
 
       // Import the name.
@@ -2264,6 +2249,7 @@ namespace {
         }
 
         Decl *member = Impl.importDecl(nd, getActiveSwiftVersion());
+        
 
         if (!member) {
           if (!isa<clang::TypeDecl>(nd) && !isa<clang::FunctionDecl>(nd) &&
@@ -2276,6 +2262,14 @@ namespace {
           }
           continue;
         }
+        
+//        if (auto VD = dyn_cast<VarDecl>(member)) {
+//          if (auto FD = dyn_cast<clang::FieldDecl>(nd)) {
+//            if (isStrongAndBridgedObjCObjectPointer(VD)) {
+//              synthesizer.makeComputedFieldAccessors(FD, isConstQualified, result, VD);
+//            }
+//          }
+//        }
 
         if (nd->getDeclName().isIdentifier())
           allMemberNames.insert(nd->getName());
@@ -3222,6 +3216,41 @@ namespace {
       return false;
     }
 
+    static ImportTypeKind
+    importTypeKindForRecordFieldObjCLifetime(clang::Qualifiers::ObjCLifetime objCLifetime) {
+      switch (objCLifetime) {
+        case clang::Qualifiers::OCL_None:
+        case clang::Qualifiers::OCL_ExplicitNone:
+        case clang::Qualifiers::OCL_Weak:
+          return ImportTypeKind::RecordFieldWithReferenceSemantics;
+        case clang::Qualifiers::OCL_Strong:
+          return ImportTypeKind::RecordField;
+        // Fields cannot have autoreleasing membership
+        case clang::Qualifiers::OCL_Autoreleasing:
+          llvm_unreachable("invalid ObjC lifetime");
+      }
+    }
+
+    static Bridgeability
+    bridgeabilityForObjCFieldDecl(clang::Qualifiers::ObjCLifetime objCLifetime) {
+      switch (objCLifetime) {
+        case clang::Qualifiers::OCL_None:
+        case clang::Qualifiers::OCL_ExplicitNone:
+        case clang::Qualifiers::OCL_Weak:
+          return Bridgeability::None;
+        case clang::Qualifiers::OCL_Strong:
+          return Bridgeability::Full;
+        // Fields cannot have autoreleasing membership
+        case clang::Qualifiers::OCL_Autoreleasing:
+          llvm_unreachable("invalid ObjC lifetime");
+      }
+    }
+
+    static bool
+    isStrongAndBridgedObjCObjectPointer(VarDecl *decl) {
+      return false;
+    }
+
     Decl *VisitFunctionDecl(const clang::FunctionDecl *decl) {
       // Import the name of the function.
       ImportedName importedName;
@@ -3870,12 +3899,15 @@ namespace {
       auto fieldType = decl->getType();
       ImportedType importedType = findOptionSetType(fieldType, Impl);
 
+      auto objcLifetime = decl->getType().getObjCLifetime();
       if (!importedType)
         importedType =
-            Impl.importType(decl->getType(), ImportTypeKind::RecordField,
-                            ImportDiagnosticAdder(Impl, decl, decl->getLocation()),
-                            isInSystemModule(dc), Bridgeability::None,
-                            getImportTypeAttrs(decl));
+          Impl.importType(decl->getType(),
+                          importTypeKindForRecordFieldObjCLifetime(objcLifetime),
+                          ImportDiagnosticAdder(Impl, decl, decl->getLocation()),
+                          isInSystemModule(dc), bridgeabilityForObjCFieldDecl(objcLifetime),
+                          getImportTypeAttrs(decl));
+
       if (!importedType) {
         Impl.addImportDiagnostic(
             decl, Diagnostic(diag::record_field_not_imported, decl),
@@ -3883,25 +3915,44 @@ namespace {
         return nullptr;
       }
 
-      auto type = importedType.getType();
-
       auto result =
         Impl.createDeclWithClangNode<VarDecl>(decl, AccessLevel::Public,
                               /*IsStatic*/ false,
                               VarDecl::Introducer::Var,
                               Impl.importSourceLoc(decl->getLocation()),
                               name, dc);
+      
+      result->setInterfaceType(importedType.getType());
+      Impl.recordImplicitUnwrapForDecl(result,
+                                       importedType.isImplicitlyUnwrapped());
+      
       if (decl->getType().isConstQualified()) {
         // Note that in C++ there are ways to change the values of const
         // members, so we don't use WriteImplKind::Immutable storage.
         assert(result->supportsMutation());
         result->overwriteSetterAccess(AccessLevel::Private);
       }
+      
       result->setIsObjC(false);
       result->setIsDynamic(false);
-      result->setInterfaceType(type);
-      Impl.recordImplicitUnwrapForDecl(result,
-                                       importedType.isImplicitlyUnwrapped());
+      
+      if (objcLifetime == clang::Qualifiers::OCL_Weak) {
+        if (auto nullability =
+              decl->getType()->getNullability(Impl.getClangASTContext()))
+        {
+          // If the struct field is weak and nonnull, do not provide an interface for this member.
+          if (*nullability == clang::NullabilityKind::NonNull) {
+            Impl.addImportDiagnostic(
+                decl, Diagnostic(diag::record_field_weak_nonnull, decl),
+                decl->getSourceRange().getBegin());
+            return nullptr;
+          }
+        }
+        
+        // If struct field is a weak objc object pointer, create a weak storage type
+        // and add the appropriate wrapper to the param
+        setWeakStorageInterface(result, importedType.getType());
+      }
 
       // Handle attributes.
       if (decl->hasAttr<clang::IBOutletAttr>())

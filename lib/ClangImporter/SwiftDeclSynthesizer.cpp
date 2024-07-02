@@ -590,11 +590,15 @@ ConstructorDecl *SwiftDeclSynthesizer::createValueConstructor(
 
     bool generateParamName = wantCtorParamNames;
 
+    auto objcLifetime = clang::Qualifiers::OCL_None;
     if (var->hasClangNode()) {
       // TODO create value constructor with indirect fields instead of the
       // generated __Anonymous_field.
       if (isa<clang::IndirectFieldDecl>(var->getClangDecl()))
         continue;
+
+      if (auto clangVal = dyn_cast<clang::ValueDecl>(var->getClangDecl()))
+        objcLifetime = clangVal->getType().getObjCLifetime();
 
       if (auto clangField = dyn_cast<clang::FieldDecl>(var->getClangDecl()))
         if (clangField->isAnonymousStructOrUnion() ||
@@ -606,14 +610,25 @@ ConstructorDecl *SwiftDeclSynthesizer::createValueConstructor(
     auto param =
         new (context) ParamDecl(SourceLoc(), SourceLoc(), argName, SourceLoc(),
                                 var->getName(), structDecl);
+
+    if (objcLifetime == clang::Qualifiers::OCL_Weak) {
+      // The synthesized constructor param shouldn't use a weak storage type
+      if (auto RST = dyn_cast<ReferenceStorageType>(var->getInterfaceType().getPointer())) {
+        // Unwrap the referent type to pass directly to the constructor
+        param->setInterfaceType(RST->getReferentType());
+      } else {
+        param->setInterfaceType(var->getInterfaceType());
+      }
+    } else {
+      param->setInterfaceType(var->getInterfaceType());
+    }
+
     param->setSpecifier(ParamSpecifier::Default);
-    param->setInterfaceType(var->getInterfaceType());
     ImporterImpl.recordImplicitUnwrapForDecl(
         param, var->isImplicitlyUnwrappedOptional());
 
     // Don't allow the parameter to accept temporary pointer conversions.
     param->setNonEphemeralIfPossible();
-
     valueParameters.push_back(param);
   }
 
@@ -1207,6 +1222,59 @@ SwiftDeclSynthesizer::makeIndirectFieldAccessors(
 
   return {getterDecl, setterDecl};
 }
+
+static std::pair<BraceStmt *, bool>
+synthesizeComputedGetterFromField(AbstractFunctionDecl *afd, void *context) {
+  auto accessor = cast<AccessorDecl>(afd);
+  auto method = static_cast<FuncDecl *>(context);
+
+  auto selfArg = createSelfArg(accessor);
+
+  auto *getterImplCallExpr = createAccessorImplCallExpr(method, selfArg);
+  auto returnStmt =
+      new (method->getASTContext()) ReturnStmt(SourceLoc(), getterImplCallExpr);
+  auto body = BraceStmt::create(method->getASTContext(), SourceLoc(),
+                                {returnStmt}, SourceLoc());
+
+  return {body, /*isTypeChecked*/ true};
+}
+
+//VarDecl *
+//SwiftDeclSynthesizer::makeComputedPropertyFromField(
+//    const clang::FieldDecl *field, NominalTypeDecl *typeDecl, VarDecl *importedFieldDecl) {
+//  auto &Context = ImporterImpl.SwiftContext;
+//  const bool isConstQualified = field->getType().isConstQualified();
+//  importedFieldDecl
+//
+//  // if is const qualified, don't synthesize a setter
+//  AccessorDecl *setterDecl = nullptr;
+//
+//  AccessorDecl *getterDecl = AccessorDecl::create(Context, field->getLoc(), field->getLoc(), AccessorKind::Get, importedFieldDecl, SourceLoc(), StaticSpellingKind::None, /* async */ false, SourceLoc(), /* throws */ false, SourceLoc(), ParameterList::createEmpty(Context));
+//
+//  getterDecl->setAccess(AccessLevel::Public);
+//  getterDecl->setImplicit();
+//  getterDecl->setIsDynamic(false);
+//  getterDecl->setIsTransparent(true);
+//  getterDecl->setBodySynthesizer(synthesizeComputedGetterFromField, field);
+//
+//
+////  getterDecl->setBodySynthesizer(synthesizeIndirectFieldGetterBody,
+////                                 anonymousFieldDecl);
+////  setterDecl->setBodySynthesizer(synthesizeIndirectFieldSetterBody,
+////                                 anonymousFieldDecl);
+//
+//  if (isConstQualified) {
+//    VD->setImplInfo(StorageImplInfo::getImmutableComputed());
+//  } else {
+//    VD->setImplInfo(isConstQualified ? StorageImplInfo::getImmutableCompute)
+//  }
+//
+//  Impl.makeComputed(VD, getter, setter);
+//  VD->setIsSetterMutating(!isConstQualified);
+//
+//  // return VD
+//  return VD;
+//}
 
 // MARK: Enum RawValue initializers
 

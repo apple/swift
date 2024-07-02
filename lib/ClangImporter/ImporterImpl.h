@@ -129,6 +129,9 @@ enum class ImportTypeKind {
   /// Import the declared type of a struct or union field.
   RecordField,
   
+  /// TODO
+  RecordFieldWithReferenceSemantics,
+
   /// Import the result type of a function.
   ///
   /// This provides special treatment for 'void', among other things, and

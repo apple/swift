@@ -248,6 +248,7 @@ ERROR(conforms_to_not_protocol,none,
 ERROR(failed_base_method_call_synthesis,none,
       "failed to synthesize call to the base method %0 of type %0",
       (ValueDecl *, ValueDecl *))
+WARNING(record_field_weak_nonnull, none, "field %0 cannot import as both __weak and _Nonnull", (const clang::NamedDecl*))
 
 NOTE(unsupported_builtin_type, none, "built-in type '%0' not supported", (StringRef))
 NOTE(record_field_not_imported, none, "field %0 unavailable (cannot import)", (const clang::NamedDecl*))
