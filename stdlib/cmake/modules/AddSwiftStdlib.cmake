@@ -2050,6 +2050,7 @@ function(add_swift_target_library name)
     list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-warn-implicit-overrides")
     list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-Xfrontend;-enable-ossa-modules")
     list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-Xfrontend;-enable-lexical-lifetimes=false")
+    list(APPEND SWIFTLIB_SWIFT_COMPILE_FLAGS "-Xfrontend;-enable-sil-opaque-values")
   endif()
 
   if(NOT DEFINED SWIFTLIB_INSTALL_BINARY_SWIFTMODULE)
