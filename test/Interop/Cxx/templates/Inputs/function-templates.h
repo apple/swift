@@ -71,6 +71,8 @@ template <class T> struct Dep { using TT = T; };
 
 template <class T> void useDependentType(typename Dep<T>::TT) {}
 
+template <class T> void takesValue(T value) { }
+
 template <class T> void lvalueReference(T &ref) { ref = 42; }
 template <class T> void lvalueReferenceZero(T &ref) { ref = 0; }
 
