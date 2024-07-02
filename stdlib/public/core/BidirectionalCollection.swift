@@ -346,12 +346,13 @@ extension BidirectionalCollection where SubSequence == Self {
   public mutating func removeLast(_ k: Int) {
     if k == 0 { return }
     _precondition(k >= 0, "Number of elements to remove should be non-negative")
-    guard let end = index(endIndex, offsetBy: -k, limitedBy: startIndex)
+    let start = startIndex
+    guard let end = index(endIndex, offsetBy: -k, limitedBy: start)
     else {
       _preconditionFailure(
         "Can't remove more items from a collection than it contains")
     }
-    self = self[startIndex..<end]
+    self = self[start..<end]
   }
 }
 
@@ -379,11 +380,9 @@ extension BidirectionalCollection {
   public __consuming func dropLast(_ k: Int) -> SubSequence {
     _precondition(
       k >= 0, "Can't drop a negative number of elements from a collection")
-    let end = index(
-      endIndex,
-      offsetBy: -k,
-      limitedBy: startIndex) ?? startIndex
-    return self[startIndex..<end]
+    let start = startIndex
+    let end = index(endIndex, offsetBy: -k, limitedBy: start) ?? start
+    return self[start..<end]
   }
 
   /// Returns a subsequence, up to the given maximum length, containing the
@@ -411,11 +410,10 @@ extension BidirectionalCollection {
     _precondition(
       maxLength >= 0,
       "Can't take a suffix of negative length from a collection")
-    let start = index(
-      endIndex,
-      offsetBy: -maxLength,
-      limitedBy: startIndex) ?? startIndex
-    return self[start..<endIndex]
+    let end = endIndex
+    let limit = startIndex
+    let start = index(end, offsetBy: -maxLength, limitedBy: limit) ?? limit
+    return self[start..<end]
   }
 }
 

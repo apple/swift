@@ -1247,8 +1247,9 @@ extension Collection {
   @inlinable
   public __consuming func dropFirst(_ k: Int = 1) -> SubSequence {
     _precondition(k >= 0, "Can't drop a negative number of elements from a collection")
-    let start = index(startIndex, offsetBy: k, limitedBy: endIndex) ?? endIndex
-    return self[start..<endIndex]
+    let end = endIndex
+    let start = index(startIndex, offsetBy: k, limitedBy: end) ?? end
+    return self[start..<end]
   }
 
   /// Returns a subsequence containing all but the specified number of final
@@ -1275,10 +1276,11 @@ extension Collection {
   public __consuming func dropLast(_ k: Int = 1) -> SubSequence {
     _precondition(
       k >= 0, "Can't drop a negative number of elements from a collection")
+    let start = startIndex
+    let limit = endIndex
     let amount = Swift.max(0, count - k)
-    let end = index(startIndex,
-      offsetBy: amount, limitedBy: endIndex) ?? endIndex
-    return self[startIndex..<end]
+    let end = index(start, offsetBy: amount, limitedBy: limit) ?? limit
+    return self[start..<end]
   }
     
   /// Returns a subsequence by skipping elements while `predicate` returns
@@ -1295,10 +1297,11 @@ extension Collection {
     while predicate: (Element) throws -> Bool
   ) rethrows -> SubSequence {
     var start = startIndex
-    while try start != endIndex && predicate(self[start]) {
+    let end = endIndex
+    while try start != end && predicate(self[start]) {
       formIndex(after: &start)
     } 
-    return self[start..<endIndex]
+    return self[start..<end]
   }
 
   /// Returns a subsequence, up to the specified maximum length, containing
@@ -1326,9 +1329,10 @@ extension Collection {
     _precondition(
       maxLength >= 0,
       "Can't take a prefix of negative length from a collection")
-    let end = index(startIndex,
-      offsetBy: maxLength, limitedBy: endIndex) ?? endIndex
-    return self[startIndex..<end]
+    let start = startIndex
+    let limit = endIndex
+    let end = index(start, offsetBy: maxLength, limitedBy: limit) ?? limit
+    return self[start..<end]
   }
   
   /// Returns a subsequence containing the initial elements until `predicate`
@@ -1344,11 +1348,13 @@ extension Collection {
   public __consuming func prefix(
     while predicate: (Element) throws -> Bool
   ) rethrows -> SubSequence {
-    var end = startIndex
-    while try end != endIndex && predicate(self[end]) {
+    let start = startIndex
+    let limit = endIndex
+    var end = start
+    while try end != limit && predicate(self[end]) {
       formIndex(after: &end)
     }
-    return self[startIndex..<end]
+    return self[start..<end]
   }
 
   /// Returns a subsequence, up to the given maximum length, containing the
@@ -1376,10 +1382,10 @@ extension Collection {
     _precondition(
       maxLength >= 0,
       "Can't take a suffix of negative length from a collection")
+    let end = endIndex
     let amount = Swift.max(0, count - maxLength)
-    let start = index(startIndex,
-      offsetBy: amount, limitedBy: endIndex) ?? endIndex
-    return self[start..<endIndex]
+    let start = index(startIndex, offsetBy: amount, limitedBy: end) ?? end
+    return self[start..<end]
   }
 
   /// Returns a subsequence from the start of the collection up to, but not
@@ -1683,10 +1689,11 @@ extension Collection where SubSequence == Self {
   public mutating func removeFirst(_ k: Int) {
     if k == 0 { return }
     _precondition(k >= 0, "Number of elements to remove should be non-negative")
-    guard let idx = index(startIndex, offsetBy: k, limitedBy: endIndex) else {
+    let end = endIndex
+    guard let idx = index(startIndex, offsetBy: k, limitedBy: end) else {
       _preconditionFailure(
         "Can't remove more items from a collection than it contains")
     }
-    self = self[idx..<endIndex]
+    self = self[idx..<end]
   }
 }
