@@ -3058,6 +3058,10 @@ public:
   /// Return the name (like "autoclosure") for an attribute ID.
   static const char *getAttrName(TypeAttrKind kind);
 
+  /// Returns whether the given attribute is considered "user inaccessible",
+  /// which affects e.g whether it shows up in code completion.
+  static bool isUserInaccessible(TypeAttrKind DK);
+
   static TypeAttribute *createSimple(const ASTContext &context,
                                      TypeAttrKind kind,
                                      SourceLoc atLoc,

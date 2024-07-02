@@ -400,8 +400,14 @@ ParserResult<TypeRepr> Parser::parseTypeScalar(
   ParserStatus status;
 
   // Parse attributes.
-  ParsedTypeAttributeList parsedAttributeList;
+  ParsedTypeAttributeList parsedAttributeList(reason);
   status |= parsedAttributeList.parse(*this);
+
+  // If we have a completion, create an ErrorType.
+  if (status.hasCodeCompletion()) {
+    auto *ET = ErrorTypeRepr::create(Context, PreviousLoc);
+    return makeParserCodeCompletionResult<TypeRepr>(ET);
+  }
 
   // Parse generic parameters in SIL mode.
   GenericParamList *generics = nullptr;

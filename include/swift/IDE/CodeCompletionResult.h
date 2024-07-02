@@ -229,6 +229,7 @@ enum class CompletionKind : uint8_t {
   StmtLabel,
   ForEachPatternBeginning,
   TypeAttrBeginning,
+  TypeAttrInheritanceBeginning,
   OptionalBinding,
 
   /// Completion after `~` in an inheritance clause.

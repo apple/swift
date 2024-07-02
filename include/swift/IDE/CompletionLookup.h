@@ -605,7 +605,7 @@ public:
   void getAttributeDeclParamCompletions(CustomSyntaxAttributeKind AttrKind,
                                         int ParamIndex, bool HasLabel);
 
-  void getTypeAttributeKeywordCompletions();
+  void getTypeAttributeKeywordCompletions(CompletionKind completionKind);
 
   void collectPrecedenceGroups();
 
