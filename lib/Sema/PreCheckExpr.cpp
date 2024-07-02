@@ -2277,7 +2277,7 @@ void PreCheckExpression::resolveKeyPathExpr(KeyPathExpr *KPE) {
         expr = SE->getSubExpr();
       } else if (auto UDE = dyn_cast<UnresolvedDotExpr>(expr)) {
         // .foo
-        components.push_back(KeyPathExpr::Component::forUnresolvedProperty(
+        components.push_back(KeyPathExpr::Component::forUnresolvedMember(
             UDE->getName(), UDE->getLoc()));
 
         expr = UDE->getBase();
@@ -2292,8 +2292,11 @@ void PreCheckExpression::resolveKeyPathExpr(KeyPathExpr *KPE) {
         }
       } else if (auto SE = dyn_cast<SubscriptExpr>(expr)) {
         // .[0] or just plain [0]
-        components.push_back(KeyPathExpr::Component::forUnresolvedSubscript(
-            getASTContext(), SE->getArgs()));
+        components.push_back(
+            KeyPathExpr::Component::forUnresolvedApply(SE->getArgs()));
+        components.push_back(
+            KeyPathExpr::Component::forUnresolvedMember({}, SE->getLoc()));
+        
 
         expr = SE->getBase();
       } else if (auto BOE = dyn_cast<BindOptionalExpr>(expr)) {

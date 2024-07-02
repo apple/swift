@@ -320,7 +320,7 @@ getTypeOfCompletionContextExpr(DeclContext *DC, CompletionTypeCheckKind kind,
       if (!components.empty()) {
         auto &last = components.back();
         if (last.isResolved()) {
-          if (last.getKind() == KeyPathExpr::Component::Kind::Property)
+          if (last.getKind() == KeyPathExpr::Component::Kind::Member)
             referencedDecl = last.getDeclRef();
           Type lookupTy = last.getComponentType();
           ASTContext &Ctx = DC->getASTContext();

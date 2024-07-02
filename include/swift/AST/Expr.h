@@ -5726,11 +5726,12 @@ public:
   /// - a code completion token
   class Component {
   public:
-    enum class Kind: unsigned {
+    enum class Kind : unsigned {
       Invalid,
-      UnresolvedProperty,
-      UnresolvedSubscript,
-      Property,
+      UnresolvedMember,
+      UnresolvedApply,
+      Member,
+      Apply,
       Subscript,
       OptionalForce,
       OptionalChain,
@@ -5740,7 +5741,7 @@ public:
       DictionaryKey,
       CodeCompletion,
     };
-  
+
   private:
     union DeclNameOrRef {
       DeclNameRef UnresolvedName;
@@ -5751,23 +5752,24 @@ public:
       DeclNameOrRef(ConcreteDeclRef rd) : ResolvedDecl(rd) {}
     } Decl;
 
-    ArgumentList *SubscriptArgList;
-    const ProtocolConformanceRef *SubscriptHashableConformancesData;
+    ArgumentList *ArgList;
+    const ProtocolConformanceRef *ArgHashableConformancesData;
 
     unsigned TupleIndex;
     Kind KindValue;
     Type ComponentType;
     SourceLoc Loc;
 
-    // Private constructor for subscript component.
+    // Private constructor for subscript/unresolved application components.
     explicit Component(DeclNameOrRef decl, ArgumentList *argList,
                        ArrayRef<ProtocolConformanceRef> indexHashables,
                        Kind kind, Type type, SourceLoc loc);
 
-    // Private constructor for property or #keyPath dictionary key.
+    // Private constructor for unresolved member, member or #keyPath
+    // dictionary key.
     explicit Component(DeclNameOrRef decl, Kind kind, Type type, SourceLoc loc)
         : Component(kind, type, loc) {
-      assert(kind == Kind::Property || kind == Kind::UnresolvedProperty ||
+      assert(kind == Kind::Member || kind == Kind::UnresolvedMember ||
              kind == Kind::DictionaryKey);
       Decl = decl;
     }
@@ -5786,14 +5788,16 @@ public:
     Component() : Component(Kind::Invalid, Type(), SourceLoc()) {}
 
     /// Create an unresolved component for a property.
-    static Component forUnresolvedProperty(DeclNameRef UnresolvedName,
-                                           SourceLoc Loc) {
-      return Component(UnresolvedName, Kind::UnresolvedProperty, Type(), Loc);
+    static Component forUnresolvedMember(DeclNameRef UnresolvedName,
+                                         SourceLoc Loc) {
+      return Component(UnresolvedName, Kind::UnresolvedMember, Type(), Loc);
     }
-    
-    /// Create an unresolved component for a subscript.
-    static Component forUnresolvedSubscript(ASTContext &ctx,
-                                            ArgumentList *argList);
+
+    /// Create an unresolved component for application.
+    static Component forUnresolvedApply(ArgumentList *argList) {
+      return Component({}, argList, {}, Kind::UnresolvedApply, Type(),
+                       argList->getLParenLoc());
+    }
 
     /// Create an unresolved optional force `!` component.
     static Component forUnresolvedOptionalForce(SourceLoc BangLoc) {
@@ -5804,12 +5808,11 @@ public:
     static Component forUnresolvedOptionalChain(SourceLoc QuestionLoc) {
       return Component(Kind::OptionalChain, Type(), QuestionLoc);
     }
-    
-    /// Create a component for a property.
-    static Component forProperty(ConcreteDeclRef property,
-                                 Type propertyType,
-                                 SourceLoc loc) {
-      return Component(property, Kind::Property, propertyType, loc);
+
+    /// Create a component for a member.
+    static Component forMember(ConcreteDeclRef member, Type memberType,
+                               SourceLoc loc) {
+      return Component(member, Kind::Member, memberType, loc);
     }
 
     /// Create a component for a dictionary key (#keyPath only).
@@ -5818,7 +5821,14 @@ public:
                                       SourceLoc loc) {
       return Component(UnresolvedName, Kind::DictionaryKey, valueType, loc);
     }
-    
+
+    /// Create a component for resolved application.
+    static Component forApply(ArgumentList *argList,
+                              ArrayRef<ProtocolConformanceRef> indexHashables) {
+      return Component({}, argList, indexHashables, Kind::Apply, Type(),
+                       argList->getLParenLoc());
+    }
+
     /// Create a component for a subscript.
     static Component
     forSubscript(ASTContext &ctx, ConcreteDeclRef subscript,
@@ -5862,7 +5872,7 @@ public:
     }
     
     SourceRange getSourceRange() const {
-      if (auto *args = getSubscriptArgs()) {
+      if (auto *args = getArgs()) {
         return args->getSourceRange();
       }
       return Loc;
@@ -5882,17 +5892,18 @@ public:
 
       switch (getKind()) {
       case Kind::Subscript:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::DictionaryKey:
         return true;
 
-      case Kind::UnresolvedSubscript:
-      case Kind::UnresolvedProperty:
+      case Kind::UnresolvedApply:
+      case Kind::UnresolvedMember:
       case Kind::Invalid:
       case Kind::CodeCompletion:
         return false;
@@ -5900,18 +5911,19 @@ public:
       llvm_unreachable("unhandled kind");
     }
 
-    ArgumentList *getSubscriptArgs() const {
+    ArgumentList *getArgs() const {
       switch (getKind()) {
       case Kind::Subscript:
-      case Kind::UnresolvedSubscript:
-        return SubscriptArgList;
+      case Kind::Apply:
+      case Kind::UnresolvedApply:
+        return ArgList;
 
       case Kind::Invalid:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
-      case Kind::UnresolvedProperty:
-      case Kind::Property:
+      case Kind::UnresolvedMember:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::DictionaryKey:
@@ -5921,26 +5933,27 @@ public:
       llvm_unreachable("unhandled kind");
     }
 
-    void setSubscriptArgs(ArgumentList *newArgs) {
-      assert(getSubscriptArgs() && "Should be replacing existing args");
-      SubscriptArgList = newArgs;
+    void setArgs(ArgumentList *newArgs) {
+      assert(getArgs() && "Should be replacing existing args");
+      ArgList = newArgs;
     }
 
     ArrayRef<ProtocolConformanceRef>
     getSubscriptIndexHashableConformances() const {
       switch (getKind()) {
       case Kind::Subscript:
-        if (!SubscriptHashableConformancesData)
+      case Kind::Apply:
+        if (!ArgHashableConformancesData)
           return {};
-        return {SubscriptHashableConformancesData, SubscriptArgList->size()};
+        return {ArgHashableConformancesData, ArgList->size()};
 
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
       case Kind::Invalid:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
-      case Kind::UnresolvedProperty:
-      case Kind::Property:
+      case Kind::UnresolvedMember:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::DictionaryKey:
@@ -5952,17 +5965,18 @@ public:
 
     DeclNameRef getUnresolvedDeclName() const {
       switch (getKind()) {
-      case Kind::UnresolvedProperty:
+      case Kind::UnresolvedMember:
       case Kind::DictionaryKey:
         return Decl.UnresolvedName;
 
       case Kind::Invalid:
       case Kind::Subscript:
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedApply:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Identity:
       case Kind::TupleElement:
       case Kind::CodeCompletion:
@@ -5973,13 +5987,14 @@ public:
 
     bool hasDeclRef() const {
       switch (getKind()) {
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Subscript:
         return true;
 
       case Kind::Invalid:
-      case Kind::UnresolvedProperty:
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedMember:
+      case Kind::UnresolvedApply:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -5994,13 +6009,14 @@ public:
 
     ConcreteDeclRef getDeclRef() const {
       switch (getKind()) {
-      case Kind::Property:
+      case Kind::Member:
       case Kind::Subscript:
         return Decl.ResolvedDecl;
 
       case Kind::Invalid:
-      case Kind::UnresolvedProperty:
-      case Kind::UnresolvedSubscript:
+      case Kind::UnresolvedMember:
+      case Kind::UnresolvedApply:
+      case Kind::Apply:
       case Kind::OptionalChain:
       case Kind::OptionalWrap:
       case Kind::OptionalForce:
@@ -6019,13 +6035,14 @@ public:
           return TupleIndex;
                 
         case Kind::Invalid:
-        case Kind::UnresolvedProperty:
-        case Kind::UnresolvedSubscript:
+        case Kind::UnresolvedMember:
+        case Kind::UnresolvedApply:
+        case Kind::Apply:
         case Kind::OptionalChain:
         case Kind::OptionalWrap:
         case Kind::OptionalForce:
         case Kind::Identity:
-        case Kind::Property:
+        case Kind::Member:
         case Kind::Subscript:
         case Kind::DictionaryKey:
         case Kind::CodeCompletion:
@@ -6111,7 +6128,7 @@ public:
   /// If the provided expression appears as an argument to a subscript component
   /// of the key path, returns the index of that component. Otherwise, returns
   /// \c None.
-  std::optional<unsigned> findComponentWithSubscriptArg(Expr *arg);
+  std::optional<unsigned> findComponentWithArg(Expr *arg);
 
   /// Retrieve the string literal expression, which will be \c NULL prior to
   /// type checking and a string literal after type checking for an

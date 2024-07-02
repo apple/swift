@@ -2452,9 +2452,9 @@ KeyPathExpr::setComponents(ASTContext &C,
   Components = Components.slice(0, newComponents.size());
 }
 
-std::optional<unsigned> KeyPathExpr::findComponentWithSubscriptArg(Expr *arg) {
+std::optional<unsigned> KeyPathExpr::findComponentWithArg(Expr *arg) {
   for (auto idx : indices(getComponents())) {
-    if (auto *args = getComponents()[idx].getSubscriptArgs()) {
+    if (auto *args = getComponents()[idx].getArgs()) {
       if (args->findArgumentExpr(arg))
         return idx;
     }
@@ -2498,24 +2498,18 @@ KeyPathExpr::Component KeyPathExpr::Component::forSubscript(
                    elementType, argList->getLParenLoc());
 }
 
-KeyPathExpr::Component
-KeyPathExpr::Component::forUnresolvedSubscript(ASTContext &ctx,
-                                               ArgumentList *argList) {
-  return Component({}, argList, {}, Kind::UnresolvedSubscript, Type(),
-                   argList->getLParenLoc());
-}
-
 KeyPathExpr::Component::Component(
     DeclNameOrRef decl, ArgumentList *argList,
     ArrayRef<ProtocolConformanceRef> indexHashables, Kind kind, Type type,
     SourceLoc loc)
-    : Decl(decl), SubscriptArgList(argList), KindValue(kind),
-      ComponentType(type), Loc(loc) {
-  assert(kind == Kind::Subscript || kind == Kind::UnresolvedSubscript);
+    : Decl(decl), ArgList(argList), KindValue(kind), ComponentType(type),
+      Loc(loc) {
+  assert(kind == Kind::Subscript || kind == Kind::Apply ||
+         kind == Kind::UnresolvedApply);
   assert(argList);
   assert(argList->size() == indexHashables.size() || indexHashables.empty());
-  SubscriptHashableConformancesData = indexHashables.empty()
-    ? nullptr : indexHashables.data();
+  ArgHashableConformancesData =
+      indexHashables.empty() ? nullptr : indexHashables.data();
 }
 
 SingleValueStmtExpr *SingleValueStmtExpr::create(ASTContext &ctx, Stmt *S,

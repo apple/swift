@@ -637,14 +637,15 @@ ConstraintLocator *ConstraintSystem::getCalleeLocator(
 
     using ComponentKind = KeyPathExpr::Component::Kind;
     switch (component.getKind()) {
-    case ComponentKind::UnresolvedSubscript:
+    case ComponentKind::UnresolvedApply:
+    case ComponentKind::Apply:
     case ComponentKind::Subscript:
       // For a subscript the callee is given by 'component -> subscript member'.
       return getConstraintLocator(
                                   anchor, {*componentElt, ConstraintLocator::SubscriptMember});
-    case ComponentKind::UnresolvedProperty:
-    case ComponentKind::Property:
-      // For a property, the choice is just given by the component.
+    case ComponentKind::UnresolvedMember:
+    case ComponentKind::Member:
+      // For a member, the choice is just given by the component.
       return getConstraintLocator(anchor, *componentElt);
     case ComponentKind::TupleElement:
       llvm_unreachable("Not implemented by CSGen");
@@ -6244,7 +6245,7 @@ void constraints::simplifyLocator(ASTNode &anchor,
       auto argIdx = applyArgElt->getArgIdx();
       if (auto *kpe = getAsExpr<KeyPathExpr>(anchor)) {
         auto component = kpe->getComponents()[elt.getIndex()];
-        auto *args = component.getSubscriptArgs();
+        auto *args = component.getArgs();
         assert(args && "Trying to apply a component without args?");
         if (argIdx < args->size()) {
           anchor = args->getExpr(argIdx);
@@ -6933,11 +6934,11 @@ ConstraintLocator *ConstraintSystem::getArgumentLocator(Expr *expr) {
 
   ConstraintLocator *loc = nullptr;
   if (auto *KP = dyn_cast<KeyPathExpr>(application)) {
-    auto idx = KP->findComponentWithSubscriptArg(expr);
+    auto idx = KP->findComponentWithArg(expr);
     if (!idx)
       return nullptr;
     loc = getConstraintLocator(KP, {LocatorPathElt::KeyPathComponent(*idx)});
-    argList = KP->getComponents()[*idx].getSubscriptArgs();
+    argList = KP->getComponents()[*idx].getArgs();
   } else {
     loc = getConstraintLocator(application);
   }
@@ -7833,11 +7834,12 @@ ConstraintSystem::inferKeyPathLiteralCapability(KeyPathExpr *keyPath) {
       return fail();
     }
 
-    case KeyPathExpr::Component::Kind::UnresolvedSubscript:
+    case KeyPathExpr::Component::Kind::UnresolvedApply:
+    case KeyPathExpr::Component::Kind::Apply:
     case KeyPathExpr::Component::Kind::Subscript: {
       if (Context.LangOpts.hasFeature(Feature::InferSendableFromCaptures)) {
         // Key path is sendable only when all of its captures are sendable.
-        if (auto *args = component.getSubscriptArgs()) {
+        if (auto *args = component.getArgs()) {
           auto *sendable = Context.getProtocol(KnownProtocolKind::Sendable);
 
           for (const auto &arg : *args) {
@@ -7862,8 +7864,8 @@ ConstraintSystem::inferKeyPathLiteralCapability(KeyPathExpr *keyPath) {
       }
       LLVM_FALLTHROUGH;
     }
-    case KeyPathExpr::Component::Kind::Property:
-    case KeyPathExpr::Component::Kind::UnresolvedProperty: {
+    case KeyPathExpr::Component::Kind::Member:
+    case KeyPathExpr::Component::Kind::UnresolvedMember: {
       auto *componentLoc =
           getConstraintLocator(keyPath, LocatorPathElt::KeyPathComponent(i));
       auto *calleeLoc = getCalleeLocator(componentLoc);
