@@ -210,7 +210,8 @@ extension ObservableMacro: MemberMacro {
       throw DiagnosticsError(syntax: node, message: "'@Observable' cannot be applied to enumeration type '\(observableType.text)'", id: .invalidApplication)
     }
     if declaration.isStruct {
-      // structs are not yet supported; copying/mutation semantics tbd
+      // structs are currently not supported due to copying/mutation semantics.
+      // future support will depend on ongoing discussions and feasibility.
       throw DiagnosticsError(syntax: node, message: "'@Observable' cannot be applied to struct type '\(observableType.text)'", id: .invalidApplication)
     }
     if declaration.isActor {
