@@ -30,10 +30,6 @@
 
 using namespace swift;
 
-// TODO: can't be inlined to work around https://github.com/apple/swift/issues/64502
-BasicCalleeAnalysis::~BasicCalleeAnalysis() {
-}
-
 void BasicCalleeAnalysis::dump() const {
   print(llvm::errs());
 }
