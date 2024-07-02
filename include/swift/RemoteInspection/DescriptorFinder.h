@@ -126,7 +126,7 @@ struct DescriptorFinder {
   getFieldDescriptor(const TypeRef *TR) = 0;
 
   virtual std::unique_ptr<MultiPayloadEnumDescriptorBase>
-  getMultiPayloadEnumDescriptor(const TypeRef *TR) = 0;
+  getMultiPayloadEnumDescriptor(const TypeRef *TR) { abort(); };
 };
 
 } // namespace reflection
