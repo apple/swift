@@ -20,14 +20,13 @@ internal func _swift_stdlib_getUnsafeArgvArgc(_: UnsafeMutablePointer<Int32>)
 
 /// Command-line arguments for the current process.
 @frozen // namespace
-public enum CommandLine : ~BitwiseCopyable {
-}
+public enum CommandLine: ~BitwiseCopyable {}
 
 extension CommandLine {
   /// The backing static variable for argument count may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
   @usableFromInline
-  internal static var _argc: Int32 = Int32()
+  internal static var _argc: Int32 = 0
 
   /// The backing static variable for arguments may come either from the
   /// entry point or it may need to be computed e.g. if we're in the REPL.
@@ -37,12 +36,27 @@ extension CommandLine {
   @usableFromInline
   internal static var _unsafeArgv:
     UnsafeMutablePointer<UnsafeMutablePointer<Int8>?>
-      =  _swift_stdlib_getUnsafeArgvArgc(&_argc)
+      = _swift_stdlib_getUnsafeArgvArgc(&_argc)
 
   /// Access to the raw argc value from C.
   public static var argc: Int32 {
-    _ = CommandLine.unsafeArgv // Force evaluation of argv.
-    return _argc
+    // We intentionally ignore the argc value given to us from
+    // '_swift_stdlib_getUnsafeArgvArgc' because argv and argc are mutable, so
+    // someone can mutate the contents of argv and never update the argc value.
+    // This results in an out of sync argc which can lead to crashes on first
+    // access to 'CommandLine.arguments' due to attempting to read '0 ..< argc'
+    // strings.
+    //
+    // Note: It's still entirely possible that someone may update argv after
+    // this iteration and before we actually read argv, but we have no control
+    // over synchronizing access to argc and argv.
+    var argc: Int32 = 0
+
+    while let _ = _unsafeArgv[Int(argc)] {
+      argc += 1
+    }
+
+    return argc
   }
 
   /// Access to the raw argv value from C.
