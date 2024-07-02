@@ -66,7 +66,7 @@ import Swift
 /// For tasks that need to handle cancellation by throwing an error,
 /// use the `withThrowingDiscardingTaskGroup(returning:body:)` method instead.
 ///
-/// - SeeAlso: ``withThrowingDiscardingTaskGroup(returning:body:)
+/// - SeeAlso: ``withThrowingDiscardingTaskGroup(returning:body:)``
 @available(SwiftStdlib 5.9, *)
 @backDeployed(before: SwiftStdlib 6.0)
 @inlinable
