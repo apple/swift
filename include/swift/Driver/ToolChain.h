@@ -253,6 +253,9 @@ protected:
                       const InvocationInfo &invocationInfo,
                       const JobContext &context) const;
 
+  void addPluginArguments(const llvm::opt::ArgList &Args,
+                          llvm::opt::ArgStringList &Arguments) const;
+
 public:
   virtual ~ToolChain() = default;
 
@@ -340,9 +343,6 @@ public:
   void addLinkRuntimeLib(const llvm::opt::ArgList &Args,
                          llvm::opt::ArgStringList &Arguments,
                          StringRef LibName) const;
-
-  virtual void addPluginArguments(const llvm::opt::ArgList &Args,
-                                  llvm::opt::ArgStringList &Arguments) const {}
 
   /// Validates arguments passed to the toolchain.
   ///

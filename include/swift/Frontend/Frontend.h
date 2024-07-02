@@ -250,6 +250,12 @@ public:
   /// If we haven't explicitly passed -blocklist-paths, set it to the default value.
   void setDefaultBlocklistsIfNecessary();
 
+  /// If we haven't explicitly passed '-in-process-plugin-server-path', infer
+  /// it as a default value.
+  ///
+  /// FIXME: Remove this after all the clients start sending it.
+  void setDefaultInProcessPluginServerPathIfNecessary();
+
   /// Computes the runtime resource path relative to the given Swift
   /// executable.
   static void computeRuntimeResourcePathFromExecutablePath(

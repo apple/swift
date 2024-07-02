@@ -2585,32 +2585,27 @@ void BridgedTypeRepr_dump(void *type) { static_cast<TypeRepr *>(type)->dump(); }
 //===----------------------------------------------------------------------===//
 
 PluginCapabilityPtr Plugin_getCapability(PluginHandle handle) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   return plugin->getCapability();
 }
 
 void Plugin_setCapability(PluginHandle handle, PluginCapabilityPtr data) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   plugin->setCapability(data);
 }
 
-const char *Plugin_getExecutableFilePath(PluginHandle handle) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
-  return plugin->getExecutablePath().data();
-}
-
 void Plugin_lock(PluginHandle handle) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   plugin->lock();
 }
 
 void Plugin_unlock(PluginHandle handle) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   plugin->unlock();
 }
 
 bool Plugin_spawnIfNeeded(PluginHandle handle) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   auto error = plugin->spawnIfNeeded();
   bool hadError(error);
   llvm::consumeError(std::move(error));
@@ -2618,7 +2613,7 @@ bool Plugin_spawnIfNeeded(PluginHandle handle) {
 }
 
 bool Plugin_sendMessage(PluginHandle handle, const BridgedData data) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   StringRef message(data.BaseAddress, data.Length);
   auto error = plugin->sendMessage(message);
   if (error) {
@@ -2634,7 +2629,7 @@ bool Plugin_sendMessage(PluginHandle handle, const BridgedData data) {
 }
 
 bool Plugin_waitForNextMessage(PluginHandle handle, BridgedData *out) {
-  auto *plugin = static_cast<LoadedExecutablePlugin *>(handle);
+  auto *plugin = static_cast<CompilerPlugin *>(handle);
   auto result = plugin->waitForNextMessage();
   if (!result) {
     // FIXME: Pass the error message back to the caller.

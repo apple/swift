@@ -34,8 +34,8 @@
 // RUN: c-index-test -read-diagnostics %t/macro_expand_inproc.dia 2>&1 | %FileCheck -check-prefix INPROC %s
 
 // INPROC-NOT: {{error|warning}}
-// INPROC: test.swift:1:33: warning: external macro implementation type 'TestPlugin.FooMacro' could not be found for macro 'fooMacro'; compiler plugin 'BUILD_DIR/{{.*}}/libTestPlugin.dylib' could not be loaded; dlopen(BUILD_DIR/{{.*}}/libTestPlugin.dylib, 0x0005): tried: 'BUILD_DIR/{{.*}}/libTestPlugin.dylib'
-// INPROC: test.swift:4:7: error: external macro implementation type 'TestPlugin.FooMacro' could not be found for macro 'fooMacro'; compiler plugin 'BUILD_DIR/{{.*}}/libTestPlugin.dylib' could not be loaded; dlopen(BUILD_DIR/{{.*}}/libTestPlugin.dylib, 0x0005): tried: 'BUILD_DIR/{{.*}}/libTestPlugin.dylib'
+// INPROC: test.swift:1:33: warning: external macro implementation type 'TestPlugin.FooMacro' could not be found for macro 'fooMacro'; failed to load library plugin 'BUILD_DIR/{{.*}}/libTestPlugin.dylib' in plugin server 'BUILD_DIR/{{.*}}/libSwiftInProcPluginServer.dylib'; loader error: dlopen(BUILD_DIR/{{.*}}/libTestPlugin.dylib, 0x0005): tried: 'BUILD_DIR/{{.*}}/libTestPlugin.dylib'
+// INPROC: test.swift:4:7: error: external macro implementation type 'TestPlugin.FooMacro' could not be found for macro 'fooMacro'; failed to load library plugin 'BUILD_DIR/{{.*}}/libTestPlugin.dylib' in plugin server 'BUILD_DIR/{{.*}}/libSwiftInProcPluginServer.dylib'; loader error: dlopen(BUILD_DIR/{{.*}}/libTestPlugin.dylib, 0x0005): tried: 'BUILD_DIR/{{.*}}/libTestPlugin.dylib'
 // INPROC: test.swift:1:33: note: 'fooMacro' declared here
 // INPROC-NOT: {{error|warning}}
 

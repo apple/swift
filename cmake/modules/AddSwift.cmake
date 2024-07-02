@@ -1014,12 +1014,12 @@ function(add_swift_host_tool executable)
       set_property(
         TARGET ${executable}
         APPEND PROPERTY INSTALL_RPATH
-          "@executable_path/../${extra_relative_rpath}lib/swift/host")
+          "@executable_path/../${extra_relative_rpath}lib/swift/host/compiler")
     else()
       set_property(
         TARGET ${executable}
         APPEND PROPERTY INSTALL_RPATH
-          "$ORIGIN/../${extra_relative_rpath}lib/swift/host")
+          "$ORIGIN/../${extra_relative_rpath}lib/swift/host/compiler")
     endif()
   endif()
 

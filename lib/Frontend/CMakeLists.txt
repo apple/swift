@@ -38,4 +38,15 @@ target_link_libraries(swiftFrontend PRIVATE
   swiftSerialization
   swiftSymbolGraphGen)
 
+if (SWIFT_BUILD_SWIFT_SYNTAX)
+  target_link_libraries(swiftFrontend
+    PRIVATE
+    swiftASTGen
+  )
+
+  add_dependencies(swiftFrontend
+    swiftASTGen
+  )
+endif()
+
 set_swift_llvm_is_available(swiftFrontend)

@@ -2002,6 +2002,10 @@ def load_plugin_executable:
            "of module names where the macro types are declared">,
   MetaVarName<"<path>#<module-names>">;
 
+def in_process_plugin_server_path : Separate<["-"], "in-process-plugin-server-path">,
+  Flags<[FrontendOption, ArgumentIsPath]>,
+  HelpText<"Path to dynamic library plugin server">;
+
 def disable_sandbox:
   Flag<["-"], "disable-sandbox">,
   Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,

@@ -12,6 +12,7 @@ function(add_swift_parser_link_libraries target)
     foreach(macrolib ${SWIFT_MACRO_PLUGINS})
       add_dependencies(${target} ${macrolib})
     endforeach()
+    add_dependencies(${target} SwiftInProcPluginServer)
   endif()
 endfunction()
 

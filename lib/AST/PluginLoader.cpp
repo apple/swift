@@ -170,31 +170,24 @@ PluginLoader::lookupPluginByModuleName(Identifier moduleName) {
   return found->second;
 }
 
-llvm::Expected<LoadedLibraryPlugin *>
-PluginLoader::loadLibraryPlugin(StringRef path) {
+llvm::Expected<CompilerPlugin *> PluginLoader::getInProcessPlugins() {
+  auto inProcPluginServerPath = Ctx.SearchPathOpts.InProcessPluginServerPath;
+  if (inProcPluginServerPath.empty()) {
+    return llvm::createStringError(
+        llvm::inconvertibleErrorCode(),
+        "library plugins require -in-process-plugin-server-path");
+  }
+
   auto fs = getPluginLoadingFS(Ctx);
   SmallString<128> resolvedPath;
-  if (auto err = fs->getRealPath(path, resolvedPath)) {
+  if (auto err = fs->getRealPath(inProcPluginServerPath, resolvedPath)) {
     return llvm::createStringError(err, err.message());
   }
 
-  // Load the plugin.
-  auto plugin = getRegistry()->loadLibraryPlugin(resolvedPath);
-  if (!plugin) {
-    resolvedPath.push_back(0);
-    return llvm::handleErrors(
-        plugin.takeError(), [&](const llvm::ErrorInfoBase &err) {
-          return llvm::createStringError(
-              err.convertToErrorCode(),
-              "compiler plugin '%s' could not be loaded;  %s",
-              resolvedPath.data(), err.message().data());
-        });
-  }
-
-  return plugin;
+  return getRegistry()->getInProcessPlugins(resolvedPath);
 }
 
-llvm::Expected<LoadedExecutablePlugin *>
+llvm::Expected<CompilerPlugin *>
 PluginLoader::loadExecutablePlugin(StringRef path) {
   auto fs = getPluginLoadingFS(Ctx);
   SmallString<128> resolvedPath;

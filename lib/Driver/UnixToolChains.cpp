@@ -47,31 +47,6 @@ toolchains::GenericUnix::sanitizerRuntimeLibName(StringRef Sanitizer,
       .str();
 }
 
-void
-toolchains::GenericUnix::addPluginArguments(const ArgList &Args,
-                                            ArgStringList &Arguments) const {
-  SmallString<64> pluginPath;
-  auto programPath = getDriver().getSwiftProgramPath();
-  CompilerInvocation::computeRuntimeResourcePathFromExecutablePath(
-      programPath, /*shared=*/true, pluginPath);
-
-  auto defaultPluginPath = pluginPath;
-  llvm::sys::path::append(defaultPluginPath, "host", "plugins");
-
-  // Default plugin path.
-  Arguments.push_back("-plugin-path");
-  Arguments.push_back(Args.MakeArgString(defaultPluginPath));
-
-  // Local plugin path.
-  llvm::sys::path::remove_filename(pluginPath); // Remove "swift"
-  llvm::sys::path::remove_filename(pluginPath); // Remove "lib"
-  llvm::sys::path::append(pluginPath, "local", "lib");
-  llvm::sys::path::append(pluginPath, "swift");
-  llvm::sys::path::append(pluginPath, "host", "plugins");
-  Arguments.push_back("-plugin-path");
-  Arguments.push_back(Args.MakeArgString(pluginPath));
-}
-
 ToolChain::InvocationInfo
 toolchains::GenericUnix::constructInvocation(const InterpretJobAction &job,
                                              const JobContext &context) const {

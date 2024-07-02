@@ -17,6 +17,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Chrono.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/Program.h"
 
@@ -25,26 +26,114 @@
 
 namespace swift {
 
-/// Represent a 'dlopen'ed plugin library.
-class LoadedLibraryPlugin {
-  // Opaque handle used to interface with OS-specific dynamic library.
-  void *handle;
+/// Base class for compiler plugins, or plugin servers.
+class CompilerPlugin {
+  const std::string path;
 
-  /// Cache of loaded symbols.
-  llvm::StringMap<void *> resolvedSymbols;
+  std::mutex mtx;
 
-  /// Path to the plugin library.
-  const std::string LibraryPath;
+  /// Opaque value of the protocol capability of the plugin. This is a
+  /// value from ASTGen.
+  const void *capability = nullptr;
+
+  /// Cleanup function to call ASTGen.
+  std::function<void(void)> cleanup;
+
+  /// Callbacks to be called when the connection is restored.
+  llvm::SmallVector<std::function<void(void)> *, 0> onReconnect;
+
+  /// Flag to enable dumping of plugin messages.
+  bool dumpMessaging = false;
+
+protected:
+  CompilerPlugin(llvm::StringRef path) : path(path) {}
+
+  bool shouldDumpMessaging() const { return dumpMessaging; }
 
 public:
-  LoadedLibraryPlugin(void *handle, StringRef path)
-      : handle(handle), LibraryPath(path) {}
+  NullTerminatedStringRef getPath() const {
+    return {path.c_str(), path.size()};
+  }
 
-  /// Finds the address of the given symbol within the library.
-  void *getAddressOfSymbol(const char *symbolName);
+  void lock() { mtx.lock(); }
+  void unlock() { mtx.unlock(); }
 
-  NullTerminatedStringRef getLibraryPath() {
-    return {LibraryPath.c_str(), LibraryPath.size()};
+  bool isInitialized() const { return bool(cleanup); }
+  void setCleanup(std::function<void(void)> cleanup) {
+    this->cleanup = cleanup;
+  }
+
+  const void *getCapability() { return capability; };
+  void setCapability(const void *newValue) { capability = newValue; };
+
+  void setDumpMessaging(bool flag) { dumpMessaging = flag; }
+
+  virtual ~CompilerPlugin();
+
+  /// Launch the plugin if it's not already running, or it's stale. Return an
+  /// error if it's fails to execute it.
+  virtual llvm::Error spawnIfNeeded() = 0;
+
+  /// Send a message to the plugin.
+  virtual llvm::Error sendMessage(llvm::StringRef message) = 0;
+
+  /// Wait for a message from plugin and returns it.
+  virtual llvm::Expected<std::string> waitForNextMessage() = 0;
+
+  /// Add "on reconnect" callback.
+  /// These callbacks are called when `spawnIfNeeded()` relaunched the plugin.
+  void addOnReconnect(std::function<void(void)> *fn) {
+    onReconnect.push_back(fn);
+  }
+
+  /// Remove "on reconnect" callback.
+  void removeOnReconnect(std::function<void(void)> *fn) {
+    llvm::erase_value(onReconnect, fn);
+  }
+
+  ArrayRef<std::function<void(void)> *> getOnReconnectCallbacks() {
+    return onReconnect;
+  }
+};
+
+/// Represents a in-process plugin server.
+class InProcessPlugins : public CompilerPlugin {
+  /// PluginServer
+  llvm::sys::DynamicLibrary server;
+
+  /// Entry point in the in-process plugin server. It receives the request
+  /// string and populate the response string. The return value indicates there
+  /// was an error. If true the returned string contains the error message.
+  /// 'free'ing the populated `responseDataPtr` is caller's responsibility.
+  using HandleMessageFunction = bool (*)(const char *requestData,
+                                         size_t requestLength,
+                                         char **responseDataPtr,
+                                         size_t *responseDataLengthPtr);
+  HandleMessageFunction handleMessageFn;
+
+  /// Temporary storage for the response data from 'handleMessageFn'.
+  std::string receivedResponse;
+
+  InProcessPlugins(llvm::StringRef serverPath, llvm::sys::DynamicLibrary server,
+                   HandleMessageFunction handleMessageFn)
+      : CompilerPlugin(serverPath), server(server),
+        handleMessageFn(handleMessageFn) {}
+
+public:
+  /// Create an instance by loading the in-process plugin server at 'serverPath'
+  /// and return it.
+  static llvm::Expected<std::unique_ptr<InProcessPlugins>>
+  create(const char *serverPath);
+
+  /// Send a message to the plugin.
+  llvm::Error sendMessage(llvm::StringRef message) override;
+
+  /// Wait for a message from plugin and returns it.
+  llvm::Expected<std::string> waitForNextMessage() override;
+
+  llvm::Error spawnIfNeeded() override {
+    // NOOP. It's always loaded.
+    return llvm::Error::success();
   }
 };
 
@@ -56,7 +145,7 @@ public:
 /// launch it and manages the process. When the plugin process crashes, this
 /// should automatically relaunch the process so the clients can keep using this
 /// object as the interface.
-class LoadedExecutablePlugin {
+class LoadedExecutablePlugin : public CompilerPlugin {
 
   /// Represents the current process of the executable plugin.
   struct PluginProcess {
@@ -76,38 +165,23 @@ class LoadedExecutablePlugin {
   /// Launched current process.
   std::unique_ptr<PluginProcess> Process;
 
-  /// Path to the plugin executable.
-  const std::string ExecutablePath;
-
   /// Last modification time of the `ExecutablePath` when this is initialized.
   const llvm::sys::TimePoint<> LastModificationTime;
-
-  /// Opaque value of the protocol capability of the pluugin. This is a
-  /// value from ASTGen.
-  const void *capability = nullptr;
-
-  /// Callbacks to be called when the connection is restored.
-  llvm::SmallVector<std::function<void(void)> *, 0> onReconnect;
 
   /// Disable sandbox.
   bool disableSandbox = false;
 
-  /// Flag to dump plugin messagings.
-  bool dumpMessaging = false;
-
-  /// Cleanup function to call ASTGen.
-  std::function<void(void)> cleanup;
-
-  std::mutex mtx;
+  /// Mark the current process "stale" (not usable anymore for some reason,
+  /// probably crashed).
+  void setStale() { Process->isStale = true; }
 
 public:
   LoadedExecutablePlugin(llvm::StringRef ExecutablePath,
                          llvm::sys::TimePoint<> LastModificationTime,
                          bool disableSandbox)
-      : ExecutablePath(ExecutablePath),
+      : CompilerPlugin(ExecutablePath),
         LastModificationTime(LastModificationTime),
         disableSandbox(disableSandbox){};
-  ~LoadedExecutablePlugin();
 
   /// The last modification time of 'ExecutablePath' when this object is
   /// created.
@@ -118,54 +192,23 @@ public:
   /// Indicates that the current process is usable.
   bool isAlive() const { return Process != nullptr && !Process->isStale; }
 
-  /// Mark the current process "stale".
-  void setStale() const { Process->isStale = true; }
-
-  void lock() { mtx.lock(); }
-  void unlock() { mtx.unlock(); }
-
   // Launch the plugin if it's not already running, or it's stale. Return an
   // error if it's fails to execute it.
-  llvm::Error spawnIfNeeded();
+  llvm::Error spawnIfNeeded() override;
 
   /// Send a message to the plugin.
-  llvm::Error sendMessage(llvm::StringRef message) const;
+  llvm::Error sendMessage(llvm::StringRef message) override;
 
   /// Wait for a message from plugin and returns it.
-  llvm::Expected<std::string> waitForNextMessage() const;
-
-  bool isInitialized() const { return bool(cleanup); }
-  void setCleanup(std::function<void(void)> cleanup) {
-    this->cleanup = cleanup;
-  }
-
-  /// Add "on reconnect" callback.
-  /// These callbacks are called when `spawnIfNeeded()` relaunched the plugin.
-  void addOnReconnect(std::function<void(void)> *fn) {
-    onReconnect.push_back(fn);
-  }
-
-  /// Remove "on reconnect" callback.
-  void removeOnReconnect(std::function<void(void)> *fn) {
-    llvm::erase_value(onReconnect, fn);
-  }
+  llvm::Expected<std::string> waitForNextMessage() override;
 
   llvm::sys::procid_t getPid() { return Process->process.Pid; }
   llvm::sys::process_t getProcess() { return Process->process.Process; }
-
-  NullTerminatedStringRef getExecutablePath() {
-    return {ExecutablePath.c_str(), ExecutablePath.size()};
-  }
-
-  const void *getCapability() { return capability; };
-  void setCapability(const void *newValue) { capability = newValue; };
-
-  void setDumpMessaging(bool flag) { dumpMessaging = flag; }
 };
 
 class PluginRegistry {
-  /// Record of loaded plugin library modules.
-  llvm::StringMap<std::unique_ptr<LoadedLibraryPlugin>> LoadedPluginLibraries;
+  /// The in-process plugin server.
+  std::unique_ptr<InProcessPlugins> inProcessPlugins;
 
   /// Record of loaded plugin executables.
   llvm::StringMap<std::unique_ptr<LoadedExecutablePlugin>>
@@ -179,14 +222,17 @@ class PluginRegistry {
 public:
   PluginRegistry();
 
-  /// Load a dynamic link library specified by \p path.
-  /// If \p path plugin is already loaded, this returns the cached object.
-  llvm::Expected<LoadedLibraryPlugin *> loadLibraryPlugin(llvm::StringRef path);
+  /// Get the in-process plugin server.
+  /// If it's loaded, returned the cached object. If the loaded instance is
+  /// from a different 'serverPath', returns an error as we don't support
+  /// multiple in-process plugin server in a host process.
+  llvm::Expected<CompilerPlugin *>
+  getInProcessPlugins(llvm::StringRef serverPath);
 
   /// Load an executable plugin specified by \p path .
   /// If \p path plugin is already loaded, this returns the cached object.
-  llvm::Expected<LoadedExecutablePlugin *>
-  loadExecutablePlugin(llvm::StringRef path, bool disableSandbox);
+  llvm::Expected<CompilerPlugin *> loadExecutablePlugin(llvm::StringRef path,
+                                                        bool disableSandbox);
 };
 
 } // namespace swift

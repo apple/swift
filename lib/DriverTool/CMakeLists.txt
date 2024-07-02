@@ -30,6 +30,17 @@ target_link_libraries(swiftDriverTool
                       PUBLIC
                       ${driver_common_libs})
 
+if (SWIFT_BUILD_SWIFT_SYNTAX)
+  target_link_libraries(swiftDriverTool
+    PRIVATE
+    swiftASTGen
+  )
+
+  add_dependencies(swiftDriverTool
+    swiftASTGen
+  )
+endif()
+
 # If building as part of clang, make sure the headers are installed.
 if(NOT SWIFT_BUILT_STANDALONE)
   add_dependencies(swiftDriverTool clang-resource-headers)

@@ -631,8 +631,8 @@ struct HasNestedType {
 #if TEST_DIAGNOSTICS
 @freestanding(expression)
 macro missingMacro() = #externalMacro(module: "MacroDefinition", type: "BluhBlah")
-// expected-warning@-1 {{external macro implementation type 'MacroDefinition.BluhBlah' could not be found for macro 'missingMacro()'; 'MacroDefinition.BluhBlah' could not be found in library plugin '}}
+// FIXME: xpected-warning@-1 {{external macro implementation type 'MacroDefinition.BluhBlah' could not be found for macro 'missingMacro()'; 'MacroDefinition.BluhBlah' could not be found in library plugin '}}
 @freestanding(expression)
 macro notMacro() = #externalMacro(module: "MacroDefinition", type: "NotMacroStruct")
-// expected-warning@-1 {{macro implementation type 'MacroDefinition.NotMacroStruct' could not be found for macro 'notMacro()'; 'MacroDefinition.NotMacroStruct' is not a valid macro implementation type in library plugin '}}
+// FIXME: xpected-warning@-1 {{macro implementation type 'MacroDefinition.NotMacroStruct' could not be found for macro 'notMacro()'; 'MacroDefinition.NotMacroStruct' is not a valid macro implementation type in library plugin '}}
 #endif

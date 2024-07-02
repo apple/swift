@@ -11,7 +11,7 @@ if(SWIFT_BUILD_REGEX_PARSER_IN_COMPILER)
   endforeach()
   message(STATUS "Using Experimental String Processing library for _CompilerRegexParser (${SWIFT_PATH_TO_STRING_PROCESSING_SOURCE}).")
 
-  add_pure_swift_host_library(_CompilerRegexParser STATIC EMIT_MODULE
+  add_pure_swift_host_library(_CompilerRegexParser STATIC
     "${COMPILER_REGEX_PARSER_SOURCES}"
   )
 
@@ -36,7 +36,6 @@ add_pure_swift_host_library(swiftASTGen STATIC
   Sources/ASTGen/Regex.swift
   Sources/ASTGen/SourceFile.swift
   Sources/ASTGen/SourceManager.swift
-  Sources/ASTGen/SourceManager+MacroExpansionContext.swift
   Sources/ASTGen/Stmts.swift
   Sources/ASTGen/TypeAttrs.swift
   Sources/ASTGen/Types.swift
@@ -44,16 +43,15 @@ add_pure_swift_host_library(swiftASTGen STATIC
   DEPENDENCIES
     swiftAST
   SWIFT_DEPENDENCIES
-    SwiftBasicFormat
-    SwiftCompilerPluginMessageHandling
-    SwiftDiagnostics
-    SwiftOperators
-    SwiftParser
-    SwiftParserDiagnostics
-    SwiftSyntax
-    SwiftSyntaxBuilder
-    SwiftSyntaxMacros
-    SwiftSyntaxMacroExpansion
+    _CompilerSwiftSyntax
+    _CompilerSwiftOperators
+    _CompilerSwiftSyntaxBuilder
+    _CompilerSwiftParser
+    _CompilerSwiftParserDiagnostics
+    _CompilerSwiftCompilerPluginMessageHandling
+    _CompilerSwiftSyntaxMacroExpansion
+    _CompilerSwiftDiagnostics
+    _CompilerSwiftIDEUtils
     ${ASTGen_Swift_dependencies}
 )
 
@@ -62,13 +60,10 @@ add_pure_swift_host_library(swiftIDEUtilsBridging
   
   DEPENDENCIES
     swiftAST
-    swiftASTGen
-
   SWIFT_DEPENDENCIES
-    SwiftIDEUtils
-    SwiftSyntax
+    _CompilerSwiftSyntax
+    swiftASTGen
 )
-
 
 set(c_include_paths
   # LLVM modules and headers.
@@ -88,7 +83,6 @@ endforeach()
 
 set(compile_options
   ${c_include_paths_args}
-  "SHELL: -DRESILIENT_SWIFT_SYNTAX"
   "SHELL: -Xcc -std=c++17 -Xcc -DCOMPILED_WITH_SWIFT"
 
   # FIXME: Needed to work around an availability issue with CxxStdlib

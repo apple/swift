@@ -469,6 +469,9 @@ public:
   /// Plugin search path options.
   std::vector<PluginSearchOption> PluginSearchOpts;
 
+  /// Path to in-process plugin server shared library.
+  std::string InProcessPluginServerPath;
+
   /// Don't look in for compiler-provided modules.
   bool SkipRuntimeLibraryImportPaths = false;
 

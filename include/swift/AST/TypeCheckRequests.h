@@ -50,7 +50,7 @@ class ContinueStmt;
 class DefaultArgumentExpr;
 class DefaultArgumentType;
 class DoCatchStmt;
-struct ExternalMacroDefinition;
+class ExternalMacroDefinition;
 class ClosureExpr;
 class GenericParamList;
 class InverseTypeRepr;
@@ -4541,38 +4541,30 @@ public:
 
 /// Represent a loaded plugin either an in-process library or an executable.
 class CompilerPluginLoadResult {
-  enum class PluginKind : uint8_t {
-    Error = 0,
-    Library,
-    Executable,
+  enum class Status : uint8_t {
+    Success = 0,
+    Error,
   };
-  PluginKind Kind;
+  Status status;
   void *opaqueHandle;
 
-  CompilerPluginLoadResult(PluginKind K, void *opaque)
-      : Kind(K), opaqueHandle(opaque) {}
+  CompilerPluginLoadResult(Status status, void *opaque)
+      : status(status), opaqueHandle(opaque) {}
 
 public:
-  CompilerPluginLoadResult(LoadedLibraryPlugin *ptr)
-      : CompilerPluginLoadResult(PluginKind::Library, ptr){};
-  CompilerPluginLoadResult(LoadedExecutablePlugin *ptr)
-      : CompilerPluginLoadResult(PluginKind::Executable, ptr){};
+  CompilerPluginLoadResult(CompilerPlugin *ptr)
+      : CompilerPluginLoadResult(Status::Success, ptr){};
   static CompilerPluginLoadResult error(NullTerminatedStringRef message) {
-    return CompilerPluginLoadResult(PluginKind::Error,
+    return CompilerPluginLoadResult(Status::Error,
                                     const_cast<char *>(message.data()));
   }
 
-  LoadedLibraryPlugin *getAsLibraryPlugin() const {
-    if (Kind != PluginKind::Library)
+  CompilerPlugin *get() const {
+    if (status != Status::Success)
       return nullptr;
-    return static_cast<LoadedLibraryPlugin *>(opaqueHandle);
+    return static_cast<CompilerPlugin *>(opaqueHandle);
   }
-  LoadedExecutablePlugin *getAsExecutablePlugin() const {
-    if (Kind != PluginKind::Executable)
-      return nullptr;
-    return static_cast<LoadedExecutablePlugin *>(opaqueHandle);
-  }
-  bool isError() const { return Kind == PluginKind::Error; }
+  bool isError() const { return status == Status::Error; }
   NullTerminatedStringRef getErrorMessage() const {
     assert(isError());
     return static_cast<const char *>(opaqueHandle);

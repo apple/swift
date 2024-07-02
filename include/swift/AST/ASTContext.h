@@ -84,8 +84,6 @@ namespace swift {
   class DifferentiableAttr;
   class ExtensionDecl;
   struct ExternalSourceLocs;
-  class LoadedExecutablePlugin;
-  class LoadedLibraryPlugin;
   class ForeignRepresentationInfo;
   class FuncDecl;
   class GenericContext;
