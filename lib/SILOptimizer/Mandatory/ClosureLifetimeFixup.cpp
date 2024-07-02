@@ -41,6 +41,12 @@ llvm::cl::opt<bool> DisableConvertEscapeToNoEscapeSwitchEnumPeephole(
         "Disable the convert_escape_to_noescape switch enum peephole. "),
     llvm::cl::Hidden);
 
+llvm::cl::opt<bool> DisableCopyEliminationOfCopyableCapture(
+    "sil-disable-copy-elimination-of-copyable-closure-capture",
+    llvm::cl::init(false),
+    llvm::cl::desc("Don't eliminate copy_addr of Copyable closure captures "
+                   "inserted by SILGen"));
+
 using namespace swift;
 
 /// Given an optional diamond, return the bottom of the diamond.
@@ -760,14 +766,14 @@ static SILValue tryRewriteToPartialApplyStack(
       LLVM_DEBUG(llvm::dbgs() << "-- not an alloc_stack\n");
       continue;
     }
-    
-    // This would be a nice optimization to attempt for all types, but for now,
-    // limit the effect to move-only types.
-    if (!copy->getType().isMoveOnly()) {
-      LLVM_DEBUG(llvm::dbgs() << "-- not move-only\n");
-      continue;
+
+    if (DisableCopyEliminationOfCopyableCapture) {
+      if (!copy->getType().isMoveOnly()) {
+        LLVM_DEBUG(llvm::dbgs() << "-- not move-only\n");
+        continue;
+      }
     }
-    
+
     // Is the capture a borrow?
 
     auto paramIndex = i + appliedArgStartIdx;
@@ -860,20 +866,22 @@ static SILValue tryRewriteToPartialApplyStack(
     LLVM_DEBUG(llvm::dbgs() << "++ found original:\n";
                orig->print(llvm::dbgs());
                llvm::dbgs() << "\n");
-               
-    bool origIsUnusedDuringClosureLifetime = true;
 
-    class OrigUnusedDuringClosureLifetimeWalker
+    bool origIsUnmodifiedDuringClosureLifetime = true;
+
+    class OrigUnmodifiedDuringClosureLifetimeWalker
         : public TransitiveAddressWalker<
-              OrigUnusedDuringClosureLifetimeWalker> {
+              OrigUnmodifiedDuringClosureLifetimeWalker> {
       SSAPrunedLiveness &closureLiveness;
-      bool &origIsUnusedDuringClosureLifetime;
+      bool &origIsUnmodifiedDuringClosureLifetime;
+
     public:
-      OrigUnusedDuringClosureLifetimeWalker(SSAPrunedLiveness &closureLiveness,
-                                        bool &origIsUnusedDuringClosureLifetime)
-        : closureLiveness(closureLiveness),
-          origIsUnusedDuringClosureLifetime(origIsUnusedDuringClosureLifetime)
-      {}
+      OrigUnmodifiedDuringClosureLifetimeWalker(
+          SSAPrunedLiveness &closureLiveness,
+          bool &origIsUnmodifiedDuringClosureLifetime)
+          : closureLiveness(closureLiveness),
+            origIsUnmodifiedDuringClosureLifetime(
+                origIsUnmodifiedDuringClosureLifetime) {}
 
       bool visitUse(Operand *origUse) {
         LLVM_DEBUG(llvm::dbgs() << "looking at use\n";
@@ -885,7 +893,7 @@ static SILValue tryRewriteToPartialApplyStack(
           return true;
         }
         if (closureLiveness.isWithinBoundary(origUse->getUser())) {
-          origIsUnusedDuringClosureLifetime = false;
+          origIsUnmodifiedDuringClosureLifetime = false;
           LLVM_DEBUG(llvm::dbgs() << "-- original has other possibly writing use during closure lifetime\n";
                      origUse->getUser()->print(llvm::dbgs());
                      llvm::dbgs() << "\n");
@@ -895,12 +903,12 @@ static SILValue tryRewriteToPartialApplyStack(
       }
     };
 
-    OrigUnusedDuringClosureLifetimeWalker origUseWalker(closureLiveness,
-                                             origIsUnusedDuringClosureLifetime);
+    OrigUnmodifiedDuringClosureLifetimeWalker origUseWalker(
+        closureLiveness, origIsUnmodifiedDuringClosureLifetime);
     auto walkResult = std::move(origUseWalker).walk(orig);
-    
-    if (walkResult == AddressUseKind::Unknown
-        || !origIsUnusedDuringClosureLifetime) {
+
+    if (walkResult == AddressUseKind::Unknown ||
+        !origIsUnmodifiedDuringClosureLifetime) {
       continue;
     }
 

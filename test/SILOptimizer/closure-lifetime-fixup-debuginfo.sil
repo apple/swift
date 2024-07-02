@@ -1,4 +1,4 @@
-// RUN: %target-sil-opt -enable-sil-verify-all -closure-lifetime-fixup -emit-verbose-sil %s | %FileCheck %s
+// RUN: %target-sil-opt -enable-sil-verify-all -closure-lifetime-fixup -emit-verbose-sil -sil-disable-copy-elimination-of-copyable-closure-capture=true %s | %FileCheck %s
 
 import Builtin
 import Swift

@@ -8,6 +8,7 @@ struct E<T>: ~Copyable {
     var t: T
 }
 
+class Klass {}
 struct C<T> {
   var t: T
 }
@@ -19,15 +20,31 @@ func escaping(_ x: @escaping () -> ()) {  escaper = x }
 
 func borrow<T>(_: borrowing E<T>) {}
 func borrow<T>(_: borrowing C<T>) {}
+func mutate<T>(_: inout C<T>) {}
 
-func testMultiCapture<T>(_ e: borrowing E<T>, _ c: C<T>) {
-    // CHECK: [[C_STK:%.*]] = alloc_stack $C<T>
-    // CHECK: copy_addr %1 to [init] [[C_STK]] : $*C<T>
-    // CHECK: partial_apply {{.*}}[on_stack] {{.*}}([[C_STK]], %0) :
-    nonescaping {
-        borrow(c)
-        borrow(e)
-    }
+// CHECK-LABEL: sil {{.*}}14testCopySafetyyyAA1CVyxGlF : 
+// CHECK: [[STK1:%.*]] = alloc_stack {{.*}} $C<T>
+// CHECK: copy_addr %0 to [init] [[STK1]]
+// CHECK: partial_apply {{.*}}[on_stack] {{.*}}([[STK1]]) : $@convention(thin) <τ_0_0> (@inout_aliasable C<τ_0_0>) -> ()
+// CHECK: [[STK2:%.*]] = alloc_stack {{.*}} $C<T>
+// CHECK: [[BA:%.*]] = begin_access [read] [static] [[STK1]]
+// CHECK: copy_addr [[BA]] to [init] [[STK2]]
+// CHECK: end_access [[BA]]
+// CHECK: partial_apply {{.*}}[on_stack] {{.*}}([[STK2]]) : $@convention(thin) <τ_0_0> (@in_guaranteed C<τ_0_0>) -> ()
+func testCopySafety<T>(_ c: C<T>) {
+  var mutC = c
+  nonescaping({ mutate(&mutC) }, and: {[mutC] in borrow(mutC) })
+}
+
+// CHECK-LABEL: sil {{.*}}18testVarReadCaptureyyAA1CVyxGlF :
+// CHECK: [[STK:%.*]] = alloc_stack {{.*}} $C<T>
+// CHECK: copy_addr %0 to [init] [[STK]]
+// CHECK: partial_apply {{.*}}[on_stack] {{.*}}([[STK]]) : $@convention(thin) <τ_0_0> (@inout_aliasable C<τ_0_0>) -> ()
+func testVarReadCapture<T>(_ c: C<T>) {
+  var mutC = c
+  nonescaping {
+    borrow(mutC)
+  }
 }
 
 // CHECK-LABEL: sil {{.*}}16testNeverEscaped
