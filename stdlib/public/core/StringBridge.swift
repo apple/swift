@@ -625,7 +625,16 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
     default:  (fastUTF8, isASCII) = (false, false)
     }
     let length = _stdlib_binary_CFStringGetLength(immutableCopy)
-
+    if fastUTF8 {
+      let ptr = stableCocoaUTF8Pointer(immutableCopy)
+      if let ptr {
+        return String(
+          _immortalCocoaString: immutableCopy,
+          buffer: UnsafeBufferPointer(start: ptr, count: length),
+          encoding: Unicode.UTF8.self
+        )._guts
+      }
+    }
     return _StringGuts(
       cocoa: immutableCopy,
       providesFastUTF8: fastUTF8,
@@ -735,6 +744,22 @@ internal func _SwiftCreateBridgedString_DoNotCall(
     fatalError("Unsupported encoding in shim")
   }
   return Unmanaged<AnyObject>.passRetained(str._bridgeToObjectiveCImpl())
+}
+
+extension String {
+  @_spi(Foundation)
+  public init<Encoding: Unicode.Encoding>(_immortalCocoaString: AnyObject, buffer: UnsafeBufferPointer<UInt8>, encoding: Encoding.Type) {
+    precondition(encoding == Unicode.ASCII.self || encoding == Unicode.UTF8.self)
+    let storage = __SharedStringStorage(
+      immortalCocoa: buffer.baseAddress!,
+      owner: _immortalCocoaString,
+      countAndFlags: _StringObject.CountAndFlags(
+        sharedCount: buffer.count,
+        isASCII: encoding == Unicode.ASCII.self
+      )
+    )
+    self._guts = _StringGuts(_StringObject(immortal: storage))
+  }
 }
 
 // At runtime, this class is derived from `__SwiftNativeNSStringBase`,

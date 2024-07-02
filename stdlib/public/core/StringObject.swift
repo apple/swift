@@ -1180,6 +1180,9 @@ extension _StringObject {
     fatalError("unreachable in embedded Swift")
 #else
     _internalInvariant(hasObjCBridgeableObject)
+    if self.hasSharedStorage && self.sharedStorage.immortal {
+      return self.sharedStorage._owner!
+    }
     let unmanaged = Unmanaged<AnyObject>.fromOpaque(largeAddress)
     return unmanaged.takeUnretainedValue()
 #endif
@@ -1229,6 +1232,28 @@ extension _StringObject {
 
   @inline(__always)
   internal init(_ storage: __StringStorage) {
+#if $Embedded
+    let castStorage = Builtin.unsafeCastToNativeObject(storage)
+#else
+    let castStorage = storage
+#endif
+#if _pointerBitWidth(_64)
+    self.init(
+      object: castStorage,
+      discriminator: Nibbles.largeMortal(),
+      countAndFlags: storage._countAndFlags)
+#elseif _pointerBitWidth(_32)
+    self.init(
+      variant: .native(castStorage),
+      discriminator: Nibbles.largeMortal(),
+      countAndFlags: storage._countAndFlags)
+#else
+#error("Unknown platform")
+#endif
+  }
+  
+  @_unavailableInEmbedded //only used by ObjC bridging for now
+  internal init(immortal storage: __SharedStringStorage) {
 #if $Embedded
     let castStorage = Builtin.unsafeCastToNativeObject(storage)
 #else

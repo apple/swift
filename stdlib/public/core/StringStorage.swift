@@ -711,6 +711,15 @@ final internal class __SharedStringStorage
     super.init()
     self._invariantCheck()
   }
+  
+  internal convenience init(
+    immortalCocoa ptr: UnsafePointer<UInt8>,
+    owner: AnyObject,
+    countAndFlags: _StringObject.CountAndFlags
+  ) {
+    self.init(immortal: ptr, countAndFlags: countAndFlags)
+    self._owner = owner //must be an immortal ASCII NSString
+  }
 
   @inline(__always)
   final internal var isASCII: Bool { return _countAndFlags.isASCII }

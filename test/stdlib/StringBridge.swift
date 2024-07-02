@@ -10,6 +10,7 @@
 
 import Foundation
 import StdlibUnittest
+@_spi(Foundation) import Swift
 
 var StringBridgeTests = TestSuite("StringBridgeTests")
 
@@ -54,6 +55,30 @@ StringBridgeTests.test("Tagged NSString") {
 #endif // false
 
 #endif // not 32bit
+}
+
+//public init<Encoding: Unicode.Encoding>(_immortalCocoaString: AnyObject, buffer: UnsafeBufferPointer<UInt8>, encoding: Encoding.Type) {
+StringBridgeTests.test("Constant NSString New SPI") {
+  //21 characters long so avoids _SmallString
+  let constantString:NSString = CFRunLoopMode.commonModes.rawValue as NSString
+  let regularBridged = constantString as String
+  let buffer = constantString.utf8String!.withMemoryRebound(
+    to: UInt8.self,
+    capacity: regularBridged.utf8.count
+  ) { typedPtr in
+    UnsafeBufferPointer(
+      start: typedPtr,
+      count: regularBridged.utf8.count
+    )
+  }
+  let bridged = String(
+    _immortalCocoaString: constantString,
+    buffer: buffer,
+    encoding: Unicode.ASCII.self
+  )
+  let reverseBridged = bridged as NSString
+  expectEqual(constantString, reverseBridged)
+  expectEqual(bridged, regularBridged)
 }
 
 StringBridgeTests.test("Bridging") {
