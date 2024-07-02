@@ -2,7 +2,6 @@
 
 filename =
     *.py,
-
     ./benchmark/scripts/Benchmark_Driver,
     ./benchmark/scripts/Benchmark_DTrace.in,
     ./benchmark/scripts/Benchmark_GuardMalloc.in,
