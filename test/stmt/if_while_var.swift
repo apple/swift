@@ -127,6 +127,16 @@ if 1 != 2, let x = opt,
    let a = opt, var b = opt { // expected-warning {{immutable value 'a' was never used; consider replacing with '_' or removing it}} expected-warning {{variable 'b' was never used; consider replacing with '_' or removing it}}
 }
 
+// Test leading expr missing binding keyword
+if y = opt {} // expected-error {{cannot find 'y' in scope; did you mean to bind it?}} {{4-4=let }}
+while y = opt {} // expected-error {{cannot find 'y' in scope; did you mean to bind it?}} {{7-7=let }}
+if y = opt, z = opt {} // expected-error {{cannot find 'y' in scope; did you mean to bind it?}} {{4-4=let }}
+// expected-error@-1 {{cannot find 'z' in scope; did you mean to bind it?}} {{13-13=let }}
+if 1 != 2, y = opt {} // expected-error {{cannot find 'y' in scope; did you mean to bind it?}} {{12-12=let }}
+y = opt // expected-error {{cannot find 'y' in scope; did you mean to bind it?}} {{1-1=let }}
+if 1 != 2 && y = opt {} // expected-error {{cannot find 'y' in scope}}
+// expected-error@-1 {{use of '=' in a boolean context, did you mean '=='?}}
+
 // <rdar://problem/20457938> typed pattern is not allowed on if/let condition
 if 1 != 2, let x : Int? = opt {} // expected-warning {{immutable value 'x' was never used; consider replacing with '_' or removing it}}
 // expected-warning @-1 {{explicitly specified type 'Int?' adds an additional level of optional to the initializer, making the optional check always succeed}} {{20-24=Int}}

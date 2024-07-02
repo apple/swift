@@ -1095,6 +1095,8 @@ ERROR(cannot_find_in_scope,none,
 ERROR(cannot_find_in_scope_corrected,none,
       "cannot %select{find|find operator}1 %0 in scope; did you mean '%2'?",
       (DeclNameRef, bool, StringRef))
+ERROR(cannot_find_in_scope_bind,none,
+      "cannot find %0 in scope; did you mean to bind it?", (DeclNameRef))
 ERROR(cannot_find_self_in_scope,none,
       "cannot find 'self' in scope; did you mean to use it in a type or extension context?", ())
 NOTE(confusable_character,none,

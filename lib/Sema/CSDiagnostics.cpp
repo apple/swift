@@ -3058,11 +3058,17 @@ bool ContextualFailure::diagnoseConversionToBool() const {
   auto *anchor = castToExpr(getAnchor());
   // Check for "=" converting to Bool.  The user probably meant ==.
   if (auto *AE = dyn_cast<AssignExpr>(anchor->getValueProvidingExpr())) {
-    emitDiagnosticAt(AE->getEqualLoc(), diag::use_of_equal_instead_of_equality)
-        .fixItReplace(AE->getEqualLoc(), "==")
-        .highlight(AE->getDest()->getLoc())
-        .highlight(AE->getSrc()->getLoc());
-    return true;
+    if (AE->getDest()->getKind() == ExprKind::Error && !findParentExpr(AE)) {
+      // Already diagnosed as user probably meant a pattern binding
+      return true;
+    } else {
+      emitDiagnosticAt(AE->getEqualLoc(),
+                       diag::use_of_equal_instead_of_equality)
+          .fixItReplace(AE->getEqualLoc(), "==")
+          .highlight(AE->getDest()->getLoc())
+          .highlight(AE->getSrc()->getLoc());
+      return true;
+    }
   }
 
   // Determine if the boolean negation operator was applied to the anchor. This

@@ -297,7 +297,8 @@ Type getOptionalType(SourceLoc loc, Type elementType);
 /// \param replaceInvalidRefsWithErrors Indicates whether it's allowed
 /// to replace any discovered invalid member references with `ErrorExpr`.
 Expr *resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE, DeclContext *Context,
-                         bool replaceInvalidRefsWithErrors);
+                         bool replaceInvalidRefsWithErrors,
+                         bool inAssignmentPosition = false);
 
 /// Check for invalid existential types in the given declaration.
 void checkExistentialTypes(Decl *decl);

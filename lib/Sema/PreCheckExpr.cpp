@@ -406,7 +406,8 @@ static BinaryExpr *getCompositionExpr(Expr *expr) {
 /// for the lookup.
 Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
                                       DeclContext *DC,
-                                      bool replaceInvalidRefsWithErrors) {
+                                      bool replaceInvalidRefsWithErrors,
+                                      bool inAssignmentPosition) {
   // Process UnresolvedDeclRefExpr by doing an unqualified lookup.
   DeclNameRef Name = UDRE->getName();
   SourceLoc Loc = UDRE->getLoc();
@@ -580,9 +581,11 @@ Expr *TypeChecker::resolveDeclRefExpr(UnresolvedDeclRefExpr *UDRE,
       
       if (Name.isSimpleName(Context.Id_self)) {
         // `self` gets diagnosed with a different error when it can't be found.
-        Context.Diags
-            .diagnose(Loc, diag::cannot_find_self_in_scope)
+        Context.Diags.diagnose(Loc, diag::cannot_find_self_in_scope)
             .highlight(UDRE->getSourceRange());
+      } else if (inAssignmentPosition) {
+        Context.Diags.diagnose(Loc, diag::cannot_find_in_scope_bind, Name)
+            .fixItInsert(UDRE->getStartLoc(), "let ");
       } else {
         Context.Diags
             .diagnose(Loc, diag::cannot_find_in_scope, Name,
@@ -1214,8 +1217,16 @@ namespace {
                         new (Ctx) ErrorExpr(unresolved->getSourceRange()));
         }
 
-        auto *refExpr =
-            TypeChecker::resolveDeclRefExpr(unresolved, DC, UseErrorExprs);
+        bool inAssignment = false;
+        if (!ExprStack.empty()) {
+          if (auto sequence = dyn_cast<SequenceExpr>(ExprStack.back())) {
+            auto elements = sequence->getElements();
+            inAssignment = elements[0] == unresolved &&
+                           elements[1]->getKind() == ExprKind::Assign;
+          }
+        }
+        auto *refExpr = TypeChecker::resolveDeclRefExpr(
+            unresolved, DC, UseErrorExprs, inAssignment);
 
         // Check whether this is standalone `self` in init accessor, which
         // is invalid.
