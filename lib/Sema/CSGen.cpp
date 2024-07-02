@@ -306,6 +306,12 @@ namespace {
       return;
     }
 
+    if (auto conTy = CS.getContextualType(expr, /*forConstraint=*/false)) {
+      if (lti.collectedTypes.size() == 0) {
+        CS.setFavoredType(expr, conTy.getPointer());
+      }
+    }
+
     if (lti.collectedTypes.size() == 1) {
       // TODO: Compute the BCT.
 
@@ -573,6 +579,17 @@ namespace {
       // it would lead to ambiguities.
       if (argTy->isCGFloat() && paramTy->isDouble())
         return false;
+
+      // For unary minus, like for arithmetic bin ops, if the parent has
+      // been favored on the way down, propagate that information to its
+      // children.
+      if (isa<PrefixUnaryExpr>(expr) && value->getBaseIdentifier().is("-")) {
+        if (auto favoredExprTy = CS.getFavoredType(expr)) {
+          auto arg = expr->getArgs()->getExpr(0);
+          if (!CS.getFavoredType(arg))
+            CS.setFavoredType(arg, favoredExprTy);
+        }
+      }
 
       return isFavoredParamAndArg(CS, paramTy, argTy) &&
              hasContextuallyFavorableResultType(

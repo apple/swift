@@ -993,7 +993,8 @@ do {
   // expected-note@+1 {{overloads for '+' exist with these partially matching parameter lists: (Float, Float), (S_48822, Int)}}
   let _: Float = S_48822(integerLiteral: 42) + x
 
-  // expected-error@+1 {{cannot convert value of type 'Double' to expected argument type 'Int'}} {{48-48=Int(}} {{52-52=)}}
+  // expected-error@+2 {{binary operator '+' cannot be applied to operands of type 'S_48822' and 'Double'}} {{none}}
+  // expected-note@+1 {{overloads for '+' exist with these partially matching parameter lists: (Float, Float), (S_48822, Int)}}
   let _: Float = S_48822(integerLiteral: 42) + 42.0
 
   // expected-error@+2 {{binary operator '+' cannot be applied to operands of type 'S_48822' and 'Float'}} {{none}}
@@ -1552,19 +1553,19 @@ func testNilCoalescingOperatorRemoveFix() {
   let _ = "" /* This is a comment */ ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{13-43=}}
 
   let _ = "" // This is a comment
-    ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1554:13-1555:10=}}
+    ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{-1:13-+0:10=}}
 
   let _ = "" // This is a comment
     /*
      * The blank line below is part of the test case, do not delete it
      */
-    ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1557:13-1561:10=}}
+    ?? "" // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{-4:13-+0:10=}}
 
-  if ("" ?? // This is a comment // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{9-1564:9=}}
+  if ("" ?? // This is a comment // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{9-+1:9=}}
       "").isEmpty {}
 
   if ("" // This is a comment
-      ?? "").isEmpty {} // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{1566:9-1567:12=}}
+      ?? "").isEmpty {} // expected-warning {{left side of nil coalescing operator '??' has non-optional type 'String', so the right side is never used}} {{-1:9-+0:12=}}
 }
 
 // https://github.com/apple/swift/issues/74617

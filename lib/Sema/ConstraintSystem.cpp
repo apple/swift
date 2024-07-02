@@ -219,10 +219,16 @@ void ConstraintSystem::assignFixedType(TypeVariableType *typeVar, Type type,
                         locator->directlyAt<LiteralExpr>())))
           continue;
 
+      auto expr = castToExpr(locator->getAnchor());
       auto *literalProtocol = TypeChecker::getLiteralProtocol(
-          getASTContext(), castToExpr(locator->getAnchor()));
+          getASTContext(), expr);
       if (!literalProtocol)
         continue;
+
+      if (auto *favored = getFavoredType(expr)) {
+        if (favored->getAnyNominal() == type->getAnyNominal())
+          continue;
+      }
 
       // If the protocol has a default type, check it.
       if (auto defaultType = TypeChecker::getDefaultType(literalProtocol, DC)) {
