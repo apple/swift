@@ -28,7 +28,7 @@ class DependencyScanDiagnosticCollector;
 
 struct ScanQueryInstance {
   std::unique_ptr<CompilerInstance> ScanInstance;
-  std::unique_ptr<DependencyScanDiagnosticCollector> ScanDiagnostics;
+  std::shared_ptr<DependencyScanDiagnosticCollector> ScanDiagnostics;
 };
 
 /// Diagnostic consumer that simply collects the diagnostics emitted so-far
@@ -124,15 +124,10 @@ public:
   /// that will be used for this scan.
   llvm::ErrorOr<ScanQueryInstance>
   initCompilerInstanceForScan(ArrayRef<const char *> Command,
-                              StringRef WorkingDirectory);
+                              StringRef WorkingDirectory,
+                              std::shared_ptr<DependencyScanDiagnosticCollector> scannerDiagnosticsCollector);
 
 private:
-  /// Using the specified invocation command, initialize the scanner instance
-  /// for this scan. Returns the `CompilerInstance` that will be used.
-  llvm::ErrorOr<ScanQueryInstance>
-  initScannerForAction(ArrayRef<const char *> Command,
-                       StringRef WorkingDirectory);
-
   /// Shared cache of module dependencies, re-used by individual full-scan queries
   /// during the lifetime of this Tool.
   std::unique_ptr<SwiftDependencyScanningService> ScanningService;
@@ -149,6 +144,8 @@ private:
   llvm::BumpPtrAllocator Alloc;
   llvm::StringSaver Saver;
 };
+
+swiftscan_diagnostic_set_t *mapCollectedDiagnosticsForOutput(const DependencyScanDiagnosticCollector *diagnosticCollector);
 
 } // end namespace dependencies
 } // end namespace swift

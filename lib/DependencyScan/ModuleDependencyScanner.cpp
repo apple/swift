@@ -194,7 +194,7 @@ ModuleDependencyScanningWorker::ModuleDependencyScanningWorker(
       FEOpts.SerializeModuleInterfaceDependencyHashes,
       FEOpts.shouldTrackSystemDependencies(), RequireOSSAModules_t(SILOptions));
 
-  // Set up the Clang importer.
+  // Set up the Clang importer.b
   clangScannerModuleLoader = ClangImporter::create(
       ScanASTContext, ScanCompilerInvocation.getPCHHash(), &DependencyTracker);
   if (!clangScannerModuleLoader)
@@ -207,6 +207,8 @@ ModuleDependencyScanningWorker::ModuleDependencyScanningWorker(
           ScanASTContext.getModuleInterfaceChecker()),
       &DependencyTracker,
       ScanCompilerInvocation.getSearchPathOptions().ModuleLoadMode);
+
+  llvm::cl::ResetAllOptionOccurrences();
 }
 
 ModuleDependencyVector
