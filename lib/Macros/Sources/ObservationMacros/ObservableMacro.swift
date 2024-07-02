@@ -58,11 +58,14 @@ public struct ObservableMacro {
   static func withMutationFunction(_ observableType: TokenSyntax) -> DeclSyntax {
     return 
       """
-      internal nonisolated func withMutation<Member, MutationResult>(
-      keyPath: KeyPath<\(observableType), Member>,
-      _ mutation: () throws -> MutationResult
-      ) rethrows -> MutationResult {
-      try \(raw: registrarVariableName).withMutation(of: self, keyPath: keyPath, mutation)
+      internal nonisolated func withMutation<Member>(
+      keyPath: KeyPath<\(observableType) , Member>,
+      storageKeyPath: ReferenceWritableKeyPath<\(observableType) , Member>,
+      newValue: Member
+      ) {
+      \(raw: registrarVariableName).withMutation(of: self, keyPath: keyPath) {
+      self[keyPath: storageKeyPath] = newValue
+      }
       }
       """
   }
@@ -322,9 +325,7 @@ public struct ObservationTrackedMacro: AccessorMacro {
     let setAccessor: AccessorDeclSyntax =
       """
       set {
-      withMutation(keyPath: \\.\(identifier)) {
-      _\(identifier) = newValue
-      }
+      withMutation(keyPath: \\.\(identifier), storageKeyPath: \\._\(identifier), newValue: newValue)
       }
       """
       
