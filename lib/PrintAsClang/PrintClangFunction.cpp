@@ -31,6 +31,7 @@
 #include "swift/IRGen/IRABIDetailsProvider.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -273,8 +274,13 @@ public:
                  bool isInOutParam) {
     auto *cd = CT->getDecl();
     if (cd->hasClangNode()) {
-      ClangSyntaxPrinter(os).printClangTypeReference(cd->getClangDecl());
-      os << " *"
+      const auto *clangDecl = cd->getClangDecl();
+      ClangSyntaxPrinter(os).printClangTypeReference(clangDecl);
+      bool alreadyPointer = false;
+      if (const auto *typedefDecl = dyn_cast<clang::TypedefNameDecl>(clangDecl))
+        if (importer::isCFTypeDecl(typedefDecl))
+          alreadyPointer = true;
+      os << (alreadyPointer ? " " : " *")
          << (!optionalKind || *optionalKind == OTK_None ? "_Nonnull"
                                                         : "_Nullable");
       if (isInOutParam) {
