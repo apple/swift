@@ -7514,7 +7514,7 @@ ConstraintSystem::matchTypes(Type type1, Type type2, ConstraintKind kind,
       auto instanceType1 = meta1->getInstanceType();
       auto instanceType2 = meta2->getInstanceType();
       if (isa<MetatypeType>(meta1) &&
-          !(instanceType1->mayHaveSuperclass() &&
+          !(instanceType1->mayHaveSuperclass() ||
             instanceType2->getClassOrBoundGenericClass())) {
         subKind = ConstraintKind::Bind;
       }
