@@ -63,6 +63,28 @@ getVersionTuple(const llvm::Triple &triple) {
   return triple.getOSVersion();
 }
 
+std::string CompilerInvocation::computeRuntimeResourcePathForTargetInfo() {
+  const auto &frontendOpts = getFrontendOptions();
+  const auto &searchPathOpts = getSearchPathOptions();
+  const auto &langOpts = getLangOptions();
+  SmallString<128> resourceDirPath;
+  if (!searchPathOpts.RuntimeResourcePath.empty()) {
+    resourceDirPath =  searchPathOpts.RuntimeResourcePath;
+  } else if (!langOpts.Target.isOSDarwin() &&
+             !searchPathOpts.getSDKPath().empty()) {
+    StringRef value = searchPathOpts.getSDKPath();
+    resourceDirPath.append(value.begin(), value.end());
+    llvm::sys::path::append(resourceDirPath, "usr");
+    CompilerInvocation::appendSwiftLibDir(resourceDirPath,
+                                          frontendOpts.UseSharedResourceFolder);
+  } else {
+    CompilerInvocation::computeRuntimeResourcePathFromExecutablePath(frontendOpts.MainExecutablePath,
+                                                                     frontendOpts.UseSharedResourceFolder,
+                                                                     resourceDirPath);
+  }
+  return resourceDirPath.str().str();
+}
+
 void CompilerInvocation::computeRuntimeResourcePathFromExecutablePath(
     StringRef mainExecutablePath, bool shared,
     llvm::SmallVectorImpl<char> &runtimeResourcePath) {
@@ -84,7 +106,9 @@ void CompilerInvocation::setMainExecutablePath(StringRef Path) {
   llvm::SmallString<128> LibPath;
   computeRuntimeResourcePathFromExecutablePath(
       Path, FrontendOpts.UseSharedResourceFolder, LibPath);
-  setRuntimeResourcePath(LibPath.str());
+  // Target info query computes the resource path wholesale
+  if (!FrontendOpts.PrintTargetInfo)
+    setRuntimeResourcePath(LibPath.str());
 
   llvm::SmallString<128> clangPath(Path);
   llvm::sys::path::remove_filename(clangPath);
@@ -3571,6 +3595,9 @@ bool CompilerInvocation::parseArgs(
                         SearchPathOpts.RuntimeResourcePath, ParsedArgs, Diags)) {
     return true;
   }
+
+  if (FrontendOpts.PrintTargetInfo)
+    setRuntimeResourcePath(computeRuntimeResourcePathForTargetInfo());
 
   updateRuntimeLibraryPaths(SearchPathOpts, FrontendOpts, LangOpts);
   setDefaultPrebuiltCacheIfNecessary();
