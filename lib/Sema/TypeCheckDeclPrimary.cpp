@@ -2465,19 +2465,20 @@ public:
       break;
 
     case MacroDefinition::Kind::External: {
+      if (!MD->getDiags().getSuppressWarnings()) {
         // Retrieve the external definition of the macro.
-      auto external = macroDef.getExternalMacro();
-      ExternalMacroDefinitionRequest request{
-        &Ctx, external.moduleName, external.macroTypeName
-      };
-      auto externalDef =
-          evaluateOrDefault(Ctx.evaluator, request,
-                            ExternalMacroDefinition::error("unknown error"));
-      if (externalDef.isError()) {
-        MD->diagnose(diag::external_macro_not_found, external.moduleName.str(),
-                     external.macroTypeName.str(), MD->getName(),
-                     externalDef.getErrorMessage())
-            .limitBehavior(DiagnosticBehavior::Warning);
+        auto external = macroDef.getExternalMacro();
+        ExternalMacroDefinitionRequest request{&Ctx, external.moduleName,
+                                               external.macroTypeName};
+        auto externalDef =
+            evaluateOrDefault(Ctx.evaluator, request,
+                              ExternalMacroDefinition::error("unknown error"));
+        if (externalDef.isError()) {
+          MD->diagnose(diag::external_macro_not_found,
+                       external.moduleName.str(), external.macroTypeName.str(),
+                       MD->getName(), externalDef.getErrorMessage())
+              .limitBehavior(DiagnosticBehavior::Warning);
+        }
       }
 
       break;
