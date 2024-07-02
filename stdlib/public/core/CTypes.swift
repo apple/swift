@@ -137,6 +137,14 @@ public typealias CChar32 = Unicode.Scalar
 /// The C '_Bool' and C++ 'bool' type.
 public typealias CBool = Bool
 
+#if arch(arm64) || arch(powerpc64) || arch(powerpc64le) || arch(s390x) || arch(x86_64)
+public typealias CIntPtr = Int64
+public typealias CUIntPtr = UInt64
+#else
+public typealias CIntPtr = Int32
+public typealias CUIntPtr = UInt32
+#endif
+
 /// A wrapper around an opaque C pointer.
 ///
 /// Opaque pointers are used to represent C pointers to types that
