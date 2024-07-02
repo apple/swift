@@ -139,10 +139,10 @@ If you want to learn more,
 [GitHub - About Git rebase](https://docs.github.com/en/get-started/using-git/about-git-rebase) 
 provides a comprehensive overview of `rebase`.
 
-> **Warning**
-We suggest considering to `rebase` only those commits that haven't been pushed to a public branch. 
+> [!WARNING]
+We suggest considering to `rebase` only those commits that are not part of the base repository. 
 Rebasing existing commits would block merging because we don't allow force pushes to the repository.
-If you need to tidy up commits that have already been pushed, 
+If you need to tidy up commits that have already been merged into the base repository, 
 it's generally better to use `git revert` for the sake of avoid causing confusion for other developers.
 
 
