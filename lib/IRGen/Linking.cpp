@@ -1037,7 +1037,11 @@ llvm::Type *LinkEntity::getDefaultDeclarationType(IRGenModule &IGM) const {
   case Kind::NoncanonicalSpecializedGenericTypeMetadataCacheVariable:
     return IGM.TypeMetadataPtrTy;
   case Kind::TypeMetadataDemanglingCacheVariable:
-    return llvm::StructType::get(IGM.Int32Ty, IGM.Int32Ty);
+    if (IGM.getModule()->getDataLayout().isBigEndian()) {
+      return llvm::StructType::get(IGM.Int32Ty, IGM.RelativeAddressTy);
+    } else {
+      return llvm::StructType::get(IGM.RelativeAddressTy, IGM.Int32Ty);
+    }
   case Kind::TypeMetadataSingletonInitializationCache:
     // TODO: put a cache variable on IGM
     return llvm::StructType::get(IGM.getLLVMContext(),

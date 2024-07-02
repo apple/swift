@@ -3237,8 +3237,8 @@ emitMetadataAccessByMangledName(IRGenFunction &IGF, CanType type,
 
     auto stringAddrOffset = subIGF.Builder.CreateTrunc(load,
                                                        IGM.Int32Ty);
-    stringAddrOffset = subIGF.Builder.CreateSExtOrBitCast(stringAddrOffset,
-                                                          IGM.SizeTy);
+    stringAddrOffset = subIGF.Builder.CreateSExtOrTrunc(stringAddrOffset,
+                                                        IGM.SizeTy);
     auto stringAddrBase = subIGF.Builder.CreatePtrToInt(cache, IGM.SizeTy);
     if (IGM.getModule()->getDataLayout().isBigEndian()) {
       stringAddrBase = subIGF.Builder.CreateAdd(stringAddrBase,

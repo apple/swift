@@ -109,6 +109,7 @@ static const SupportedConditionalValue SupportedConditionalCompilationEndianness
 };
 
 static const SupportedConditionalValue SupportedConditionalCompilationPointerBitWidths[] = {
+  "_16",
   "_32",
   "_64"
 };
@@ -564,7 +565,9 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   }
 
   // Set the "_pointerBitWidth" platform condition.
-  if (Target.isArch32Bit()) {
+  if (Target.isArch16Bit()) {
+    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_16");
+  } else if (Target.isArch32Bit()) {
     addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_32");
   } else if (Target.isArch64Bit()) {
     addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");

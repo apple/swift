@@ -3028,14 +3028,14 @@ irgen::emitClassResilientInstanceSizeAndAlignMask(IRGenFunction &IGF,
   slot = IGF.Builder.CreateElementBitCast(slot, IGF.IGM.Int32Ty);
   llvm::Value *size = IGF.Builder.CreateLoad(slot);
   if (IGF.IGM.SizeTy != IGF.IGM.Int32Ty)
-    size = IGF.Builder.CreateZExt(size, IGF.IGM.SizeTy);
+    size = IGF.Builder.CreateZExtOrTrunc(size, IGF.IGM.SizeTy);
 
   slot = IGF.Builder.CreateConstByteArrayGEP(
       metadataAsBytes,
       layout.getInstanceAlignMaskOffset());
   slot = IGF.Builder.CreateElementBitCast(slot, IGF.IGM.Int16Ty);
   llvm::Value *alignMask = IGF.Builder.CreateLoad(slot);
-  alignMask = IGF.Builder.CreateZExt(alignMask, IGF.IGM.SizeTy);
+  alignMask = IGF.Builder.CreateZExtOrTrunc(alignMask, IGF.IGM.SizeTy);
 
   return {size, alignMask};
 }
