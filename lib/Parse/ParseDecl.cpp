@@ -2550,7 +2550,7 @@ Parser::parseMacroRoleAttribute(
   SmallVector<MacroIntroducedDeclName, 2> names;
   SmallVector<TypeExpr *, 2> conformances;
   auto argumentsStatus = parseList(tok::r_paren, lParenLoc, rParenLoc,
-                                   /*AllowSepAfterLast=*/false,
+                                   /*AllowSepAfterLast=*/Context.LangOpts.hasFeature(Feature::TrailingComma),
                                    diag::expected_rparen_expr_list,
                                    [&] {
     ParserStatus status;

@@ -48,6 +48,7 @@ Parser::parseGenericParametersBeforeWhere(SourceLoc LAngleLoc,
                         SmallVectorImpl<GenericTypeParamDecl *> &GenericParams) {
   ParserStatus Result;
   bool HasNextParam{};
+  bool IsEndOfList;
   do {
     // Note that we're parsing a declaration.
     StructureMarkerRAII ParsingDecl(*this, Tok.getLoc(),
@@ -133,7 +134,9 @@ Parser::parseGenericParametersBeforeWhere(SourceLoc LAngleLoc,
 
     // Parse the comma, if the list continues.
     HasNextParam = consumeIf(tok::comma);
-  } while (HasNextParam);
+    IsEndOfList = (Context.LangOpts.hasFeature(Feature::TrailingComma) &&
+                   startsWithGreater(Tok));
+  } while (HasNextParam && !IsEndOfList);
 
   return Result;
 }
@@ -277,6 +280,7 @@ ParserStatus Parser::parseGenericWhereClause(
   // Parse the 'where'.
   WhereLoc = consumeToken(tok::kw_where);
   bool HasNextReq;
+  bool IsEndOfList;
   do {
     if (Tok.is(tok::code_complete)) {
       if (CodeCompletionCallbacks) {
@@ -402,6 +406,8 @@ ParserStatus Parser::parseGenericWhereClause(
       break;
     }
     HasNextReq = consumeIf(tok::comma);
+    IsEndOfList = (Context.LangOpts.hasFeature(Feature::TrailingComma) &&
+                   Tok.is(tok::l_brace));
     // If there's a comma, keep parsing the list.
     // If there's a "&&", diagnose replace with a comma and keep parsing
     if (Tok.isBinaryOperator() && Tok.getText() == "&&" && !HasNextReq) {
@@ -410,7 +416,7 @@ ParserStatus Parser::parseGenericWhereClause(
       consumeToken();
       HasNextReq = true;
     }
-  } while (HasNextReq);
+  } while (HasNextReq && !IsEndOfList);
 
   if (!Requirements.empty())
     EndLoc = Requirements.back().getSourceRange().End;
