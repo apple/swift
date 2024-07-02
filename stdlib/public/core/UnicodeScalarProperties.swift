@@ -1427,8 +1427,7 @@ extension Unicode.Scalar.Properties {
   /// This property corresponds to the "Canonical_Combining_Class" property in
   /// the [Unicode Standard](http://www.unicode.org/versions/latest/).
   public var canonicalCombiningClass: Unicode.CanonicalCombiningClass {
-    let normData = Unicode._NormData(_scalar)
-    return Unicode.CanonicalCombiningClass(rawValue: normData.ccc)
+    Unicode._NormData(_scalar, fastUpperbound: 0x300).canonicalCombiningClass
   }
 }
 

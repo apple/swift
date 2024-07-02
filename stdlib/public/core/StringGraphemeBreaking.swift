@@ -790,10 +790,8 @@ extension _GraphemeBreakingState {
       // we continue being in one and may check if this extend is a Virama.
       if self.isInIndicSequence || scalar1._isLinkingConsonant {
         if y == .extend {
-          let extendNormData = Unicode._NormData(scalar2, fastUpperbound: 0x300)
-
           // If our extend's CCC is 0, then this rule does not apply.
-          guard extendNormData.ccc != 0 else {
+          guard scalar2.properties.canonicalCombiningClass != .notReordered else {
             return false
           }
         }
@@ -931,12 +929,9 @@ extension _StringGuts {
       // GB9c
       switch (x, scalar2._isLinkingConsonant) {
       case (.extend, true):
-        let extendNormData = Unicode._NormData(scalar1, fastUpperbound: 0x300)
-
-        guard extendNormData.ccc != 0 else {
+        guard scalar1.properties.canonicalCombiningClass != .notReordered else {
           return true
         }
-
         return !checkIfInIndicSequence(at: index, with: previousScalar)
 
       case (.zwj, true):
@@ -1055,9 +1050,7 @@ extension _StringGuts {
 
       switch (gbp, scalar._isLinkingConsonant) {
       case (.extend, false):
-        let extendNormData = Unicode._NormData(scalar, fastUpperbound: 0x300)
-
-        guard extendNormData.ccc != 0 else {
+        guard scalar.properties.canonicalCombiningClass != .notReordered else {
           return false
         }
 
