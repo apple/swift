@@ -479,8 +479,25 @@ void CompilerInstance::setupOutputBackend() {
         *CAS, *ResultCache, *CompileJobBaseKey,
         Invocation.getFrontendOptions().InputsAndOutputs,
         Invocation.getFrontendOptions().RequestedAction);
+
+    // Filter the object file output if MCCAS is enabled, we do not want to
+    // store the object file itself, but store the MCCAS CASID instead.
+    auto FilterBackend = llvm::vfs::makeFilteringOutputBackend(
+        CASOutputBackend,
+        [&](StringRef Path, std::optional<llvm::vfs::OutputConfig> Config) {
+          auto &InAndOuts = Invocation.getFrontendOptions().InputsAndOutputs;
+          if (InAndOuts.getPrincipalOutputType() != file_types::ID::TY_Object)
+            return true;
+          std::vector<std::string> OutputFiles =
+              InAndOuts.copyOutputFilenames();
+          return !(Invocation.getIRGenOptions().UseCASBackend &&
+                   llvm::any_of(OutputFiles, [&](std::string OutputFile) {
+                     return Path.equals(OutputFile);
+                   }));
+        });
+
     OutputBackend =
-        llvm::vfs::makeMirroringOutputBackend(OutputBackend, CASOutputBackend);
+        llvm::vfs::makeMirroringOutputBackend(OutputBackend, FilterBackend);
   }
 
   // Setup verification backend.

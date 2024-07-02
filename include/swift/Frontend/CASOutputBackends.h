@@ -49,6 +49,14 @@ public:
   llvm::Error storeCachedDiagnostics(unsigned InputIndex,
                                      llvm::StringRef Bytes);
 
+  /// Store the MCCAS CASID \p ID as the object file output for the input
+  /// denoted by the \p InputIndex.
+  llvm::Error storeMCCASObjectID(unsigned InputIndex, llvm::cas::CASID ID);
+
+  /// Get the input index of the \p OutputFilename.
+  std::optional<unsigned>
+  getInputIndexForOutputFilename(StringRef OutputFilename);
+
 private:
   class Implementation;
   Implementation &Impl;

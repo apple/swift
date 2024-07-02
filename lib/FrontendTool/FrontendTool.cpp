@@ -1327,7 +1327,8 @@ static bool tryReplayCompilerResults(CompilerInstance &Instance) {
       Instance.getObjectStore(), Instance.getActionCache(),
       *Instance.getCompilerBaseKey(), Instance.getDiags(),
       Instance.getInvocation().getFrontendOptions().InputsAndOutputs, *CDP,
-      Instance.getInvocation().getCASOptions().EnableCachingRemarks);
+      Instance.getInvocation().getCASOptions().EnableCachingRemarks,
+      Instance.getInvocation().getIRGenOptions().UseCASBackend);
 
   // If we didn't replay successfully, re-start capture.
   if (!replayed)
@@ -1584,6 +1585,24 @@ static bool generateCode(CompilerInstance &Instance, StringRef OutputFilename,
       createTargetMachine(opts, Instance.getASTContext());
 
   TargetMachine->Options.MCOptions.CAS = Instance.getSharedCASInstance();
+
+  if (Instance.getInvocation().getCASOptions().EnableCaching &&
+      opts.UseCASBackend)
+    TargetMachine->Options.MCOptions.ResultCallBack =
+        [&](const llvm::cas::CASID &ID) -> llvm::Error {
+      auto InputIndex =
+          Instance.getCASOutputBackend().getInputIndexForOutputFilename(
+              OutputFilename);
+      if (!InputIndex)
+        return llvm::createStringError("InputIndex for output file not found!");
+
+      if (auto Err = Instance.getCASOutputBackend().storeMCCASObjectID(
+              *InputIndex, ID))
+        return Err;
+
+      return llvm::Error::success();
+    };
+
   // Free up some compiler resources now that we have an IRModule.
   freeASTContextIfPossible(Instance);
 
