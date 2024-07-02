@@ -2193,6 +2193,45 @@ function Build-SourceKitLSP($Arch) {
     }
 }
 
+function Build-LMDB($Arch) {
+  Build-CMakeProject `
+    -Src $SourceCache\swift-lmdb `
+    -Bin $BinaryCache\17 `
+    -Arch $Arch `
+    -UseMSVCCompilers C `
+    -BuildTargets default
+}
+
+function Build-SymbolKit($Arch) {
+  Build-CMakeProject `
+    -Src $SourceCache\swift-docc-symbolkit `
+    -Bin $BinaryCache\18 `
+    -Arch $Arch `
+    -UseBuiltCompilers Swift `
+    -SwiftSDK $SDKInstallRoot `
+    -BuildTargets default
+}
+
+function Build-DocC($Arch) {
+  Build-CMakeProject `
+    -Src $SourceCache\swift-docc `
+    -Bin $BinaryCache\19 `
+    -InstallTo "$($Arch.ToolchainInstallRoot)\usr" `
+    -Arch $Arch `
+    -UseBuiltCompilers Swift `
+    -UseSwiftSwiftDriver `
+    -SwiftSDK $SDKInstallRoot `
+    -BuildTargets default `
+    -Defines @{
+      ArgumentParser_DIR = "$BinaryCache\6\cmake\modules";
+      SwiftCrypto_DIR = "$BinaryCache\8\cmake\modules";
+      SwiftMarkdown_DIR = "$BinaryCache\13\cmake\modules";
+      LMDB_DIR = "$BinaryCache\17\cmake\modules";
+      SymbolKit_DIR = "$BinaryCache\18\cmake\modules";
+      "cmark-gfm_DIR" = "$($Arch.ToolchainInstallRoot)\usr\lib\cmake";
+    }
+}
+
 function Install-HostToolchain() {
   if ($ToBatch) { return }
 
@@ -2224,19 +2263,6 @@ function Build-Inspect() {
       -Bin $OutDir `
       -Arch $HostArch `
       -Xcc "-I$SDKInstallRoot\usr\include\swift\SwiftRemoteMirror" -Xlinker "$SDKInstallRoot\usr\lib\swift\windows\$($HostArch.LLVMName)\swiftRemoteMirror.lib"
-  }
-}
-
-function Build-DocC() {
-  $OutDir = Join-Path -Path $HostArch.BinaryCache -ChildPath swift-docc
-
-  Isolate-EnvVars {
-    $env:SWIFTCI_USE_LOCAL_DEPS=1
-    Build-SPMProject `
-      -Src $SourceCache\swift-docc `
-      -Bin $OutDir `
-      -Arch $HostArch `
-      --product docc
   }
 }
 
@@ -2404,13 +2430,15 @@ if (-not $SkipBuild) {
   Invoke-BuildStep Build-Format $HostArch
   Invoke-BuildStep Build-IndexStoreDB $HostArch
   Invoke-BuildStep Build-SourceKitLSP $HostArch
+  Invoke-BuildStep Build-LMDB $HostArch
+  Invoke-BuildStep Build-SymbolKit $HostArch
+  Invoke-BuildStep Build-DocC $HostArch
 }
 
 Install-HostToolchain
 
 if (-not $SkipBuild -and -not $IsCrossCompiling) {
   Invoke-BuildStep Build-Inspect $HostArch
-  Invoke-BuildStep Build-DocC $HostArch
 }
 
 if (-not $SkipPackaging) {
