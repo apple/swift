@@ -269,3 +269,34 @@ do {
 
 func testInferenceFromClosureVarInvalid<T>(x: T = { let x = "" as Int; return x }()) {}
 // expected-error@-1 {{cannot convert value of type 'String' to type 'Int' in coercion}}
+
+// MARK: - Not-in-scope symbols
+// https://github.com/apple/swift/issues/73986
+
+func testInferenceFromClosureInvalidSymbolNotInScope<T>(_: () -> T = { UndefinedSymbol() }) {}
+// expected-error@-1 {{cannot find 'UndefinedSymbol' in scope}}
+
+func testInferenceFromClosureInvalidSymbolNotInScopeNested<T>(
+  _: (T) -> Void = { _ in
+    func inner<G>(
+      x: Int = 42,
+      _: () -> G = { UndefinedSymbol() }
+      // expected-error@-1 {{cannot find 'UndefinedSymbol' in scope}}
+    ) {}
+  }
+) {}
+
+func testInferenceFromClosureOpaqueInvalidSymbolNotInScope(_: () -> some Equatable = { UndefinedSymbol() }) {}
+// expected-error@-1 {{cannot find 'UndefinedSymbol' in scope}}
+
+func testInferenceFromClosureOpaqueInvalidSymbolNotInScopeNested(
+  _: () -> Void = {
+    func inner(
+      x: Int = 42,
+      _: () -> some Hashable = { UndefinedSymbol() }
+      // expected-error@-1 {{cannot find 'UndefinedSymbol' in scope}}
+    ) {}
+  }
+) {}
+
+// MARK: -

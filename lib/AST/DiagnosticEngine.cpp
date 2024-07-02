@@ -1147,6 +1147,10 @@ llvm::cl::opt<bool> AssertOnWarning("swift-diagnostics-assert-on-warning",
                                     llvm::cl::init(false));
 
 DiagnosticBehavior DiagnosticState::determineBehavior(const Diagnostic &diag) {
+  return determineBehavior(diag, true);
+}
+DiagnosticBehavior DiagnosticState::determineBehavior(const Diagnostic &diag,
+                                                      bool allowSideEffects) {
   // We determine how to handle a diagnostic based on the following rules
   //   1) Map the diagnostic to its "intended" behavior, applying the behavior
   //      limit for this particular emission
@@ -1195,18 +1199,20 @@ DiagnosticBehavior DiagnosticState::determineBehavior(const Diagnostic &diag) {
   }
 
   //   5) Update current state for use during the next diagnostic
-  if (lvl == DiagnosticBehavior::Fatal) {
-    fatalErrorOccurred = true;
-    anyErrorOccurred = true;
-  } else if (lvl == DiagnosticBehavior::Error) {
-    anyErrorOccurred = true;
+  if (allowSideEffects) {
+    if (lvl == DiagnosticBehavior::Fatal) {
+      fatalErrorOccurred = true;
+      anyErrorOccurred = true;
+    } else if (lvl == DiagnosticBehavior::Error) {
+      anyErrorOccurred = true;
+    }
+
+    assert((!AssertOnError || !anyErrorOccurred) && "We emitted an error?!");
+    assert((!AssertOnWarning || (lvl != DiagnosticBehavior::Warning)) &&
+           "We emitted a warning?!");
+
+    previousBehavior = lvl;
   }
-
-  assert((!AssertOnError || !anyErrorOccurred) && "We emitted an error?!");
-  assert((!AssertOnWarning || (lvl != DiagnosticBehavior::Warning)) &&
-         "We emitted a warning?!");
-
-  previousBehavior = lvl;
   return lvl;
 }
 

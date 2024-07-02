@@ -573,6 +573,8 @@ Type TypeChecker::typeCheckParameterDefault(Expr *&defaultValue,
 
   auto paramInterfaceTy = paramType->mapTypeOutOfContext();
 
+  auto initialTypecheckQueue = DiagnosticQueue(ctx.Diags,
+                                               /*emitOnDestruction*/ false);
   {
     // Buffer all of the diagnostics produced by \c typeCheckExpression
     // since in some cases we need to try type-checking again with a
@@ -610,9 +612,13 @@ Type TypeChecker::typeCheckParameterDefault(Expr *&defaultValue,
     if (!paramInterfaceTy->hasTypeParameter())
       return Type();
 
-    // Ignore any diagnostics emitted by the original type-check.
-    diagnostics.abort();
+    // Delay diagnostic emissions from the original type-check until we've
+    // attempted inference via additional means.
+    diagnostics.transferToEngineAndAbort(initialTypecheckQueue.getDiags());
   }
+
+  // Open a transaction to track error emissions from subsequent type checks.
+  DiagnosticTransaction additionalTypecheckDiagTxn(ctx.Diags);
 
   // Let's see whether it would be possible to use default expression
   // for generic parameter inference.
@@ -833,6 +839,19 @@ Type TypeChecker::typeCheckParameterDefault(Expr *&defaultValue,
     defaultValue = result->getAsExpr();
     return defaultValue->getType();
   }
+
+  // If we've reached this point, the initial typecheck failed, and we were
+  // unable to produce a solution via the additional attempted inference
+  // strategies. We should emit the original errors here, if any, but prefer
+  // the diagnostics from the secondary type checks over those produced from
+  // the initial one.
+  if (additionalTypecheckDiagTxn.hasErrors()) {
+    initialTypecheckQueue.clear();
+  } else {
+    additionalTypecheckDiagTxn.commit();
+    initialTypecheckQueue.emit();
+  }
+  // TODO: should anything about the error state be asserted here?
 
   return Type();
 }

@@ -862,6 +862,9 @@ namespace swift {
     /// Figure out the Behavior for the given diagnostic, taking current
     /// state such as fatality into account.
     DiagnosticBehavior determineBehavior(const Diagnostic &diag);
+    // TODO: figure out if default parameter can be used w/ existing fn
+    DiagnosticBehavior determineBehavior(const Diagnostic &diag,
+                                         bool allowSideEffects);
 
     bool hadAnyError() const { return anyErrorOccurred; }
     bool hasFatalErrorOccurred() const { return fatalErrorOccurred; }
@@ -1492,7 +1495,9 @@ namespace swift {
                                        Engine.TentativeDiagnostics.end());
 
       for (auto &diagnostic : diagnostics) {
-        auto behavior = Engine.state.determineBehavior(diagnostic);
+        auto behavior =
+            Engine.state.determineBehavior(diagnostic,
+                                           /*allowSideEffects*/ false);
         if (behavior == DiagnosticBehavior::Fatal ||
             behavior == DiagnosticBehavior::Error)
           return true;
@@ -1508,6 +1513,22 @@ namespace swift {
       Engine.TentativeDiagnostics.erase(
         Engine.TentativeDiagnostics.begin() + PrevDiagnostics,
         Engine.TentativeDiagnostics.end());
+    }
+
+    /// Transfers this transaction's diagnostics to another `DiagnosticEngine`
+    /// and then aborts the transaction. This can be useful as a means to cancel
+    /// a transaction without losing its diagnostics.
+    /// @param otherEngine The engine to which the transaction's diagnostics
+    /// should be transferred.
+    void transferToEngineAndAbort(DiagnosticEngine &otherEngine) {
+      ArrayRef<Diagnostic> diagnostics(Engine.TentativeDiagnostics.begin() +
+                                           PrevDiagnostics,
+                                       Engine.TentativeDiagnostics.end());
+      for (auto diag : diagnostics) {
+        Diagnostic &d = diag; // TODO: why is aliasing needed here?
+        otherEngine.handleDiagnostic(std::move(d));
+      }
+      abort();
     }
 
     /// Commit and close this transaction. If this is the top-level
