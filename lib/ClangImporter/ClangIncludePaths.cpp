@@ -176,6 +176,8 @@ createClangArgs(const ASTContext &ctx, clang::driver::Driver &clangDriver) {
   auto sdkPath = ctx.SearchPathOpts.getSDKPath();
   if (!sdkPath.empty())
     clangDriver.SysRoot = sdkPath.str();
+  if (auto sysroot = ctx.SearchPathOpts.getSysRoot())
+    clangDriver.SysRoot = sysroot->str();
   return clangDriverArgs;
 }
 
