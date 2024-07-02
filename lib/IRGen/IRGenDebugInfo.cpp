@@ -2869,12 +2869,12 @@ IRGenDebugInfoImpl::emitFunction(const SILDebugScope *DS, llvm::Function *Fn,
   else
     llvm_unreachable("function has no mangled name");
 
-  StringRef Name;
+  std::string Name;
   if (DS) {
     if (DS->Loc.isSILFile())
-      Name = SILFn->getName();
+      Name = SILFn->getName().str();
     else
-      Name = getName(DS->Loc);
+      Name = getName(DS->Loc).str();
   }
 
   /// The source line used for the function prologue.
@@ -2903,7 +2903,27 @@ IRGenDebugInfoImpl::emitFunction(const SILDebugScope *DS, llvm::Function *Fn,
       IGM.getSILModule().getASTContext().getEntryPointFunctionName()) {
     File = MainFile;
     Line = 1;
-    Name = LinkageName;
+    Name = LinkageName.str();
+  }
+
+  // In PDBs, explicitly demangle names for function-like entities like closures
+  // and one-time initializers. This improves readability of backtraces in crash
+  // dumps on Windows, where the symbolizer doesn't do this on-demand.
+  if (Opts.DebugInfoFormat == IRGenDebugInfoFormat::CodeView) {
+    if (DS && SILFn && Name.empty()) {
+      assert(LinkageName.startswith("$s") && "SIL function has Swift mangling");
+      if (!DS->Loc.isHiddenFromDebugInfo()) {
+        // Choosing a short name avoids bloating PDBs
+        auto Opts = DemangleOptions::MinimalDemangleOptions();
+        Name = demangleSymbolAsString(LinkageName, Opts);
+        // Characters like whitespace or hash may break other tools
+        for (char &ch : Name)
+          if (!std::isalnum(ch))
+            ch = '_';
+        LLVM_DEBUG(llvm::dbgs() << "Explicit demangle for Windows crash dumps: "
+                                << LinkageName << " ---> " << Name << "\n");
+      }
+    }
   }
 
   CanSILFunctionType FnTy = getFunctionType(SILTy);

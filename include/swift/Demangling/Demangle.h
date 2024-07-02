@@ -93,6 +93,29 @@ struct DemangleOptions {
     Opt.ShowAsyncResumePartial = false;
     return Opt;
   };
+
+  static DemangleOptions MinimalDemangleOptions() {
+    auto Opt = DemangleOptions();
+    Opt.QualifyEntities = false;
+    Opt.DisplayExtensionContexts = false;
+    Opt.DisplayUnmangledSuffix = false;
+    Opt.DisplayModuleNames = false;
+    Opt.DisplayGenericSpecializations = false;
+    Opt.DisplayProtocolConformances = false;
+    Opt.DisplayWhereClauses = false;
+    Opt.DisplayEntityTypes = false;
+    Opt.DisplayLocalNameContexts = false;
+    Opt.ShowPrivateDiscriminators = false;
+    Opt.ShowFunctionArgumentTypes = false;
+    Opt.DisplayDebuggerGeneratedModule = false;
+    Opt.DisplayStdlibModule = false;
+    Opt.DisplayObjCModule = false;
+    Opt.ShowAsyncResumePartial = false;
+    Opt.ShortenThunk = true;
+    Opt.ShortenValueWitness = true;
+    Opt.ShortenArchetype = true;
+    return Opt;
+  };
 };
 
 class Node;
