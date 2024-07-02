@@ -111,4 +111,10 @@ FieldsTestSuite.test("Get field without copying base in the getter accessor") {
   expectEqual(copyCounter, getCopyCounter().pointee - expectedCopyCountDiff)
 }
 
+FieldsTestSuite.test("Structs with virtual methods") {
+  var derived = InheritFromStructsWithVirtualMethod()
+  derived.d = 42
+  expectEqual(derived.d, 42)
+}
+
 runAllTests()

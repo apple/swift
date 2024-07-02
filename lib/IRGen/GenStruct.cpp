@@ -29,15 +29,19 @@
 #include "swift/SIL/SILModule.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/CharUnits.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/CodeGen/CodeGenABITypes.h"
 #include "clang/CodeGen/SwiftCallingConv.h"
 #include "clang/Sema/Sema.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include <iterator>
 
 #include "GenDecl.h"
 #include "GenMeta.h"
@@ -1365,20 +1369,50 @@ private:
     auto &layout = ClangDecl->getASTContext().getASTRecordLayout(ClangDecl);
 
     if (auto cxxRecord = dyn_cast<clang::CXXRecordDecl>(ClangDecl)) {
-      for (auto base : cxxRecord->bases()) {
-        if (base.isVirtual())
-          continue;
-
-        auto baseType = base.getType().getCanonicalType();
+      // The empty bases are all at offset 0, so we need to remove them to
+      // reliably calculate base subobject sizes using the next base's offset.
+      SmallVector<clang::CXXBaseSpecifier, 8> nonEmptyNonVirtualBases;
+      llvm::copy_if(
+          cxxRecord->bases(), std::back_inserter(nonEmptyNonVirtualBases),
+          [](const clang::CXXBaseSpecifier &base) {
+            const auto *cxxRecord = cast<clang::CXXRecordDecl>(
+                cast<clang::RecordType>(base.getType().getCanonicalType())
+                    ->getDecl());
+            return !base.isVirtual() && !cxxRecord->isEmpty();
+          });
+      if (nonEmptyNonVirtualBases.size() == 0)
+        return;
+      auto firstBaseType =
+          nonEmptyNonVirtualBases.front().getType().getCanonicalType();
+      const auto *lastBaseCxxRecord = cast<clang::CXXRecordDecl>(
+          cast<clang::RecordType>(firstBaseType)->getDecl());
+      for (auto [nextBase, currentBase] :
+           llvm::zip_first(llvm::drop_begin(nonEmptyNonVirtualBases),
+                           nonEmptyNonVirtualBases)) {
+        auto baseType = currentBase.getType().getCanonicalType();
 
         auto baseRecord = cast<clang::RecordType>(baseType)->getDecl();
         auto baseCxxRecord = cast<clang::CXXRecordDecl>(baseRecord);
 
-        if (baseCxxRecord->isEmpty())
-          continue;
+        auto nextBaseType = nextBase.getType().getCanonicalType();
+        auto nextBaseRecord = cast<clang::RecordType>(nextBaseType)->getDecl();
+        auto nextBaseCxxRecord = cast<clang::CXXRecordDecl>(nextBaseRecord);
+        lastBaseCxxRecord = nextBaseCxxRecord;
 
         auto offset = layout.getBaseClassOffset(baseCxxRecord);
-        auto size = ClangDecl->getASTContext().getTypeSizeInChars(baseType);
+        auto nextOffset = layout.getBaseClassOffset(nextBaseCxxRecord);
+        auto size = nextOffset - offset;
+        addOpaqueField(Size(offset.getQuantity()), Size(size.getQuantity()));
+      }
+      // Handle the last base. Use the first field's offset, or if there are no
+      // fields, the object's size to calculate the base subobject size.
+      if (!lastBaseCxxRecord->isEmpty()) {
+        auto offset = layout.getBaseClassOffset(lastBaseCxxRecord);
+        auto nextOffset =
+            (layout.getFieldCount() > 0)
+                ? clang::CharUnits::fromQuantity(layout.getFieldOffset(0) / 8)
+                : layout.getSize();
+        auto size = nextOffset - offset;
         addOpaqueField(Size(offset.getQuantity()), Size(size.getQuantity()));
       }
     }

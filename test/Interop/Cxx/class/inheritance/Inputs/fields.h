@@ -100,3 +100,21 @@ class CopyTrackedDerivedDerivedClass: public NonEmptyBase, public CopyTrackedDer
 public:
     CopyTrackedDerivedDerivedClass(int x) : CopyTrackedDerivedClass(x) {}
 };
+
+// Types with virtual methods, make sure field offsets are right. rdar://126754931
+
+struct HasOneFieldWithVirtualMethod {
+  int a;
+  virtual ~HasOneFieldWithVirtualMethod() {}
+};
+
+struct HasTwoFieldsWithVirtualMethod {
+  bool b;
+  bool c;
+  virtual ~HasTwoFieldsWithVirtualMethod() = default;
+};
+
+struct InheritFromStructsWithVirtualMethod: HasOneFieldWithVirtualMethod, HasTwoFieldsWithVirtualMethod {
+  int d;
+  virtual ~InheritFromStructsWithVirtualMethod() = default;
+};
