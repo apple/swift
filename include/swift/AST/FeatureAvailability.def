@@ -71,6 +71,8 @@ FEATURE(SwiftExceptionPersonality,                      (6, 0))
 // Metadata support for @isolated(any) function types
 FEATURE(IsolatedAny,                                    (6, 0))
 
+FEATURE(NoncopyableGenerics,                            (6, 0))
+
 FEATURE(TaskExecutor,                                   FUTURE)
 FEATURE(Differentiation,                                FUTURE)
 FEATURE(InitRawStructMetadata,                          FUTURE)

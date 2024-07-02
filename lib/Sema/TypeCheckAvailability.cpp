@@ -38,6 +38,7 @@
 #include "swift/Parse/Lexer.h"
 #include "swift/Parse/Parser.h"
 #include "swift/Sema/IDETypeChecking.h"
+#include "swift/Sema/CheckAvailability.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/SaveAndRestore.h"
@@ -3023,6 +3024,68 @@ static bool diagnoseIsolatedAnyAvailability(
       ReferenceDC);
 }
 
+static bool diagnoseNoncopyableGenericsAvailability(
+    SourceRange ReferenceRange, const DeclContext *ReferenceDC) {
+  // Do not check availability in the stdlib.
+  // FIXME: would be better if we had an attribute on each decl that opt's out
+  //   of availability checking in the stdlib, because it's been audited or
+  //   automatically checked to ensure it doesn't use the metadata.
+//  if (ReferenceDC->getParentModule()->isStdlibModule())
+//    return false;
+
+  return TypeChecker::checkAvailability(
+      ReferenceRange,
+      ReferenceDC->getASTContext().getNoncopyableGenericsAvailability(),
+      diag::availability_noncopyable_generics_only_version_newer,
+      ReferenceDC);
+}
+
+static bool inverseGenericsOldRuntimeCompatable(BoundGenericType *boundTy) {
+  for (auto arg : boundTy->getGenericArgs()) {
+    if (arg->hasTypeParameter() || arg->hasUnboundGenericType())
+      return false;
+
+    // Make sure the argument conforms to all known invertible protocols.
+    for (auto ip : InvertibleProtocolSet::allKnown()) {
+      switch (ip) {
+      case InvertibleProtocolKind::Copyable:
+        if (arg->isNoncopyable())
+          return false;
+        break;
+      case InvertibleProtocolKind::Escapable:
+        if (!arg->isEscapable())
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool swift::requiresNoncopyableGenericsAvailabilityCheck(
+    NominalOrBoundGenericNominalType *nominalTy) {
+  auto *nom = nominalTy->getDecl();
+  if (auto sig = nom->getGenericSignature()) {
+    SmallVector<InverseRequirement, 2> inverses;
+    SmallVector<Requirement, 2> reqs;
+    sig->getRequirementsWithInverses(reqs, inverses);
+    if (!inverses.empty()) {
+      // If the nominal is a bound generic type, and all arguments are
+      // conform to all invertible protocols, then older runtimes that will
+      // not check for those conformances don't actually need to, since we
+      // have already checked it now.
+      if (auto boundTy = dyn_cast<BoundGenericType>(nominalTy)) {
+        if (!inverseGenericsOldRuntimeCompatable(boundTy))
+          return true;
+      } else {
+        // It's generic, not bound, and has an inverse on a generic
+        // parameter, so we need the appropriate runtime.
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 static bool checkTypeMetadataAvailabilityInternal(CanType type,
                                                   SourceRange refLoc,
                                                   const DeclContext *refDC) {
@@ -3033,6 +3096,13 @@ static bool checkTypeMetadataAvailabilityInternal(CanType type,
       auto isolation = fnType->getIsolation();
       if (isolation.isErased())
         return diagnoseIsolatedAnyAvailability(refLoc, refDC);
+//    } else if (auto nominalTy = dyn_cast<NominalOrBoundGenericNominalType>(type)) {
+//      if (requiresNoncopyableGenericsAvailabilityCheck(nominalTy))
+//        return diagnoseNoncopyableGenericsAvailability(refLoc, refDC);
+////        llvm_unreachable("did hit this case!");
+    } else if (auto archeType = dyn_cast<ArchetypeType>(type)) {
+      if (archeType->isNoncopyable())
+        return diagnoseNoncopyableGenericsAvailability(refLoc, refDC);
     }
     return false;
   });
