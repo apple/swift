@@ -1,6 +1,5 @@
 // RUN: %target-run-simple-swift
 // REQUIRES: executable_test
-// REQUIRES: rdar126151157
 
 // https://github.com/apple/swift/issues/51181
 
