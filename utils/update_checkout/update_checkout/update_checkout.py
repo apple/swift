@@ -131,10 +131,9 @@ def get_branch_for_repo(config, repo_name, scheme_name, scheme_map,
     if scheme_map:
         scheme_branch = scheme_map[repo_name]
         repo_branch = scheme_branch
-        remote_repo_id = config['repos'][repo_name]['remote']['id']
-        if remote_repo_id in cross_repos_pr:
+        if repo_name in cross_repos_pr:
             cross_repo = True
-            pr_id = cross_repos_pr[remote_repo_id]
+            pr_id = cross_repos_pr[repo_name]
             repo_branch = "ci_pr_{0}".format(pr_id)
             shell.run(["git", "checkout", scheme_branch],
                       echo=True)
@@ -700,10 +699,7 @@ repositories.
 
     cross_repos_pr = {}
     if github_comment:
-        regex_pr = r'(apple/[-a-zA-Z0-9_]+/pull/\d+'\
-            r'|apple/[-a-zA-Z0-9_]+#\d+'\
-            r'|swiftlang/[-a-zA-Z0-9_]+/pull/\d+'\
-            r'|swiftlang/[-a-zA-Z0-9_]+#\d+)'
+        regex_pr = r'(?:apple/|swiftlang/)([-a-zA-Z0-9_]+/pull/\d+|[-a-zA-Z0-9_]+#\d+)'
         repos_with_pr = re.findall(regex_pr, github_comment)
         print("Found related pull requests:", str(repos_with_pr))
         repos_with_pr = [pr.replace('/pull/', '#') for pr in repos_with_pr]
