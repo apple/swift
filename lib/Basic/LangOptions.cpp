@@ -87,6 +87,7 @@ static const SupportedConditionalValue SupportedConditionalCompilationOSs[] = {
   "Haiku",
   "WASI",
   "none",
+  "Embedded"
 };
 
 static const SupportedConditionalValue SupportedConditionalCompilationArches[] = {
@@ -101,6 +102,7 @@ static const SupportedConditionalValue SupportedConditionalCompilationArches[] =
   "s390x",
   "wasm32",
   "riscv64",
+  "avr"
 };
 
 static const SupportedConditionalValue SupportedConditionalCompilationEndianness[] = {
@@ -391,6 +393,10 @@ void LangOptions::setHasAtomicBitWidth(llvm::Triple triple) {
     setMaxAtomicBitWidth(128);
     break;
 
+  case llvm::Triple::ArchType::avr:
+    setMaxAtomicBitWidth(0);
+    break;
+
   default:
     // Some exotic architectures may not support atomics at all. If that's the
     // case please update the switch with your flavor of arch. Otherwise assume
@@ -541,6 +547,9 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   case llvm::Triple::ArchType::riscv64:
     addPlatformConditionValue(PlatformConditionKind::Arch, "riscv64");
     break;
+  case llvm::Triple::ArchType::avr:
+    addPlatformConditionValue(PlatformConditionKind::Arch, "avr");
+    break;
   default:
     UnsupportedArch = true;
 
@@ -564,11 +573,11 @@ std::pair<bool, bool> LangOptions::setTarget(llvm::Triple triple) {
   }
 
   // Set the "_pointerBitWidth" platform condition.
-  if (Target.isArch32Bit()) {
-    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_32");
-  } else if (Target.isArch64Bit()) {
-    addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");
-  }
+    if (Target.isArch32Bit()) {
+      addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_32");
+    } else if (Target.isArch64Bit()) {
+      addPlatformConditionValue(PlatformConditionKind::PointerBitWidth, "_64");
+    }
 
   // Set the "runtime" platform condition.
   addPlatformConditionValue(PlatformConditionKind::Runtime,

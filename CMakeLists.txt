@@ -1224,6 +1224,15 @@ elseif("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "WASI")
   set(SWIFT_PRIMARY_VARIANT_SDK_default  "${SWIFT_HOST_VARIANT_SDK}")
   set(SWIFT_PRIMARY_VARIANT_ARCH_default "${SWIFT_HOST_VARIANT_ARCH}")
 
+elseif("${SWIFT_HOST_VARIANT_SDK}" STREQUAL "EMBEDDED")
+
+  set(SWIFT_HOST_VARIANT "macosx" CACHE STRING
+      "Deployment OS for Swift host tools (the compiler) [macosx, embedded].")
+
+  configure_sdk_unix("Embedded" "${SWIFT_HOST_VARIANT_ARCH}")
+  set(SWIFT_PRIMARY_VARIANT_SDK_default  "${SWIFT_HOST_VARIANT_SDK}")
+  set(SWIFT_PRIMARY_VARIANT_ARCH_default "${SWIFT_HOST_VARIANT_ARCH}")
+
 elseif("${SWIFT_HOST_VARIANT_SDK}" MATCHES "(OSX|IOS*|TVOS*|WATCHOS*|XROS*)")
 
   set(SWIFT_HOST_VARIANT "macosx" CACHE STRING
