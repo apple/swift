@@ -2460,7 +2460,7 @@ FUNCTION(NonDefaultDistributedActorInitialize,
 // );
 FUNCTION(DistributedActorInitializeRemote,
          swift_distributedActor_remote_initialize, SwiftCC,
-         ConcurrencyAvailability, // TODO(distributed): Introduce DistributedAvailability once shipping somewhere
+         ConcurrencyAvailability,
          RETURNS(OpaquePtrTy),
          ARGS(TypeMetadataPtrTy),
          ATTRS(NoUnwind),

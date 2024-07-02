@@ -2306,7 +2306,11 @@ OpaqueValue*
 swift::swift_distributedActor_remote_initialize(const Metadata *actorType) {
   const ClassMetadata *metadata = actorType->getClassObject();
 
-  // TODO(distributed): make this allocation smaller
+  fprintf(stderr, "[%s:%d](%s) initialize remote, size: %d\n", __FILE_NAME__, __LINE__, __FUNCTION__,
+          metadata->getInstanceSize());
+  fprintf(stderr, "[%s:%d](%s) initialize remote, align mask: %d\n", __FILE_NAME__, __LINE__, __FUNCTION__,
+          metadata->getInstanceAlignMask());
+
   // ==== Allocate the memory for the remote instance
   HeapObject *alloc = swift_allocObject(metadata,
                                         metadata->getInstanceSize(),

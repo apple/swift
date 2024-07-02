@@ -57,6 +57,7 @@ KNOWN_SDK_TYPE_DECL(Distributed, DistributedTargetInvocationEncoder, ProtocolDec
 KNOWN_SDK_TYPE_DECL(Distributed, DistributedTargetInvocationDecoder, ProtocolDecl, 0)
 KNOWN_SDK_TYPE_DECL(Distributed, RemoteCallTarget, StructDecl, 0)
 KNOWN_SDK_TYPE_DECL(Distributed, RemoteCallArgument, StructDecl, 1)
+KNOWN_SDK_TYPE_DECL(Distributed, _DistributedRemoteReferenceLayout, ClassDecl, 1)
 
 // String processing
 KNOWN_SDK_TYPE_DECL(StringProcessing, Regex, StructDecl, 1)

@@ -832,6 +832,8 @@ addDistributedActorCodableConformance(
 /******************************************************************************/
 /******************************************************************************/
 
+// IMPORTANT: If adding new fields, make sure that the remote stub type has the
+// same fields and order: _DistributedRemoteReferenceLayout
 void swift::assertRequiredSynthesizedPropertyOrder(ASTContext &Context,
                                                    NominalTypeDecl *nominal) {
 #ifndef NDEBUG

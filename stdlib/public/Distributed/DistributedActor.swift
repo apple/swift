@@ -464,3 +464,16 @@ public protocol _DistributedActorStub where Self: DistributedActor {}
 public func _distributedStubFatalError(function: String = #function) -> Never {
   fatalError("Unexpected invocation of distributed method '\(function)' stub!")
 }
+
+/// Type that is used to replicate the expected memory layout of a remote
+// distributed actor reference object.
+@available(SwiftStdlib 6.0, *)
+public class _DistributedRemoteReferenceLayout<ActorSystem>
+  where ActorSystem: DistributedActorSystem {
+  // Fields must be in this specific order.
+  let id: ActorSystem.ActorID
+  let actorSystem: ActorSystem
+  let unownedExecutor: UnownedSerialExecutor
+
+  private init() { fatalError("Not intended to have instances") }
+}
