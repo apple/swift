@@ -4747,15 +4747,25 @@ static void diagnoseOperatorAmbiguity(ConstraintSystem &cs,
     return false;
   };
 
-  const auto &solution = solutions.front();
+  auto exprTypeInValidSolution = [solutions, &ctx](Expr *expr) -> Type {
+    for (const auto &solution : solutions) {
+      bool hasFixit = llvm::any_of(solution.Fixes, [&](const ConstraintFix *fix) -> bool {
+        return getAsExpr(fix->getLocator()->getAnchor()) == expr;
+      });
+      if (!hasFixit)
+        return solution.simplifyType(solution.getType(expr))->getRValueType();
+    }
+    return ctx.TheUnresolvedType;
+  };
+
   if (auto *binaryOp = dyn_cast<BinaryExpr>(applyExpr)) {
     auto *lhs = binaryOp->getLHS();
     auto *rhs = binaryOp->getRHS();
+    auto lhsType = exprTypeInValidSolution(lhs);
+    auto rhsType = exprTypeInValidSolution(rhs);
 
-    auto lhsType =
-        solution.simplifyType(solution.getType(lhs))->getRValueType();
-    auto rhsType =
-        solution.simplifyType(solution.getType(rhs))->getRValueType();
+    if (lhsType->hasUnresolvedType() || rhsType->hasUnresolvedType())
+      return;
 
     if (lhsType->isEqual(rhsType)) {
       DE.diagnose(anchor->getLoc(), diag::cannot_apply_binop_to_same_args,
@@ -4782,7 +4792,9 @@ static void diagnoseOperatorAmbiguity(ConstraintSystem &cs,
   } else {
     auto *arg = applyExpr->getArgs()->getUnlabeledUnaryExpr();
     assert(arg && "Expected a unary arg");
-    auto argType = solution.simplifyType(solution.getType(arg));
+    auto argType = exprTypeInValidSolution(arg);
+    if (argType->hasUnresolvedType())
+        return;
     DE.diagnose(anchor->getLoc(), diag::cannot_apply_unop_to_arg,
                 operatorName.str(), argType->getRValueType());
   }

@@ -56,8 +56,7 @@ class A {
     var a: MyArray<Int>
     init() {
         a = MyArray<Int // expected-error {{generic parameter 'Element' could not be inferred}} expected-note {{explicitly specify the generic arguments to fix this issue}}
-       // expected-error@-1 {{binary operator '<' cannot be applied to operands of type 'MyArray<_>.Type' and 'Int.Type'}}
-       // expected-error@-2 {{cannot assign value of type 'Bool' to type 'MyArray<Int>'}}
+       // expected-error@-1 {{cannot assign value of type 'Bool' to type 'MyArray<Int>'}}
     }
 }
 

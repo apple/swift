@@ -1577,3 +1577,14 @@ func testAddMemberVsRemoveCall() {
   let b = Foo_74617()
   let c = (a + b).bar() // expected-error {{cannot call value of non-function type 'Float'}} {{22-24=}}
 }
+
+// https://github.com/apple/swift/issues/73029
+func testBinaryOpWrongTypesFix() {
+  struct S<T> {
+    static func ==(lhs: S, rhs: S) -> Bool {
+      true
+    }
+  }
+  func getS<T>(value: T) -> S<T> {}
+  let _ = getS(value: "") == getS(value: 0) // expected-error {{binary operator '==' cannot be applied to operands of type 'S<String>' and 'S<Int>'}}
+}
