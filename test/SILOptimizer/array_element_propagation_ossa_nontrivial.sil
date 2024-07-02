@@ -286,3 +286,50 @@ bb0(%0 : $*Array<MyKlass>, %1 : @owned $MyKlass):
   return %1 : $MyKlass
 }
 
+// CHECK-LABEL: sil [ossa] @propagate_inside_loop : $@convention(thin) (@owned MyKlass) -> () {
+// CHECK: bb1:
+// CHECK-NOT: apply
+// CHECK-LABEL: end sil function 'propagate_inside_loop'
+sil [ossa] @propagate_inside_loop : $@convention(thin) (@owned MyKlass) -> () {
+bb0(%arg0 : @owned $MyKlass):
+  %0 = function_ref @swift_bufferAllocate : $@convention(thin) () -> @owned _ContiguousArrayStorage<MyKlass>
+  %1 = integer_literal $Builtin.Word, 1
+  %2 = struct $MyInt (%1 : $Builtin.Word)
+  %3 = apply %0() : $@convention(thin) () -> @owned _ContiguousArrayStorage<MyKlass>
+  %4 = metatype $@thin MyArray<MyKlass>.Type
+  %5 = function_ref @adoptStorage : $@convention(thin) (@owned _ContiguousArrayStorage<MyKlass>, MyInt, @thin MyArray<MyKlass>.Type) -> @owned (MyArray<MyKlass>, UnsafeMutablePointer<MyKlass>)
+  %6 = apply %5(%3, %2, %4) : $@convention(thin) (@owned _ContiguousArrayStorage<MyKlass>, MyInt, @thin MyArray<MyKlass>.Type) -> @owned (MyArray<MyKlass>, UnsafeMutablePointer<MyKlass>)
+  (%7, %8a) = destructure_tuple %6 : $(MyArray<MyKlass>, UnsafeMutablePointer<MyKlass>)
+  %8 = mark_dependence %8a : $UnsafeMutablePointer<MyKlass> on %7 : $MyArray<MyKlass>
+  %9 = struct_extract %8 : $UnsafeMutablePointer<MyKlass>, #UnsafeMutablePointer._rawValue
+  %10 = pointer_to_address %9 : $Builtin.RawPointer to [strict] $*MyKlass
+  %11 = integer_literal $Builtin.Word, 0
+  %11a = struct $MyInt (%11 : $Builtin.Word)
+  store %arg0 to [init] %10 : $*MyKlass
+  %26 = alloc_stack $MyKlass
+  %27 = function_ref @hoistableIsNativeTypeChecked : $@convention(method) (@guaranteed MyArray<MyKlass>) -> MyBool
+  %28 = apply %27(%7) : $@convention(method) (@guaranteed MyArray<MyKlass>) -> MyBool
+  %29 = function_ref @checkSubscript : $@convention(method) (MyInt, MyBool, @guaranteed MyArray<MyKlass>) -> _MyDependenceToken
+  %30 = apply %29(%11a, %28, %7) : $@convention(method) (MyInt, MyBool, @guaranteed MyArray<MyKlass>) -> _MyDependenceToken
+  %31 = function_ref @getElement : $@convention(method) (MyInt, MyBool, _MyDependenceToken, @guaranteed MyArray<MyKlass>) -> @owned MyKlass
+  br bb1
+
+bb1:
+  %32 = apply %31(%11a, %28, %30, %7) : $@convention(method) (MyInt, MyBool, _MyDependenceToken, @guaranteed MyArray<MyKlass>) -> @owned MyKlass
+  store %32 to [init] %26 : $*MyKlass
+  destroy_addr %26 : $*MyKlass
+  cond_br undef, bb2, bb3
+
+bb2:
+  br bb1
+
+bb3:
+  br bb4
+
+bb4:
+  dealloc_stack %26 : $*MyKlass
+  destroy_value %7 : $MyArray<MyKlass>
+  %52 = tuple ()
+  return %52 : $()
+}
+

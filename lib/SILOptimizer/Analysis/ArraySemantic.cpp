@@ -744,8 +744,7 @@ bool swift::ArraySemanticsCall::replaceByValue(SILValue V) {
                       : SemanticsCall->getIterator();
   assert(InsertPt.has_value());
 
-  SILValue CopiedVal = SILBuilderWithScope(InsertPt.value())
-                           .emitCopyValueOperation(SemanticsCall->getLoc(), V);
+  auto CopiedVal = makeCopiedValueAvailable(V, SemanticsCall->getParentBlock());
   SemanticsCall->replaceAllUsesWith(CopiedVal);
 
   removeCall();
