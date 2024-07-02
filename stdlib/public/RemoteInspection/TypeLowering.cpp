@@ -21,6 +21,7 @@
 #if SWIFT_ENABLE_REFLECTION
 
 #include "llvm/Support/MathExtras.h"
+#include "llvm/ADT/STLExtras.h"
 #include "swift/ABI/Enum.h"
 #include "swift/ABI/MetadataValues.h"
 #include "swift/RemoteInspection/BitMask.h"
@@ -2544,6 +2545,50 @@ const RecordTypeInfo *TypeConverter::getClassInstanceTypeInfo(
   swift_unreachable("Unhandled FieldDescriptorKind in switch.");
 }
 
+bool FieldInfo::isEqual(const FieldInfo &RHS) const {
+  return Name == RHS.Name && Offset == RHS.Offset && Value == RHS.Value &&
+         TypeRef::areEqual(TR, RHS.TR) && TypeInfo::areEqual(&TI, &RHS.TI);
+}
+
+bool BuiltinTypeInfo::isEqualImpl(const TypeInfo *RHS) const {
+  auto Other = llvm::cast<BuiltinTypeInfo>(RHS);
+  return Name == Other->Name;
+}
+
+bool RecordTypeInfo::isEqualImpl(const TypeInfo *RHS) const {
+  auto Other = llvm::cast<RecordTypeInfo>(RHS);
+  if (SubKind != Other->SubKind)
+    return false;
+
+  if (Fields.size() != Other->Fields.size())
+    return false;
+
+  for (const auto &[lhsField, rhsField] : llvm::zip(Fields, Other->Fields))
+    if (!lhsField.isEqual(rhsField))
+      return false;
+
+  return true;
+}
+
+bool EnumTypeInfo::isEqualImpl(const TypeInfo *RHS) const {
+  auto Other = llvm::cast<EnumTypeInfo>(RHS);
+  if (SubKind != Other->SubKind)
+    return false;
+
+  if (Cases.size() != Other->Cases.size())
+    return false;
+
+  for (const auto &[lhsCase, rhsCase] : llvm::zip(Cases, Other->Cases))
+    if (!lhsCase.isEqual(rhsCase))
+      return false;
+
+  return true;
+}
+
+bool ReferenceTypeInfo::isEqualImpl(const TypeInfo *RHS) const {
+  auto Other = llvm::cast<ReferenceTypeInfo>(RHS);
+  return SubKind == Other->SubKind && Refcounting == Other->Refcounting;
+}
 } // namespace reflection
 } // namespace swift
 

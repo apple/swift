@@ -166,6 +166,43 @@ public:
   }
 
   virtual ~TypeInfo() { }
+
+  /// Compares two TypeInfos and returns true if they're equal.
+  /// Since type infos are mostly  behind pointers, this function is implemented
+  /// as a static function instead of being operator==() to avoid having to
+  /// check for null on every call.
+  static bool areEqual(const TypeInfo *LHS, const TypeInfo *RHS) {
+    if (LHS == RHS)
+      return true;
+
+    if ((!LHS && RHS) || (!RHS && LHS))
+      return false;
+
+    if (LHS->Kind != RHS->Kind)
+      return false;
+
+    if (LHS->Kind == TypeInfoKind::Invalid)
+      return true;
+
+    if (LHS->Kind != RHS->Kind || LHS->Size != RHS->Size ||
+        LHS->Alignment != RHS->Alignment ||
+        LHS->Stride != RHS->Alignment ||
+        LHS->NumExtraInhabitants != RHS->NumExtraInhabitants ||
+        LHS->BitwiseTakable != RHS->BitwiseTakable)
+      return false;
+
+
+    return LHS->isEqualImpl(RHS);
+  }
+
+protected:
+  /// Helper function to check if two Type Infos of the same type are equal.
+  /// Should only be called by equals, as it only checks for the subclass
+  /// specific fields.
+  virtual bool isEqualImpl(const TypeInfo *second) const {
+    assert(false && "Should not be called directly!");
+    return false;
+  }
 };
 
 struct FieldInfo {
@@ -174,6 +211,8 @@ struct FieldInfo {
   int Value;
   const TypeRef *TR;
   const TypeInfo &TI;
+
+  bool isEqual(const FieldInfo &RHS) const;
 };
 
 /// Builtins and (opaque) imported value types
@@ -209,6 +248,8 @@ public:
   static bool classof(const TypeInfo *TI) {
     return TI->getKind() == TypeInfoKind::Builtin;
   }
+protected:
+  bool isEqualImpl(const TypeInfo *second) const override;
 };
 
 /// Class instances, structs, tuples
@@ -238,6 +279,8 @@ public:
   static bool classof(const TypeInfo *TI) {
     return TI->getKind() == TypeInfoKind::Record;
   }
+protected:
+  bool isEqualImpl(const TypeInfo *RHS) const override;
 };
 
 /// Enums
@@ -308,6 +351,8 @@ public:
   static bool classof(const TypeInfo *TI) {
     return TI->getKind() == TypeInfoKind::Enum;
   }
+protected:
+  bool isEqualImpl(const TypeInfo *second) const override;
 };
 
 /// References to classes, closure contexts and anything else with an
@@ -348,6 +393,8 @@ public:
   static bool classof(const TypeInfo *TI) {
     return TI->getKind() == TypeInfoKind::Reference;
   }
+protected:
+  bool isEqualImpl(const TypeInfo *second) const override;
 };
 
 /// This class owns the memory for all TypeInfo instances that it vends.

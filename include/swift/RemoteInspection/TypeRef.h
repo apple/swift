@@ -256,6 +256,19 @@ public:
   static bool deriveSubstitutions(GenericArgumentMap &Subs,
                                   const TypeRef *OrigTR,
                                   const TypeRef *SubstTR);
+
+  static bool areEqual(const TypeRef *LHS, const TypeRef *RHS) {
+    if (LHS == RHS)
+      return true;
+    if (!LHS || !RHS)
+      return false;
+    if (LHS->Kind != RHS->Kind)
+      return false;
+    swift::Demangle::Demangler Dem;
+    auto lhsMangledName = LHS->mangle(Dem);
+    auto rhsMangledName = RHS->mangle(Dem);
+    return lhsMangledName == rhsMangledName;
+  }
 };
 
 class BuiltinTypeRef final : public TypeRef {
