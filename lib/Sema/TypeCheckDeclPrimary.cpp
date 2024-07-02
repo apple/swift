@@ -2589,13 +2589,14 @@ public:
 
     TypeChecker::checkDeclAttributes(VD);
 
+    auto DC = VD->getDeclContext();
+
     if (!checkOverrides(VD)) {
       // If a property has an override attribute but does not override
       // anything, complain.
       auto overridden = VD->getOverriddenDecl();
       if (auto *OA = VD->getAttrs().getAttribute<OverrideAttr>()) {
         if (!overridden) {
-          auto DC = VD->getDeclContext();
           auto isClassContext = DC->getSelfClassDecl() != nullptr;
           auto isStructOrEnumContext = DC->getSelfEnumDecl() != nullptr ||
                                        DC->getSelfStructDecl() != nullptr;
@@ -2650,15 +2651,26 @@ public:
 
     // @_staticExclusiveOnly types cannot be put into 'var's, only 'let'.
     if (auto SD = VD->getInterfaceType()->getStructOrBoundGenericStruct()) {
-      if (SD->getAttrs().hasAttribute<StaticExclusiveOnlyAttr>() &&
-          !VD->isLet()) {
+      if (SD->getAttrs().hasAttribute<StaticExclusiveOnlyAttr>()) {
+        auto isProtocolContext = DC->getSelfProtocolDecl() != nullptr;
+
+        if (isProtocolContext && !VD->supportsMutation()) {
+          return;
+        }
+
+        if (VD->isLet()) {
+          return;
+        }
+
+        auto diagMsg = isProtocolContext
+                           ? diag::attr_static_exclusive_no_setters
+                           : diag::attr_static_exclusive_only_let_only;
+
         Ctx.Diags.diagnoseWithNotes(
-          VD->diagnose(diag::attr_static_exclusive_only_let_only,
-                       VD->getInterfaceType()),
-          [&]() {
-            SD->diagnose(diag::attr_static_exclusive_only_type_nonmutating,
-                       SD->getDeclaredInterfaceType());
-          });
+            VD->diagnose(diagMsg, VD->getInterfaceType()), [&]() {
+              SD->diagnose(diag::attr_static_exclusive_only_type_nonmutating,
+                           SD->getDeclaredInterfaceType());
+            });
       }
     }
   }

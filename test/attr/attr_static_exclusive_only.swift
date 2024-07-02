@@ -9,6 +9,8 @@ struct B: ~Copyable { // expected-note {{'B' is a non-mutable type}}
                       // expected-note@-2 {{'B' is a non-mutable type}}
                       // expected-note@-3 {{'B' is a non-mutable type}}
                       // expected-note@-4 {{'B' is a non-mutable type}}
+                      // expected-note@-5 {{'B' is a non-mutable type}}
+                      // expected-note@-6 {{'B' is a non-mutable type}}
   mutating func change() { // expected-error {{type 'B' cannot have mutating function 'change()'}}
     print("123")
   }
@@ -68,3 +70,25 @@ func p(_: (consuming B) -> ()) {} // OK
 struct Q<T>: ~Copyable {} // expected-note {{'Q<T>' is a non-mutable type}}
 
 var r0 = Q<Int>() // expected-error {{variable of type 'Q<Int>' must be declared with a 'let'}}
+
+protocol S {
+  var t0: B { get } // OK
+
+  var t1: B { get set } // expected-error {{varaible of type 'B' must not have a setter}}
+}
+
+protocol U: ~Copyable {
+  var v: B { get } // OK
+}
+
+struct W: ~Copyable {}
+
+extension W: U {
+  var v: B { // expected-error {{variable of type 'B' must be declared with a 'let'}}
+    B()
+  }
+}
+
+struct X: ~Copyable, U {
+  let v: B // OK
+}
