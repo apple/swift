@@ -1403,7 +1403,7 @@ def create_argument_parser():
 
     option('--android-arch', store,
            choices=['armv7', 'aarch64', 'x86_64'],
-           default='armv7',
+           default='aarch64',
            help='The target architecture when building for Android. '
                 'Currently, only armv7, aarch64, and x86_64 are supported. '
                 '%(default)s is the default.')

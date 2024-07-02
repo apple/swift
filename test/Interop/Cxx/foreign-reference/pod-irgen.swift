@@ -1,6 +1,4 @@
 // RUN: %target-swift-emit-ir %s -I %S/Inputs -enable-experimental-cxx-interop -validate-tbd-against-ir=none -disable-llvm-verify -Xcc -fignore-exceptions -disable-availability-checking | %FileCheck %s
-//
-// XFAIL: OS=linux-android, OS=linux-androideabi
 
 import POD
 

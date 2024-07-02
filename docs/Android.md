@@ -31,12 +31,12 @@ Swift-to-Java bridging.
 To follow along with this guide, you'll need:
 
 1. A Linux environment capable of building Swift from source, preferably
-   Ubuntu 20.04 or Ubuntu 18.04. Before attempting to build for Android,
+   Ubuntu 22.04 or Ubuntu 20.04. Before attempting to build for Android,
    please make sure you are able to build for Linux by following the
    instructions in the Swift project README.
 2. The latest build of the Swift compiler for your Linux distro, available at
    https://www.swift.org/download/ or sometimes your distro package manager.
-3. The latest version of the Android LTS NDK (r26c at the time of this writing),
+3. The latest version of the Android LTS NDK (r26d at the time of this writing),
    available to download here:
    https://developer.android.com/ndk/downloads
 4. An Android device with remote debugging enabled or the emulator. We require
@@ -54,9 +54,9 @@ and the prebuilt Swift toolchain (add --skip-early-swift-driver if you already
 have a Swift toolchain in your path):
 
 ```
-$ NDK_PATH=path/to/android-ndk-r26c
-$ SWIFT_PATH=path/to/swift-DEVELOPMENT-SNAPSHOT-2023-09-30-a-ubuntu20.04/usr/bin
-$ git checkout swift-DEVELOPMENT-SNAPSHOT-2023-09-30-a
+$ NDK_PATH=path/to/android-ndk-r26d
+$ SWIFT_PATH=path/to/swift-DEVELOPMENT-SNAPSHOT-2024-06-13-a-ubuntu22.04/usr/bin
+$ git checkout swift-DEVELOPMENT-SNAPSHOT-2024-06-13-a
 $ utils/build-script \
     -R \                                       # Build in ReleaseAssert mode.
     --android \                                # Build for Android.
@@ -83,8 +83,8 @@ Then use the standalone Swift stdlib from the previous step to compile a Swift
 source file, targeting Android:
 
 ```
-$ NDK_PATH="path/to/android-ndk-r26c"
-$ SWIFT_PATH=path/to/swift-DEVELOPMENT-SNAPSHOT-2023-09-30-a-ubuntu20.04/usr/bin
+$ NDK_PATH="path/to/android-ndk-r26d"
+$ SWIFT_PATH=path/to/swift-DEVELOPMENT-SNAPSHOT-2024-06-13-a-ubuntu22.04/usr/bin
 $ $SWIFT_PATH/swiftc \                                               # The prebuilt Swift compiler you downloaded
                                                                      # The location of the tools used to build Android binaries
     -tools-directory ${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64/bin/ \
@@ -133,7 +133,7 @@ $ adb push build/Ninja-ReleaseAssert/swift-linux-x86_64/lib/swift/android/libBlo
 In addition, you'll also need to copy the Android NDK's libc++:
 
 ```
-$ adb push /path/to/android-ndk-r26c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so /data/local/tmp
+$ adb push /path/to/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so /data/local/tmp
 ```
 
 Finally, you'll need to copy the `hello` executable you built in the
@@ -176,8 +176,8 @@ $ utils/build-script \
   -R \                               # Build in ReleaseAssert mode.
   -T \                               # Run all tests, including on the Android device (add --host-test to only run Android tests on the Linux host).
   --android \                        # Build for Android.
-  --android-ndk ~/android-ndk-r26c \  # Path to an Android NDK.
-  --android-arch aarch64 \           # Optionally specify Android architecture, alternately armv7
+  --android-ndk ~/android-ndk-r26d \  # Path to an Android NDK.
+  --android-arch aarch64 \           # Optionally specify Android architecture, alternately armv7 or x86_64
   --android-api-level 21
 ```
 

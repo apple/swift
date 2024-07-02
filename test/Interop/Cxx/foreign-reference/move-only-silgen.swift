@@ -1,6 +1,4 @@
 // RUN: %target-swift-emit-silgen %s -I %S/Inputs -enable-experimental-cxx-interop -disable-availability-checking | %FileCheck %s
-//
-// XFAIL: OS=linux-android, OS=linux-androideabi
 
 import MoveOnly
 

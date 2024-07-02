@@ -4,7 +4,6 @@
 // RUN: %FileCheck %s < %t/ir.ll
 
 // UNSUPPORTED: OS=windows-msvc
-// XFAIL: OS=linux-android, OS=linux-androideabi
 
 unsigned char getEnumTagi8(void *p);
 unsigned getEnumTagi32(void *p);

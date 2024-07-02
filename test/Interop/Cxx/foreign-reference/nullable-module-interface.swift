@@ -1,6 +1,4 @@
 // RUN: %target-swift-ide-test -print-module -module-to-print=Nullable -I %S/Inputs -source-filename=x -enable-experimental-cxx-interop | %FileCheck %s
-//
-// XFAIL: OS=linux-android, OS=linux-androideabi
 
 // CHECK: class Empty {
 // CHECK:   func test() -> Int32
