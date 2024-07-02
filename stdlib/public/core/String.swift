@@ -961,7 +961,6 @@ extension String {
     // Lookup if it should be shifted in our ascii table, then we subtract 0x20 if
     // it should, 0x0 if not.
     // This code is equivalent to:
-    // This code is equivalent to:
     // switch sourcex {
     // case let x where (x >= 0x41 && x <= 0x5a):
     //   return x &- 0x20
@@ -984,7 +983,6 @@ extension String {
 
     // Lookup if it should be shifted in our ascii table, then we add 0x20 if
     // it should, 0x0 if not.
-    // This code is equivalent to:
     // This code is equivalent to:
     // switch sourcex {
     // case let x where (x >= 0x41 && x <= 0x5a):
