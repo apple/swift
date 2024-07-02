@@ -4850,11 +4850,12 @@ ParserStatus Parser::parseTypeAttribute(TypeOrCustomAttr &result,
       kind = IsolatedTypeAttr::IsolationKind::Dynamic;
 
     // Add new kinds of isolation here; be sure to update the text for
-    // attr_isolated_expected_kind.
+    // attr_isolated_expected_kind, and change the associated fix-it below.
 
     } else {
       if (!justChecking) {
-        diagnose(Tok, diag::attr_isolated_expected_kind);
+        diagnose(Tok, diag::attr_isolated_expected_kind)
+          .fixItReplace(Tok.getLoc(), "any");
       }
       invalid = true;
       consumeIf(tok::identifier);
