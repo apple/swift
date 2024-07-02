@@ -241,6 +241,7 @@ IRGenModule::IRGenModule(IRGenerator &irgen,
   Int32PtrTy = Int32Ty->getPointerTo();
   Int64Ty = llvm::Type::getInt64Ty(getLLVMContext());
   Int8PtrTy = llvm::Type::getInt8PtrTy(getLLVMContext());
+  FunctionPtrTy = llvm::Type::getInt8PtrTy(getLLVMContext(),DataLayout.getProgramAddressSpace());
   Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
   SizeTy = DataLayout.getIntPtrType(getLLVMContext(), /*addrspace*/ 0);
 
@@ -371,7 +372,7 @@ IRGenModule::IRGenModule(IRGenerator &irgen,
   });
 
   DeallocatingDtorTy = llvm::FunctionType::get(VoidTy, RefCountedPtrTy, false);
-  llvm::Type *dtorPtrTy = DeallocatingDtorTy->getPointerTo();
+  llvm::Type *dtorPtrTy = DeallocatingDtorTy->getPointerTo(DataLayout.getProgramAddressSpace());
 
   FullExistentialTypeMetadataStructTy = createStructType(*this, "swift.full_existential_type", {
     WitnessTablePtrTy,
@@ -1494,8 +1495,8 @@ llvm::ConstantInt *IRGenModule::getSize(Size size) {
   return llvm::ConstantInt::get(SizeTy, size.getValue());
 }
 
-llvm::Constant *IRGenModule::getOpaquePtr(llvm::Constant *ptr) {
-  return llvm::ConstantExpr::getBitCast(ptr, Int8PtrTy);
+llvm::Constant *IRGenModule::getOpaquePtrToFn(llvm::Constant *fnptr) {
+  return llvm::ConstantExpr::getPointerBitCastOrAddrSpaceCast(fnptr, Int8PtrTy);
 }
 
 static void appendEncodedName(raw_ostream &os, StringRef name) {

@@ -875,7 +875,7 @@ static void emitUnaryRefCountCall(IRGenFunction &IGF,
                         ? IGF.IGM.VoidTy
                         : value->getType();
     fnType = llvm::FunctionType::get(resultTy, value->getType(), false);
-    fn = llvm::ConstantExpr::getBitCast(fn, fnType->getPointerTo());
+    fn = llvm::ConstantExpr::getBitCast(fn, fnType->getPointerTo(fn->getType()->getPointerAddressSpace()));
   }
 
   // Emit the call.
