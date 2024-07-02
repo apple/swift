@@ -5700,13 +5700,38 @@ TypeResolver::resolveExistentialType(ExistentialTypeRepr *repr,
 
 NeverNullType TypeResolver::resolveMetatypeType(MetatypeTypeRepr *repr,
                                                 TypeResolutionOptions options) {
+  auto &ctx = getASTContext();
+  auto baseOptions = options.withContext(TypeResolverContext::MetatypeBase);
+
   // The instance type of a metatype is always abstract, not SIL-lowered.
   if (options.is(TypeResolverContext::ExistentialConstraint))
-    options |= TypeResolutionFlags::DisallowOpaqueTypes;
-  options = options.withContext(TypeResolverContext::MetatypeBase);
-  auto ty = resolveType(repr->getBase(), options);
+    baseOptions |= TypeResolutionFlags::DisallowOpaqueTypes;
+
+  // The parser assumes 'X.Type' is a metatype representation, but it might be
+  // a module-qualified type name.
+  auto *const simpleIdentBase = dyn_cast<SimpleIdentTypeRepr>(repr->getBase());
+  if (simpleIdentBase)
+    baseOptions |= TypeResolutionFlags::AllowModule;
+
+  auto ty = resolveType(repr->getBase(), baseOptions);
   if (ty->hasError()) {
-    return ErrorType::get(getASTContext());
+    return ErrorType::get(ctx);
+  }
+
+  // If the base is a module, resolve a qualified type name instead.
+  if (ty->is<ModuleType>()) {
+    auto *memberComponent =
+        new (ctx) SimpleIdentTypeRepr(DeclNameLoc(repr->getMetaLoc()),
+                                      DeclNameRef(ctx.getIdentifier("Type")));
+    auto *memberTR =
+        MemberTypeRepr::create(ctx, {simpleIdentBase, memberComponent});
+
+    auto ty = resolveType(memberTR, options);
+    if (ty->hasError()) {
+      return ErrorType::get(ctx);
+    }
+
+    return ty;
   }
 
   std::optional<MetatypeRepresentation> storedRepr;
