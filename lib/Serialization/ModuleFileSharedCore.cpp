@@ -1545,10 +1545,17 @@ ModuleFileSharedCore::ModuleFileSharedCore(
           bool shouldForceLink;
           input_block::LinkLibraryLayout::readRecord(scratch, rawKind,
                                                      shouldForceLink);
-          if (Bits.IsStaticLibrary)
-            shouldForceLink = false;
-          if (auto libKind = getActualLibraryKind(rawKind))
-            LinkLibraries.push_back({blobData, *libKind, shouldForceLink});
+          // Ignore static libraries for autolinking.  It may be internalised
+          // into another library and thus become linked multiply resulting in
+          // code bloat and possibly multiple definitions.  This happens to not
+          // be a problem currently as SPM will not generate static libraries
+          // and instead use object libraries and built them as a single target.
+          // When static libraries are used and collapsed into an intermediate
+          // shared target, we would end up double linking and bloating the
+          // resulting binaries.
+          if (!Bits.IsStaticLibrary)
+            if (auto libKind = getActualLibraryKind(rawKind))
+              LinkLibraries.push_back({blobData, *libKind, shouldForceLink});
           // else ignore the dependency...it'll show up as a linker error.
           break;
         }
