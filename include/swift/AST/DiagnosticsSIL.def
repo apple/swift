@@ -990,6 +990,10 @@ NOTE(regionbasedisolation_named_transfer_non_transferrable, none,
 NOTE(regionbasedisolation_named_transfer_non_transferrable_callee, none,
       "sending %1%0 to %2 %3 %4 risks causing data races between %2 and %5 uses",
       (Identifier, StringRef, ActorIsolation, DescriptiveDeclKind, DeclName, StringRef))
+NOTE(regionbasedisolation_named_nonisolated_asynclet_name, none,
+      "sending %0 into async let risks causing data races between async let uses and local uses",
+      (Identifier))
+
 NOTE(regionbasedisolation_named_transfer_into_sending_param, none,
      "%0%1 is passed as a 'sending' parameter; Uses in callee may race with later %0uses",
      (StringRef, Identifier))

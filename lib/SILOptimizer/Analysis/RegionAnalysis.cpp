@@ -47,11 +47,19 @@ using namespace swift::PartitionPrimitives;
 using namespace swift::PatternMatch;
 using namespace swift::regionanalysisimpl;
 
-static llvm::cl::opt<bool> AbortOnUnknownPatternMatchError(
+#ifndef NDEBUG
+
+bool swift::regionanalysisimpl::AbortOnUnknownPatternMatchError = false;
+
+static llvm::cl::opt<bool, true> AbortOnUnknownPatternMatchErrorCmdLine(
     "sil-region-isolation-assert-on-unknown-pattern",
     llvm::cl::desc("Abort if SIL region isolation detects an unknown pattern. "
                    "Intended only to be used when debugging the compiler!"),
-    llvm::cl::init(false), llvm::cl::Hidden);
+    llvm::cl::Hidden,
+    llvm::cl::location(
+        swift::regionanalysisimpl::AbortOnUnknownPatternMatchError));
+
+#endif
 
 //===----------------------------------------------------------------------===//
 //                              MARK: Utilities

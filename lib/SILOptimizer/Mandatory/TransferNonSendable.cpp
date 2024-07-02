@@ -574,6 +574,19 @@ public:
     emitRequireInstDiagnostics();
   }
 
+  void emitNamedAsyncLetNoIsolationCrossingError(SILLocation loc,
+                                                 Identifier name) {
+    // Emit the short error.
+    diagnoseError(loc, diag::regionbasedisolation_named_transfer_yields_race,
+                  name)
+        .highlight(loc.getSourceRange())
+        .limitBehaviorIf(getBehaviorLimit());
+
+    diagnoseNote(
+        loc, diag::regionbasedisolation_named_nonisolated_asynclet_name, name);
+    emitRequireInstDiagnostics();
+  }
+
   void emitTypedIsolationCrossing(SILLocation loc, Type inferredType,
                                   ApplyIsolationCrossing isolationCrossing) {
     diagnoseError(
@@ -664,6 +677,11 @@ public:
   }
 
   void emitUnknownPatternError() {
+    if (AbortOnUnknownPatternMatchError) {
+      llvm::report_fatal_error(
+          "RegionIsolation: Aborting on unknown pattern match error");
+    }
+
     diagnoseError(transferOp->getUser(),
                   diag::regionbasedisolation_unknown_pattern)
         .limitBehaviorIf(getBehaviorLimit());
@@ -838,7 +856,7 @@ struct UseAfterTransferDiagnosticInferrer::AutoClosureWalker : ASTWalker {
       : foundTypeInfo(foundTypeInfo), targetDecl(targetDecl),
         targetDeclIsolationInfo(targetDeclIsolationInfo) {}
 
-  Expr *lookThroughExpr(Expr *expr) {
+  Expr *lookThroughArgExpr(Expr *expr) {
     while (true) {
       if (auto *memberRefExpr = dyn_cast<MemberRefExpr>(expr)) {
         expr = memberRefExpr->getBase();
@@ -866,67 +884,85 @@ struct UseAfterTransferDiagnosticInferrer::AutoClosureWalker : ASTWalker {
 
   PreWalkResult<Expr *> walkToExprPre(Expr *expr) override {
     if (auto *declRef = dyn_cast<DeclRefExpr>(expr)) {
-      // If this decl ref expr was not visited as part of a callExpr, add it as
-      // something without isolation crossing.
+      // If this decl ref expr was not visited as part of a callExpr and is our
+      // target decl... emit a simple async let error.
       if (!visitedCallExprDeclRefExprs.count(declRef)) {
         if (declRef->getDecl() == targetDecl) {
-          visitedCallExprDeclRefExprs.insert(declRef);
           foundTypeInfo.diagnosticEmitter
-              .emitTypedRaceWithUnknownIsolationCrossing(
-                  foundTypeInfo.baseLoc, declRef->findOriginalType());
+              .emitNamedAsyncLetNoIsolationCrossingError(
+                  foundTypeInfo.baseLoc, targetDecl->getBaseIdentifier());
           return Action::Continue(expr);
         }
       }
     }
 
+    // If we have a call expr, see if any of its arguments will cause our sent
+    // value to be transferred into another isolation domain.
     if (auto *callExpr = dyn_cast<CallExpr>(expr)) {
-      if (auto isolationCrossing = callExpr->getIsolationCrossing()) {
-        // Search callExpr's arguments to see if we have our targetDecl.
-        auto *argList = callExpr->getArgs();
-        for (auto pair : llvm::enumerate(argList->getArgExprs())) {
-          auto *arg = lookThroughExpr(pair.value());
-          if (auto *declRef = dyn_cast<DeclRefExpr>(arg)) {
-            if (declRef->getDecl() == targetDecl) {
-              // Found our target!
-              visitedCallExprDeclRefExprs.insert(declRef);
+      // Search callExpr's arguments to see if we have our targetDecl.
+      auto *argList = callExpr->getArgs();
+      for (auto pair : llvm::enumerate(argList->getArgExprs())) {
+        auto *arg = lookThroughArgExpr(pair.value());
+        auto *declRef = dyn_cast<DeclRefExpr>(arg);
+        if (!declRef)
+          continue;
 
-              // See if we can find a valueDecl/name for our callee so we can
-              // emit a nicer error.
-              ConcreteDeclRef concreteDecl =
-                  callExpr->getDirectCallee()->getReferencedDecl();
+        if (declRef->getDecl() != targetDecl)
+          continue;
 
-              // If we do not find a direct one, see if we are calling a method
-              // on a nominal type.
-              if (!concreteDecl) {
-                if (auto *dot = dyn_cast<DotSyntaxCallExpr>(
-                        callExpr->getDirectCallee())) {
-                  concreteDecl = dot->getSemanticFn()->getReferencedDecl();
-                }
-              }
+        // Found our target!
+        visitedCallExprDeclRefExprs.insert(declRef);
 
-              if (concreteDecl) {
-                auto *valueDecl = concreteDecl.getDecl();
-                assert(valueDecl &&
-                       "Should be non-null if concreteDecl is valid");
-                if (valueDecl->hasName()) {
-                  foundTypeInfo.diagnosticEmitter
-                      .emitNamedIsolationCrossingError(
-                          foundTypeInfo.baseLoc,
-                          targetDecl->getBaseIdentifier(),
-                          targetDeclIsolationInfo, *isolationCrossing,
-                          valueDecl->getName(),
-                          valueDecl->getDescriptiveKind());
-                  return Action::Continue(expr);
-                }
-              }
+        auto isolationCrossing = callExpr->getIsolationCrossing();
 
-              // Otherwise default back to the "callee" error.
-              foundTypeInfo.diagnosticEmitter.emitNamedIsolationCrossingError(
-                  foundTypeInfo.baseLoc, targetDecl->getBaseIdentifier(),
-                  targetDeclIsolationInfo, *isolationCrossing);
-              return Action::Continue(expr);
-            }
+        // If we do not have an isolation crossing, then we must be just sending
+        // a value in a nonisolated fashion into an async let. So emit the
+        // simple async let error.
+        if (!isolationCrossing) {
+          foundTypeInfo.diagnosticEmitter
+              .emitNamedAsyncLetNoIsolationCrossingError(
+                  foundTypeInfo.baseLoc, targetDecl->getBaseIdentifier());
+          continue;
+        }
+
+        // Otherwise, we are calling an actor isolated function in the async
+        // let. Emit a better error.
+
+        // See if we can find a valueDecl/name for our callee so we can
+        // emit a nicer error.
+        ConcreteDeclRef concreteDecl =
+            callExpr->getDirectCallee()->getReferencedDecl();
+
+        // If we do not find a direct one, see if we are calling a method
+        // on a nominal type.
+        if (!concreteDecl) {
+          if (auto *dot =
+                  dyn_cast<DotSyntaxCallExpr>(callExpr->getDirectCallee())) {
+            concreteDecl = dot->getSemanticFn()->getReferencedDecl();
           }
+        }
+
+        if (!concreteDecl)
+          continue;
+
+        auto *valueDecl = concreteDecl.getDecl();
+        assert(valueDecl && "Should be non-null if concreteDecl is valid");
+
+        if (auto isolationCrossing = callExpr->getIsolationCrossing()) {
+          // If we have an isolation crossing, use that information.
+          if (valueDecl->hasName()) {
+            foundTypeInfo.diagnosticEmitter.emitNamedIsolationCrossingError(
+                foundTypeInfo.baseLoc, targetDecl->getBaseIdentifier(),
+                targetDeclIsolationInfo, *isolationCrossing,
+                valueDecl->getName(), valueDecl->getDescriptiveKind());
+            continue;
+          }
+
+          // Otherwise default back to the "callee" error.
+          foundTypeInfo.diagnosticEmitter.emitNamedIsolationCrossingError(
+              foundTypeInfo.baseLoc, targetDecl->getBaseIdentifier(),
+              targetDeclIsolationInfo, *isolationCrossing);
+          continue;
         }
       }
     }
@@ -1058,6 +1094,11 @@ void TransferNonSendableImpl::emitUseAfterTransferDiagnostics() {
     // tells the user to file a bug. This importantly ensures that we can
     // guarantee that we always find the require if we successfully compile.
     if (!didEmitRequireNote) {
+      if (AbortOnUnknownPatternMatchError) {
+        llvm::report_fatal_error(
+            "RegionIsolation: Aborting on unknown pattern match error");
+      }
+
       diagnoseError(transferOp, diag::regionbasedisolation_unknown_pattern);
       continue;
     }
@@ -1116,6 +1157,11 @@ public:
   }
 
   void emitUnknownPatternError() {
+    if (AbortOnUnknownPatternMatchError) {
+      llvm::report_fatal_error(
+          "RegionIsolation: Aborting on unknown pattern match error");
+    }
+
     diagnoseError(getOperand()->getUser(),
                   diag::regionbasedisolation_unknown_pattern)
         .limitBehaviorIf(getBehaviorLimit());
@@ -1601,6 +1647,11 @@ struct DiagnosticEvaluator final
   }
 
   void handleUnknownCodePattern(const PartitionOp &op) const {
+    if (AbortOnUnknownPatternMatchError) {
+      llvm::report_fatal_error(
+          "RegionIsolation: Aborting on unknown pattern match error");
+    }
+
     diagnoseError(op.getSourceInst(),
                   diag::regionbasedisolation_unknown_pattern);
   }

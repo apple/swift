@@ -28,6 +28,12 @@ class RegionAnalysisValueMap;
 
 namespace regionanalysisimpl {
 
+#ifndef NDEBUG
+/// Global bool set only when asserts are enabled to ease debugging by causing
+/// unknown pattern errors to cause an assert so we drop into the debugger.
+extern bool AbortOnUnknownPatternMatchError;
+#endif
+
 using TransferringOperandSetFactory = Partition::TransferringOperandSetFactory;
 using Element = PartitionPrimitives::Element;
 using Region = PartitionPrimitives::Region;
