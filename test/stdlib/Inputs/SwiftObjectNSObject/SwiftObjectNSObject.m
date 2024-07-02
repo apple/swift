@@ -89,6 +89,10 @@ void TestSwiftObjectNSObjectAssertNoErrors(void)
   }
 }
 
+int CheckSwiftObjectNSObjectEquals(id e1, id e2)
+{
+  return [e1 isEqual:e2];
+}
 
 void TestSwiftObjectNSObjectEquals(id e1, id e2)
 {

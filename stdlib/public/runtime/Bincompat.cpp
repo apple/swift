@@ -67,6 +67,11 @@ static enum sdk_test isAppAtLeastFall2023() {
     const dyld_build_version_t fall_2023_os_versions = {0xffffffff, 0x007e70901};
     return isAppAtLeast(fall_2023_os_versions);
 }
+
+static enum sdk_test isAppAtLeastFall2024() {
+    const dyld_build_version_t fall_2024_os_versions = {0xffffffff, 0x007e80000};
+    return isAppAtLeast(fall_2024_os_versions);
+}
 #endif
 
 static _SwiftStdlibVersion binCompatVersionOverride = { 0 };
@@ -74,6 +79,8 @@ static _SwiftStdlibVersion binCompatVersionOverride = { 0 };
 static _SwiftStdlibVersion const knownVersions[] = {
   { /* 5.6.0 */0x050600 },
   { /* 5.7.0 */0x050700 },
+  // Note: If you add a new entry here, also add it to versionMap in
+  // _swift_stdlib_isExecutableLinkedOnOrAfter below.
   { 0 },
 };
 
@@ -111,9 +118,27 @@ extern "C" __swift_bool _swift_stdlib_isExecutableLinkedOnOrAfter(
   }
 
 #if BINARY_COMPATIBILITY_APPLE
-  // Return true for all known versions for now -- we can't map them to OS
-  // versions at this time.
-  return isKnownBinCompatVersion(version);
+  typedef struct {
+    _SwiftStdlibVersion stdlib;
+    dyld_build_version_t dyld;
+  } stdlib_version_map;
+
+  const dyld_build_version_t spring_2022_os_versions = {0xffffffff, 0x007e60301};
+  const dyld_build_version_t fall_2022_os_versions = {0xffffffff, 0x007e60901};
+
+  static stdlib_version_map const versionMap[] = {
+    { { /* 5.6.0 */0x050600 }, spring_2022_os_versions },
+    { { /* 5.7.0 */0x050700 }, fall_2022_os_versions },
+    // Note: if you add a new entry here, also add it to knownVersions above.
+    { { 0 }, { 0, 0 } },
+  };
+
+  for (uint32_t i = 0; versionMap[i].stdlib._value != 0; ++i) {
+    if (versionMap[i].stdlib._value == version._value) {
+      return isAppAtLeast(versionMap[i].dyld) == newApp;
+    }
+  }
+  return false;
 
 #else // !BINARY_COMPATIBILITY_APPLE
   return isKnownBinCompatVersion(version);
@@ -247,9 +272,11 @@ bool useLegacySwiftValueUnboxingInCasting() {
 //
 bool useLegacySwiftObjCHashing() {
 #if BINARY_COMPATIBILITY_APPLE
-  return true; // For now, legacy behavior on Apple OSes
-#elif SWIFT_TARGET_OS_DARWIN
-  return true; // For now, use legacy behavior on open-source builds for Apple platforms
+  switch (isAppAtLeastFall2024()) {
+  case oldOS: return true; // Legacy behavior on old OS
+  case oldApp: return true; // Legacy behavior for old apps
+  case newApp: return false; // New behavior for new apps
+  }
 #else
   return false; // Always use the new behavior on non-Apple OSes
 #endif
@@ -268,12 +295,13 @@ bool useLegacySwiftObjCHashing() {
 // * This allows the method to invoke 'SerialExecutor/checkIsolated'
 //   * Which is allowed to call 'dispatch_precondition' and handle "on dispatch queue but not on Swift executor" cases
 //
-// FIXME(concurrency): Once the release is announced, adjust the logic detecting the SDKs
 bool swift_bincompat_useLegacyNonCrashingExecutorChecks() {
 #if BINARY_COMPATIBILITY_APPLE
-  return true; // For now, legacy behavior on Apple OSes
-#elif SWIFT_TARGET_OS_DARWIN
-  return true; // For now, use legacy behavior on open-source builds for Apple platforms
+  switch (isAppAtLeastFall2024()) {
+  case oldOS: return true; // Legacy behavior on old OS
+  case oldApp: return true; // Legacy behavior for old apps
+  case newApp: return false; // New behavior for new apps
+  }
 #else
   return false; // Always use the new behavior on non-Apple OSes
 #endif
