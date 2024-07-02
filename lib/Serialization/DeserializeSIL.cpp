@@ -430,10 +430,11 @@ SILFunction *SILDeserializer::getFuncForReference(StringRef name,
         if (auto *decl = dyn_cast_or_null<AbstractFunctionDecl>(dc->getAsDecl()))
           fnName = decl->getNameStr();
       }
-      fn->getModule().getASTContext().Diags.diagnose(
-        fn->getLocation().getSourceLoc(),
-        diag::deserialize_function_type_mismatch,
-        fnName, fnType.getASTType(), type.getASTType());
+      auto &diags = fn->getModule().getASTContext().Diags;
+      diags.diagnose(fn->getLocation().getSourceLoc(),
+                     diag::deserialize_function_type_mismatch,
+                     fnName, fnType.getASTType(), type.getASTType());
+      diags.flushConsumers();
       exit(1);
     }
     return fn;
