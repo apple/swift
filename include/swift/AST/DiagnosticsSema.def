@@ -3978,8 +3978,8 @@ ERROR(attr_incompatible_with_objc,none,
       (DeclAttribute, DescriptiveDeclKind))
 
 ERROR(final_not_on_accessors,none,
-      "'final' cannot be applied to accessors, it must be put on the "
-      "%select{var|let|subscript}0", (unsigned))
+      "'final' cannot be applied to %1, it must be put on the "
+      "%select{var|let|subscript}0", (unsigned, DescriptiveDeclKind))
 
 ERROR(override_rethrows_with_non_rethrows,none,
       "override of 'rethrows' %select{method|initializer}0 should also "
@@ -5016,8 +5016,8 @@ NOTE(candidate_is_not_assignable,none,
      (const ValueDecl *))
 
 NOTE(change_to_mutating,none,
-     "mark %select{method|accessor}0 'mutating' to make 'self' mutable",
-     (bool))
+     "mark %select{method|%1}0 'mutating' to make 'self' mutable",
+     (bool, StringRef))
 NOTE(masked_mutable_property,none,
      "add explicit '%0' to refer to mutable %1 of %2",
      (StringRef, DescriptiveDeclKind, Type))
@@ -5858,7 +5858,7 @@ ERROR(distributed_property_can_only_be_computed,none,
       "%kind0 cannot be 'distributed', only computed properties can",
       (const ValueDecl *))
 ERROR(distributed_property_accessor_only_get_can_be_distributed,none,
-      "only 'get' accessors may be 'distributed'",
+      "only getters may be 'distributed'",
       ())
 NOTE(distributed_actor_isolated_property,none,
       "access to %kind0 is only permitted within distributed actor %1",
@@ -6386,9 +6386,8 @@ NOTE(objc_witness_objc_requirement,none,
 ERROR(no_opaque_return_type_of,none,
       "unable to resolve type for _opaqueReturnTypeOf attribute", ())
 
-
 ERROR(objc_observing_accessor, none,
-      "observing accessors are not allowed to be marked @objc", ())
+      "%0 is not allowed to be marked @objc", (DescriptiveDeclKind))
 ERROR(objc_init_accessor, none,
       "init accessors cannot be marked @objc", ())
 ERROR(objc_addressor, none,
@@ -6572,8 +6571,6 @@ ERROR(dynamic_with_transparent,none,
 // MARK: @_dynamicReplacement(for:)
 //------------------------------------------------------------------------------
 
-ERROR(dynamic_replacement_accessor_type_mismatch, none,
-      "replaced accessor %0's type does not match", (DeclName))
 ERROR(dynamic_replacement_accessor_not_dynamic, none,
       "replaced accessor for %0 is not marked dynamic", (DeclName))
 ERROR(dynamic_replacement_accessor_not_explicit, none,
@@ -7203,7 +7200,7 @@ ERROR(property_wrapper_computed, none,
       "property wrapper cannot be applied to a computed property",
       ())
 ERROR(property_wrapper_effectful,none,
-    "property wrappers currently cannot define an 'async' or 'throws' accessor",
+    "property wrappers cannot be applied to properties that are 'async' or 'throws'",
     ())
 
 ERROR(property_with_wrapper_conflict_attribute,none,
@@ -7635,7 +7632,7 @@ ERROR(invalid_decl_in_macro_expansion,none,
       "macro expansion cannot introduce %0",
       (DescriptiveDeclKind))
 ERROR(let_accessor_expansion,none,
-      "cannot expand accessors on variable declared with 'let'",
+      "cannot expand accessor macro on variable declared with 'let'",
       ())
 ERROR(invalid_main_type_in_macro_expansion,none,
       "macro expansion cannot introduce '@main' type",
@@ -7872,7 +7869,7 @@ ERROR(noncopyable_types_cannot_be_resilient, none,
       "supported",
       (const ValueDecl *))
 ERROR(noncopyable_cannot_have_read_set_accessor,none,
-      "noncopyable %select{variable|subscript}0 cannot provide a read and set accessor",
+      "noncopyable %select{variable|subscript}0 cannot provide a read and set",
       (unsigned))
 
 ERROR(nonescapable_types_attr_disabled,none,

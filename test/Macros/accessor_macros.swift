@@ -171,6 +171,6 @@ macro addGetterMacro() =
 #if TEST_DIAGNOSTICS
 struct S {
   @addGetterMacro let x: Int
-  // expected-warning@-1 {{cannot expand accessors on variable declared with 'let'; this is an error in the Swift 6 language mode}}
+  // expected-warning@-1 {{cannot expand accessor macro on variable declared with 'let'; this is an error in the Swift 6 language mode}}
 }
 #endif

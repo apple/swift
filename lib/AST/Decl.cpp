@@ -8364,8 +8364,9 @@ void VarDecl::emitLetToVarNoteIfSimple(DeclContext *UseDC) const {
       }
 
       auto &d = getASTContext().Diags;
+      auto descriptiveKindName = Decl::getDescriptiveKindName(FD->getDescriptiveKind());
       auto diags = d.diagnose(FD->getFuncLoc(), diag::change_to_mutating,
-                              isa<AccessorDecl>(FD));
+                              isa<AccessorDecl>(FD),descriptiveKindName);
       if (auto nonmutatingAttr =
               FD->getAttrs().getAttribute<NonMutatingAttr>()) {
         diags.fixItReplace(nonmutatingAttr->getLocation(), "mutating");

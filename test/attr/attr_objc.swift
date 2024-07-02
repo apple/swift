@@ -142,10 +142,10 @@ class subject_getterSetter1 {
   }
 
   var observingAccessorsVar1: Int = 0 {
-    @objc // expected-error {{observing accessors are not allowed to be marked @objc}} {{5-11=}}
+    @objc // expected-error {{willSet observer is not allowed to be marked @objc}} {{5-11=}}
     willSet {
     }
-    @objc // expected-error {{observing accessors are not allowed to be marked @objc}} {{5-11=}}
+    @objc // expected-error {{didSet observer is not allowed to be marked @objc}} {{5-11=}}
     didSet {
     }
   }
@@ -2091,7 +2091,7 @@ class BadClass2 {
   }
 
   var prop3: Int {
-    @objc(setProperty:) // expected-error{{observing accessors are not allowed to be marked @objc}} {{5-25=}}
+    @objc(setProperty:) // expected-error{{didSet observer is not allowed to be marked @objc}} {{5-25=}}
     didSet { }
   }
 }

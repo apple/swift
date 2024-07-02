@@ -149,7 +149,7 @@ struct SomeStruct {
 
   var p: Int {
     // Getters default to non-mutating.
-    get {          // expected-note {{mark accessor 'mutating' to make 'self' mutable}} {{5-5=mutating }}
+    get {          // expected-note {{mark getter 'mutating' to make 'self' mutable}} {{5-5=mutating }}
       iv = 37 // expected-error {{cannot assign to property: 'self' is immutable}}
       return 42
     }
@@ -168,13 +168,13 @@ struct SomeStruct {
       return 42
     }
     nonmutating
-    set {      // expected-note {{mark accessor 'mutating' to make 'self' mutable}} {{-1:5-16=mutating}}
+    set {      // expected-note {{mark setter 'mutating' to make 'self' mutable}} {{-1:5-16=mutating}}
       iv = newValue // expected-error {{cannot assign to property: 'self' is immutable}}
     }
   }
 
   var r : Int {
-    get {        // expected-note {{mark accessor 'mutating' to make 'self' mutable}} {{5-5=mutating }}
+    get {        // expected-note {{mark getter 'mutating' to make 'self' mutable}} {{5-5=mutating }}
       iv = 37 // expected-error {{cannot assign to property: 'self' is immutable}}
       return 42
     }
@@ -708,7 +708,7 @@ extension JustAProtocol {
   var foo: String {
     get { return name }
     nonmutating set { name = newValue } // expected-error {{cannot assign to property: 'self' is immutable}} 
-    // expected-note@-1 {{mark accessor 'mutating' to make 'self' mutable}}{{5-16=mutating}}
+    // expected-note@-1 {{mark setter 'mutating' to make 'self' mutable}}{{5-16=mutating}}
   }
 
   nonmutating func bar() { // expected-note {{mark method 'mutating' to make 'self' mutable}}{{3-14=mutating}}
