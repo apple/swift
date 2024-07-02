@@ -480,11 +480,12 @@ llvm::CallInst *IRBuilder::CreateNonMergeableTrap(IRGenModule &IGM,
 
   // Emit the trap instruction.
   llvm::Function *trapIntrinsic =
-      llvm::Intrinsic::getDeclaration(&IGM.Module, llvm::Intrinsic::trap);
+      llvm::Intrinsic::getDeclaration(&IGM.Module, llvm::Intrinsic::ubsantrap);
   if (EnableTrapDebugInfo && IGM.DebugInfo && !failureMsg.empty()) {
     IGM.DebugInfo->addFailureMessageToCurrentLoc(*this, failureMsg);
   }
-  auto Call = IRBuilderBase::CreateCall(trapIntrinsic, {});
+  auto swiftId = llvm::ConstantInt::get(IGM.Int8Ty, 215);
+  auto Call = IRBuilderBase::CreateCall(trapIntrinsic, { swiftId });
   setCallingConvUsingCallee(Call);
 
   if (!IGM.IRGen.Opts.TrapFuncName.empty()) {
