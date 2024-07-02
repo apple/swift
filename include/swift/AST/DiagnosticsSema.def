@@ -5766,6 +5766,11 @@ ERROR(any_not_existential,none,
 ERROR(incorrect_optional_any,none,
       "optional 'any' type must be written %0",
       (Type))
+
+ERROR(incorrect_force_unwrapped_any,none,
+      "force unwrapped 'any' type must be written (%0)!",
+      (StringRef))
+
 ERROR(existential_requires_any,none,
       "use of %select{protocol |}2%0 as a type must be written %1",
       (Type, Type, bool))
