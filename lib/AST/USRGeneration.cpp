@@ -184,6 +184,11 @@ swift::USRGenerationRequest::evaluate(Evaluator &evaluator,
     return std::string(); // Ignore.
 
   auto interpretAsClangNode = [](const ValueDecl *D)->ClangNode {
+    // Subscript decls should not use their clang node, since the get/set accessors
+    // are separate nodes and might come from different contexts.
+    if (isa<SubscriptDecl>(D))
+      return ClangNode();
+
     ClangNode ClangN = D->getClangNode();
     if (auto ClangD = ClangN.getAsDecl()) {
       // NSErrorDomain causes the clang enum to be imported like this:
@@ -318,6 +323,16 @@ bool ide::printAccessorUSR(const AbstractStorageDecl *D, AccessorKind AccKind,
   AbstractStorageDecl *SD = const_cast<AbstractStorageDecl*>(D);
   if (shouldUseObjCUSR(SD)) {
     return printObjCUSRForAccessor(SD, AccKind, OS);
+  }
+
+  if (const auto *Acc = D->getAccessor(AccKind)) {
+    if (auto ClangD = Acc->getClangDecl()) {
+      llvm::SmallString<128> Buffer;
+      bool Ignore = clang::index::generateUSRForDecl(ClangD, Buffer);
+      if (!Ignore)
+        OS << Buffer;
+      return Ignore;
+    }
   }
 
   Mangle::ASTMangler NewMangler;
