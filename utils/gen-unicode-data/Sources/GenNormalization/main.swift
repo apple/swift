@@ -13,18 +13,18 @@
 import GenUtils
 
 // Main entry point into the normalization generator.
-func generateNormalization(for platform: String) {
+func generateNormalization(for platform: String, version: String) {
   var result = readFile("Input/NormalizationData.h")
   
-  let derivedNormalizationProps = readFile("Data/DerivedNormalizationProps.txt")
-  
+  let derivedNormalizationProps = readFile("Data/\(version)/DerivedNormalizationProps.txt")
+
   let unicodeData: String
   
   switch platform {
   case "Apple":
-    unicodeData = readFile("Data/Apple/UnicodeData.txt")
+    unicodeData = readFile("Data/\(version)/Apple/UnicodeData.txt")
   default:
-    unicodeData = readFile("Data/UnicodeData.txt")
+    unicodeData = readFile("Data/\(version)/UnicodeData.txt")
   }
   
   // Get all NFX_QC information and put it together with CCC info.
@@ -57,9 +57,9 @@ func generateNormalization(for platform: String) {
   """
   
   // Finally, write it out.
-  write(result, to: "Output/\(platform)/NormalizationData.h")
+  write(result, to: "Output/\(platform)/\(version)/NormalizationData.h")
 }
 
 for platform in ["Common", "Apple"] {
-  generateNormalization(for: platform)
+  generateNormalization(for: platform, version: "15")
 }

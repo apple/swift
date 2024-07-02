@@ -22,7 +22,16 @@ public func readFile(_ path: String) -> String {
 
 public func write(_ data: String, to path: String) {
   do {
-    try data.write(toFile: path, atomically: false, encoding: .utf8)
+    let directory = path.prefix(upTo: path.lastIndex(of: "/") ?? path.endIndex)
+    try FileManager.default.createDirectory(
+      atPath: String(directory),
+      withIntermediateDirectories: true
+    )
+    try data.write(
+      toFile: path,
+      atomically: false,
+      encoding: .utf8
+    )
   } catch {
     fatalError(error.localizedDescription)
   }

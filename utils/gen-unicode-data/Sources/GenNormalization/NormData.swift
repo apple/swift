@@ -16,8 +16,8 @@ func emitNormData(
   _ data: [(ClosedRange<UInt32>, UInt16)],
   into result: inout String
 ) {
-  let uniqueData = Array(Set(data.map { $0.1 }))
-  
+  let uniqueData = Set(data.map { $0.1 }).sorted()
+
   // 64 bit arrays * 8 bytes = .512 KB
   var bitArrays: [BitArray] = .init(repeating: .init(size: 64), count: 64)
   
