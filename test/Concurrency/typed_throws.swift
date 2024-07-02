@@ -21,3 +21,21 @@ func testAsyncFor<S: AsyncSequence>(seq: S) async throws(MyError)
   for try await _ in seq {
   }
 }
+
+@available(SwiftStdlib 6.0, *)
+func testTask() async throws(MyError)  {
+  let t: Task<Int, MyError> = Task { () throws(MyError) -> Int in
+    throw MyError.failed
+  }
+
+  _ = try await t.value
+}
+
+@available(SwiftStdlib 6.0, *)
+func testTaskDetached() async throws(MyError)  {
+  let t: Task<Int, MyError> = Task.detached { () throws(MyError) -> Int in
+    throw MyError.failed
+  }
+
+  _ = try await t.value
+}

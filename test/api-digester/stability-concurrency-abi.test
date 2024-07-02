@@ -119,6 +119,12 @@ Func TaskLocal.withValue(_:operation:file:line:) has parameter 1 type change fro
 Func TaskLocal.withValue(_:operation:file:line:) has parameter 2 type change from Swift.String to (any _Concurrency.Actor)?
 Func TaskLocal.withValue(_:operation:file:line:) has parameter 3 type change from Swift.UInt to Swift.String
 
+// Adopt typed throws in Task<> and Task::value
+// (abi compat  was handled but this test does not understand the silgen_name trickery)
+Accessor Task.value.Get() has mangled name changing from 'Swift.Task.value.getter : A' to 'Swift.Task.__abi_value.getter : A'
+Var Task.value has been renamed to Var __abi_value
+Var Task.value has mangled name changing from 'Swift.Task.value : A' to 'Swift.Task.__abi_value : A'
+
 // *** DO NOT DISABLE OR XFAIL THIS TEST. *** (See comment above.)
 
 
