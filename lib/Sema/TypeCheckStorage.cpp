@@ -539,6 +539,10 @@ const PatternBindingEntry *PatternBindingEntryRequest::evaluate(
       // TODO: Check whether the type is the pattern binding's own opaque type.
       binding->diagnose(diag::inferred_opaque_type,
                         binding->getInit(entryNumber)->getType());
+      binding->diagnose(diag::inferred_opaque_type_to_explicit,
+                        binding->getInit(entryNumber)->getType())
+        .fixItInsertAfter(binding->getPattern(entryNumber)->getEndLoc(),
+                          ": " + binding->getInit(entryNumber)->getType()->getString());
     }
   } else {
     // Coerce the pattern to the computed type.

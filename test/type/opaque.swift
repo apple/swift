@@ -69,8 +69,11 @@ func zlop() -> some C & AnyObject & P {
 // types
 struct Test {
   let inferredOpaque = bar() // expected-error{{inferred type}}
+  // expected-note@-1 {{add explicit type annotation}} {{21-21=: some P}}
   let inferredOpaqueStructural = Optional(bar()) // expected-error{{inferred type}}
+  // expected-note@-1 {{add explicit type annotation}} {{31-31=: Optional<some P>}}
   let inferredOpaqueStructural2 = (bar(), bas()) // expected-error{{inferred type}}
+  // expected-note@-1 {{add explicit type annotation}} {{32-32=: (some P, some P & Q)}}
 }
 
 let zingle = {() -> some P in 1 } // expected-error{{'some' types are only permitted}}

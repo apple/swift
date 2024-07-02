@@ -2544,6 +2544,8 @@ NOTE(opaque_of_optional_rewrite,none,
 ERROR(inferred_opaque_type,none,
       "property definition has inferred type %0, involving the 'some' "
       "return type of another declaration", (Type))
+NOTE(inferred_opaque_type_to_explicit,none,
+     "add explicit type annotation %0 in property declaration", (Type))
 
 // Inverse Constraints
 ERROR(inverse_type_not_invertible,none,
