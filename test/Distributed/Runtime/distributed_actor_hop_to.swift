@@ -15,7 +15,6 @@
 // FIXME(distributed): Distributed actors currently have some issues on windows, isRemote always returns false. rdar://82593574
 // UNSUPPORTED: OS=windows-msvc
 
-
 import Distributed
 import FakeDistributedActorSystems
 
@@ -41,12 +40,17 @@ distributed actor Worker: LifecycleWatch {
 
 @main struct Main {
   static func main() async {
-    let worker: any LifecycleWatch = Worker(actorSystem: DefaultDistributedActorSystem())
-    try! await worker.test(x: 42, "on protocol")
+    let actorSystem = DefaultDistributedActorSystem()
 
-    // CHECK: executed: test(x:_:)
-    // CHECK: executed: watch(x:_:) - x = 42, y = on protocol
-    // CHECK: done executed: test(x:_:)
+    let worker: any LifecycleWatch = Worker(actorSystem: actorSystem)
+    // ==== --------------------------------------------------------------------
+
+    let remote = try! Worker.resolve(id: worker.id, using: actorSystem)
+    let remoteAny: any LifecycleWatch = remote
+    try! await remoteAny.test(x: 42, "direct") // Remote call
+    // CHECK: >> remoteCallVoid: on:main.Worker, target:test(x:_:)
+    // CHECK: << onReturnVoid: ()
+
 
     print("OK") // CHECK: OK
   }
