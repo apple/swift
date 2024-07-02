@@ -3138,12 +3138,21 @@ void CompletionLookup::getTypeAttributeKeywordCompletions() {
         CodeCompletionResultKind::Keyword, SemanticContextKind::None);
     Builder.addAttributeKeyword(Name, "Type Attribute");
   };
-  addTypeAttr("autoclosure");
+
+  // Add simple user-accessible attributes.
+#define SIL_TYPE_ATTR(SPELLING, C)
+#define SIMPLE_SIL_TYPE_ATTR(SPELLING, C)
+#define SIMPLE_TYPE_ATTR(SPELLING, C)                      \
+  if (!TypeAttribute::isUserInaccessible(TypeAttrKind::C)) \
+    addTypeAttr(#SPELLING);
+#include "swift/AST/TypeAttr.def"
+
+  // Add non-simple cases.
   addTypeAttr("convention(swift)");
   addTypeAttr("convention(block)");
   addTypeAttr("convention(c)");
   addTypeAttr("convention(thin)");
-  addTypeAttr("escaping");
+  addTypeAttr("isolated(any)");
 }
 
 void CompletionLookup::collectPrecedenceGroups() {
