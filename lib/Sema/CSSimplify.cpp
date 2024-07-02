@@ -15276,6 +15276,12 @@ ConstraintSystem::SolutionKind ConstraintSystem::simplifyFixConstraint(
       }
     }
 
+    // Mismatches where param has type variable but arg does not means a poor
+    // generic argument match, overload is less viable.
+    if (!type1->hasTypeVariable() && type2->hasTypeVariable()) {
+      impact += 6;
+    }
+
     // De-prioritize `Builtin.RawPointer` and `OpaquePointer` parameters
     // because they usually clash with generic parameter mismatches e.g.
     //
