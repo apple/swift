@@ -214,9 +214,11 @@ void SILGenModule::emitGlobalInitialization(PatternBindingDecl *pd,
   // Generic and dynamic static properties require lazy initialization, which
   // isn't implemented yet.
   if (pd->isStatic()) {
-    assert(!pd->getDeclContext()->isGenericContext()
-           || pd->getDeclContext()->getGenericSignatureOfContext()
-                ->areAllParamsConcrete());
+    assert(!pd->getDeclContext()->isGenericContext() ||
+           pd->getAnchoringVarDecl(0)->isLet() ||
+           pd->getDeclContext()
+               ->getGenericSignatureOfContext()
+               ->areAllParamsConcrete());
   }
 
   // Force the executable init to be type checked before emission.
