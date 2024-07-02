@@ -2581,8 +2581,11 @@ NodePointer NodePrinter::print(NodePointer Node, unsigned depth,
     unsigned Idx = 0;
     if (Node->getNumChildren() == 2) {
       NodePointer repr = Node->getChild(Idx);
-      print(repr, depth + 1);
-      Printer << " ";
+      if (repr->getKind() == Node::Kind::MetatypeRepresentation &&
+          !Options.PrintForTypeName) {
+        print(repr, depth + 1);
+        Printer << " ";
+      }
       ++Idx;
     }
     NodePointer type = Node->getChild(Idx)->getChild(0);
