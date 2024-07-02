@@ -20,6 +20,7 @@
 #include "swift/Basic/Version.h"
 #include "swift/ClangImporter/ClangImporter.h"
 #include "clang/AST/ExternalASTSource.h"
+#include "clang/Basic/ASTSourceDescriptor.h"
 #include "clang/Basic/Module.h"
 
 namespace clang {

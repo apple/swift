@@ -58,7 +58,7 @@ namespace ilist_detail {
 ///
 /// We need a custom base class to not clear the prev/next pointers when
 /// removing an instruction from the list.
-class SILInstructionListBase : public ilist_base<false> {
+class SILInstructionListBase : public ilist_base<false, void> {
 public:
   /// Remove an instruction from the list.
   ///
@@ -96,7 +96,8 @@ template <> struct compute_node_options<::swift::SILInstruction> {
     static const bool is_sentinel_tracking_explicit = false;
     static const bool has_iterator_bits = false;
     typedef void tag;
-    typedef ilist_node_base<enable_sentinel_tracking> node_base_type;
+    typedef void parent_ty;
+    typedef ilist_node_base<enable_sentinel_tracking, void> node_base_type;
     typedef SILInstructionListBase list_base_type;
   };
 };

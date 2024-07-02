@@ -364,6 +364,7 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
     case clang::BuiltinType::Overload:
     case clang::BuiltinType::PseudoObject:
     case clang::BuiltinType::UnknownAny:
+    case clang::BuiltinType::UnresolvedTemplate:
       return OmissionTypeName();
 
     // FIXME: Types that can be mapped, but aren't yet.
@@ -407,66 +408,22 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
     case clang::BuiltinType::ObjCSel:
       return OmissionTypeName();
 
-    // OpenCL types that don't have Swift equivalents.
-    case clang::BuiltinType::OCLImage1dRO:
-    case clang::BuiltinType::OCLImage1dRW:
-    case clang::BuiltinType::OCLImage1dWO:
-    case clang::BuiltinType::OCLImage1dArrayRO:
-    case clang::BuiltinType::OCLImage1dArrayRW:
-    case clang::BuiltinType::OCLImage1dArrayWO:
-    case clang::BuiltinType::OCLImage1dBufferRO:
-    case clang::BuiltinType::OCLImage1dBufferRW:
-    case clang::BuiltinType::OCLImage1dBufferWO:
-    case clang::BuiltinType::OCLImage2dRO:
-    case clang::BuiltinType::OCLImage2dRW:
-    case clang::BuiltinType::OCLImage2dWO:
-    case clang::BuiltinType::OCLImage2dArrayRO:
-    case clang::BuiltinType::OCLImage2dArrayRW:
-    case clang::BuiltinType::OCLImage2dArrayWO:
-    case clang::BuiltinType::OCLImage2dDepthRO:
-    case clang::BuiltinType::OCLImage2dDepthRW:
-    case clang::BuiltinType::OCLImage2dDepthWO:
-    case clang::BuiltinType::OCLImage2dArrayDepthRO:
-    case clang::BuiltinType::OCLImage2dArrayDepthRW:
-    case clang::BuiltinType::OCLImage2dArrayDepthWO:
-    case clang::BuiltinType::OCLImage2dMSAARO:
-    case clang::BuiltinType::OCLImage2dMSAARW:
-    case clang::BuiltinType::OCLImage2dMSAAWO:
-    case clang::BuiltinType::OCLImage2dArrayMSAARO:
-    case clang::BuiltinType::OCLImage2dArrayMSAARW:
-    case clang::BuiltinType::OCLImage2dArrayMSAAWO:
-    case clang::BuiltinType::OCLImage2dMSAADepthRO:
-    case clang::BuiltinType::OCLImage2dMSAADepthRW:
-    case clang::BuiltinType::OCLImage2dMSAADepthWO:
-    case clang::BuiltinType::OCLImage2dArrayMSAADepthRO:
-    case clang::BuiltinType::OCLImage2dArrayMSAADepthRW:
-    case clang::BuiltinType::OCLImage2dArrayMSAADepthWO:
-    case clang::BuiltinType::OCLImage3dRO:
-    case clang::BuiltinType::OCLImage3dRW:
-    case clang::BuiltinType::OCLImage3dWO:
-    case clang::BuiltinType::OCLSampler:
-    case clang::BuiltinType::OCLEvent:
-    case clang::BuiltinType::OCLClkEvent:
-    case clang::BuiltinType::OCLQueue:
-    case clang::BuiltinType::OCLReserveID:
-    case clang::BuiltinType::OCLIntelSubgroupAVCMcePayload:
-    case clang::BuiltinType::OCLIntelSubgroupAVCImePayload:
-    case clang::BuiltinType::OCLIntelSubgroupAVCRefPayload:
-    case clang::BuiltinType::OCLIntelSubgroupAVCSicPayload:
-    case clang::BuiltinType::OCLIntelSubgroupAVCMceResult:
-    case clang::BuiltinType::OCLIntelSubgroupAVCImeResult:
-    case clang::BuiltinType::OCLIntelSubgroupAVCRefResult:
-    case clang::BuiltinType::OCLIntelSubgroupAVCSicResult:
-    case clang::BuiltinType::OCLIntelSubgroupAVCImeResultSingleReferenceStreamout:
-    case clang::BuiltinType::OCLIntelSubgroupAVCImeResultDualReferenceStreamout:
-    case clang::BuiltinType::OCLIntelSubgroupAVCImeSingleReferenceStreamin:
-    case clang::BuiltinType::OCLIntelSubgroupAVCImeDualReferenceStreamin:
-      return OmissionTypeName();
-
     // OpenMP types that don't have Swift equivalents.
-    case clang::BuiltinType::OMPArraySection:
+    case clang::BuiltinType::ArraySection:
     case clang::BuiltinType::OMPArrayShaping:
     case clang::BuiltinType::OMPIterator:
+      return OmissionTypeName();
+
+    // OpenCL builtin types that don't have Swift equivalents.
+    case clang::BuiltinType::OCLClkEvent:
+    case clang::BuiltinType::OCLEvent:
+    case clang::BuiltinType::OCLSampler:
+    case clang::BuiltinType::OCLQueue:
+    case clang::BuiltinType::OCLReserveID:
+#define IMAGE_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define EXT_OPAQUE_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
+#include "clang/Basic/OpenCLExtensionTypes.def"
       return OmissionTypeName();
 
     // ARM SVE builtin types that don't have Swift equivalents.
@@ -475,18 +432,23 @@ OmissionTypeName importer::getClangTypeNameForOmission(clang::ASTContext &ctx,
       return OmissionTypeName();
 
     // PPC MMA builtin types that don't have Swift equivalents.
-#define PPC_VECTOR_TYPE(Name, Id, Size) case clang::BuiltinType::Id:
+#define PPC_VECTOR_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
 #include "clang/Basic/PPCTypes.def"
       return OmissionTypeName();
 
     // RISC-V V builtin types that don't have Swift equivalents.
-#define RVV_TYPE(Name, Id, Size) case clang::BuiltinType::Id:
+#define RVV_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
 #include "clang/Basic/RISCVVTypes.def"
       return OmissionTypeName();
 
-    // WAM builtin types that don't have Swift equivalents.
-#define WASM_TYPE(Name, Id, Size) case clang::BuiltinType::Id:
+    // WASM builtin types that don't have Swift equivalents.
+#define WASM_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
+      return OmissionTypeName();
+
+    // AMDGPU builtins that don't have Swift equivalents.
+#define AMDGPU_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
+#include "clang/Basic/AMDGPUTypes.def"
       return OmissionTypeName();
     }
   }

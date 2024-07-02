@@ -1200,10 +1200,10 @@ public:
 
   llvm::Constant *getConstantSignedCFunctionPointer(llvm::Constant *fn);
 
-  llvm::Constant *getConstantSignedPointer(llvm::Constant *pointer,
-                                           unsigned key,
-                                           llvm::Constant *addrDiscriminator,
-                                           llvm::Constant *otherDiscriminator);
+  llvm::Constant *
+  getConstantSignedPointer(llvm::Constant *pointer, unsigned key,
+                           llvm::Constant *storageAddress,
+                           llvm::ConstantInt *otherDiscriminator);
   llvm::Constant *getConstantSignedPointer(llvm::Constant *pointer,
                                            const clang::PointerAuthSchema &schema,
                                            const PointerAuthEntity &entity,

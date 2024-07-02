@@ -23,7 +23,6 @@
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
-#include <deque>
 
 using namespace SourceKit;
 using namespace CodeCompletion;

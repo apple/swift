@@ -1242,59 +1242,15 @@ namespace {
         llvm_unreachable("bare void type in ABI lowering");
 
       // We should never see the OpenCL builtin types at all.
-      case clang::BuiltinType::OCLImage1dRO:
-      case clang::BuiltinType::OCLImage1dRW:
-      case clang::BuiltinType::OCLImage1dWO:
-      case clang::BuiltinType::OCLImage1dArrayRO:
-      case clang::BuiltinType::OCLImage1dArrayRW:
-      case clang::BuiltinType::OCLImage1dArrayWO:
-      case clang::BuiltinType::OCLImage1dBufferRO:
-      case clang::BuiltinType::OCLImage1dBufferRW:
-      case clang::BuiltinType::OCLImage1dBufferWO:
-      case clang::BuiltinType::OCLImage2dRO:
-      case clang::BuiltinType::OCLImage2dRW:
-      case clang::BuiltinType::OCLImage2dWO:
-      case clang::BuiltinType::OCLImage2dArrayRO:
-      case clang::BuiltinType::OCLImage2dArrayRW:
-      case clang::BuiltinType::OCLImage2dArrayWO:
-      case clang::BuiltinType::OCLImage2dDepthRO:
-      case clang::BuiltinType::OCLImage2dDepthRW:
-      case clang::BuiltinType::OCLImage2dDepthWO:
-      case clang::BuiltinType::OCLImage2dArrayDepthRO:
-      case clang::BuiltinType::OCLImage2dArrayDepthRW:
-      case clang::BuiltinType::OCLImage2dArrayDepthWO:
-      case clang::BuiltinType::OCLImage2dMSAARO:
-      case clang::BuiltinType::OCLImage2dMSAARW:
-      case clang::BuiltinType::OCLImage2dMSAAWO:
-      case clang::BuiltinType::OCLImage2dArrayMSAARO:
-      case clang::BuiltinType::OCLImage2dArrayMSAARW:
-      case clang::BuiltinType::OCLImage2dArrayMSAAWO:
-      case clang::BuiltinType::OCLImage2dMSAADepthRO:
-      case clang::BuiltinType::OCLImage2dMSAADepthRW:
-      case clang::BuiltinType::OCLImage2dMSAADepthWO:
-      case clang::BuiltinType::OCLImage2dArrayMSAADepthRO:
-      case clang::BuiltinType::OCLImage2dArrayMSAADepthRW:
-      case clang::BuiltinType::OCLImage2dArrayMSAADepthWO:
-      case clang::BuiltinType::OCLImage3dRO:
-      case clang::BuiltinType::OCLImage3dRW:
-      case clang::BuiltinType::OCLImage3dWO:
-      case clang::BuiltinType::OCLSampler:
-      case clang::BuiltinType::OCLEvent:
       case clang::BuiltinType::OCLClkEvent:
+      case clang::BuiltinType::OCLEvent:
+      case clang::BuiltinType::OCLSampler:
       case clang::BuiltinType::OCLQueue:
       case clang::BuiltinType::OCLReserveID:
-      case clang::BuiltinType::OCLIntelSubgroupAVCMcePayload:
-      case clang::BuiltinType::OCLIntelSubgroupAVCImePayload:
-      case clang::BuiltinType::OCLIntelSubgroupAVCRefPayload:
-      case clang::BuiltinType::OCLIntelSubgroupAVCSicPayload:
-      case clang::BuiltinType::OCLIntelSubgroupAVCMceResult:
-      case clang::BuiltinType::OCLIntelSubgroupAVCImeResult:
-      case clang::BuiltinType::OCLIntelSubgroupAVCRefResult:
-      case clang::BuiltinType::OCLIntelSubgroupAVCSicResult:
-      case clang::BuiltinType::OCLIntelSubgroupAVCImeResultSingleReferenceStreamout:
-      case clang::BuiltinType::OCLIntelSubgroupAVCImeResultDualReferenceStreamout:
-      case clang::BuiltinType::OCLIntelSubgroupAVCImeSingleReferenceStreamin:
-      case clang::BuiltinType::OCLIntelSubgroupAVCImeDualReferenceStreamin:
+#define IMAGE_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
+#include "clang/Basic/OpenCLImageTypes.def"
+#define EXT_OPAQUE_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
+#include "clang/Basic/OpenCLExtensionTypes.def"
         llvm_unreachable("OpenCL type in ABI lowering");
 
       // We should never see ARM SVE types at all.
@@ -1315,6 +1271,11 @@ namespace {
 #define WASM_TYPE(Name, Id, Size) case clang::BuiltinType::Id:
 #include "clang/Basic/WebAssemblyReferenceTypes.def"
         llvm_unreachable("WASM type in ABI lowering");
+
+      // We should never see AMDGPU types at all.
+#define AMDGPU_TYPE(Name, Id, ...) case clang::BuiltinType::Id:
+#include "clang/Basic/AMDGPUTypes.def"
+        llvm_unreachable("AMDGPU type in ABI lowering");
 
       // Handle all the integer types as opaque values.
 #define BUILTIN_TYPE(Id, SingletonId)

@@ -1431,7 +1431,7 @@ bool NameImporter::hasErrorMethodNameCollision(
   unsigned numArgs = selector.getNumArgs();
   assert(numArgs > 0);
 
-  SmallVector<clang::IdentifierInfo *, 4> chunks;
+  SmallVector<const clang::IdentifierInfo *, 4> chunks;
   for (unsigned i = 0, e = selector.getNumArgs(); i != e; ++i) {
     chunks.push_back(selector.getIdentifierInfoForSlot(i));
   }

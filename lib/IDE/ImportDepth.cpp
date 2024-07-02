@@ -15,6 +15,8 @@
 #include "swift/Basic/Assertions.h"
 #include "clang/Basic/Module.h"
 
+#include <deque>
+
 using namespace swift;
 using namespace swift::ide;
 
