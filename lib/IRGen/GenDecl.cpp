@@ -6204,6 +6204,7 @@ IRGenModule::getAddrOfContinuationPrototype(CanSILFunctionType fnType) {
   llvm::Function *&entry = GlobalFuncs[entity];
   if (entry) return entry;
 
+  GenericContextScope scope(*this, fnType->getInvocationGenericSignature());
   auto signature = Signature::forCoroutineContinuation(*this, fnType);
   LinkInfo link = LinkInfo::get(*this, entity, NotForDefinition);
   entry = createFunction(*this, link, signature);

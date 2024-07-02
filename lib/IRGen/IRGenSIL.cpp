@@ -6829,8 +6829,12 @@ void IRGenSILFunction::visitConvertFunctionInst(swift::ConvertFunctionInst *i) {
       fnType->getRepresentation() != SILFunctionType::Representation::Block) {
     auto *fn = temp.claimNext();
     Explosion res;
-    auto sig = IGM.getSignature(fnType);
-    res.add(Builder.CreateBitCast(fn, sig.getType()->getPointerTo()));
+    auto &fnTI = IGM.getTypeInfoForLowered(fnType);
+    auto &fnNative = fnTI.nativeReturnValueSchema(IGM);
+    llvm::Value *newFn =
+        Builder.CreateBitCast(fn, fnNative.getExpandedType(IGM));
+    extractScalarResults(*this, newFn->getType(), newFn, res);
+
     setLoweredExplosion(i, res);
     return;
   }

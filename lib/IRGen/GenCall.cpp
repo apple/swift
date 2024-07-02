@@ -6160,13 +6160,13 @@ void irgen::emitYieldOnceCoroutineResult(IRGenFunction &IGF, Explosion &result,
       // Capture results via result token
       resultToken =
         Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end_results, coroResults);
-
-        Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
-                              {handle,
-                               /*is unwind*/ Builder.getFalse(),
-                               resultToken});
-        Builder.CreateUnreachable();
     }
+
+    Builder.CreateIntrinsicCall(llvm::Intrinsic::coro_end,
+                                {handle,
+                                 /*is unwind*/ Builder.getFalse(),
+                                 resultToken});
+    Builder.CreateUnreachable();
   } else {
     if (coroResults.empty()) {
       // No results, we do not need to change anything around existing coro.end
