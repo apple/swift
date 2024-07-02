@@ -103,6 +103,9 @@ class SwiftPM(product.Product):
                                     swift_toolchain=toolchain_path,
                                     resource_path=resource_dir)]
 
+        if self.args.verbose_build:
+            helper_cmd.append('--verbose')
+
         helper_cmd.extend(additional_params)
 
         shell.call(helper_cmd)
