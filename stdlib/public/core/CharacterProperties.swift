@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2014 - 2018 Apple Inc. and the Swift project authors
+// Copyright (c) 2014 - 2024 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -23,11 +23,19 @@ extension Character {
   }
 
   /// A Boolean value indicating whether this is an ASCII character.
-  @inlinable
+  @_alwaysEmitIntoClient @_silgen_name("inlineIsASCII")
   public var isASCII: Bool {
-    return asciiValue != nil
+    if !_str._guts.isSmall { return outlineIsASCII }
+    // This character is backed by a small string. We can check if it is a
+    // single ASCII character (and return its value) just by looking at the
+    // first word. This works because Character is made up of a single
+    // grapheme cluster, the NUL character does not combine, and in a
+    // SmallString all unused bytes must be zero, so we don't need to look
+    // at the count.
+    let firstWord = _str._guts.asSmall._storage.0.littleEndian
+    return firstWord < 128 || firstWord == 0x0a0d
   }
-
+  
   /// The ASCII encoding value of this character, if it is an ASCII character.
   ///
   ///     let chars: [Character] = ["a", " ", "™"]
@@ -48,11 +56,65 @@ extension Character {
   ///     // lf.asciiValue == 10
   ///     let crlf = "\r\n" as Character
   ///     // crlf.asciiValue == 10
-  @inlinable
+  @_alwaysEmitIntoClient @_silgen_name("inlineASCIIValue")
   public var asciiValue: UInt8? {
-    if _slowPath(self == "\r\n") { return 0x000A /* LINE FEED (LF) */ }
-    if _slowPath(!_isSingleScalar || _firstScalar.value >= 0x80) { return nil }
-    return UInt8(_firstScalar.value)
+    if !_str._guts.isSmall { return outlineASCIIValue }
+    // This character is backed by a small string. We can check if it is a
+    // single ASCII character (and return its value) just by looking at the
+    // first word. This works because Character is made up of a single
+    // grapheme cluster, the NUL character does not combine, and in a
+    // SmallString all unused bytes must be zero, so we don't need to look
+    // at the count.
+    let firstWord = _str._guts.asSmall._storage.0.littleEndian
+    return firstWord < 128 ? UInt8(firstWord) : firstWord == 0x0a0d ? 0xa : nil
+  }
+  
+  // Mangle this as "isASCII" for ABI compatability with older libraries where
+  // the generic isASCII was inlinable public (so calls will exist, even though
+  // it was usually inlined).
+  @usableFromInline @_silgen_name("$sSJ7isASCIISbvg") @inline(never)
+  internal var outlineIsASCII: Bool {
+    // On binary-stable platforms, older binaries might reference this symbol
+    // even when the backing string is small, so we still need to handle that
+    // here.
+    // TODO: this could be eliminated on non-binary-stable platforms
+    if _str._guts.isSmall { return isASCII }
+    // A non-small Character can only be tail-allocated native, so we can
+    // get the count and pointer without the usual dispatch.
+    let count = _str._guts._object.largeCount
+    let pointer = _str._guts._object.nativeUTF8Start
+    if count == 1 {
+      return pointer[0] < 128
+    }
+    if count == 2 {
+      return UInt16(pointer[0]) | UInt16(pointer[1]) << 8 == 0x0a0d
+    }
+    return false
+  }
+  
+  // Mangle this as "asciiValue" for ABI compatability with older libraries
+  // where the generic asciiValue was inlinable public (so calls will exist,
+  // even though it was usually inlined).
+  @usableFromInline @_silgen_name("$sSJ10asciiValues5UInt8VSgvg") @inline(never)
+  internal var outlineASCIIValue: UInt8? {
+    // On binary-stable platforms, older binaries might reference this symbol
+    // even when the backing string is small, so we still need to handle that
+    // here.
+    // TODO: this could be eliminated on non-binary-stable platforms
+    if _str._guts.isSmall { return asciiValue }
+    // A non-small Character can only be tail-allocated native, so we can
+    // get the count and pointer without the usual dispatch.
+    let count = _str._guts._object.largeCount
+    let pointer = _str._guts._object.nativeUTF8Start
+    if count == 1 {
+      let byte = pointer[0]
+      return byte < 128 ? byte : nil
+    }
+    if count == 2 {
+      let twoByte = UInt16(pointer[0]) | UInt16(pointer[1]) << 8
+      return twoByte == 0x0a0d ? 0xa : nil
+    }
+    return nil
   }
 
   /// A Boolean value indicating whether this character represents whitespace,

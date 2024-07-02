@@ -81,7 +81,6 @@ extension Character {
   internal func _invariantCheck() {
     _internalInvariant(_str.count == 1)
     _internalInvariant(_str._guts.isFastUTF8)
-
     _internalInvariant(_str._guts._object.isPreferredRepresentation)
   }
   #endif // INTERNAL_CHECKS_ENABLED
