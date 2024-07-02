@@ -62,15 +62,7 @@ extension Collection where Element: Equatable {
     if let result = _customIndexOfEquatableElement(element) {
       return result
     }
-
-    var i = self.startIndex
-    while i != self.endIndex {
-      if self[i] == element {
-        return i
-      }
-      self.formIndex(after: &i)
-    }
-    return nil
+    return firstIndex(where: { $0 == element })
   }
 }
 
