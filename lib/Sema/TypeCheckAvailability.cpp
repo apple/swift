@@ -1901,8 +1901,8 @@ static bool fixAvailabilityByNarrowingNearbyVersionCheck(
                                  AvailabilityContext(RunningRange))) {
 
     // Only fix situations that are "nearby" versions, meaning
-    // disagreement on a minor-or-less version for non-macOS,
-    // or disagreement on a subminor-or-less version for macOS.
+    // disagreement on a subminor-or-less version for macOS 10,
+    // or disagreement on a minor-or-less version otherwise.
     auto RunningVers = RunningRange.getLowerEndpoint();
     auto RequiredVers = RequiredRange.getLowerEndpoint();
     auto Platform = targetPlatform(Context.LangOpts);
@@ -1910,10 +1910,10 @@ static bool fixAvailabilityByNarrowingNearbyVersionCheck(
       return false;
     if ((Platform == PlatformKind::macOS ||
          Platform == PlatformKind::macOSApplicationExtension) &&
+        RunningVers.getMajor() == 10 &&
         !(RunningVers.getMinor().has_value() &&
           RequiredVers.getMinor().has_value() &&
-          RunningVers.getMinor().value() ==
-          RequiredVers.getMinor().value()))
+          RunningVers.getMinor().value() == RequiredVers.getMinor().value()))
       return false;
 
     auto FixRange = TRC->getAvailabilityConditionVersionSourceRange(
