@@ -156,7 +156,7 @@ static swift::_SwiftHashingParameters initializeHashingParameters() {
 }
 
 SWIFT_ALLOWED_RUNTIME_GLOBAL_CTOR_BEGIN
-swift::_SwiftHashingParameters swift::_swift_stdlib_Hashing_parameters =
+const swift::_SwiftHashingParameters swift::_swift_stdlib_Hashing_parameters =
   initializeHashingParameters();
 SWIFT_ALLOWED_RUNTIME_GLOBAL_CTOR_END
 

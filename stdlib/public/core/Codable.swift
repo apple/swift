@@ -3574,7 +3574,8 @@ public enum EncodingError: Error {
   ///
   /// As associated values, this case contains the attempted value and context
   /// for debugging.
-  case invalidValue(Any, Context)
+  @preconcurrency
+  case invalidValue(Any & Sendable, Context)
 
   // MARK: - NSError Bridging
 
