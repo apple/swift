@@ -59,7 +59,7 @@ const uint16_t SWIFTMODULE_VERSION_MAJOR = 0;
 /// it just ensures a conflict if two people change the module format.
 /// Don't worry about adhering to the 80-column limit for this line.
 const uint16_t SWIFTMODULE_VERSION_MINOR =
-    878; // immortal bit in LifetimeDependence
+    879; // Add PluginSearchOptionKind::LoadPlugin
 
 /// A standard hash seed used for all string hashes in a serialized module.
 ///
@@ -689,6 +689,7 @@ enum class PluginSearchOptionKind : uint8_t {
   ExternalPluginPath,
   LoadPluginLibrary,
   LoadPluginExecutable,
+  LoadPlugin,
 };
 using PluginSearchOptionKindField = BCFixed<3>;
 

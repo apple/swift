@@ -2018,6 +2018,13 @@ def in_process_plugin_server_path : Separate<["-"], "in-process-plugin-server-pa
   Flags<[FrontendOption, ArgumentIsPath]>,
   HelpText<"Path to dynamic library plugin server">;
 
+def load_plugin:
+  Separate<["-"], "load-plugin">, Group<plugin_search_Group>,
+  Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,
+  HelpText<"Path to a plugin library, a server to load it in, and a comma-separated "
+           "list of module names where the macro types are declared">,
+  MetaVarName<"<library-path>:<server-path>#<module-names>">;
+
 def disable_sandbox:
   Flag<["-"], "disable-sandbox">,
   Flags<[FrontendOption, DoesNotAffectIncrementalBuild]>,

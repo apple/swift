@@ -105,6 +105,9 @@ static bool validateModule(
       case swift::PluginSearchOption::Kind::LoadPluginExecutable:
         optStr = "-load-plugin-executable";
         break;
+      case swift::PluginSearchOption::Kind::LoadPlugin:
+        optStr = "-load-plugin";
+        break;
       }
       llvm::outs() << "    " << optStr << " " << opt.second << "\n";
     }

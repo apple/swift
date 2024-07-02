@@ -145,6 +145,9 @@ static bool readOptionsBlock(llvm::BitstreamCursor &cursor,
       case PluginSearchOptionKind::LoadPluginExecutable:
         optKind = PluginSearchOption::Kind::LoadPluginExecutable;
         break;
+      case PluginSearchOptionKind::LoadPlugin:
+        optKind = PluginSearchOption::Kind::LoadPlugin;
+        break;
       }
       extendedInfo.addPluginSearchOption({optKind, blobData});
       break;

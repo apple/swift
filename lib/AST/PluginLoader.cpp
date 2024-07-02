@@ -123,6 +123,14 @@ PluginLoader::getPluginMap() {
       continue;
     }
 
+    case PluginSearchOption::Kind::LoadPlugin: {
+      auto &val = entry.get<PluginSearchOption::LoadPlugin>();
+      for (auto &moduleName : val.ModuleNames) {
+        try_emplace(moduleName, val.LibraryPath, val.ServerPath);
+      }
+      continue;
+    }
+
     // '-plugin-path <library search path>'.
     case PluginSearchOption::Kind::PluginPath: {
       auto &val = entry.get<PluginSearchOption::PluginPath>();

@@ -13,6 +13,7 @@ let package = Package(
   ],
   dependencies: [
     .package(path: "../../../swift-syntax"),
+    .package(path: "../../../wasmkit"),
   ],
   targets: [
     .executableTarget(
@@ -20,6 +21,8 @@ let package = Package(
       dependencies: [
         .product(name: "_SwiftCompilerPluginMessageHandling", package: "swift-syntax"),
         .product(name: "_SwiftLibraryPluginProvider", package: "swift-syntax"),
+        .product(name: "WASI", package: "WasmKit"),
+        .product(name: "WasmKitWASI", package: "WasmKit"),
       ]
     ),
     .target(

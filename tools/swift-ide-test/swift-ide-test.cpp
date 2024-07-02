@@ -352,6 +352,11 @@ LoadPluginExecutable("load-plugin-executable",
                llvm::cl::desc("load plugin executable"),
                llvm::cl::cat(Category));
 
+static llvm::cl::list<std::string>
+LoadPlugin("load-plugin",
+           llvm::cl::desc("load plugin"),
+           llvm::cl::cat(Category));
+
 
 static llvm::cl::opt<bool>
 EnableSourceImport("enable-source-import", llvm::cl::Hidden,
@@ -4570,6 +4575,24 @@ int main(int argc, char *argv[]) {
       InitInvok.getSearchPathOptions().PluginSearchOpts.emplace_back(
           PluginSearchOption::LoadPluginExecutable{std::string(path),
                                                    std::move(moduleNames)});
+    }
+  }
+  if (!options::LoadPlugin.empty()) {
+    for (auto arg: options::LoadPlugin) {
+      StringRef pathAndServer;
+      StringRef modulesStr;
+      std::tie(pathAndServer, modulesStr) = StringRef(arg).rsplit('#');
+      StringRef path;
+      StringRef server;
+      std::tie(path, server) = pathAndServer.rsplit(':');
+      std::vector<std::string> moduleNames;
+      for (auto name : llvm::split(modulesStr, ',')) {
+        moduleNames.emplace_back(name);
+      }
+      InitInvok.getSearchPathOptions().PluginSearchOpts.emplace_back(
+        PluginSearchOption::LoadPlugin{std::string(path),
+                                       std::string(server),
+                                       std::move(moduleNames)});
     }
   }
   for (auto path : options::PluginPath) {

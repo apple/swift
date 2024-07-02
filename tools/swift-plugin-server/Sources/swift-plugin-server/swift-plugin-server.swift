@@ -19,7 +19,11 @@ final class SwiftPluginServer {
     let connection = try StandardIOMessageConnection()
     let listener = CompilerPluginMessageListener(
       connection: connection,
-      provider: LibraryPluginProvider.shared
+      messageHandler: WasmInterceptingMessageHandler(
+        base: PluginProviderMessageHandler(
+          provider: LibraryPluginProvider.shared
+        )
+      )
     )
     listener.main()
   }
