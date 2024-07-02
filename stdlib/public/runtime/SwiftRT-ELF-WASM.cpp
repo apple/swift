@@ -68,7 +68,6 @@ DECLARE_SWIFT_REFLECTION_SECTION(swift5_assocty)
 DECLARE_SWIFT_REFLECTION_SECTION(swift5_capture)
 DECLARE_SWIFT_REFLECTION_SECTION(swift5_reflstr)
 DECLARE_SWIFT_REFLECTION_SECTION(swift5_typeref)
-DECLARE_SWIFT_REFLECTION_SECTION(swift5_mpenum)
 
 DECLARE_SWIFT_SECTION(swift5_replace)
 DECLARE_SWIFT_SECTION(swift5_replac2)
@@ -109,7 +108,6 @@ static void swift_image_constructor() {
       SWIFT_SECTION_RANGE(swift5_replac2),
       SWIFT_SECTION_RANGE(swift5_builtin),
       SWIFT_SECTION_RANGE(swift5_capture),
-      SWIFT_SECTION_RANGE(swift5_mpenum),
       SWIFT_SECTION_RANGE(swift5_accessible_functions),
       SWIFT_SECTION_RANGE(swift5_runtime_attributes),
       SWIFT_SECTION_RANGE(swift5_tests),

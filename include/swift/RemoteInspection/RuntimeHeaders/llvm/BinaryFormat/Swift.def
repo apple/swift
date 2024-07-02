@@ -30,4 +30,3 @@ HANDLE_SWIFT_SECTION(protocs, "__swift5_protos", "swift5_protocols",
                      ".sw5prt$B")
 HANDLE_SWIFT_SECTION(acfuncs, "__swift5_acfuncs", "swift5_accessible_functions",
                      ".sw5acfn$B")
-HANDLE_SWIFT_SECTION(mpenum, "__swift5_mpenum", "swift5_mpenum", ".sw5mpen$B")
