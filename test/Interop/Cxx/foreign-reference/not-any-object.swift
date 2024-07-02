@@ -2,8 +2,6 @@
 // RUN: split-file %s %t
 // RUN: %target-swift-frontend -typecheck -verify -verify-ignore-unknown -I %t/Inputs  %t/test.swift  -enable-experimental-cxx-interop
 
-// REQUIRES: objc_interop
-
 //--- Inputs/module.modulemap
 module Test {
   header "test.h"
@@ -11,9 +9,7 @@ module Test {
 }
 
 //--- Inputs/test.h
-#include <stdlib.h>
-
-inline void* operator new(unsigned long, void* p) { return p; }
+#include <memory>
 
 struct __attribute__((swift_attr("import_reference")))
        __attribute__((swift_attr("retain:immortal")))
