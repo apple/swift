@@ -386,6 +386,16 @@ private func _NSStringUTF8Pointer(_ str: _StringSelectorHolder) -> UnsafePointer
   return _NSStringASCIIPointer(str)
 }
 
+@usableFromInline @_effects(readonly)
+internal func _getNSCFConstantStringContentsPointer(
+  _ cocoa: AnyObject
+) -> UnsafePointer<UInt8> {
+  return unsafeBitCast(
+    cocoa,
+    to: UnsafePointer<_swift_shims_builtin_CFString>.self
+  ).pointee.str
+}
+
 @_effects(readonly) // @opaque
 private func _withCocoaASCIIPointer<R>(
   _ str: _CocoaString,
@@ -635,6 +645,23 @@ internal func _bridgeCocoaString(_ cocoaString: _CocoaString) -> _StringGuts {
 }
 
 extension String {
+  @_spi(Foundation)
+  public init<Encoding: Unicode.Encoding>(
+    _immortalCocoaString: AnyObject,
+    count: Int,
+    encoding: Encoding.Type) {
+      //TODO: validate isa pointer, and use constant string isa pointer elsewhere
+      if encoding == Unicode.ASCII.self || encoding == Unicode.UTF8.self {
+        self._guts = _StringGuts(
+          constantCocoa: _immortalCocoaString,
+          providesFastUTF8: true,
+          isASCII: encoding == Unicode.ASCII.self,
+          length: count)
+      } else {
+        self._guts = _bridgeCocoaString(_immortalCocoaString)
+      }
+  }
+  
   @_spi(Foundation)
   public init(_cocoaString: AnyObject) {
     self._guts = _bridgeCocoaString(_cocoaString)
