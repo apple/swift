@@ -42,7 +42,8 @@ private func runMergeCondFails(function: Function, context: FunctionPassContext)
         // Do not process arithmetic overflow checks. We typically generate more
         // efficient code with separate jump-on-overflow.
         if !hasOverflowConditionOperand(cfi) &&
-           (condFailToMerge.isEmpty || cfi.message == condFailToMerge.first!.message) {
+           (condFailToMerge.isEmpty ||
+            cfi.location.hasSameSourceLocation(as: condFailToMerge.first!.location)) {
           condFailToMerge.push(cfi)
         }
       } else if inst.mayHaveSideEffects || inst.mayReadFromMemory {
