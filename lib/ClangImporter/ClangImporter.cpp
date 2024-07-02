@@ -852,6 +852,9 @@ importer::addCommonInvocationArguments(
              triple.getArch() == llvm::Triple::aarch64_be) {
       invocationArgStrs.push_back("-mcpu=apple-a7");
     }
+    else if (triple.getArch() == llvm::Triple::x86_64)
+      // The oldest Macs on which Swift 5 can be deployed have Sandy Bridge processors
+      invocationArgStrs.push_back("-mcpu=sandybridge");
   } else if (triple.getArch() == llvm::Triple::systemz) {
     invocationArgStrs.push_back("-march=z13");
   }
