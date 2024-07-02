@@ -782,15 +782,12 @@ extension String.UTF16View {
 #if SWIFT_STDLIB_ENABLE_VECTOR_TYPES
       // TODO: Currently, using SIMD sizes above SIMD8 is slower
       // Once that's fixed we should go up to SIMD64 here
-      
       utf16Count &+= _utf16Length(
         readPtr: &readPtr,
         endPtr: endPtr,
         unsignedSIMDType: SIMD8<UInt8>.self,
         signedSIMDType: SIMD8<Int8>.self
       )
-   
-      //TO CONSIDER: SIMD widths <8 here
       
       //back up to the start of the current scalar if we may have a trailing
       //incomplete scalar
@@ -910,17 +907,38 @@ extension String.UTF16View {
     if remaining == 0 { return crumb }
 
     return _guts.withFastUTF8 { utf8 in
-      var readIdx = crumb._encodedOffset
+      var utf16I = 0
+      var guessedIndex = crumb
+#if SWIFT_STDLIB_ENABLE_VECTOR_TYPES
+      if remaining >= 32 {
+        // Assumption: most UTF16 is mostly 2 code unit scalars
+        let guessedOffset = _scalarAlign(utf8, crumb._encodedOffset + remaining)
+        guessedIndex = String.Index(
+          encodedOffset: guessedOffset,
+          transcodedOffset: 0
+        )._knownUTF8
+        let actualDistance = _utf16Distance(
+          from: crumb,
+          to: guessedIndex
+        )
+        if actualDistance == remaining {
+          return guessedIndex
+        }
+        utf16I &+= actualDistance
+        _internalInvariant(actualDistance <= remaining)
+      }
+#endif
+      
+      var readIdx = guessedIndex._encodedOffset
       let readEnd = utf8.count
       _internalInvariant(readIdx < readEnd)
 
-      var utf16I = 0
       let utf16End: Int = remaining
 
       // Adjust for sub-scalar initial transcoding: If we're starting the scan
       // at a trailing surrogate, then we set our starting count to be -1 so as
       // offset counting the leading surrogate.
-      if crumb.transcodedOffset != 0 {
+      if guessedIndex.transcodedOffset != 0 {
         utf16I = -1
       }
 
@@ -944,6 +962,62 @@ extension String.UTF16View {
         }
 
         readIdx &+= len
+      }
+    }
+  }
+  
+  @inline(__always)
+  private func _transcodeASCIIScalar(
+    from utf8: UnsafeBufferPointer<UInt8>, at readIdx: inout Int,
+    to buffer: UnsafeMutableBufferPointer<UInt16>, at writeIdx: inout Int
+  ) {
+    _internalInvariant(utf8[readIdx] < 0x80)
+    buffer[_unchecked: writeIdx] = UInt16(
+      truncatingIfNeeded: utf8[_unchecked: readIdx])
+    readIdx &+= 1
+    writeIdx &+= 1
+  }
+  
+  @inline(__always)
+  private func _transcodeComplexScalar(
+    from utf8: UnsafeBufferPointer<UInt8>, at readIdx: inout Int,
+    to buffer: UnsafeMutableBufferPointer<UInt16>, at writeIdx: inout Int
+  ) {
+    let (scalar, len) = _decodeScalar(utf8, startingAt: readIdx)
+    buffer[writeIdx] = scalar.utf16[0]
+    readIdx &+= len
+    writeIdx &+= 1
+    if _slowPath(scalar.utf16.count == 2) {
+      // Note: this is intentionally not using the _unchecked subscript.
+      // (We rely on debug assertions to catch out of bounds access.)
+      buffer[writeIdx] = scalar.utf16[1]
+      writeIdx &+= 1
+    }
+  }
+  
+  // This is separated out in an attempt to convince the inliner to fully inline
+  private func _nativeCopyMiddle(
+    from utf8: UnsafeBufferPointer<UInt8>, at readIdx: inout Int, end readEnd: Int,
+    to buffer: UnsafeMutableBufferPointer<UInt16>, at writeIdx: inout Int, end writeEnd: Int
+  ) {
+    let raw = UnsafeRawPointer(utf8.baseAddress.unsafelyUnwrapped)
+    // Transcode middle
+    while readIdx &+ 7 < readEnd {
+      let word = raw.loadUnaligned(fromByteOffset: readIdx, as: UInt64.self)
+      if word & 0x8080808080808080 == 0 { //all ASCII
+        for _ in 0..<8 {
+          _transcodeASCIIScalar(
+            from: utf8, at: &readIdx,
+            to: buffer, at: &writeIdx
+          )
+        }
+      } else {
+        for _ in 0..<8 where readIdx < readEnd {
+          _transcodeComplexScalar(
+            from: utf8, at: &readIdx,
+            to: buffer, at: &writeIdx
+          )
+        }
       }
     }
   }
@@ -975,11 +1049,10 @@ extension String.UTF16View {
         _internalInvariant(range.lowerBound.transcodedOffset == 0)
         _internalInvariant(range.upperBound.transcodedOffset == 0)
         while readIdx < readEnd {
-          _internalInvariant(utf8[readIdx] < 0x80)
-          buffer[_unchecked: writeIdx] = UInt16(
-            truncatingIfNeeded: utf8[_unchecked: readIdx])
-          readIdx &+= 1
-          writeIdx &+= 1
+          _transcodeASCIIScalar(
+            from: utf8, at: &readIdx,
+            to: buffer, at: &writeIdx
+          )
         }
         return
       }
@@ -995,20 +1068,18 @@ extension String.UTF16View {
         writeIdx &+= 1
       }
 
-      // Transcode middle
+      _nativeCopyMiddle(
+        from: utf8, at: &readIdx, end: readEnd,
+        to: buffer, at: &writeIdx, end: writeEnd
+      )
+      
       while readIdx < readEnd {
-        let (scalar, len) = _decodeScalar(utf8, startingAt: readIdx)
-        buffer[writeIdx] = scalar.utf16[0]
-        readIdx &+= len
-        writeIdx &+= 1
-        if _slowPath(scalar.utf16.count == 2) {
-          // Note: this is intentionally not using the _unchecked subscript.
-          // (We rely on debug assertions to catch out of bounds access.)
-          buffer[writeIdx] = scalar.utf16[1]
-          writeIdx &+= 1
-        }
+        _transcodeComplexScalar(
+          from: utf8, at: &readIdx,
+          to: buffer, at: &writeIdx
+        )
       }
-
+      
       // Handle mid-transcoded-scalar final index
       if _slowPath(range.upperBound.transcodedOffset == 1) {
         _internalInvariant(writeIdx < writeEnd)
