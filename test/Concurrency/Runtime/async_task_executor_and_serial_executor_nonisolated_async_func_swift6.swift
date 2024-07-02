@@ -1,4 +1,7 @@
-// RUN: %target-run-simple-swift( -Xfrontend -disable-availability-checking %import-libdispatch -parse-as-library )
+// RUN: %empty-directory(%t)
+// RUN: %target-build-swift -Xfrontend -disable-availability-checking %import-libdispatch -parse-as-library %s -o %t/a.out
+// RUN: %target-codesign %t/a.out
+// RUN: %env-SWIFT_IS_CURRENT_EXECUTOR_LEGACY_MODE_OVERRIDE=swift6 %target-run %t/a.out
 
 // REQUIRES: executable_test
 // REQUIRES: concurrency
@@ -27,6 +30,11 @@ final class NaiveQueueExecutor: TaskExecutor, SerialExecutor {
     }
   }
 
+  public func checkIsolated() {
+    print("\(Self.self).\(#function)")
+    dispatchPrecondition(condition: .onQueue(self.queue))
+  }
+
   @inlinable
   public func asUnownedSerialExecutor() -> UnownedSerialExecutor {
     UnownedSerialExecutor(complexEquality: self)
@@ -40,22 +48,33 @@ final class NaiveQueueExecutor: TaskExecutor, SerialExecutor {
 
 nonisolated func nonisolatedFunc(expectedExecutor: NaiveQueueExecutor) async {
   dispatchPrecondition(condition: .onQueue(expectedExecutor.queue))
-  expectedExecutor.assertIsolated()
+  expectedExecutor.preconditionIsolated()
 }
 
-actor Worker {
-  let executor: NaiveQueueExecutor
+actor DefaultActor {
 
-  init(on executor: NaiveQueueExecutor) {
-    self.executor = executor
-  }
+  func testWithTaskExecutorPreferenceTask(_ expectedExecutor: NaiveQueueExecutor) async {
+    withUnsafeCurrentTask { task in
+      precondition(task?.unownedTaskExecutor != nil, "This test expects to be called with a task executor preference")
+    }
 
-  func test(_ expectedExecutor: NaiveQueueExecutor) async {
-    // we are isolated to the serial-executor (!)
+    // we always must be on the "self" isolation context
+    self.preconditionIsolated() // baseline soundness check
+
+    // we are on this queue because we were invoked with a task executor preference
     dispatchPrecondition(condition: .onQueue(expectedExecutor.queue))
+
+    // This one is surprising but correct because this executor is both a serial executor,
+    // and task executor... we are executing on the right queue, and all serial comparisons
+    // fail, so we end up calling into `checkIsolated()` which happens to detect "i'm on the right queue",
+    // and thus, we determine we are isolated properly.
+    //
+    // It's true in the sense that nothing else should be executing on this serial executor,
+    // since that's the contract of a serial executor after all -- so this serial AND task executor
+    // must actually uphold the "only one thing executes on me at a time" guarantee, making this correct.
     expectedExecutor.preconditionIsolated()
 
-    // the nonisolated async func properly executes on the task-executor
+    // calling a nonisolated async func properly executes on the task-executor
     await nonisolatedFunc(expectedExecutor: expectedExecutor)
 
     // the task-executor preference is inherited properly:
@@ -80,12 +99,12 @@ actor Worker {
 @main struct Main {
 
   static func main() async {
-    let queue = DispatchQueue(label: "example-queue")
-    let executor = NaiveQueueExecutor(queue)
+    let executor = NaiveQueueExecutor(DispatchQueue(label: "example-queue"))
+
+    let actor = DefaultActor()
 
     await Task(executorPreference: executor) {
-      let worker = Worker(on: executor)
-      await worker.test(executor)
+      await actor.testWithTaskExecutorPreferenceTask(executor)
     }.value
   }
 }

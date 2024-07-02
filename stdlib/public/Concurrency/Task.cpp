@@ -369,9 +369,14 @@ static SerialExecutorRef executorForEnqueuedJob(Job *job) {
   void *jobQueue = job->SchedulerPrivate[Job::DispatchQueueIndex];
   if (jobQueue == DISPATCH_QUEUE_GLOBAL_EXECUTOR) {
     return SerialExecutorRef::generic();
-  } else
-    return SerialExecutorRef::forOrdinary(reinterpret_cast<HeapObject*>(jobQueue),
-                    _swift_task_getDispatchQueueSerialExecutorWitnessTable());
+  }
+
+  if (auto identity = reinterpret_cast<HeapObject *>(jobQueue)) {
+    return SerialExecutorRef::forOrdinary(
+        identity, _swift_task_getDispatchQueueSerialExecutorWitnessTable());
+  }
+
+  return SerialExecutorRef::generic();
 #endif
 }
 

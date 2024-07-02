@@ -145,8 +145,10 @@ public struct UnownedJob: Sendable {
   ///
   /// This operation consumes the job, preventing it accidental use after it has been run.
   ///
-  /// Converting a `ExecutorJob` to an ``UnownedJob`` and invoking ``UnownedJob/runSynchronously(_:)` on it multiple times is undefined behavior,
-  /// as a job can only ever be run once, and must not be accessed after it has been run.
+  /// Converting a `ExecutorJob` to an ``UnownedJob`` and invoking
+  /// ``UnownedJob/runSynchronously(isolatedTo:taskExecutor:)` on it multiple times
+  /// is undefined behavior, as a job can only ever be run once, and must not be
+  /// accessed after it has been run.
   ///
   /// - Parameter serialExecutor: the executor this job will be semantically running on.
   /// - Parameter taskExecutor: the task executor this job will be run on.
@@ -357,9 +359,6 @@ extension ExecutorJob {
   /// and should be the same executor as the one semantically calling the `runSynchronously` method.
   ///
   /// This operation consumes the job, preventing it accidental use after it has been run.
-  ///
-  /// Converting a `ExecutorJob` to an ``UnownedJob`` and invoking ``UnownedJob/runSynchronously(_:)` on it multiple times is undefined behavior,
-  /// as a job can only ever be run once, and must not be accessed after it has been run.
   ///
   /// - Parameter serialExecutor: the executor this job will be semantically running on.
   /// - Parameter taskExecutor: the task executor this job will be run on.

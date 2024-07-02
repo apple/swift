@@ -124,6 +124,12 @@ public:
     return Identity;
   }
 
+  const char* getIdentityDebugName() const {
+    return isMainExecutor() ? " (MainActorExecutor)"
+           : isGeneric()    ? " (GenericExecutor)"
+                            : "";
+  }
+
   /// Is this the generic executor reference?
   bool isGeneric() const {
     return Identity == 0;
@@ -232,6 +238,10 @@ public:
         static_cast<uintptr_t>(TaskExecutorKind::Ordinary);
     return TaskExecutorRef(identity, wtable);
   }
+
+  /// If the job is an 'AsyncTask' return its task executor preference,
+  /// otherwise return 'undefined', meaning "no preference".
+  static TaskExecutorRef fromTaskExecutorPreference(Job *job);
 
   HeapObject *getIdentity() const {
     return Identity;
