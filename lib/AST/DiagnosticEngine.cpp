@@ -171,6 +171,8 @@ static constexpr auto educationalNotes = _EducationalNotes.value;
 DiagnosticState::DiagnosticState() {
   // Initialize our ignored diagnostics to default
   ignoredDiagnostics.resize(LocalDiagID::NumDiags);
+  // Initialize warningsAsErrorsExceptions to default
+  warningsAsErrorsExceptions.resize(LocalDiagID::NumDiags);
 }
 
 static CharSourceRange toCharSourceRange(SourceManager &SM, SourceRange SR) {
@@ -507,6 +509,13 @@ bool DiagnosticEngine::finishProcessing() {
     hadError |= Consumer->finishProcessing();
   }
   return hadError;
+}
+
+void DiagnosticEngine::setWarningsAsErrorsExceptions(
+    std::unordered_set<std::string> exceptions) {
+  for (uint32_t id = 0; id < LocalDiagID::NumDiags; id++)
+    if (exceptions.find(diagnosticIDStrings[id]) != exceptions.end())
+      state.setWarningAsErrorException((DiagID)id, true);
 }
 
 /// Skip forward to one of the given delimiters.
@@ -1183,7 +1192,7 @@ DiagnosticBehavior DiagnosticState::determineBehavior(const Diagnostic &diag) {
   //   4) If the user substituted a different behavior for this behavior, apply
   //      that change
   if (lvl == DiagnosticBehavior::Warning) {
-    if (warningsAsErrors)
+    if (warningsAsErrors && !warningsAsErrorsExceptions[(unsigned)diag.getID()])
       lvl = DiagnosticBehavior::Error;
     if (suppressWarnings)
       lvl = DiagnosticBehavior::Ignore;

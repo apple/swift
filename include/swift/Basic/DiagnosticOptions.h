@@ -14,6 +14,7 @@
 #define SWIFT_BASIC_DIAGNOSTICOPTIONS_H
 
 #include "llvm/ADT/Hashing.h"
+#include <unordered_set>
 
 namespace swift {
 
@@ -60,6 +61,9 @@ public:
 
   /// Treat all warnings as errors
   bool WarningsAsErrors = false;
+
+  /// Don't treat these warnings as errors when WarningsAsErrors=true
+  std::unordered_set<std::string> WarningsAsErrorsExceptions;
 
   /// When printing diagnostics, include the diagnostic name (diag::whatever) at
   /// the end.
