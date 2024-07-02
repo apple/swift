@@ -220,6 +220,10 @@ operator()(CanType dependentType, Type conformingReplacementType,
 ProtocolConformanceRef LookUpConformanceInSubstitutionMap::
 operator()(CanType dependentType, Type conformingReplacementType,
            ProtocolDecl *conformedProtocol) const {
+  auto result = Subs.lookupConformance(dependentType, conformedProtocol);
+  if (!result.isInvalid())
+    return result;
+
   // Lookup conformances for archetypes that conform concretely
   // via a superclass.
   if (auto archetypeType = conformingReplacementType->getAs<ArchetypeType>()) {
@@ -227,7 +231,18 @@ operator()(CanType dependentType, Type conformingReplacementType,
         conformingReplacementType, conformedProtocol,
         /*allowMissing=*/true);
   }
-  return Subs.lookupConformance(dependentType, conformedProtocol);
+
+  // Otherwise, the original type might be fixed to a concrete type in
+  // the substitution map's input generic signature.
+  if (auto genericSig = Subs.getGenericSignature()) {
+    if (genericSig->isConcreteType(dependentType)) {
+      return conformedProtocol->getModuleContext()->lookupConformance(
+          conformingReplacementType, conformedProtocol,
+          /*allowMissing=*/true);
+    }
+  }
+
+  return ProtocolConformanceRef::forInvalid();
 }
 
 ProtocolConformanceRef MakeAbstractConformanceForGenericType::

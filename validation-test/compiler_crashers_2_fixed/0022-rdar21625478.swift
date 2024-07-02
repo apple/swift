@@ -1,11 +1,5 @@
 // RUN: %target-swift-frontend %s -emit-silgen
 
-// rdar://80395274 tracks getting this to pass with the requirement machine.
-// XFAIL: *
-
-// The test hangs in a noassert build:
-// REQUIRES: asserts
-
 import StdlibUnittest
 
 public struct MyRange<Bound : ForwardIndex> {
