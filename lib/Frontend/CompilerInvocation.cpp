@@ -2986,7 +2986,10 @@ static bool ParseIRGenArgs(IRGenOptions &Opts, ArgList &Args,
   if (Args.hasArg(OPT_trap_function))
     Opts.TrapFuncName = Args.getLastArgValue(OPT_trap_function).str();
 
-  Opts.FunctionSections = Args.hasArg(OPT_function_sections);
+  Opts.FunctionSections =
+      (Triple.getObjectFormat() == llvm::Triple::ObjectFormatType::ELF);
+  Opts.FunctionSections = Args.hasFlag(
+      OPT_function_sections, OPT_no_function_sections, Opts.FunctionSections);
 
   if (Args.hasArg(OPT_autolink_force_load))
     Opts.ForceLoadSymbolName = Args.getLastArgValue(OPT_module_link_name).str();

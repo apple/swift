@@ -604,6 +604,10 @@ def function_sections: Flag<["-"], "function-sections">,
   Flags<[FrontendOption, NoInteractiveOption]>,
   HelpText<"Emit functions to separate sections.">;
 
+def no_function_sections: Flag<["-"], "no-function-sections">,
+  Flags<[FrontendOption, NoInteractiveOption]>,
+  HelpText<"Do not emit functions to separate sections.">;
+
 def enable_single_module_llvm_emission: Flag<["-"], "enable-single-module-llvm-emission">,
   Flags<[FrontendOption, NoInteractiveOption]>,
   HelpText<"Emit LLVM IR into a single LLVM module in multithreaded mode.">;
