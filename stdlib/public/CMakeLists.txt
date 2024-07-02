@@ -205,6 +205,11 @@ if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB_CROSS_COMPILING)
     list(APPEND EMBEDDED_STDLIB_TARGET_TRIPLES
       "i686    i686-unknown-none-elf       i686-unknown-none-elf"
       "x86_64  x86_64-unknown-none-elf     x86_64-unknown-none-elf"
+
+      # Without specifying the `windows` component LLVM refuses to
+      # generate valid COFF object files.
+      "i686    i686-unknown-windows-coff   i686-unknown-windows-coff"
+      "x86_64  x86_64-unknown-windows-coff x86_64-unknown-windows-coff"
     )
   endif()
 
@@ -232,8 +237,6 @@ if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB)
     )
   elseif (SWIFT_HOST_VARIANT STREQUAL "windows")
     list(APPEND EMBEDDED_STDLIB_TARGET_TRIPLES
-      # Without specifying the `windows` component LLVM refuses to
-      # generate valid COFF object files.
       "i686    i686-unknown-windows-msvc   i686-unknown-windows-msvc"
       "x86_64  x86_64-unknown-windows-msvc x86_64-unknown-windows-msvc"
     )
