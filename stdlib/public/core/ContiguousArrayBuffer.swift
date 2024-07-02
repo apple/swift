@@ -724,7 +724,7 @@ internal struct _ContiguousArrayBuffer<Element>: _ArrayBufferProtocol {
   /// just-initialized memory.
   @inlinable
   @discardableResult
-  internal __consuming func _copyContents(
+  internal consuming func _copyContents(
     subRange bounds: Range<Int>,
     initializing target: UnsafeMutablePointer<Element>
   ) -> UnsafeMutablePointer<Element> {
@@ -733,21 +733,46 @@ internal struct _ContiguousArrayBuffer<Element>: _ArrayBufferProtocol {
     _internalInvariant(bounds.upperBound <= count)
 
     let initializedCount = bounds.upperBound - bounds.lowerBound
-    target.initialize(
-      from: firstElementAddress + bounds.lowerBound, count: initializedCount)
+    
+    //Future: we could relax the count requirement, but we'd need to handle
+    //incompletely consuming the buffer rather than just setting it to the
+    //empty buffer singleton
+//    if !_isPOD(Element.self) && self.count == initializedCount && beginCOWMutation() {
+//      target.moveInitialize(
+//        from: firstElementAddress + bounds.lowerBound, count: initializedCount)
+//      _storage = _emptyArrayStorage
+//      endCOWMutation()
+//    } else {
+      target.initialize(
+        from: firstElementAddress + bounds.lowerBound, count: initializedCount)
+//    }
     _fixLifetime(owner)
     return target + initializedCount
   }
 
   @inlinable
-  internal __consuming func _copyContents(
+  internal consuming func _copyContents(
     initializing buffer: UnsafeMutableBufferPointer<Element>
   ) -> (Iterator, UnsafeMutableBufferPointer<Element>.Index) {
     guard buffer.count > 0 else { return (makeIterator(), 0) }
+    
     let c = Swift.min(self.count, buffer.count)
-    buffer.baseAddress!.initialize(
-      from: firstElementAddress,
-      count: c)
+    //Future: we could relax the count requirement, but we'd need to handle
+    //incompletely consuming the buffer rather than just setting it to the
+    //empty buffer singleton
+//    if !_isPOD(Element.self) && self.count == buffer.count && beginCOWMutation() {
+//      buffer.baseAddress!.moveInitialize(
+//        from: firstElementAddress,
+//        count: buffer.count
+//      )
+//      _storage = _emptyArrayStorage
+//      endCOWMutation()
+//    } else {
+      buffer.baseAddress!.initialize(
+        from: firstElementAddress,
+        count: c)
+//    }
+    
     _fixLifetime(owner)
     return (IndexingIterator(_elements: self, _position: c), c)
   }

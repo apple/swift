@@ -1216,22 +1216,12 @@ extension ContiguousArray {
 
     // It is not OK for there to be no pointer/not enough space, as this is
     // a precondition and Array never lies about its count.
-    guard var p = buffer.baseAddress
+    guard let p = buffer.baseAddress
       else { _preconditionFailure("Attempt to copy contents into nil buffer pointer") }
     _precondition(self.count <= buffer.count, 
       "Insufficient space allocated to copy array contents")
 
-    if let s = _baseAddressIfContiguous {
-      p.initialize(from: s, count: self.count)
-      // Need a _fixLifetime bracketing the _baseAddressIfContiguous getter
-      // and all uses of the pointer it returns:
-      _fixLifetime(self._owner)
-    } else {
-      for x in self {
-        p.initialize(to: x)
-        p += 1
-      }
-    }
+    _buffer._copyContents(subRange: _buffer.indices, initializing: p)
 
     var it = IndexingIterator(_elements: self)
     it._position = endIndex
