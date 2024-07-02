@@ -49,6 +49,11 @@
 #include <psapi.h>
 #endif
 
+#ifdef __linux__
+// Needed for 'readlink'.
+#include <unistd.h>
+#endif
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>

@@ -127,9 +127,9 @@ if(SWIFT_SHOULD_BUILD_EMBEDDED_STDLIB)
   endforeach()
 endif()
 
-set(swiftGlibc_target_sdks ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU)
+set(swiftGlibc_target_sdks CYGWIN FREEBSD OPENBSD LINUX HAIKU)
 if(SWIFT_FREESTANDING_FLAVOR STREQUAL "linux")
-  set(swiftGlibc_target_sdks ANDROID CYGWIN FREEBSD OPENBSD LINUX HAIKU FREESTANDING)
+  set(swiftGlibc_target_sdks CYGWIN FREEBSD OPENBSD LINUX HAIKU FREESTANDING)
 endif()
 add_swift_target_library(swiftGlibc ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
     ${swift_platform_sources}
@@ -273,12 +273,42 @@ add_custom_target(musl_modulemap DEPENDS ${musl_modulemap_target_list})
 set_property(TARGET musl_modulemap PROPERTY FOLDER "Miscellaneous")
 add_dependencies(sdk-overlay musl_modulemap)
 
+# Add a system 'math' module overlay, which applies only to platforms that
+# have a top level '_math' module.
+add_swift_target_library(swift_math ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
+    Math.swift
+
+    SWIFT_COMPILE_FLAGS
+      ${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}
+      ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
+      ${swift_platform_compile_flags}
+    LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
+    TARGET_SDKS "ANDROID"
+    INSTALL_IN_COMPONENT sdk-overlay
+    DEPENDS android_modulemap)
+
+add_swift_target_library(swiftAndroid ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES} IS_SDK_OVERLAY
+    Android.swift
+    ${swift_platform_sources}
+    POSIXError.swift
+
+    GYB_SOURCES
+      ${swift_platform_gyb_sources}
+
+    SWIFT_COMPILE_FLAGS
+      ${SWIFT_RUNTIME_SWIFT_COMPILE_FLAGS}
+      ${SWIFT_STANDARD_LIBRARY_SWIFT_FLAGS}
+      ${swift_platform_compile_flags}
+    LINK_FLAGS "${SWIFT_RUNTIME_SWIFT_LINK_FLAGS}"
+    TARGET_SDKS "ANDROID"
+    INSTALL_IN_COMPONENT sdk-overlay
+    DEPENDS android_modulemap)
+
 set(glibc_modulemap_target_list)
 foreach(sdk ${SWIFT_SDKS})
   if(NOT "${sdk}" STREQUAL "LINUX" AND
      NOT "${sdk}" STREQUAL "FREEBSD" AND
      NOT "${sdk}" STREQUAL "OPENBSD" AND
-     NOT "${sdk}" STREQUAL "ANDROID" AND
      NOT "${sdk}" STREQUAL "CYGWIN" AND
      NOT "${sdk}" STREQUAL "HAIKU")
     continue()
@@ -334,11 +364,9 @@ foreach(sdk ${SWIFT_SDKS})
         ${copy_glibc_modulemap_header_static})
     endif()
 
-    # If this SDK is a target for a non-native host, except if it's for Android
-    # with its own native sysroot, create a native modulemap without a sysroot
-    # prefix. This is the one we'll install instead.
-    if(NOT "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_ARCH_${arch}_PATH}" STREQUAL "/" AND
-       NOT (sdk STREQUAL "ANDROID" AND NOT "${SWIFT_ANDROID_NATIVE_SYSROOT}" STREQUAL ""))
+    # If this SDK is a target for a non-native host, create a native modulemap
+    # without a sysroot prefix. This is the one we'll install instead.
+    if(NOT "${SWIFT_SDK_${SWIFT_HOST_VARIANT_SDK}_ARCH_${arch}_PATH}" STREQUAL "/")
       set(glibc_sysroot_relative_modulemap_out "${module_dir}/sysroot-relative-modulemaps/glibc.modulemap")
 
       handle_gyb_source_single(glibc_modulemap_native_target
@@ -375,6 +403,79 @@ endforeach()
 add_custom_target(glibc_modulemap DEPENDS ${glibc_modulemap_target_list})
 set_property(TARGET glibc_modulemap PROPERTY FOLDER "Miscellaneous")
 add_dependencies(sdk-overlay glibc_modulemap)
+
+set(android_modulemap_target_list)
+if("ANDROID" IN_LIST SWIFT_SDKS)
+  set(android_modulemap_source "android.modulemap")
+  set(android_ndk_header_source "SwiftAndroidNDK.h")
+  set(android_bionic_header_source "SwiftBionic.h")
+
+  foreach(arch ${SWIFT_SDK_ANDROID_ARCHITECTURES})
+    set(arch_subdir "${SWIFT_SDK_ANDROID_LIB_SUBDIR}/${arch}")
+    set(module_dir "${SWIFTLIB_DIR}/${arch_subdir}")
+    set(module_dir_static "${SWIFTSTATICLIB_DIR}/${arch_subdir}")
+
+    add_custom_command_target(
+      copy_android_modulemap_resource
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir} ${module_dir_static}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy_if_different"
+          "${CMAKE_CURRENT_SOURCE_DIR}/${android_modulemap_source}" ${module_dir}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy_if_different"
+          "${CMAKE_CURRENT_SOURCE_DIR}/${android_modulemap_source}" ${module_dir_static}
+      OUTPUT ${module_dir}/${android_modulemap_source} ${module_dir_static}/${android_modulemap_source}
+      COMMENT "Copying Android modulemap to resource directories")
+    add_custom_command_target(
+      copy_android_ndk_header_resource
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir} ${module_dir_static}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy_if_different"
+          "${CMAKE_CURRENT_SOURCE_DIR}/${android_ndk_header_source}" ${module_dir}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy_if_different"
+          "${CMAKE_CURRENT_SOURCE_DIR}/${android_ndk_header_source}" ${module_dir_static}
+      OUTPUT ${module_dir}/${android_ndk_header_source} ${module_dir_static}/${android_ndk_header_source}
+      COMMENT "Copying Android NDK header to resource directories")
+    add_custom_command_target(
+      copy_android_bionic_header_resource
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "make_directory" ${module_dir} ${module_dir_static}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy_if_different"
+          "${CMAKE_CURRENT_SOURCE_DIR}/${android_bionic_header_source}" ${module_dir}
+      COMMAND
+        "${CMAKE_COMMAND}" "-E" "copy_if_different"
+          "${CMAKE_CURRENT_SOURCE_DIR}/${android_bionic_header_source}" ${module_dir_static}
+      OUTPUT ${module_dir}/${android_bionic_header_source} ${module_dir_static}/${android_bionic_header_source}
+      COMMENT "Copying Android NDK header to resource directories")
+
+    add_dependencies(sdk-overlay ${copy_android_modulemap_resource}
+                                 ${copy_android_ndk_header_resource}
+                                 ${copy_android_bionic_header_resource})
+    list(APPEND android_modulemap_target_list ${copy_android_modulemap_resource}
+                                              ${copy_android_ndk_header_resource}
+                                              ${copy_android_bionic_header_resource})
+
+    swift_install_in_component(FILES "${android_modulemap_source}"
+                                     "${android_ndk_header_source}"
+                                     "${android_bionic_header_source}"
+                               DESTINATION "lib/swift/${arch_subdir}"
+                               COMPONENT sdk-overlay)
+    if(SWIFT_BUILD_STATIC_STDLIB)
+      swift_install_in_component(FILES "${android_modulemap_source}"
+                                       "${android_ndk_header_source}"
+                                       "${android_bionic_header_source}"
+                                 DESTINATION "lib/swift_static/${arch_subdir}"
+                                 COMPONENT sdk-overlay)
+    endif()
+  endforeach()
+endif()
+add_custom_target(android_modulemap DEPENDS ${android_modulemap_target_list})
+set_property(TARGET android_modulemap PROPERTY FOLDER "Miscellaneous")
+add_dependencies(sdk-overlay android_modulemap)
 
 set(wasilibc_modulemap_target_list)
 if("WASI" IN_LIST SWIFT_SDKS)

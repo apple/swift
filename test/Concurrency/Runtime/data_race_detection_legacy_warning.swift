@@ -25,6 +25,8 @@ import Dispatch
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Android)
+import Android
 #endif
 
 @MainActor func onMainActor() {
@@ -66,14 +68,14 @@ actor MyActor {
 struct Runner {
   static func main() async {
     print("Launching a main-actor task")
-    // CHECK: data race detected: @MainActor function at main/data_race_detection_legacy_warning.swift:30 was not called on the main thread
+    // CHECK: data race detected: @MainActor function at main/data_race_detection_legacy_warning.swift:32 was not called on the main thread
     launchFromMainThread()
     sleep(1)
 
     let actor = MyActor()
     let actorFn = await actor.getTaskOnMyActor()
     print("Launching an actor-instance task")
-    // CHECK: data race detected: actor-isolated function at main/data_race_detection_legacy_warning.swift:59 was not called on the same actor
+    // CHECK: data race detected: actor-isolated function at main/data_race_detection_legacy_warning.swift:61 was not called on the same actor
     launchTask(actorFn)
 
     sleep(1)

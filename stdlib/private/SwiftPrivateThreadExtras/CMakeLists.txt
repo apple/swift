@@ -19,6 +19,7 @@ add_swift_target_library(swiftSwiftPrivateThreadExtras ${SWIFT_STDLIB_LIBRARY_BU
   SWIFT_MODULE_DEPENDS_XROS ${swift_private_thread_extras_darwin_depencencies}
   SWIFT_MODULE_DEPENDS_MACCATALYST ${swift_private_thread_extras_darwin_depencencies}
   SWIFT_MODULE_DEPENDS_FREESTANDING "${SWIFT_FREESTANDING_TEST_DEPENDENCIES}"
+  SWIFT_MODULE_DEPENDS_ANDROID Android
   SWIFT_MODULE_DEPENDS_LINUX Glibc
   SWIFT_MODULE_DEPENDS_LINUX_STATIC Musl
   SWIFT_MODULE_DEPENDS_FREEBSD Glibc

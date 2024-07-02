@@ -8,6 +8,8 @@ import StdlibUnittest
   import Glibc
 #elseif os(Windows)
   import MSVCRT
+#elseif canImport(Android)
+  import Android
 #else
 #error("Unsupported platform")
 #endif

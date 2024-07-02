@@ -18,6 +18,8 @@ import Darwin
 import Glibc
 #elseif canImport(Musl)
 import Musl
+#elseif canImport(Android)
+import Android
 #elseif os(Windows)
 import WinSDK
 #endif

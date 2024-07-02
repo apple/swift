@@ -10,6 +10,7 @@ add_swift_target_library(swiftStdlibUnicodeUnittest ${SWIFT_STDLIB_LIBRARY_BUILD
   WordBreaking.swift
 
   SWIFT_MODULE_DEPENDS StdlibUnittest
+  SWIFT_MODULE_DEPENDS_ANDROID Android
   SWIFT_MODULE_DEPENDS_LINUX Glibc
   SWIFT_MODULE_DEPENDS_FREEBSD Glibc
   SWIFT_MODULE_DEPENDS_OPENBSD Glibc

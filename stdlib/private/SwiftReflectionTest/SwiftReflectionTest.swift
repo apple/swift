@@ -131,6 +131,8 @@ import SwiftShims
 import Glibc
 #elseif canImport(Musl)
 import Musl
+#elseif canImport(Android)
+import Android
 #endif
 
 let rtldDefault: UnsafeMutableRawPointer? = nil

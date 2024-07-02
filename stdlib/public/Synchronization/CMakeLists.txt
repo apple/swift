@@ -46,7 +46,7 @@ set(SWIFT_SYNCHRONIZATION_DARWIN_SOURCES
   Mutex/Mutex.swift
 )
 
-# Linux sources
+# Linux and Android sources
 
 set(SWIFT_SYNCHRONIZATION_LINUX_SOURCES
   Mutex/LinuxImpl.swift
@@ -115,6 +115,8 @@ add_swift_target_library(swiftSynchronization ${SWIFT_STDLIB_LIBRARY_BUILD_TYPES
     ${SWIFT_SYNCHRONIZATION_DARWIN_DEPENDENCIES}
   SWIFT_MODULE_DEPENDS_LINUX
     Glibc
+  SWIFT_MODULE_DEPENDS_ANDROID
+    Android
   SWIFT_MODULE_DEPENDS_WINDOWS
     WinSDK
 

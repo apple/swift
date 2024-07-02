@@ -22,6 +22,8 @@ import StdlibUnittest
   import Darwin
 #elseif canImport(Glibc)
   import Glibc
+#elseif canImport(Android)
+  import Android
 #elseif os(Windows)
   import CRT
 #else

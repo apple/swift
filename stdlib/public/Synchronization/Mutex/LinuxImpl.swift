@@ -11,7 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 import _SynchronizationShims
+#if canImport(Android)
+import Android
+#else
 import Glibc
+#endif
 
 extension Atomic where Value == UInt32 {
   // This returns 'false' on success and 'true' on error. Check 'errno' for the

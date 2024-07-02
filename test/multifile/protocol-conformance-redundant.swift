@@ -17,6 +17,8 @@ import StdlibUnittest
 import Darwin
 #elseif canImport(Glibc)
 import Glibc
+#elseif canImport(Android)
+import Android
 #else
 #error("Unsupported platform")
 #endif

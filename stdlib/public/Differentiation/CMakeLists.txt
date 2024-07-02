@@ -42,6 +42,7 @@ add_swift_target_library(swift_Differentiation ${SWIFT_STDLIB_LIBRARY_BUILD_TYPE
   SWIFT_MODULE_DEPENDS_TVOS ${swiftDifferentiationDarwinDependencies}
   SWIFT_MODULE_DEPENDS_WATCHOS ${swiftDifferentiationDarwinDependencies}
   SWIFT_MODULE_DEPENDS_XROS ${swiftDifferentiationDarwinDependencies}
+  SWIFT_MODULE_DEPENDS_ANDROID Android
   SWIFT_MODULE_DEPENDS_LINUX Glibc
   SWIFT_MODULE_DEPENDS_LINUX_STATIC Musl
   SWIFT_MODULE_DEPENDS_FREEBSD Glibc

@@ -16,6 +16,8 @@ import StdlibUnittest
     import Darwin
 #elseif canImport(Glibc)
     import Glibc
+#elseif canImport(Android)
+    import Android
 #endif
 
 var asyncTests = TestSuite("Async")

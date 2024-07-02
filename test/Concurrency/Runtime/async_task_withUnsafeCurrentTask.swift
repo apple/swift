@@ -10,6 +10,8 @@
 import Glibc
 #elseif os(Windows)
 import MSVCRT
+#elseif canImport(Android)
+import Android
 #else
 import Darwin
 #endif

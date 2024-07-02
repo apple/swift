@@ -18,12 +18,14 @@ import Swift
   import Darwin.C.tgmath
 #elseif canImport(Musl)
   import Musl
-#elseif os(Linux) || os(FreeBSD) || os(OpenBSD) || os(PS4) || os(Android) || os(Cygwin) || os(Haiku)
+#elseif os(Linux) || os(FreeBSD) || os(OpenBSD) || os(PS4) || os(Cygwin) || os(Haiku)
   import Glibc
 #elseif os(WASI)
   import WASILibc
 #elseif os(Windows)
   import CRT
+#elseif canImport(Android)
+  import Android
 #else
 #error("Unsupported platform")
 #endif
