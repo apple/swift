@@ -4568,6 +4568,11 @@ NOTE(note_in_opening_pack_element,none,
 ERROR(type_of_expression_is_ambiguous,none,
       "type of expression is ambiguous without a type annotation", ())
 
+ERROR(multiple_potential_errors,none,
+      "found multiple potential errors", ())
+ERROR(potential_error,none,
+      "found potential error", ())
+
 ERROR(failed_to_produce_diagnostic,Fatal,
       "failed to produce diagnostic for expression; "
       SWIFT_BUG_REPORT_MESSAGE, ())

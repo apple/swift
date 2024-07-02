@@ -14,6 +14,7 @@ extension Array : P {}
 
 public struct S4<T> {
   init<S : P>(_ x: S) where S.Element == T {}
+  // expected-note@-1 2 {{where 'T' = '(outer: Int, y: Int)', 'S.Element' = 'Array<(inner: Int, y: Int)>.Element' (aka '(inner: Int, y: Int)')}}
   init(_ x: Int) {}
 }
 
@@ -29,5 +30,8 @@ extension S4 where T == (outer: Int, y: Int) {
 
 public func rdar85263844_2(_ x: [Int]) -> S4<(outer: Int, y: Int)> {
   // FIXME: Bad error message.
-  S4(x.map { (inner: $0, y: $0) }) // expected-error {{type of expression is ambiguous without a type annotation}}
+  S4(x.map { (inner: $0, y: $0) }) // expected-error {{found multiple potential errors}}
+  // expected-note@-1 2 {{initializer 'init(_:)' requires the types '(outer: Int, y: Int)' and 'Array<(inner: Int, y: Int)>.Element' (aka '(inner: Int, y: Int)') be equivalent}}
+  // expected-note@-2 2 {{cannot convert value of type '[(inner: Int, y: Int)]' to expected argument type '[(outer: Int, y: Int)]'}}
+  // expected-note@-3 2 {{arguments to generic parameter 'Element' ('(inner: Int, y: Int)' and '(outer: Int, y: Int)') are expected to be equal}}
 }

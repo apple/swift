@@ -4702,8 +4702,11 @@ SolutionResult ConstraintSystem::salvage() {
 
     // Remove solutions that require fixes; the fixes in those systems should
     // be diagnosed rather than any ambiguity.
-    auto hasFixes = [](const Solution &sol) { return !sol.Fixes.empty(); };
-    auto newEnd = std::remove_if(viable.begin(), viable.end(), hasFixes);
+    auto hasNoFixes = [](const Solution &sol) { return sol.Fixes.empty(); };
+    auto newEnd = std::partition(viable.begin(), viable.end(), hasNoFixes);
+    SmallVector<Solution, 2> fixes(
+        std::make_move_iterator(newEnd),
+        std::make_move_iterator(viable.end()));
     viable.erase(newEnd, viable.end());
 
     // If there are multiple solutions, try to diagnose an ambiguity.
@@ -4723,6 +4726,57 @@ SolutionResult ConstraintSystem::salvage() {
       if (diagnoseAmbiguity(viable)) {
         return SolutionResult::forAmbiguous(viable);
       }
+    }
+
+    if (fixes.empty())
+      return SolutionResult::forUndiagnosedError();
+
+    {
+      auto &Diags = getASTContext().Diags;
+      DiagnosticTransaction fallbackErrors(Diags);
+
+      auto diagnoseSingleError = llvm::all_of(fixes,
+          [](auto &s) {
+            return s.Fixes.size() == 1;
+          });
+
+      if (diagnoseSingleError) {
+        Diags.diagnose(
+            fixes[0].Fixes[0]->getAnchor().getStartLoc(),
+            diag::multiple_potential_errors);
+      }
+
+      bool diagnosed = false;
+      for (auto &solution : fixes) {
+        if (solution.Fixes.empty())
+          continue;
+
+        auto loc = solution.Fixes[0]->getAnchor().getStartLoc();
+
+        if (!diagnoseSingleError) {
+          Diags.diagnose(
+              solution.Fixes[0]->getAnchor().getStartLoc(),
+              diag::potential_error);
+        }
+
+        {
+          DiagnosticTransaction notes(Diags);
+
+          // FIXME: Notes do not nest, and many constraint fixes will have
+          // attached notes, but there's no way to represent a hierarchy
+          // of diagnostics.
+          notes.limitAllBehavior(DiagnosticBehavior::Note);
+
+          diagnosed |= applySolutionFixes(solution);
+        }
+
+      }
+
+      if (diagnosed) {
+        return SolutionResult::forAmbiguous(fixes);
+      }
+
+      fallbackErrors.abort();
     }
 
     // Fall through to produce diagnostics.
