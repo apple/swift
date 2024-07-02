@@ -774,12 +774,16 @@ NodePointer Demangler::demangleType(StringRef MangledName,
         std::function<SymbolicReferenceResolver_t> Resolver) {
   DemangleInitRAII state(*this, MangledName, std::move(Resolver));
 
-  parseAndPushNodes();
+  if (!parseAndPushNodes())
+    return nullptr;
 
-  if (NodePointer Result = popNode())
-    return Result;
+  NodePointer Result = popNode();
 
-  return createNode(Node::Kind::Suffix, Text);
+  // The result is only valid if it was the only node on the stack.
+  if (popNode())
+    return nullptr;
+
+  return Result;
 }
 
 bool Demangler::parseAndPushNodes() {

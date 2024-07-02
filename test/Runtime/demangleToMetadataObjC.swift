@@ -40,9 +40,9 @@ func f1_composition_objc_protocol_P4(_: mainP4) { }
 
 DemangleToMetadataTests.test("@objc protocols") {
   expectEqual(type(of: f1_composition_objc_protocol),
-              _typeByName("yy4main2P1_pc")!)
+              _typeByName("y4main2P1_pc")!)
   expectEqual(type(of: f1_composition_objc_protocol_P4),
-              _typeByName("yy4main0A2P4_pc")!)
+              _typeByName("y4main0A2P4_pc")!)
 }
 
 DemangleToMetadataTests.test("Objective-C classes") {
@@ -53,13 +53,13 @@ func f1_composition_NSCoding(_: NSCoding) { }
 func f1_composition_P5(_: P5) { }
 
 DemangleToMetadataTests.test("Objective-C protocols") {
-  expectEqual(type(of: f1_composition_NSCoding), _typeByName("yySo8NSCoding_pc")!)
+  expectEqual(type(of: f1_composition_NSCoding), _typeByName("ySo8NSCoding_pc")!)
 
   // @objc Swift protocols can be found by their Objective-C names...
-  expectEqual(type(of: f1_composition_P5), _typeByName("yySo15P5RenamedInObjC_pc")!)
+  expectEqual(type(of: f1_composition_P5), _typeByName("ySo15P5RenamedInObjC_pc")!)
 
   // ... but not their Swift names.
-  expectNil(_typeByName("yy4main2P5_pc"))
+  expectNil(_typeByName("y4main2P5_pc"))
 }
 
 DemangleToMetadataTests.test("Classes that don't exist") {

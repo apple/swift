@@ -1,0 +1,9 @@
+RUN: %swift-demangle -type Si | %FileCheck %s --check-prefix=SWIFT-INT
+SWIFT-INT: Swift.Int
+
+RUN: %swift-demangle -type SS_ | %FileCheck %s --check-prefix=MULTI-NODE-ERROR
+MULTI-NODE-ERROR: <<invalid type>>
+
+RUN: %swift-demangle -type SSIeAghrx_ | %FileCheck %s --check-prefix=PARSE-ERROR
+PARSE-ERROR: <<invalid type>>
+

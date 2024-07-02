@@ -79,28 +79,28 @@ DemangleToMetadataTests.test("function types") {
   expectEqual(type(of: f0_throws), _typeByName("yyKc")!)
 
   // More parameters.
-  expectEqual(type(of: f1), _typeByName("yyyt_tc")!)
-  expectEqual(type(of: f2), _typeByName("yyyt_yttc")!)
+  expectEqual(type(of: f1), _typeByName("yyt_tc")!)
+  expectEqual(type(of: f2), _typeByName("yyt_yttc")!)
 
   // Variadic parameters.
-  expectEqual(type(of: f1_variadic), _typeByName("yyytd_tc")!)
+  expectEqual(type(of: f1_variadic), _typeByName("yytd_tc")!)
 
   // Inout parameters.
-  expectEqual(type(of: f1_inout), _typeByName("yyytzc")!)
+  expectEqual(type(of: f1_inout), _typeByName("yytzc")!)
 
   // Ownership parameters.
-  expectEqual(type(of: f1_shared), _typeByName("yyyXlhc")!)
-  expectEqual(type(of: f1_owned), _typeByName("yyyXlnc")!)
+  expectEqual(type(of: f1_shared), _typeByName("yyXlhc")!)
+  expectEqual(type(of: f1_owned), _typeByName("yyXlnc")!)
 
   // Concurrent function types.
-  expectEqual(type(of: f1_takes_concurrent), _typeByName("yyyyYbXEc")!)
+  expectEqual(type(of: f1_takes_concurrent), _typeByName("yyyYbXEc")!)
 
   // Mix-and-match.
-  expectEqual(type(of: f2_variadic_inout), _typeByName("yyytd_ytztc")!)
+  expectEqual(type(of: f2_variadic_inout), _typeByName("yytd_ytztc")!)
 
   // A function type that hasn't been built before.
   expectEqual("(Int, Float, Double, String, Character, UInt, Bool) -> ()",
-    String(describing: _typeByName("yySi_SfSdSSs9CharacterVSuSbtc")!))
+    String(describing: _typeByName("ySi_SfSdSSs9CharacterVSuSbtc")!))
 
   // Escaping
   expectEqual(type(of: f1_escaping), _typeByName("ySfSicc")!)
@@ -145,16 +145,16 @@ func f1_composition_superclass(_: C & P1 & P2) { }
 
 DemangleToMetadataTests.test("existential types") {
   // Any, AnyObject
-  expectEqual(type(of: f2_any_anyobject), _typeByName("yyyp_yXltc")!)
+  expectEqual(type(of: f2_any_anyobject), _typeByName("yyp_yXltc")!)
 
   // References to protocols.
-  expectEqual(type(of: f1_composition), _typeByName("yy4main2P1_4main2P2pc")!)
+  expectEqual(type(of: f1_composition), _typeByName("y4main2P1_4main2P2pc")!)
 
   // Reference to protocol with AnyObject.
-  expectEqual(type(of: f1_composition_anyobject), _typeByName("yy4main2P1_Xlc")!)
+  expectEqual(type(of: f1_composition_anyobject), _typeByName("y4main2P1_Xlc")!)
 
   // References to superclass.
-  expectEqual(type(of: f1_composition_superclass), _typeByName("yy4main2P1_4main2P2AA1CCXcc")!)
+  expectEqual(type(of: f1_composition_superclass), _typeByName("y4main2P1_4main2P2AA1CCXcc")!)
 
   // Demangle an existential type that hasn't been seen before.
   expectEqual("P1 & P2 & P3", String(describing: _typeByName("4main2P1_4main2P24main2P3p")!))
