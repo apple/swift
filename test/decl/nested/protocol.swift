@@ -356,3 +356,11 @@ struct Outer {
     }
   }
 }
+
+// https://github.com/apple/swift/issues/68284
+protocol P {
+  associatedtype A
+}
+func generic(value: P) {}   // expected-error {{use of protocol 'P' as a type must be written 'any P' or 'some P'}}
+                            // expected-note@-1 {{replace 'P' with 'any P'}} {{21-22=any P}}
+                            // expected-note@-2 {{replace 'P' with 'some P'}} {{21-22=some P}}

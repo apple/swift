@@ -5769,6 +5769,15 @@ ERROR(incorrect_optional_any,none,
 ERROR(existential_requires_any,none,
       "use of %select{protocol |}2%0 as a type must be written %1",
       (Type, Type, bool))
+ERROR(existential_requires_any_or_some,none,
+      "use of %select{protocol |}3%0 as a type must be written %1 or %2",
+      (Type, Type, StringRef, bool))
+NOTE(replace_with_any,none,
+     "replace %0 with %1",
+     (Type, Type))
+NOTE(replace_with_some,none,
+     "replace %0 with %1",
+     (Type, StringRef))
 ERROR(inverse_requires_any,none,
       "constraint that suppresses conformance requires 'any'", ())
 

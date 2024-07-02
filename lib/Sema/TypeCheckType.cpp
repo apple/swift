@@ -6166,6 +6166,28 @@ private:
     }
 
     if (auto *proto = dyn_cast<ProtocolDecl>(decl)) {
+        if (proto->existentialRequiresAny()) {
+        //Emit fixit to add any keyword
+        Ctx.Diags.diagnose(T->getNameLoc(), diag::replace_with_any,
+                    proto->getDeclaredInterfaceType(),
+                    proto->getDeclaredExistentialType())
+                    .fixItReplace(T->getSourceRange(), "any " + proto->getDeclaredInterfaceType()->getString());
+        //Emit fixit to add some keyword
+        Ctx.Diags.diagnose(T->getNameLoc(), diag::replace_with_some,
+                    proto->getDeclaredInterfaceType(),
+                    ("'some " + proto->getDeclaredInterfaceType()->getString() + "'"))
+                    .fixItReplace(T->getSourceRange(), "some " + proto->getDeclaredInterfaceType()->getString());
+        auto diag =
+            Ctx.Diags.diagnose(T->getNameLoc(), diag::existential_requires_any,
+                            proto->getDeclaredInterfaceType(),
+                            proto->getDeclaredExistentialType(),
+                            /*isAlias=*/false);
+            Ctx.Diags.diagnose(T->getNameLoc(), diag::existential_requires_any_or_some,
+                            proto->getDeclaredInterfaceType(),
+                            proto->getDeclaredExistentialType(),
+                            ("'some " + proto->getDeclaredInterfaceType()->getString() + "'"),
+                            /*isAlias=*/false);
+        emitInsertAnyFixit(diag, T);
       if (proto->existentialRequiresAny() && isAnyOrSomeMissing()) {
         auto diag =
             Ctx.Diags.diagnose(T->getNameLoc(), diag::existential_requires_any,
