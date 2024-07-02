@@ -5452,40 +5452,6 @@ ParserStatus Parser::ParsedTypeAttributeList::slowParse(Parser &P) {
       continue;
     }
 
-    // Perform an extra check for transferring. Since it is a specifier, we use
-    // the actual parsing logic below.
-    if (Tok.isContextualKeyword("transferring")) {
-      // Now that we have sending, warn users to convert 'transferring' to
-      // 'sendable'.
-      P.diagnose(Tok, diag::transferring_is_now_sendable);
-
-      // Do not allow for transferring to be parsed after a specifier has been
-      // parsed.
-      //
-      // Example: We want to force users to write transferring consuming, not
-      // consuming transferring.
-      if (SpecifierLoc.isValid()) {
-        P.diagnose(Tok, diag::transferring_after_parameter_specifier,
-                   getNameForParamSpecifier(Specifier))
-            .fixItRemove(Tok.getLoc());
-      }
-
-      // Only allow for transferring to be written once.
-      if (TransferringLoc.isValid()) {
-        P.diagnose(Tok, diag::transferring_repeated).fixItRemove(Tok.getLoc());
-      }
-
-      // If we have already seen 'sending', emit an error to the user and give a
-      // fixit that removes the transferring.
-      if (SendingLoc.isValid()) {
-        P.diagnose(Tok, diag::sending_and_transferring_used_together)
-            .fixItRemove(Tok.getLoc());
-      }
-
-      TransferringLoc = P.consumeToken();
-      continue;
-    }
-
     // Perform an extra check for 'sending'. Since it is a specifier, we use
     // the actual parsing logic below.
     if (Tok.isContextualKeyword("sending")) {
@@ -5497,13 +5463,6 @@ ParserStatus Parser::ParsedTypeAttributeList::slowParse(Parser &P) {
       // Only allow for 'sending' to be written once.
       if (SendingLoc.isValid()) {
         P.diagnose(Tok, diag::sending_repeated).fixItRemove(Tok.getLoc());
-      }
-
-      // If 'transferring' was written before 'sending', suggest the user remove
-      // 'transferring' since 'sendable' is the final form.
-      if (TransferringLoc.isValid()) {
-        P.diagnose(Tok, diag::sending_and_transferring_used_together)
-            .fixItRemove(TransferringLoc);
       }
 
       // If we already saw a specifier, check if we have borrowing. In such a
@@ -5551,13 +5510,6 @@ ParserStatus Parser::ParsedTypeAttributeList::slowParse(Parser &P) {
       if (bool(Specifier) && SendingLoc.isValid()) {
         P.diagnose(Tok, diag::sending_before_parameter_specifier,
                    getNameForParamSpecifier(Specifier));
-      }
-
-      // We cannot use transferring with borrowing.
-      if (TransferringLoc.isValid() &&
-          Specifier == ParamDecl::Specifier::Borrowing) {
-        P.diagnose(TransferringLoc, diag::sending_cannot_be_used_with_borrowing,
-                   "transferring");
       }
     }
     Tok.setKind(tok::contextual_keyword);

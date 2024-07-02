@@ -486,7 +486,7 @@ public:
                           DifferentiabilityKind::NonDifferentiable, nullptr,
                           FunctionTypeIsolation::forNonIsolated(),
                           LifetimeDependenceInfo(),
-                          false /*transferringResult*/) {}
+                          false /*sendingResult*/) {}
 
   // Constructor for polymorphic type.
   ASTExtInfoBuilder(Representation rep, bool throws, Type thrownError)
@@ -494,7 +494,7 @@ public:
                           DifferentiabilityKind::NonDifferentiable, nullptr,
                           FunctionTypeIsolation::forNonIsolated(),
                           LifetimeDependenceInfo(),
-                          false /*transferringResult*/) {}
+                          false /*sendingResult*/) {}
 
   // Constructor with no defaults.
   ASTExtInfoBuilder(Representation rep, bool isNoEscape, bool throws,

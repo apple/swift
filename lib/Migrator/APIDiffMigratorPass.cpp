@@ -157,10 +157,6 @@ public:
     return visit(T->getBase());
   }
 
-  FoundResult visitTransferringTypeRepr(TransferringTypeRepr *T) {
-    return visit(T->getBase());
-  }
-
   FoundResult visitSendingTypeRepr(SendingTypeRepr *T) {
     return visit(T->getBase());
   }

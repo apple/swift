@@ -2429,7 +2429,7 @@ public:
                               /*nonEphemeral*/ false, getOwnershipSpecifier(),
                               /*isolated*/ false, /*noDerivative*/ false,
                               /*compileTimeConst*/ false,
-                              /*is transferring*/ false);
+                              /*is sending*/ false);
   }
 
   bool operator ==(const YieldTypeFlags &other) const {

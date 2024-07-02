@@ -638,7 +638,6 @@ UNINTERESTING_FEATURE(BitwiseCopyable)
 UNINTERESTING_FEATURE(FixedArrays)
 UNINTERESTING_FEATURE(GroupActorErrors)
 
-UNINTERESTING_FEATURE(TransferringArgsAndResults)
 static bool usesFeatureSendingArgsAndResults(Decl *decl) {
   auto isFunctionTypeWithSending = [](Type type) {
       auto fnType = type->getAs<AnyFunctionType>();

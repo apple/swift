@@ -1211,9 +1211,6 @@ public:
         Tok.isContextualKeyword("isolated") ||
         Tok.isContextualKeyword("_const"))
       return true;
-    if (Context.LangOpts.hasFeature(Feature::TransferringArgsAndResults) &&
-        Tok.isContextualKeyword("transferring"))
-      return true;
     if (Context.LangOpts.hasFeature(Feature::SendingArgsAndResults) &&
         Tok.isContextualKeyword("sending"))
       return true;
@@ -1264,7 +1261,6 @@ public:
     SourceLoc SpecifierLoc;
     SourceLoc IsolatedLoc;
     SourceLoc ConstLoc;
-    SourceLoc TransferringLoc;
     SourceLoc SendingLoc;
     SmallVector<TypeOrCustomAttr> Attributes;
     SmallVector<LifetimeDependenceSpecifier> lifetimeDependenceSpecifiers;
@@ -1576,9 +1572,6 @@ public:
 
     /// The location of the '_const' keyword, if present.
     SourceLoc CompileConstLoc;
-
-    /// The location of the 'transferring' keyword if present.
-    SourceLoc TransferringLoc;
 
     /// The location of the 'sending' keyword if present.
     SourceLoc SendingLoc;

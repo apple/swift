@@ -1197,7 +1197,7 @@ class TargetExtendedFunctionTypeFlags {
     // Values for the enumerated isolation kinds
     IsolatedAny            = 0x00000002U,
 
-    // Values if we have a transferring result.
+    // Values if we have a sending result.
     HasSendingResult  = 0x00000010U,
 
     /// A InvertibleProtocolSet in the high bits.

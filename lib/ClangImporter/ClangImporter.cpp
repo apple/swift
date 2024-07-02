@@ -676,10 +676,8 @@ void importer::getNormalInvocationArguments(
     }
   }
 
-  // If we support TransferringArgsAndResults, set the -D flag to signal that it
+  // If we support SendingArgsAndResults, set the -D flag to signal that it
   // is supported.
-  if (LangOpts.hasFeature(Feature::TransferringArgsAndResults))
-    invocationArgStrs.push_back("-D__SWIFT_ATTR_SUPPORTS_TRANSFERRING=1");
   if (LangOpts.hasFeature(Feature::SendingArgsAndResults))
     invocationArgStrs.push_back("-D__SWIFT_ATTR_SUPPORTS_SENDING=1");
 

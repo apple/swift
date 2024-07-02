@@ -54,10 +54,6 @@ Parser::ParsedTypeAttributeList::applyAttributesToType(Parser &p,
     ty = new (p.Context) CompileTimeConstTypeRepr(ty, ConstLoc);
   }
 
-  if (TransferringLoc.isValid()) {
-    ty = new (p.Context) TransferringTypeRepr(ty, TransferringLoc);
-  }
-
   if (SendingLoc.isValid()) {
     ty = new (p.Context) SendingTypeRepr(ty, SendingLoc);
   }

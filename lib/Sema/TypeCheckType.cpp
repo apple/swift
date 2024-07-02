@@ -2154,8 +2154,6 @@ namespace {
                                            TypeResolutionOptions options);
     NeverNullType resolveIsolatedTypeRepr(IsolatedTypeRepr *repr,
                                           TypeResolutionOptions options);
-    NeverNullType resolveTransferringTypeRepr(TransferringTypeRepr *repr,
-                                              TypeResolutionOptions options);
     NeverNullType resolveSendingTypeRepr(SendingTypeRepr *repr,
                                          TypeResolutionOptions options);
     NeverNullType
@@ -2577,9 +2575,6 @@ NeverNullType TypeResolver::resolveType(TypeRepr *repr,
     return resolveOwnershipTypeRepr(cast<OwnershipTypeRepr>(repr), options);
   case TypeReprKind::Isolated:
     return resolveIsolatedTypeRepr(cast<IsolatedTypeRepr>(repr), options);
-  case TypeReprKind::Transferring:
-    return resolveTransferringTypeRepr(cast<TransferringTypeRepr>(repr),
-                                       options);
   case TypeReprKind::Sending:
     return resolveSendingTypeRepr(cast<SendingTypeRepr>(repr), options);
   case TypeReprKind::CompileTimeConst:
@@ -3655,10 +3650,6 @@ TypeResolver::resolveASTFunctionTypeParams(TupleTypeRepr *inputRepr,
           ownership = ownershipRepr->getSpecifier();
           nestedRepr = specifierRepr->getBase();
           continue;
-        case TypeReprKind::Transferring:
-          isSending = true;
-          nestedRepr = specifierRepr->getBase();
-          continue;
         case TypeReprKind::Sending:
           isSending = true;
           nestedRepr = specifierRepr->getBase();
@@ -4026,7 +4017,6 @@ NeverNullType TypeResolver::resolveASTFunctionType(
   }
 
   bool hasSendingResult =
-      isa_and_nonnull<TransferringTypeRepr>(repr->getResultTypeRepr()) ||
       isa_and_nonnull<SendingTypeRepr>(repr->getResultTypeRepr());
 
   // TODO: maybe make this the place that claims @escaping.
@@ -4972,27 +4962,6 @@ TypeResolver::resolveSendingTypeRepr(SendingTypeRepr *repr,
        options.hasBase(TypeResolverContext::EnumElementDecl))) {
     diagnoseInvalid(repr, repr->getSpecifierLoc(),
                     diag::sending_only_on_parameters_and_results);
-    return ErrorType::get(getASTContext());
-  }
-
-  // Return the type.
-  return resolveType(repr->getBase(), options);
-}
-
-NeverNullType
-TypeResolver::resolveTransferringTypeRepr(TransferringTypeRepr *repr,
-                                          TypeResolutionOptions options) {
-  if (options.is(TypeResolverContext::TupleElement)) {
-    diagnoseInvalid(repr, repr->getSpecifierLoc(),
-                    diag::transferring_cannot_be_applied_to_tuple_elt);
-    return ErrorType::get(getASTContext());
-  }
-
-  if (!options.is(TypeResolverContext::FunctionResult) &&
-      (!options.is(TypeResolverContext::FunctionInput) ||
-       options.hasBase(TypeResolverContext::EnumElementDecl))) {
-    diagnoseInvalid(repr, repr->getSpecifierLoc(),
-                    diag::transferring_only_on_parameters_and_results);
     return ErrorType::get(getASTContext());
   }
 
@@ -6030,7 +5999,6 @@ private:
     case TypeReprKind::Array:
     case TypeReprKind::SILBox:
     case TypeReprKind::Isolated:
-    case TypeReprKind::Transferring:
     case TypeReprKind::Sending:
     case TypeReprKind::Placeholder:
     case TypeReprKind::CompileTimeConst:

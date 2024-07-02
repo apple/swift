@@ -1550,7 +1550,6 @@ enum ENUM_EXTENSIBILITY_ATTR(open) BridgedAttributedTypeSpecifier : size_t {
   BridgedAttributedTypeSpecifierLegacyOwned,
   BridgedAttributedTypeSpecifierConst,
   BridgedAttributedTypeSpecifierIsolated,
-  BridgedAttributedTypeSpecifierTransferring,
   BridgedAttributedTypeSpecifierSending,
 };
 

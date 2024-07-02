@@ -3180,7 +3180,6 @@ directReferencesForTypeRepr(Evaluator &evaluator,
   case TypeReprKind::NamedOpaqueReturn:
   case TypeReprKind::Existential:
   case TypeReprKind::LifetimeDependentReturn:
-  case TypeReprKind::Transferring:
   case TypeReprKind::Sending:
     return result;
 

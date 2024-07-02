@@ -2166,7 +2166,7 @@ void ASTMangler::appendImplFunctionType(SILFunctionType *fn,
     appendType(param.getInterfaceType(), sig, forDecl);
   }
 
-  // Mangle if we have a transferring result.
+  // Mangle if we have a sending result.
   if (isInRecursion && fn->hasSendingResult())
     OpArgs.push_back('T');
 

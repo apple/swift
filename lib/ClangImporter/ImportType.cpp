@@ -2634,19 +2634,8 @@ static ParamDecl *getParameterInfo(ClangImporter::Implementation *impl,
       impl->importSourceLoc(param->getLocation()), bodyName,
       impl->ImportedHeaderUnit);
 
-  // If TransferringArgsAndResults are enabled and we have a transferring
-  // argument, set that the param was transferring.
-  if (paramInfo->getASTContext().LangOpts.hasFeature(
-          Feature::TransferringArgsAndResults)) {
-    if (auto *attr = param->getAttr<clang::SwiftAttrAttr>()) {
-      if (attr->getAttribute() == "transferring") {
-        paramInfo->setSending();
-      }
-    }
-  }
-
-  // If TransferringArgsAndResults are enabled and we have a transferring
-  // argument, set that the param was transferring.
+  // If SendingArgsAndResults are enabled and we have a sending argument,
+  // set that the param was sending.
   if (paramInfo->getASTContext().LangOpts.hasFeature(
           Feature::SendingArgsAndResults)) {
     if (auto *attr = param->getAttr<clang::SwiftAttrAttr>()) {

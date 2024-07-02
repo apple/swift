@@ -7979,16 +7979,9 @@ ERROR(lifetime_dependence_immortal_conflict_name, none,
       "conflict between the parameter name and immortal keyword", ())
 
 //===----------------------------------------------------------------------===//
-//                             MARK: Transferring
+//                             MARK: Sending
 //===----------------------------------------------------------------------===//
 
-ERROR(transferring_unsupported_param_specifier, none,
-      "'%0' cannot be applied to a 'transferring' parameter", (StringRef))
-
-ERROR(transferring_only_on_parameters_and_results, none,
-      "'transferring' may only be used on parameters and results", ())
-ERROR(transferring_cannot_be_applied_to_tuple_elt, none,
-      "'transferring' cannot be applied to tuple elements", ())
 ERROR(sending_unsupported_param_specifier, none,
       "'%0' cannot be applied to a 'sending' parameter", (StringRef))
 ERROR(sending_only_on_parameters_and_results, none,

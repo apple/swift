@@ -877,8 +877,6 @@ BridgedParamDecl BridgedParamDecl_createParsed(
           paramDecl->setIsolated(true);
         else if (isa<CompileTimeConstTypeRepr>(STR))
           paramDecl->setCompileTimeConst(true);
-        else if (isa<TransferringTypeRepr>(STR))
-          paramDecl->setSending(true);
         else if (isa<SendingTypeRepr>(STR))
           paramDecl->setSending(true);
 
@@ -2224,9 +2222,6 @@ BridgedSpecifierTypeRepr BridgedSpecifierTypeRepr_createParsed(
   case BridgedAttributedTypeSpecifierLegacyOwned: {
     return new (context)
         OwnershipTypeRepr(baseType, ParamSpecifier::LegacyOwned, loc);
-  }
-  case BridgedAttributedTypeSpecifierTransferring: {
-    return new (context) TransferringTypeRepr(baseType, loc);
   }
   case BridgedAttributedTypeSpecifierSending: {
     return new (context) SendingTypeRepr(baseType, loc);

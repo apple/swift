@@ -7,13 +7,6 @@
 
 sil_stage raw
 
-// CHECK-LABEL: func transferValueDefault<T>(_ t: sending T)
-func transferValueDefault<T>(_ t: transferring T)
-// CHECK-LABEL: func transferValue__shared<T>(_ t: __shared sending T)
-func transferValue__shared<T>(_ t: transferring __shared T)
-// CHECK-LABEL: func transferValueConsuming<T>(_ t: consuming sending T)
-func transferValueConsuming<T>(_ t: transferring consuming T)
-
 // CHECK-LABEL: func sendingValueDefault<T>(_ t: sending T)
 func sendingValueDefault<T>(_ t: sending T)
 // CHECK-LABEL: func sendingValue__shared<T>(_ t: __shared sending T)

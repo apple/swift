@@ -3448,12 +3448,6 @@ public:
     printFoot();
   }
 
-  void visitTransferringTypeRepr(TransferringTypeRepr *T, StringRef label) {
-    printCommon("transferring", label);
-    printRec(T->getBase());
-    printFoot();
-  }
-
   void visitSendingTypeRepr(SendingTypeRepr *T, StringRef label) {
     printCommon("sending", label);
     printRec(T->getBase());

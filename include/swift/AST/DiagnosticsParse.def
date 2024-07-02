@@ -2204,19 +2204,10 @@ ERROR(lifetime_dependence_invalid_init_return, PointsToFirstBadToken,
       "specifiers",
       ())
 
-ERROR(transferring_after_parameter_specifier,none,
-      "'transferring' must be placed before specifier '%0'", (StringRef))
-ERROR(transferring_repeated,none,
-      "parameter may have at most one 'transferring' specifier", ())
 ERROR(sending_before_parameter_specifier,none,
       "'sending' must be placed after specifier '%0'", (StringRef))
 ERROR(sending_repeated,none,
       "parameter may have at most one 'sending' specifier", ())
-ERROR(sending_and_transferring_used_together,none,
-      "'transferring' and 'sending' may not be used together", ())
-WARNING(transferring_is_now_sendable,none,
-        "'transferring' has been renamed to 'sending' and the 'transferring' spelling will be removed shortly",
-        ())
 ERROR(sending_cannot_be_used_with_borrowing,none,
       "'%0' cannot be used together with 'borrowing'", (StringRef))
 

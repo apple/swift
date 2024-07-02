@@ -1252,7 +1252,7 @@ namespace decls_block {
     TypeIDField,                     // thrown error
     DifferentiabilityKindField,      // differentiability kind
     FunctionTypeIsolationField,      // isolation
-    BCFixed<1>                       // has transferring result
+    BCFixed<1>                       // has sending result
     // trailed by parameters
     // Optionally lifetime dependence info
   );
@@ -1269,7 +1269,7 @@ namespace decls_block {
                      BCFixed<1>,              // isolated
                      BCFixed<1>,              // noDerivative?
                      BCFixed<1>,              // compileTimeConst
-                     BCFixed<1>               // transferring
+                     BCFixed<1>               // sending
                      >;
 
   TYPE_LAYOUT(MetatypeTypeLayout,
@@ -1351,7 +1351,7 @@ namespace decls_block {
     TypeIDField,                     // thrown error
     DifferentiabilityKindField,      // differentiability kind
     FunctionTypeIsolationField,      // isolation
-    BCFixed<1>,                      // has transferring result
+    BCFixed<1>,                      // has sending result
     GenericSignatureIDField          // generic signature
 
     // trailed by parameters
@@ -1671,7 +1671,7 @@ namespace decls_block {
     DeclIDField,  // opaque result type decl
     BCFixed<1>,   // isUserAccessible?
     BCFixed<1>,   // is distributed thunk
-    BCFixed<1>,   // has transferring result
+    BCFixed<1>,   // has sending result
     BCArray<IdentifierIDField> // name components,
                                // followed by TypeID dependencies
     // The record is trailed by:

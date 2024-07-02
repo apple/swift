@@ -214,7 +214,7 @@ public:
         printHeader("variadic");
 
       if (flags.isSending())
-        printHeader("transferring");
+        printHeader("sending");
 
       printRec(param.getType());
 

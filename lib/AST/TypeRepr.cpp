@@ -852,9 +852,6 @@ void SpecifierTypeRepr::printImpl(ASTPrinter &Printer,
   case TypeReprKind::Isolated:
     Printer.printKeyword("isolated", Opts, " ");
     break;
-  case TypeReprKind::Transferring:
-    Printer.printKeyword("transferring", Opts, " ");
-    break;
   case TypeReprKind::Sending:
     Printer.printKeyword("sending", Opts, " ");
     break;

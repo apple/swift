@@ -1686,7 +1686,7 @@ static ValueDecl *getStartAsyncLet(ASTContext &ctx, Identifier id) {
   bool hasSendingResult =
       ctx.LangOpts.hasFeature(Feature::RegionBasedIsolation);
 
-  // operation async function pointer: () async throws -> transferring T
+  // operation async function pointer: () async throws -> sending T
   auto extInfo = ASTExtInfoBuilder()
                      .withAsync()
                      .withThrows()
