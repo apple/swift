@@ -2,10 +2,10 @@
 
 // Make sure we generate the outer metadata.
 
-// CHECK-DAG: @"$s4test5OuterVMf" = internal constant {{.*}} {{@"\$sytWV"|ptr @"\$s4test5OuterVWV"}}, {{.*}} @"$s4test5OuterVMn{{(\.ptrauth)?}}"
-// CHECK-DAG: @"$s4test6Outer2VMf" = internal constant {{.*}} {{@"\$sytWV"|ptr @"\$s4test6Outer2VWV"}}, {{.*}} @"$s4test6Outer2VMn{{(\.ptrauth)?}}"
-// CHECK-DAG: @"$s4test6Outer3VMf" = internal constant {{.*}} {{@"\$sytWV"|ptr @"\$s4test6Outer3VWV"}}, {{.*}} @"$s4test6Outer3VMn{{(\.ptrauth)?}}"
-// CHECK-DAG: @"$s4test6Outer4VMf" = internal constant {{.*}} {{@"\$sytWV"|ptr @"\$s4test6Outer4VWV"}}, {{.*}} @"$s4test6Outer4VMn{{(\.ptrauth[.0-9]*)?}}"
+// CHECK-DAG: @"$s4test5OuterVMf" = internal constant {{.*}} {{@"\$sytWV(\.ptrauth[.0-9]*)?"|ptr @"\$s4test5OuterVWV"}}, {{.*}} @"$s4test5OuterVMn{{(\.ptrauth[.0-9]*)?}}"
+// CHECK-DAG: @"$s4test6Outer2VMf" = internal constant {{.*}} {{@"\$sytWV(\.ptrauth[.0-9]*)?"|ptr @"\$s4test6Outer2VWV"}}, {{.*}} @"$s4test6Outer2VMn{{(\.ptrauth[.0-9]*)?}}"
+// CHECK-DAG: @"$s4test6Outer3VMf" = internal constant {{.*}} {{@"\$sytWV(\.ptrauth[.0-9]*)?"|ptr @"\$s4test6Outer3VWV"}}, {{.*}} @"$s4test6Outer3VMn{{(\.ptrauth[.0-9]*)?}}"
+// CHECK-DAG: @"$s4test6Outer4VMf" = internal constant {{.*}} {{@"\$sytWV(\.ptrauth[.0-9]*)?"|ptr @"\$s4test6Outer4VWV"}}, {{.*}} @"$s4test6Outer4VMn{{(\.ptrauth[.0-9]*)?}}"
 
 class C<T> { }
 

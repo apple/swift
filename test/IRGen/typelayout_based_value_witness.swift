@@ -1,5 +1,5 @@
 // RUN: %target-swift-frontend -enable-type-layout -primary-file %s -emit-ir | %FileCheck %s --check-prefix=CHECK
-// RUN: %target-swift-frontend -enable-type-layout -primary-file %s -O -emit-ir | %FileCheck %s --check-prefix=OPT --check-prefix=OPT-%target-ptrsize
+// RUN: %target-swift-frontend -enable-type-layout -primary-file %s -O -emit-ir | %FileCheck %s --check-prefix=OPT --check-prefix=OPT-%target-ptrsize --check-prefix=OPT-%target-ptrauth
 // RUN: %target-swift-frontend -primary-file %s -emit-ir | %FileCheck %s --check-prefix=NOTL
 
 public struct B<T> {
@@ -83,15 +83,35 @@ public enum ForwardEnum<T> {
 // OPT:   [[T_PARAM:%.*]] = getelementptr inbounds ptr, ptr %"A<T>", {{(i64|i32)}} 2
 // OPT:   [[T:%.*]] = load ptr, ptr [[T_PARAM]]
 // OPT:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[T]], {{(i64|i32)}} -1
-// OPT:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+
+// OPT-noptrauth:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+
+// OPT-ptrauth: [[ADDR_INT:%.*]] = ptrtoint ptr [[VWT_ADDR]] to i64
+// OPT-ptrauth: [[DISCRIMINANT:%.*]] = tail call i64 @llvm.ptrauth.blend(i64 [[ADDR_INT]], i64 11839)
+// OPT-ptrauth: [[SIGNED_VWT:%.*]] = ptrtoint ptr %T.valueWitnesses
+// OPT-ptrauth: [[VWT_INT:%.*]] = tail call i64 @llvm.ptrauth.auth(i64 [[SIGNED_VWT]], i32 2, i64 [[DISCRIMINANT]])
+// OPT-ptrauth: [[VWT:%.*]] = inttoptr i64 [[VWT_INT]] to ptr
+
 // OPT:   [[DESTROY_VW:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], {{(i64|i32)}} 1
 // OPT:   [[DESTROY:%.*]] = load ptr, ptr [[DESTROY_VW]]
+
+// OPT-ptrauth: [[DESTROY_ADDR:%.*]] = ptrtoint ptr [[DESTROY_VW]] to i64
+// OPT-ptrauth: [[DISCRIMINANT:%.*]] = tail call i64 @llvm.ptrauth.blend(i64 [[DESTROY_ADDR]], i64 1272)
+
 // OPT:   tail call void [[DESTROY]](ptr noalias %object, ptr [[T]])
-// OPT:   [[SIZE_VW:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], {{i64|i32}} 0, {{(i64|i32)}} 8
+
+// OPT-noptrauth:   [[SIZE_VW:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], {{(i64|i32)}} 0, {{(i64|i32)}} 8
+// OPT-ptrauth:   [[SIZE_VW:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i64 0, i32 8
+
 // OPT:   [[SIZE_T:%.*]] = load {{(i64|i32)}}, ptr [[SIZE_VW]]
-// OPT:   [[OBJECT:%.*]] = ptrtoint ptr %object to {{(i64|i32)}}
-// OPT:   [[FLAGS_VW:%.*]] = getelementptr inbounds {{.*}}, ptr [[VWT]], {{i64|i32}} 0, {{(i64|i32)}} 10
-// OPT:   [[FLAGS3:%.*]] = load i32, ptr [[FLAGS_VW]]
+// OPT-noptrauth:   [[OBJECT:%.*]] = ptrtoint ptr %object to {{(i64|i32)}}
+// OPT-ptrauth:   [[OBJECT:%.*]] = ptrtoint ptr %object to {{(i64|i32)}}
+
+// OPT-noptrauth: [[FLAGS2:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], {{(i64|i32)}} 0, {{(i64|i32)}} 10
+
+// OPT-ptrauth: [[FLAGS2:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i64 0, {{(i64|i32)}} 10
+
+// OPT:   [[FLAGS3:%.*]] = load i32, ptr [[FLAGS2]]
 // OPT:   [[FLAGS:%.*]] = and i32 [[FLAGS3]], 255
 // OPT-64:   %flags.alignmentMask = zext i32 [[FLAGS]] to i64
 // OPT-64:   [[TMP:%.*]] = add {{(i64|i32)}} [[SIZE_T]], %flags.alignmentMask

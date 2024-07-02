@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 
 // RUN: %target-swift-frontend %S/../Inputs/resilient_struct.swift -enable-library-evolution -emit-module -emit-module-path %t/resilient_struct.swiftmodule
-// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-cpu
 // RUN: %target-swift-frontend -Xllvm -sil-disable-pass=simplification -enable-library-evolution -I %t -emit-ir -O %s
 
 // CHECK: %swift.type = type { [[INT:i32|i64]] }
@@ -123,6 +123,9 @@ bb0:
 // CHECK: entry:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %0, {{.*}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -132,6 +135,9 @@ bb0:
 // CHECK: outline.allocateValueInBuffer:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %0, {{.*}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK:   [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
 // CHECK:   [[ALIGN:%.*]] = and {{.*}}, 255
@@ -147,6 +153,9 @@ bb0:
 // CHECK-LABEL: define linkonce_odr hidden ptr @__swift_project_value_buffer(ptr %0, ptr %1)
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %0, {{.*}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072

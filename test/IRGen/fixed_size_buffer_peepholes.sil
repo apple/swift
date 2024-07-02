@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s
+// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-cpu
 
 import Builtin
 
@@ -10,6 +10,9 @@ protocol P {}
 // CHECK:  call {{.*}} @__swift_project_boxed_opaque_existential_1
 // CHECK:  [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[TYPE]], {{(i64|i32)}} -1
 // CHECK:  [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:  [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], {{(i64|i32)}} 2
 // CHECK:  [[WITNESS:%.*]] = load ptr, ptr [[WITNESS_ADDR]]
 // CHECK:  call ptr [[WITNESS]](

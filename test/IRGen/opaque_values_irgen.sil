@@ -6,9 +6,11 @@ sil_stage raw
 
 // CHECK: define hidden swiftcc void @f010_irgen_identity(ptr noalias sret({{.*}}) %0, ptr noalias %1, ptr %T)
 // CHECK: entry:
+// CHECK-arm64e: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: call i64 @llvm.ptrauth.auth
 // CHECK-NOT: call
 // CHECK-NOT: call
-// CHECK: [[InitializeWithTake_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T.valueWitnesses
+// CHECK: [[InitializeWithTake_ADDR:%.*]] = getelementptr inbounds ptr, ptr {{.*}}, {{(i32|i64)}} 4
 // CHECK: [[InitializeWithTake:%.*]] = load ptr, ptr [[InitializeWithTake_ADDR]]
 // CHECK-arm64e: call i64 @llvm.ptrauth.blend
 // CHECK: %{{.*}} = call ptr [[InitializeWithTake]](ptr noalias %0, ptr noalias %1, ptr %T)

@@ -79,6 +79,9 @@ public func functionWithResilientEnum(_ m: Medium) -> Medium {
 // CHECK-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
 // CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // This is copying the +0 argument to be used as a return value.
 // CHECK-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
 // CHECK-NEXT: [[WITNESS_FN:%.*]]  = load ptr, ptr [[WITNESS_ADDR]]
@@ -97,6 +100,9 @@ public func functionWithIndirectResilientEnum(_ ia: IndirectApproach) -> Indirec
 // CHECK-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
 // CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // This is copying the +0 argument into the return slot.
 // CHECK-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
 // CHECK-NEXT: [[WITNESS_FN:%.*]]  = load ptr, ptr [[WITNESS_ADDR]]
@@ -115,6 +121,9 @@ public func constructResilientEnumNoPayload() -> Medium {
 // CHECK-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
 // CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
 // CHECK-16-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 16
 // CHECK-32-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 14
@@ -134,6 +143,9 @@ public func constructResilientEnumPayload(_ s: Size) -> Medium {
 // CHECK-NEXT: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
 // CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
 // CHECK:      [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
 // CHECK-NEXT: [[WITNESS:%.*]] = load ptr, ptr [[WITNESS_ADDR]]
@@ -146,6 +158,9 @@ public func constructResilientEnumPayload(_ s: Size) -> Medium {
 // CHECK-NEXT: [[METADATA2:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK-NEXT: [[VWT_ADDR2:%.*]] = getelementptr inbounds ptr, ptr [[METADATA2]], [[INT]] -1
 // CHECK-NEXT: [[VWT2:%.*]] = load ptr, ptr [[VWT_ADDR2]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR2]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT2:%.*]] = inttoptr i64 {{%.*}} to ptr
 
 // CHECK-16-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT2]], i32 16
 // CHECK-32-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT2]], i32 14
@@ -165,6 +180,9 @@ public func constructResilientEnumPayload(_ s: Size) -> Medium {
 // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
 // CHECK: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
 // CHECK: [[WITNESS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK: [[WITNESS_FOR_SIZE:%size]] = load [[INT]], ptr [[WITNESS_ADDR]]
@@ -228,14 +246,18 @@ public func resilientSwitchTest(_ m: Medium) -> Int {
 
 public func reabstraction<T>(_ f: (Medium) -> T) {}
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s15enum_resilience25resilientEnumPartialApplyyySi0c1_A06MediumOXEF"(ptr %0, ptr %1)
-public func resilientEnumPartialApply(_ f: (Medium) -> Int) {
+// CHECK-64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s15enum_resilience25resilientEnumPartialApplyyySi0c1_A06MediumOXEF"(ptr %0, ptr %1)
+// CHECK-64:     [[STACKALLOC:%.*]] = alloca i8
+// CHECK-64:     call swiftcc void @"$s15enum_resilience13reabstractionyyx010resilient_A06MediumOXElF"(ptr @"$s14resilient_enum6MediumOSiIgnd_ACSiIegnr_TRTA{{(\.ptrauth)?}}", ptr [[CONTEXT:%.*]], ptr @"$sSiN")
+// CHECK-64:     ret void
 
-// CHECK:     [[STACKALLOC:%.*]] = alloca i8
-// CHECK:     call swiftcc void @"$s15enum_resilience13reabstractionyyx010resilient_A06MediumOXElF"(ptr @"$s14resilient_enum6MediumOSiIgnd_ACSiIegnr_TRTA{{(\.ptrauth)?}}", ptr [[CONTEXT:%.*]], ptr @"$sSiN")
+// CHECK-32-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc void @"$s15enum_resilience25resilientEnumPartialApplyyySi0c1_A06MediumOXEF"(ptr %0, ptr %1)
+// CHECK-32:     [[STACKALLOC:%.*]] = alloca i8
+// CHECK-32:     call swiftcc void @"$s15enum_resilience13reabstractionyyx010resilient_A06MediumOXElF"(ptr @"$s14resilient_enum6MediumOSiIgnd_ACSiIegnr_TRTA", ptr [[CONTEXT:%.*]], ptr @"$sSiN")
+// CHECK-32:     ret void
+public func resilientEnumPartialApply(_ f: (Medium) -> Int) {
   reabstraction(f)
 
-// CHECK:     ret void
 }
 
 // CHECK-LABEL: define internal swiftcc void @"$s14resilient_enum6MediumOSiIgnd_ACSiIegnr_TRTA"(ptr noalias nocapture sret({{.*}}) %0, ptr noalias %1, ptr swiftself %2)
@@ -268,7 +290,7 @@ public func getResilientEnumType() -> Any.Type {
 // CHECK-NEXT: br i1 [[COND]], label %cacheIsNull, label %cont
 
 // CHECK: cacheIsNull:
-// CHECK-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, ptr @"$s15enum_resilience24EnumWithResilientPayloadOMn")
+// CHECK-NEXT: [[RESPONSE:%.*]] = call swiftcc %swift.metadata_response @swift_getSingletonMetadata([[INT]] %0, ptr @"$s15enum_resilience24EnumWithResilientPayloadOMn{{(\.ptrauth.*)?}}")
 // CHECK-NEXT: [[RESPONSE_METADATA:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 0
 // CHECK-NEXT: [[RESPONSE_STATE:%.*]] = extractvalue %swift.metadata_response [[RESPONSE]], 1
 // CHECK-NEXT: br label %cont
@@ -307,9 +329,12 @@ public func constructExhaustiveWithResilientMembers() -> SimpleShape {
   return .KleinBottle
 }
 
-// CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i{{64|32}}, i8 } @"$s15enum_resilience19constructFullyFixed010resilient_A00dE6LayoutOyF"()
-// CHECK: ret { [[INT]], i8 } { [[INT]] 0, i8 1 }
-// CHECK-NEXT: {{^}$}}
+// CHECK-64-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i{{64|32}}, i8 } @"$s15enum_resilience19constructFullyFixed010resilient_A00dE6LayoutOyF"()
+// CHECK-64: ret { [[INT]], i8 } { [[INT]] 0, i8 1 }
+// CHECK-64-NEXT: {{^}$}}
+// CHECK-32-LABEL: define{{( dllexport)?}}{{( protected)?}} swiftcc { i{{64|32}}, i8 } @"$s15enum_resilience19constructFullyFixed010resilient_A00dE6LayoutOyF"()
+// CHECK-32: ret { [[INT]], i8 } { [[INT]] 0, i8 1 }
+// CHECK-32-NEXT: {{^}$}}
 public func constructFullyFixed() -> FullyFixedLayout {
   return .noPayload
 }
@@ -324,6 +349,9 @@ public func constructFullyFixed() -> FullyFixedLayout {
 // CHECK:      [[SATISFIED1]]:
 // CHECK-NEXT:   [[T1:%.*]] = getelementptr inbounds ptr, ptr [[SIZE_METADATA]], [[INT]] -1
 // CHECK-NEXT:   [[SIZE_VWT:%.*]] = load ptr, ptr [[T1]],
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T1]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[SIZE_VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK-NEXT:   [[SIZE_LAYOUT_1:%.*]] = getelementptr inbounds ptr, ptr [[SIZE_VWT]], i32 8
 // CHECK-NEXT:   store ptr [[SIZE_LAYOUT_1]],
 // CHECK-NEXT:   getelementptr

@@ -5,12 +5,12 @@
 // RUN:   -emit-module-path=%t/resilient_struct.swiftmodule \
 // RUN:   -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
 
-// RUN: %target-swift-frontend -module-name main -I %t -emit-ir -primary-file %s %S/Inputs/OtherModule.swift | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -module-name main -I %t -emit-ir -primary-file %s %S/Inputs/OtherModule.swift | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-%target-cpu
 
 // Check that we correctly handle resilience when parsing as SIL + SIB.
 // RUN: %target-swift-frontend -emit-sib -module-name main %S/Inputs/OtherModule.swift -I %t -o %t/other.sib
 // RUN: %target-swift-frontend -emit-silgen -module-name main -primary-file %s %S/Inputs/OtherModule.swift -I %t -o %t/main.sil
-// RUN: %target-swift-frontend -emit-ir -module-name main -primary-file %t/main.sil %t/other.sib -I %t | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -emit-ir -module-name main -primary-file %t/main.sil %t/other.sib -I %t | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-%target-cpu
 
 // This is a single-module version of the test case in
 // multi_module_resilience.
@@ -20,6 +20,8 @@
 // CHECK: [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s4main3FooVMa"([[INT]] 0)
 // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK: [[VWT:%.*]] = load ptr,
+// CHECK-arm64e: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 //   Allocate 'copy'.
 // CHECK: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]

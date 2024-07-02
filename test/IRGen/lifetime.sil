@@ -16,8 +16,11 @@ bb0(%x : $*T):
 }
 // CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @generic(ptr noalias %0, ptr %T) {{.*}} {
 //   Allocate it.
-// CHECK:      [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T, {{(i32|i64)}} -1
+// CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T, {{(i32|i64)}} -1
 // CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
 // CHECK-NEXT: [[Y_ALLOCA:%.*]] = alloca i8, {{.*}} [[SIZE]], align 16
@@ -53,8 +56,11 @@ bb0(%x : $*T):
 }
 // CHECK:    define{{( dllexport)?}}{{( protected)?}} swiftcc void @generic_with_reuse(ptr noalias %0, ptr %T) {{.*}} {
 //   Allocate it.
-// CHECK:      [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T, {{(i32|i64)}} -1
+// CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %T, {{(i32|i64)}} -1
 // CHECK-NEXT: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK-NEXT: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK-NEXT: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
 // CHECK-NEXT: [[Y_ALLOCA:%.*]] = alloca i8, {{.*}} [[SIZE]], align 16

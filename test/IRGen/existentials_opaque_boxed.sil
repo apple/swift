@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -disable-type-layout %s -emit-ir | %FileCheck %s -check-prefix=CHECK -check-prefix=CHECK-%target-ptrsize -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -disable-type-layout %s -emit-ir | %FileCheck %s -check-prefix=CHECK -check-prefix=CHECK-%target-ptrsize -DINT=i%target-ptrsize --check-prefix=CHECK-%target-cpu
 
 sil_stage canonical
 
@@ -50,6 +50,9 @@ entry(%0 : $*T):
 // CHECK:  [[METATYPE:%.*]] = load ptr, ptr [[METATYPE_ADDR]]
 // CHECK:  [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METATYPE]], {{(i64|i32)}} -1
 // CHECK:  [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:  [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:  [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:  [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -61,11 +64,17 @@ entry(%0 : $*T):
 // CHECK:  ret ptr [[EXISTENTIAL_BUFFER]]
 //
 // CHECK:allocateBox:
-// CHECK:  [[CALL:%.*]] = call swiftcc { ptr, ptr } @swift_allocBox(ptr [[METATYPE]])
-// CHECK:  [[BOX:%.*]] = extractvalue { ptr, ptr } [[CALL]], 0
-// CHECK:  [[ADDR:%.*]] = extractvalue { ptr, ptr } [[CALL]], 1
-// CHECK:  store ptr [[BOX]], ptr [[EXISTENTIAL_BUFFER]]
-// CHECK:  ret ptr [[ADDR]]
+// CHECK-64:  [[CALL:%.*]] = call swiftcc { ptr, ptr } @swift_allocBox(ptr [[METATYPE]])
+// CHECK-64:  [[BOX:%.*]] = extractvalue { ptr, ptr } [[CALL]], 0
+// CHECK-64:  [[ADDR:%.*]] = extractvalue { ptr, ptr } [[CALL]], 1
+// CHECK-64:  store ptr [[BOX]], ptr [[EXISTENTIAL_BUFFER]]
+// CHECK-64:  ret ptr [[ADDR]]
+//
+// CHECK-32:  [[CALL:%.*]] = call swiftcc { ptr, ptr } @swift_allocBox(ptr [[METATYPE]])
+// CHECK-32:  [[BOX:%.*]] = extractvalue { ptr, ptr } [[CALL]], 0
+// CHECK-32:  [[ADDR:%.*]] = extractvalue { ptr, ptr } [[CALL]], 1
+// CHECK-32:  store ptr [[BOX]], ptr [[EXISTENTIAL_BUFFER]]
+// CHECK-32:  ret ptr [[ADDR]]
 
 // CHECK-LABEL: define {{.*}} @test_init_existential_fixed
 // CHECK:  [[CONTAINER:%.*]] = alloca %T25existentials_opaque_boxed11ExistentialP
@@ -143,6 +152,9 @@ entry:
 // CHECK:   [[META:%.*]] = load ptr, ptr [[META_ADDR]]
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %2, {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -157,6 +169,9 @@ entry:
 // CHECK:   [[REFERENCE:%.*]] = load ptr, ptr [[BUFFER]]
 // CHECK:   [[VWT_ADDR2:%.*]] = getelementptr inbounds ptr, ptr [[META]], {{(i64|i32)}} -1
 // CHECK:   [[VWT2:%.*]] = load ptr, ptr [[VWT_ADDR2]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR2]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT2:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[SIZE2_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT2]], i32 0, i32 8
 // CHECK:   [[SIZE:%.*]] = load [[INT]], ptr [[SIZE2_ADDR]]
 // CHECK-64:[[T0:%.*]] = zext i32 [[FLAGS]] to i64
@@ -189,6 +204,9 @@ bb0(%0 : $*Existential):
 // CHECK-LABEL: define{{( dllexport)?}}{{( protected)?}} linkonce_odr hidden ptr @__swift_project_boxed_opaque_existential_1(ptr %0, ptr %1)
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %1, {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -208,7 +226,7 @@ bb0(%0 : $*Existential):
 // CHECK:   [[HEADERSIZEPLUSALIGN:%.*]] = add {{(i64 16|i32 8)}}, [[ALIGNMASK]]
 // CHECK:   [[NOTALIGNMASK:%.*]] = xor {{(i64|i32)}} [[ALIGNMASK]], -1
 // CHECK:   [[ALIGNEDSTART:%.*]] = and {{(i64|i32)}} [[HEADERSIZEPLUSALIGN]], [[NOTALIGNMASK]]
-// CHECK:   [[STARTOFVALUE:%.*]] = getelementptr inbounds i8, ptr %5, {{(i64|i32)}} [[ALIGNEDSTART]]
+// CHECK:   [[STARTOFVALUE:%.*]] = getelementptr inbounds i8, ptr [[REF]], {{(i64|i32)}} [[ALIGNEDSTART]]
 // CHECK:   ret ptr [[STARTOFVALUE]]
 
 
@@ -229,6 +247,9 @@ bb0(%0 : $*Existential):
 // CHECK: define{{( dllexport)?}}{{( protected)?}} linkonce_odr hidden ptr @__swift_mutable_project_boxed_opaque_existential_1(ptr %0, ptr %1)
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr %1, {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -244,9 +265,10 @@ bb0(%0 : $*Existential):
 // CHECK-32:[[ALIGNMASK:%.*]] = and i32 [[FLAGS]], 255
 // CHECK-16:[[T0:%.*]] = trunc i32 [[FLAGS]] to i16
 // CHECK-16:[[ALIGNMASK:%.*]] = and i16 [[T0]], 255
-// CHECK:  [[REFANDADDR:%.*]] = call swiftcc { ptr, ptr } @swift_makeBoxUnique(ptr %0, ptr %1, {{(i64|i32)}} [[ALIGNMASK]])
-// CHECK:  [[REF:%.*]] = extractvalue { ptr, ptr } [[REFANDADDR]], 0
-// CHECK:  [[ADDR:%.*]] = extractvalue { ptr, ptr } [[REFANDADDR]], 1
+// CHECK-64:  [[REFANDADDR:%.*]] = call swiftcc { ptr, ptr } @swift_makeBoxUnique(ptr %0, ptr %1, {{(i64|i32)}} [[ALIGNMASK]])
+// CHECK-32:  [[REFANDADDR:%.*]] = call swiftcc { ptr, ptr } @swift_makeBoxUnique(ptr %0, ptr %1, {{(i64|i32)}} [[ALIGNMASK]])
+// CHECK:  [[REF:%.*]] = extractvalue {{.*}}{ ptr, ptr }{{.*}} [[REFANDADDR]], 0
+// CHECK:  [[ADDR:%.*]] = extractvalue {{.*}}{ ptr, ptr }{{.*}} [[REFANDADDR]], 1
 // CHECK:  ret ptr [[ADDR]]
 
 
@@ -273,6 +295,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK:  [[BUFFER_ADDR:%.*]] = getelementptr inbounds %__opaque_existential_type_1, ptr %0, i32 0, i32 0
 // CHECK:  [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], {{(i64|i32)}} -1
 // CHECK:  [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:  [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:  [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:  [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -282,6 +307,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: inline:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 1
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VW_ADDR]]
 // CHECK:   call void [[VW]](ptr noalias [[BUFFER_ADDR]], ptr [[METADATA]])
@@ -333,6 +361,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: match:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[DEST_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
 // CHECK:   [[FLAGS:%.*]] = load i32, ptr [[FLAGS_ADDR]]
 // CHECK:   [[ISNOTINLINE:%.*]] = and i32 [[FLAGS]], 131072
@@ -342,6 +373,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: match-inline:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[DEST_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 3
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VW_ADDR]]
 // CHECK:   call ptr [[VW]](ptr [[DEST_BUFFERADDR]], ptr [[SRC_BUFFERADDR]], ptr [[DEST_TYPE]])
@@ -363,12 +397,18 @@ bb0(%0 : $*OtherExistential):
 // CHECK:   store ptr [[SRC_PTW]], ptr [[DEST_PWT_ADDR]]
 // CHECK:   [[DEST_VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[DEST_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[DEST_VWT:%.*]] = load ptr, ptr [[DEST_VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[DEST_VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[DEST_VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[DEST_FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[DEST_VWT]], i32 0, i32 10
 // CHECK:   [[DEST_FLAGS:%.*]] = load i32, ptr [[DEST_FLAGS_ADDR]]
 // CHECK:   [[DEST_ISNOTINLINE:%.*]] = and i32 [[DEST_FLAGS]], 131072
 // CHECK:   [[DEST_ISINLINE:%.*]] = icmp eq i32 [[DEST_ISNOTINLINE]], 0
 // CHECK:   [[SRC_VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[SRC_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[SRC_VWT:%.*]] = load ptr, ptr [[SRC_VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[SRC_VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[SRC_VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[SRC_FLAGS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[SRC_VWT]], i32 0, i32 10
 // CHECK:   [[SRC_FLAGS:%.*]] = load i32, ptr [[SRC_FLAGS_ADDR]]
 // CHECK:   [[SRC_ISNOTINLINE:%.*]] = and i32 [[SRC_FLAGS]], 131072
@@ -378,6 +418,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: dest-inline:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[DEST_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 4
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VW_ADDR]]
 // CHECK:   call ptr [[VW]](ptr noalias [[TMPBUFFER]], ptr noalias [[DEST_BUFFERADDR]], ptr [[DEST_TYPE]])
@@ -386,6 +429,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: dest-inline-src-inline:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[SRC_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VW_ADDR]]
 // CHECK:   call ptr [[VW]](ptr noalias [[DEST_BUFFERADDR]], ptr noalias [[SRC_BUFFERADDR]], ptr [[SRC_TYPE]])
@@ -400,6 +446,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: dest-inline-cont:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[DEST_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 1
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VW_ADDR]]
 // CHECK:   call void [[VW]](ptr noalias [[TMPBUFFER]], ptr [[DEST_TYPE]])
@@ -412,6 +461,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK: dest-outline-src-inline:
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[SRC_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[VWT]], i32 2
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VW_ADDR]]
 // CHECK:   call ptr [[VW]](ptr noalias [[DEST_BUFFERADDR]], ptr noalias [[SRC_BUFFERADDR]], ptr [[SRC_TYPE]])
@@ -496,6 +548,9 @@ bb0(%0 : $*OtherExistential):
 // CHECK:   [[BUFFER_LOCAL_ADDR:%.*]] = getelementptr inbounds %T25existentials_opaque_boxed11ExistentialP, ptr %1, i32 0, i32 0
 // CHECK:   [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[ARG_TYPE]], {{(i64|i32)}} -1
 // CHECK:   [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK:   [[VW:%.*]] = load ptr, ptr [[VWT]]
 // CHECK:     call ptr [[VW]]({{.*}} noalias [[BUFFER_LOCAL_ADDR]], {{.*}} noalias [[BUFFER_ARG_ADDR]], ptr [[ARG_TYPE]])
 // CHECK:   ret ptr %1

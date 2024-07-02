@@ -1,7 +1,7 @@
 // RUN: %empty-directory(%t)
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_struct.swiftmodule -module-name=resilient_struct %S/../Inputs/resilient_struct.swift
 // RUN: %target-swift-frontend -emit-module -enable-library-evolution -emit-module-path=%t/resilient_enum.swiftmodule -module-name=resilient_enum -I %t %S/../Inputs/resilient_enum.swift
-// RUN: %target-swift-frontend -module-name struct_resilience -Xllvm -sil-disable-pass=MandatoryARCOpts -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s
+// RUN: %target-swift-frontend -module-name struct_resilience -Xllvm -sil-disable-pass=MandatoryARCOpts -I %t -emit-ir -enable-library-evolution %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-cpu
 // RUN: %target-swift-frontend -module-name struct_resilience -I %t -emit-ir -enable-library-evolution -O %s
 
 import resilient_struct
@@ -22,6 +22,9 @@ public func functionWithResilientTypesSize(_ s: __owned Size, f: (__owned Size) 
 // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
 // CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
 // CHECK: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
 // CHECK-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK: [[WITNESS_FOR_SIZE:%.*]] = load [[INT]], ptr [[WITNESS_ADDR]]
@@ -201,6 +204,9 @@ public func memoryLayoutDotSizeWithResilientStruct() -> Int {
   // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
   // CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
   // CHECK: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+  // CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+  // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+  // CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
   // CHECK-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
   // CHECK: [[WITNESS_FOR_SIZE:%.*]] = load [[INT]], ptr [[WITNESS_ADDR]]
@@ -216,6 +222,9 @@ public func memoryLayoutDotStrideWithResilientStruct() -> Int {
   // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
   // CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
   // CHECK: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+  // CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+  // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+  // CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
   // CHECK-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 9
   // CHECK: [[WITNESS_FOR_STRIDE:%.*]] = load [[INT]], ptr [[WITNESS_ADDR]]
@@ -231,6 +240,9 @@ public func memoryLayoutDotAlignmentWithResilientStruct() -> Int {
   // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[TMP]], 0
   // CHECK: [[VWT_ADDR:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], [[INT]] -1
   // CHECK: [[VWT:%.*]] = load ptr, ptr [[VWT_ADDR]]
+  // CHECK-arm64e-NEXT: ptrtoint ptr [[VWT_ADDR]] to i64
+  // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+  // CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 
   // CHECK-NEXT: [[WITNESS_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 10
   // CHECK: [[WITNESS_FOR_FLAGS:%.*]] = load i32, ptr [[WITNESS_ADDR]]
@@ -282,6 +294,9 @@ public func memoryLayoutDotOffsetOfWithResilientStruct() -> Int? {
 // CHECK: [[SIZE_METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[SIZE_METADATA]], [[INT]] -1
 // CHECK: [[SIZE_VWT:%.*]] = load ptr, ptr [[T1]],
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T1]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[SIZE_VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK: [[SIZE_LAYOUT_1:%.*]] = getelementptr inbounds ptr, ptr [[SIZE_VWT]], i32 8
 // CHECK: [[FIELD_1:%.*]] = getelementptr inbounds ptr, ptr [[FIELDS_ADDR]], i32 0
 // CHECK: store ptr [[SIZE_LAYOUT_1:%.*]], ptr [[FIELD_1]]

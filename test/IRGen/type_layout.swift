@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -emit-ir %s | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize -DINT=i%target-ptrsize --check-prefix=CHECK-%target-cpu
 
 class C {}
 
@@ -37,6 +37,9 @@ struct TypeLayoutTest<T> {
   // CHECK:       br i1 [[T_OK]],
   // CHECK:       [[T1:%.*]] = getelementptr inbounds ptr, ptr [[T_CHECKED]], {{i32|i64}} -1
   // CHECK:       [[T_VALUE_WITNESSES:%.*]] = load ptr, ptr [[T1]]
+  // CHECK-arm64e-NEXT: ptrtoint ptr [[T1]] to i64
+  // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+  // CHECK-arm64e: [[T_VALUE_WITNESSES:%.*]] = inttoptr i64 {{%.*}} to ptr
   // CHECK:       [[T_LAYOUT:%.*]] = getelementptr inbounds ptr, ptr [[T_VALUE_WITNESSES]], i32 8
   // CHECK:       store ptr [[T_LAYOUT]]
   var z: T
@@ -73,6 +76,9 @@ struct TypeLayoutTest<T> {
   // CHECK:       br i1 [[METADATA_OK]],
   // CHECK:       [[T1:%.*]] = getelementptr inbounds ptr, ptr [[METADATA]], {{i32|i64}} -1
   // CHECK:       [[VALUE_WITNESSES:%.*]] = load ptr, ptr [[T1]]
+  // CHECK-arm64e-NEXT: ptrtoint ptr [[T1]] to i64
+  // CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+  // CHECK-arm64e: [[VALUE_WITNESSES:%.*]] = inttoptr i64 {{%.*}} to ptr
   // CHECK:       [[LAYOUT:%.*]] = getelementptr inbounds ptr, ptr [[VALUE_WITNESSES]], i32 8
   // CHECK:       store ptr [[LAYOUT]]
   var j: GMult<T>

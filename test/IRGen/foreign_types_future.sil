@@ -21,7 +21,7 @@ import c_layout
 // CHECK-SAME: @"$sSo14HasNestedUnionVMa"
 
 // CHECK-LABEL: @"$sSo14HasNestedUnionV18__Unnamed_struct_sVMf" = linkonce_odr hidden constant
-// CHECK-SAME:  @"$sSo14HasNestedUnionV18__Unnamed_struct_sVWV"
+// CHECK-SAME:  @"$sSo14HasNestedUnionV18__Unnamed_struct_sVWV{{(\.ptrauth)?}}"
 // CHECK-SAME:  [[INT]] 512,
 // CHECK-SAME:  @"$sSo14HasNestedUnionV18__Unnamed_struct_sVMn
 // CHECK-SAME:  i32 0,

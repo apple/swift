@@ -9,7 +9,7 @@
 // RUN:   -emit-module-path=%t/OtherModule.swiftmodule \
 // RUN:   -module-name=OtherModule %S/Inputs/OtherModule.swift
 
-// RUN: %target-swift-frontend -module-name main -I %t -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -module-name main -I %t -emit-ir %s | %FileCheck %s -DINT=i%target-ptrsize --check-prefix=CHECK --check-prefix=CHECK-%target-cpu
 
 // rdar://39763787
 
@@ -19,6 +19,8 @@ import OtherModule
 // CHECK: [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s11OtherModule3FooVMa"([[INT]] 0)
 // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK: [[VWT:%.*]] = load ptr,
+// CHECK-arm64e: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 //   Allocate 'copy'.
 // CHECK: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]
@@ -38,6 +40,8 @@ public func copyFoo(foo: Foo) -> Foo {
 // CHECK: [[T0:%.*]] = call swiftcc %swift.metadata_response @"$s11OtherModule3BarVMa"([[INT]] 0)
 // CHECK: [[METADATA:%.*]] = extractvalue %swift.metadata_response [[T0]], 0
 // CHECK: [[VWT:%.*]] = load ptr,
+// CHECK-arm64e: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VWT:%.*]] = inttoptr i64 {{%.*}} to ptr
 //   Allocate 'copy'.
 // CHECK: [[SIZE_ADDR:%.*]] = getelementptr inbounds %swift.vwtable, ptr [[VWT]], i32 0, i32 8
 // CHECK: [[SIZE:%.*]] = load [[INT]], ptr [[SIZE_ADDR]]

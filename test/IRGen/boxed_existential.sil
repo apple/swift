@@ -26,7 +26,8 @@ entry(%x : $*T):
   // CHECK: [[ADDR:%.*]] = extractvalue { ptr, ptr } [[BOX_PAIR]], 1
   %b = alloc_existential_box $Error, $T
   %p = project_existential_box $T in %b : $Error
-  // CHECK: [[INITWITHTAKE:%.*]] = load ptr, ptr %5
+  // CHECK: load ptr, ptr
+  // CHECK: [[INITWITHTAKE:%.*]] = load ptr, ptr
   // CHECK: call ptr [[INITWITHTAKE]](ptr noalias [[ADDR]], ptr noalias %0, ptr %T)
   copy_addr [take] %x to [init] %p : $*T
   // CHECK: ret ptr [[BOX]]

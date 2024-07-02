@@ -1,4 +1,4 @@
-// RUN: %target-swift-frontend -disable-type-layout %s -gnone -emit-ir -I %S/Inputs | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize -DINT=i%target-ptrsize
+// RUN: %target-swift-frontend -disable-type-layout %s -gnone -emit-ir -I %S/Inputs | %FileCheck %s --check-prefix=CHECK --check-prefix=CHECK-%target-ptrsize -DINT=i%target-ptrsize --check-prefix=CHECK-%target-cpu
 
 import Builtin
 
@@ -432,6 +432,9 @@ entry(%a : $*EitherOr<T, C>, %b : $*EitherOr<T, C>):
 // CHECK-NEXT: br i1 [[T_OK]],
 // CHECK: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[T_CHECKED]]
 // CHECK-NEXT: [[VALUE_WITNESSES:%.*]] = load ptr, ptr [[T1]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T1]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VALUE_WITNESSES:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK-NEXT: [[LAYOUT:%.*]] = getelementptr inbounds ptr, ptr [[VALUE_WITNESSES]], i32 8
 // CHECK-NEXT: store ptr [[LAYOUT]], {{.*}} [[BUF0]]
 
@@ -443,6 +446,9 @@ entry(%a : $*EitherOr<T, C>, %b : $*EitherOr<T, C>):
 // CHECK-NEXT: br i1 [[U_OK]],
 // CHECK: [[T1:%.*]] = getelementptr inbounds ptr, ptr [[U_CHECKED]]
 // CHECK-NEXT: [[VALUE_WITNESSES:%.*]] = load ptr, ptr [[T1]]
+// CHECK-arm64e-NEXT: ptrtoint ptr [[T1]] to i64
+// CHECK-arm64e-NEXT: call i64 @llvm.ptrauth.blend
+// CHECK-arm64e: [[VALUE_WITNESSES:%.*]] = inttoptr i64 {{%.*}} to ptr
 // CHECK-NEXT: [[LAYOUT:%.*]] = getelementptr inbounds ptr, ptr [[VALUE_WITNESSES]], i32 8
 // CHECK-NEXT: store ptr [[LAYOUT]], {{.*}} [[BUF1]]
 
