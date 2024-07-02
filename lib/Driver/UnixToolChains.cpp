@@ -10,8 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <fstream>
-
 #include "ToolChains.h"
 
 #include "swift/Basic/Assertions.h"
@@ -86,26 +84,22 @@ ToolChain::InvocationInfo toolchains::GenericUnix::constructInvocation(
 
   return II;
 }
-// Amazon Linux 2023 requires lld as the default linker.
-bool isAmazonLinux2023Host() {
-      std::ifstream file("/etc/os-release");
-      std::string line;
-
-      while (std::getline(file, line)) {
-        if (line.substr(0, 12) == "PRETTY_NAME=") {
-          if (line.substr(12) == "\"Amazon Linux 2023\"") {
-            file.close();
-            return true;
-          }
-        }
-      }
-      return false;
-    }
 
 std::string toolchains::GenericUnix::getDefaultLinker() const {
-  if (getTriple().isAndroid() || isAmazonLinux2023Host()
-      || (getTriple().isMusl()
-          && getTriple().getVendor() == llvm::Triple::Swift))
+  // If a default linker is specified explicitly through the build-system, use
+  // that as the default linker and don't get clever.
+  // If no linker is specified, then we can go ahead and use a heuristic.
+  // Why does this use "CLANG_DEFAULT_LINKER"?
+  // The new Swift driver calls directly into clang as the linker driver.
+  // That means that the new Swift driver will use whatever that clang was built
+  // to use, which means that it will default to "CLANG_DEFAULT_LINKER".
+  // In order to keep the new and old drivers consistent, we use the
+  // "CLANG_DEFAULT_LINKER" setting.
+#ifdef CLANG_DEFAULT_LINKER
+  return CLANG_DEFAULT_LINKER;
+#else
+  if (getTriple().isAndroid() ||
+      (getTriple().isMusl() && getTriple().getVendor() == llvm::Triple::Swift))
     return "lld";
 
   switch (getTriple().getArch()) {
@@ -131,6 +125,7 @@ std::string toolchains::GenericUnix::getDefaultLinker() const {
     // Otherwise, use the default BFD linker.
     return "";
   }
+#endif // CLANG_DEFAULT_LINKER
 }
 
 bool toolchains::GenericUnix::addRuntimeRPath(const llvm::Triple &T,
