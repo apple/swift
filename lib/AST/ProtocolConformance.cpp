@@ -185,7 +185,14 @@ usesDefaultDefinition(AssociatedTypeDecl *requirement) const {
 bool ProtocolConformance::isRetroactive() const {
   auto extensionModule = getDeclContext()->getParentModule();
   auto protocolModule = getProtocol()->getParentModule();
-  if (extensionModule->isSameModuleLookingThroughOverlays(protocolModule)) {
+  
+  auto isSameRetroactiveContext = 
+    [](ModuleDecl *moduleA, ModuleDecl *moduleB) -> bool {
+      return moduleA->isSameModuleLookingThroughOverlays(moduleB) ||
+        moduleA->inSamePackage(moduleB);
+    };
+  
+  if (isSameRetroactiveContext(extensionModule, protocolModule)) {
     return false;
   }
 
@@ -193,8 +200,7 @@ bool ProtocolConformance::isRetroactive() const {
       ConformingType->getNominalOrBoundGenericNominal();
   if (conformingTypeDecl) {
     auto conformingTypeModule = conformingTypeDecl->getParentModule();
-    if (extensionModule->
-        isSameModuleLookingThroughOverlays(conformingTypeModule)) {
+    if (isSameRetroactiveContext(extensionModule, conformingTypeModule)) {
       return false;
     }
   }
