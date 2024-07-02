@@ -653,7 +653,7 @@ public:
     return Bits.NormalProtocolConformance.HasComputedAssociatedConformances;
   }
 
-  /// Mark this conformance as having computed the assocaited conformance array.
+  /// Mark this conformance as having computed the associated conformance array.
   void setHasComputedAssociatedConformances() {
     Bits.NormalProtocolConformance.HasComputedAssociatedConformances = true;
   }
