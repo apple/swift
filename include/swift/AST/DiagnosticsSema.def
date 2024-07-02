@@ -7867,7 +7867,7 @@ ERROR(noncopyable_types_cannot_be_resilient, none,
       "supported",
       (const ValueDecl *))
 ERROR(noncopyable_cannot_have_read_set_accessor,none,
-      "noncopyable %select{variable|subscript}0 cannot provide a read and set member",
+      "noncopyable %select{variable|subscript}0 cannot provide a read and set",
       (unsigned))
 
 ERROR(nonescapable_types_attr_disabled,none,
