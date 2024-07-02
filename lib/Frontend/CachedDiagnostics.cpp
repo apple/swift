@@ -16,11 +16,11 @@
 
 #include "swift/Frontend/CachedDiagnostics.h"
 
+#include "swift/AST/DiagnosticBridge.h"
 #include "swift/AST/DiagnosticConsumer.h"
 #include "swift/AST/DiagnosticsFrontend.h"
 #include "swift/Basic/Assertions.h"
 #include "swift/Basic/SourceManager.h"
-#include "swift/Frontend/CachingUtils.h"
 #include "swift/Frontend/Frontend.h"
 #include "swift/Frontend/FrontendInputsAndOutputs.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -101,6 +101,7 @@ struct SerializedGeneratedFileInfo {
   unsigned FileID;
   SerializedCharSourceRange OriginalRange;
   SerializedCharSourceRange GeneratedRange;
+  std::string MacroName;
 };
 
 struct DiagnosticSerializer {
@@ -285,6 +286,7 @@ struct MappingTraits<SerializedGeneratedFileInfo> {
     io.mapRequired("FileID", Info.FileID);
     io.mapRequired("OriginalRange", Info.OriginalRange);
     io.mapRequired("GeneratedRange", Info.GeneratedRange);
+    io.mapOptional("MacroName", Info.MacroName, "");
   }
 };
 
@@ -353,7 +355,7 @@ unsigned DiagnosticSerializer::getFileIDFromBufferID(SourceManager &SM,
       [&](const GeneratedSourceInfo &Info) -> SerializedGeneratedFileInfo {
     return {(uint8_t)Info.kind, CurrentFileID,
             convertSourceRange(SM, Info.originalSourceRange),
-            convertSourceRange(SM, Info.generatedSourceRange)};
+            convertSourceRange(SM, Info.generatedSourceRange), Info.macroName};
   };
   if (Info) {
     auto GI = convertGeneratedFileInfo(*Info);
@@ -567,6 +569,7 @@ llvm::Error DiagnosticSerializer::deserializeGeneratedFileInfo(
   if (!GeneratedRange)
     return GeneratedRange.takeError();
   Info.generatedSourceRange = *GeneratedRange;
+  Info.macroName = GI.MacroName;
   SrcMgr.setGeneratedSourceInfo(ID->second, Info);
   return llvm::Error::success();
 }

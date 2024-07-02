@@ -18,13 +18,13 @@
 #ifndef SWIFT_PRINTINGDIAGNOSTICCONSUMER_H
 #define SWIFT_PRINTINGDIAGNOSTICCONSUMER_H
 
+#include "swift/AST/DiagnosticBridge.h"
 #include "swift/AST/DiagnosticConsumer.h"
 #include "swift/Basic/DiagnosticOptions.h"
 #include "swift/Basic/LLVM.h"
 
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace swift {
 
@@ -43,16 +43,7 @@ class PrintingDiagnosticConsumer : public DiagnosticConsumer {
   bool SuppressOutput = false;
 
   /// swift-syntax rendering
-
-  /// A queued up source file known to the queued diagnostics.
-  using QueuedBuffer = void *;
-
-  /// The queued diagnostics structure.
-  void *queuedDiagnostics = nullptr;
-  llvm::DenseMap<unsigned, QueuedBuffer> queuedBuffers;
-
-  /// Source file syntax nodes cached by { source manager, buffer ID }.
-  llvm::DenseMap<std::pair<SourceManager *, unsigned>, void *> sourceFileSyntax;
+  DiagnosticBridge DiagBridge;
 
 public:
   PrintingDiagnosticConsumer(llvm::raw_ostream &stream = llvm::errs());

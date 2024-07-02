@@ -16,9 +16,8 @@
 
 #include "swift/Frontend/PrintingDiagnosticConsumer.h"
 #include "swift/AST/ASTBridging.h"
+#include "swift/AST/DiagnosticBridge.h"
 #include "swift/AST/DiagnosticEngine.h"
-#include "swift/AST/DiagnosticsCommon.h"
-#include "swift/Basic/Assertions.h"
 #include "swift/Basic/ColorUtils.h"
 #include "swift/Basic/LLVM.h"
 #include "swift/Basic/SourceManager.h"
@@ -27,12 +26,8 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/Support/FormatAdapters.h"
-#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
-#include <cmath>
 
 using namespace swift;
 using namespace swift::markup;
@@ -232,139 +227,6 @@ namespace {
     }
 } // end anonymous namespace
 
-#if SWIFT_BUILD_SWIFT_SYNTAX
-/// Enqueue a diagnostic with ASTGen's diagnostic rendering.
-static void enqueueDiagnostic(
-    void *queuedDiagnostics, const DiagnosticInfo &info, SourceManager &SM
-) {
-  llvm::SmallString<256> text;
-  {
-    llvm::raw_svector_ostream out(text);
-    DiagnosticEngine::formatDiagnosticText(out, info.FormatString,
-                                           info.FormatArgs);
-  }
-
-  BridgedDiagnosticSeverity severity;
-  switch (info.Kind) {
-  case DiagnosticKind::Error:
-    severity = BridgedDiagnosticSeverity::BridgedError;
-    break;
-
-  case DiagnosticKind::Warning:
-    severity = BridgedDiagnosticSeverity::BridgedWarning;
-    break;
-
-  case DiagnosticKind::Remark:
-    severity = BridgedDiagnosticSeverity::BridgedRemark;
-    break;
-
-  case DiagnosticKind::Note:
-    severity = BridgedDiagnosticSeverity::BridgedNote;
-    break;
-  }
-
-  // Map the highlight ranges.
-  SmallVector<const void *, 2> highlightRanges;
-  for (const auto &range : info.Ranges) {
-    if (range.isInvalid())
-      continue;
-
-    highlightRanges.push_back(range.getStart().getOpaquePointerValue());
-    highlightRanges.push_back(range.getEnd().getOpaquePointerValue());
-  }
-
-  // FIXME: Translate Fix-Its.
-
-  swift_ASTGen_addQueuedDiagnostic(
-      queuedDiagnostics, text.data(), text.size(), severity,
-      info.Loc.getOpaquePointerValue(),
-      highlightRanges.data(), highlightRanges.size() / 2);
-}
-
-/// Retrieve the stack of source buffers from the provided location out to
-/// a physical source file, with source buffer IDs for each step along the way
-/// due to (e.g.) macro expansions or generated code.
-///
-/// The resulting vector will always contain valid source locations. If the
-/// initial location is invalid, the result will be empty.
-static SmallVector<unsigned, 1> getSourceBufferStack(
-    SourceManager &sourceMgr, SourceLoc loc) {
-  SmallVector<unsigned, 1> stack;
-  while (true) {
-    if (loc.isInvalid())
-      return stack;
-
-    unsigned bufferID = sourceMgr.findBufferContainingLoc(loc);
-    stack.push_back(bufferID);
-
-    auto generatedSourceInfo = sourceMgr.getGeneratedSourceInfo(bufferID);
-    if (!generatedSourceInfo)
-      return stack;
-
-    loc = generatedSourceInfo->originalSourceRange.getStart();
-  }
-}
-
-void *PrintingDiagnosticConsumer::getSourceFileSyntax(
-    SourceManager &sourceMgr, unsigned bufferID, StringRef displayName) {
-  auto known = sourceFileSyntax.find({&sourceMgr, bufferID});
-  if (known != sourceFileSyntax.end())
-    return known->second;
-
-  auto bufferContents = sourceMgr.getEntireTextForBuffer(bufferID);
-  auto sourceFile = swift_ASTGen_parseSourceFile(
-      bufferContents.data(), bufferContents.size(),
-      "module", displayName.str().c_str(), /*ctx*/ nullptr);
-
-  sourceFileSyntax[{&sourceMgr, bufferID}] = sourceFile;
-  return sourceFile;
-}
-
-void PrintingDiagnosticConsumer::queueBuffer(
-    SourceManager &sourceMgr, unsigned bufferID) {
-  QueuedBuffer knownSourceFile = queuedBuffers[bufferID];
-  if (knownSourceFile)
-    return;
-
-  // Find the parent and position in parent, if there is one.
-  int parentID = -1;
-  int positionInParent = 0;
-  std::string displayName;
-  auto generatedSourceInfo = sourceMgr.getGeneratedSourceInfo(bufferID);
-  if (generatedSourceInfo) {
-    SourceLoc parentLoc = generatedSourceInfo->originalSourceRange.getEnd();
-    if (parentLoc.isValid()) {
-      parentID = sourceMgr.findBufferContainingLoc(parentLoc);
-      positionInParent = sourceMgr.getLocOffsetInBuffer(parentLoc, parentID);
-
-      // Queue the parent buffer.
-      queueBuffer(sourceMgr, parentID);
-    }
-
-    if (DeclName macroName =
-            getGeneratedSourceInfoMacroName(*generatedSourceInfo)) {
-      SmallString<64> buffer;
-      if (generatedSourceInfo->attachedMacroCustomAttr)
-        displayName = ("macro expansion @" + macroName.getString(buffer)).str();
-      else
-        displayName = ("macro expansion #" + macroName.getString(buffer)).str();
-    }
-  }
-
-  if (displayName.empty()) {
-    displayName = sourceMgr.getDisplayNameForLoc(
-        sourceMgr.getLocForBufferStart(bufferID)).str();
-  }
-
-  auto sourceFile = getSourceFileSyntax(sourceMgr, bufferID, displayName);
-  swift_ASTGen_addQueuedSourceFile(
-      queuedDiagnostics, bufferID, sourceFile,
-      (const uint8_t*)displayName.data(), displayName.size(),
-      parentID, positionInParent);
-  queuedBuffers[bufferID] = sourceFile;
-}
-#endif // SWIFT_BUILD_SWIFT_SYNTAX
-
 // MARK: Main DiagnosticConsumer entrypoint.
 void PrintingDiagnosticConsumer::handleDiagnostic(SourceManager &SM,
                                                   const DiagnosticInfo &Info) {
@@ -382,18 +244,13 @@ void PrintingDiagnosticConsumer::handleDiagnostic(SourceManager &SM,
   case DiagnosticOptions::FormattingStyle::Swift: {
 #if SWIFT_BUILD_SWIFT_SYNTAX
     // Use the swift-syntax formatter.
-    auto bufferStack = getSourceBufferStack(SM, Info.Loc);
+    auto bufferStack = DiagnosticBridge::getSourceBufferStack(SM, Info.Loc);
     if (!bufferStack.empty()) {
-      // If there are no enqueued diagnostics, or we have hit a non-note
-	// diagnostic, flush any enqueued diagnostics and start fresh.
-      if (!queuedDiagnostics || Info.Kind != DiagnosticKind::Note) {
-        flush(/*includeTrailingBreak*/ true);
-        queuedDiagnostics = swift_ASTGen_createQueuedDiagnostics();
-      }
+      if (Info.Kind != DiagnosticKind::Note)
+        DiagBridge.flush(Stream, /*includeTrailingBreak=*/true,
+                         /*forceColors=*/ForceColors);
 
-      unsigned innermostBufferID = bufferStack.front();
-      queueBuffer(SM, innermostBufferID);
-      enqueueDiagnostic(queuedDiagnostics, Info, SM);
+      DiagBridge.enqueueDiagnostic(SM, Info, bufferStack.front());
       break;
     }
 #endif
@@ -423,23 +280,8 @@ void PrintingDiagnosticConsumer::handleDiagnostic(SourceManager &SM,
 
 void PrintingDiagnosticConsumer::flush(bool includeTrailingBreak) {
 #if SWIFT_BUILD_SWIFT_SYNTAX
-  if (queuedDiagnostics) {
-    BridgedStringRef bridgedRenderedString{nullptr, 0};
-    swift_ASTGen_renderQueuedDiagnostics(queuedDiagnostics, /*contextSize=*/2,
-                                         ForceColors ? 1 : 0,
-                                         &bridgedRenderedString);
-    auto renderedString = bridgedRenderedString.unbridged();
-    if (renderedString.data()) {
-      Stream.write(renderedString.data(), renderedString.size());
-      swift_ASTGen_freeBridgedString(renderedString);
-    }
-    swift_ASTGen_destroyQueuedDiagnostics(queuedDiagnostics);
-    queuedDiagnostics = nullptr;
-    queuedBuffers.clear();
-
-    if (includeTrailingBreak)
-      Stream << "\n";
-  }
+  DiagBridge.flush(Stream, includeTrailingBreak,
+                   /*forceColors=*/ForceColors);
 #endif
 
   for (auto note : BufferedEducationalNotes) {
@@ -576,10 +418,4 @@ PrintingDiagnosticConsumer::PrintingDiagnosticConsumer(
     llvm::raw_ostream &stream)
     : Stream(stream) {}
 
-PrintingDiagnosticConsumer::~PrintingDiagnosticConsumer() {
-#if SWIFT_BUILD_SWIFT_SYNTAX
-  for (const auto &sourceFileSyntax : sourceFileSyntax) {
-    swift_ASTGen_destroySourceFile(sourceFileSyntax.second);
-  }
-#endif
-}
+PrintingDiagnosticConsumer::~PrintingDiagnosticConsumer() {}

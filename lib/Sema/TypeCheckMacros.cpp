@@ -985,6 +985,21 @@ createMacroSourceFile(std::unique_ptr<llvm::MemoryBuffer> buffer,
   GeneratedSourceInfo::Kind generatedSourceKind =
       getGeneratedSourceInfoKind(role);
 
+  /// Retrieve the macro name for a generated source info that represents
+  /// a macro expansion.
+  llvm::SmallString<64> macroName;
+  if (attr)
+    cast<DeclRefTypeRepr>(attr->getTypeRepr())
+        ->getNameRef()
+        .getFullName()
+        .getString(macroName);
+  else if (auto expansionExpr =
+               dyn_cast_or_null<MacroExpansionExpr>(target.dyn_cast<Expr *>()))
+    expansionExpr->getMacroName().getFullName().getString(macroName);
+  else if (auto expansionDecl =
+               dyn_cast_or_null<MacroExpansionDecl>(target.get<Decl *>()))
+    expansionDecl->getMacroName().getFullName().getString(macroName);
+
   // Create a new source buffer with the contents of the expanded macro.
   unsigned macroBufferID = sourceMgr.addNewSourceBuffer(std::move(buffer));
   auto macroBufferRange = sourceMgr.getRangeForBuffer(macroBufferID);
@@ -993,7 +1008,9 @@ createMacroSourceFile(std::unique_ptr<llvm::MemoryBuffer> buffer,
                                  macroBufferRange,
                                  target.getOpaqueValue(),
                                  dc,
-                                 attr};
+                                 attr,
+                                 macroName.c_str()
+  };
   sourceMgr.setGeneratedSourceInfo(macroBufferID, sourceInfo);
 
   // Create a source file to hold the macro buffer. This is automatically

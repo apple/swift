@@ -1687,10 +1687,6 @@ namespace swift {
     const StringRef Message;
   };
 
-/// Retrieve the macro name for a generated source info that represents
-/// a macro expansion.
-DeclName getGeneratedSourceInfoMacroName(const GeneratedSourceInfo &info);
-
 } // end namespace swift
 
 #endif
