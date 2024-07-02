@@ -1,9 +1,29 @@
-// RUN: %target-sil-opt -address-lowering -emit-sorted-sil -enable-sil-opaque-values -sil-verify-all %s | %FileCheck %s
-//
+// RUN: %target-sil-opt               \
+// RUN:     %s                        \
+// RUN:     -address-lowering         \
+// RUN:     -enable-sil-opaque-values \
+// RUN:     -emit-sorted-sil          \
+// RUN:     -sil-verify-all           \
+// RUN: |                             \
+// RUN: %FileCheck %s
+
 import Builtin
 import Swift
 
 sil_stage raw
+
+@_moveOnly struct NCG<T> {
+  var t: T
+  deinit
+}
+
+sil [ossa] @test_drop_deinit_1 : $@convention(thin) <T> (@in NCG<T>) -> () {
+entry(%t : @owned $NCG<T>):
+  %t2 = drop_deinit %t : $NCG<T>
+  destroy_value %t2 : $NCG<T>
+  %retval = tuple ()
+  return %retval : $()
+}
 
 // CHECK-LABEL: sil [ossa] @test_open_existential_box_value : $@convention(thin) (@in any Error) -> () {
 // CHECK: [[ALLOC:%.*]]   = alloc_stack $Any

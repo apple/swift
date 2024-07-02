@@ -1,4 +1,12 @@
-// RUN: %target-sil-opt -address-lowering -enable-sil-opaque-values -emit-sorted-sil -module-name Swift -sil-verify-all %s | %FileCheck %s
+// RUN: %target-sil-opt               \
+// RUN:     %s                        \
+// RUN:     -address-lowering         \
+// RUN:     -enable-sil-opaque-values \
+// RUN:     -emit-sorted-sil          \
+// RUN:     -module-name Swift        \
+// RUN:     -sil-verify-all           \
+// RUN: |                             \
+// RUN: %FileCheck %s
 //
 // The module name must be Swift so that declarations like Error are parsed as the correct loadable type.
 
