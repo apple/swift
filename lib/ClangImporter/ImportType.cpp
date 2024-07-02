@@ -875,7 +875,7 @@ namespace {
         }
 
         static const llvm::StringLiteral vaListNames[] = {
-          "va_list", "__gnuc_va_list", "__va_list"
+          "va_list", "__gnuc_va_list", "__isoc_va_list", "__va_list"
         };
 
         ImportHint hint = ImportHint::None;
