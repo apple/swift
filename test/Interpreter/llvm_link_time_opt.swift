@@ -1,8 +1,6 @@
 // UNSUPPORTED: OS=windows-msvc
 // static library is not well supported yet on Windows
 
-// XFAIL: OS=linux-android, OS=linux-androideabi
-
 // UNSUPPORTED: OS=xros
 
 // For LTO, the linker dlopen()'s the libLTO library, which is a scenario that

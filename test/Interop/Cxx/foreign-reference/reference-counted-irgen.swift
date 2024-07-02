@@ -1,5 +1,4 @@
 // RUN: %target-swift-emit-irgen %s -I %S/Inputs -cxx-interoperability-mode=default -Xcc -fignore-exceptions -disable-availability-checking | %FileCheck %s
-// XFAIL: OS=linux-android, OS=linux-androideabi
 // XFAIL: OS=windows-msvc
 
 import ReferenceCounted

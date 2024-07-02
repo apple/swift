@@ -11,8 +11,6 @@
 
 // RUN: %target-swift-ide-test -print-module -module-to-print=SwiftToCxxTest -I %t -source-filename=x -enable-experimental-cxx-interop -Xcc -DSWIFT_CXX_INTEROP_HIDE_SWIFT_ERROR | %FileCheck --check-prefix=INTERFACE %s
 
-// XFAIL: OS=linux-android, OS=linux-androideabi
-
 //--- header.h
 #ifndef FIRSTPASS
 #include "swiftMod.h"
