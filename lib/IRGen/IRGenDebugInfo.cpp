@@ -613,10 +613,10 @@ private:
           Kind = ".set";
           break;
         case AccessorKind::WillSet:
-          Kind = ".willset";
+          Kind = ".willSet";
           break;
         case AccessorKind::DidSet:
-          Kind = ".didset";
+          Kind = ".didSet";
           break;
         case AccessorKind::Address:
           Kind = ".addressor";
